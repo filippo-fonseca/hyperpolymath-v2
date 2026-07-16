@@ -74,6 +74,16 @@ export interface RoutineBlock {
    * call.
    */
   nlDirective?: string;
+  /**
+   * Optional INSTRUCTIONS (not a verbatim script) for what JARVIS should SAY
+   * while this block is fetching, spoken WHILE the block gathers and BEFORE
+   * its real result. The runner interprets this through a small prose-only
+   * Anthropic call so the actual filler line is non-deterministic (semantically
+   * the same, phrased differently every run). Emitted as an independent spoken
+   * turn (`${blockId}:filler`) that mirrors the routine opener and bypasses the
+   * synthesize-mode suppression that silences ordinary gather narration.
+   */
+  loadingInstruction?: string;
 }
 
 // --- The spec (JSONB payload) --------------------------------------------
@@ -83,6 +93,37 @@ export interface RoutineSpec {
   triggers: RoutineTrigger[];
   /** Ordered — array order IS execution order. */
   blocks: RoutineBlock[];
+  /**
+   * Briefing cohesion (Option C). When true, the runner GATHERS every block's
+   * data WITHOUT streaming per-block narration, then runs ONE final butler
+   * synthesis turn over all block receipts and speaks a single cohesive brief
+   * (spoken as one utterance under one turnId). Kills the disjoint-multi-message
+   * + cross-block-repetition defects for a "Daddy's Home"-style briefing.
+   *
+   * Leave false/omitted for action-only routines (e.g. "open Spotify + set
+   * focus") so they keep per-block announce-before-act latency. Optional +
+   * defaulting to off keeps every existing routine's behaviour unchanged.
+   */
+  synthesize?: boolean;
+  /**
+   * Parallel gather (synthesize-only). When true AND synthesize is true, the
+   * runner executes gather blocks CONCURRENTLY (bounded pool) instead of
+   * sequentially, since gathers are independent (no narration streams, no
+   * cross-block threading). The single synthesis turn still runs last over all
+   * receipts in block order. Ignored when synthesize is false — action routines
+   * always keep strict announce-before-act ordering.
+   */
+  parallel?: boolean;
+  /**
+   * Optional ROUTINE-LEVEL loading instruction. When set, its INTERPRETED (not
+   * verbatim) filler line REPLACES the hardcoded "Welcome home, sir" opener that
+   * plays once at routine start — spoken up front while the whole routine runs.
+   * The runner passes this through the same prose-only Anthropic call the
+   * per-block fillers use, so the spoken opener is non-deterministic every run.
+   * Distinct from and additive to per-block `loadingInstruction`s. When unset or
+   * empty, the default hardcoded opener is used unchanged.
+   */
+  loadingInstruction?: string;
 }
 
 /** Full row shape returned by the server actions (first-class cols + spec). */

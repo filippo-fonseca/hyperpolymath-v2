@@ -240,17 +240,14 @@ export function CaptureCard({
           exit={{ opacity: 0, height: 0, marginBottom: 0 }}
           transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
           className={cn(
-            // Glassy pill tile (matches SettingsSectionNav PROFILE pill):
-            // translucent surface + backdrop-blur + inset cyan glow + soft
-            // outer halo + thin cyan-tinged border. Hover deepens border to
-            // cyan and ramps the inset glow + outer halo.
-            "group relative rounded-xl ",
-            "",
-            "glass-tile",
-            "",
-            "",
+            // sd plate (WidgetCard v2 grammar): solid --sd-box surface, 1px
+            // --sd-line hairline, 14px radius, dark-only inset top hairline.
+            // No glass, no glow, no blur. Hover lifts the fill one ladder step.
+            "group relative rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)]",
+            "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors",
+            onOpen && "hover:bg-[var(--sd-hover)]",
             compact ? "px-3 py-2" : "px-5 py-4",
-            onOpen && "cursor-pointer "
+            onOpen && "cursor-pointer"
           )}
           {...(onOpen
             ? {
@@ -327,7 +324,7 @@ export function CaptureCard({
                     <MoreHorizontal size={14} />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="font-serif text-base">
+                <DropdownMenuContent align="end" className="text-sm">
                   {onOpen && <DropdownMenuItem onSelect={() => onOpen()}>Open</DropdownMenuItem>}
                   {isJarvisCreated && (
                     // D-14 / JARVIS-13 — only render this item for createdVia === "jarvis"
@@ -352,7 +349,7 @@ export function CaptureCard({
                 {userAvatarUrl ? (
                   <AvatarImage src={userAvatarUrl} alt="" referrerPolicy="no-referrer" />
                 ) : null}
-                <AvatarFallback className="font-mono text-xs text-[var(--ink-muted)]">
+                <AvatarFallback className="font-mono text-xs text-[var(--sd-ink-faint)]">
                   {userInitials ?? "·"}
                 </AvatarFallback>
               </Avatar>
@@ -383,10 +380,10 @@ export function CaptureCard({
 
       {/* Confirm dialog — UI-SPEC exact copy */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent className="font-serif">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-serif text-[20px]">Delete this capture?</DialogTitle>
-            <DialogDescription className="font-serif text-base">
+            <DialogTitle className="text-[20px]">Delete this capture?</DialogTitle>
+            <DialogDescription className="text-base">
               This can't be undone.
             </DialogDescription>
           </DialogHeader>
@@ -469,7 +466,7 @@ function CaptureBody({
             rel="noopener noreferrer"
             // Stop the card's onOpen click from firing when following the link.
             onClick={(e) => e.stopPropagation()}
-            className="text-[var(--hud-cyan)] underline decoration-[color-mix(in_oklch,var(--hud-cyan)_50%,transparent)] underline-offset-2 hover:decoration-[var(--hud-cyan)] break-all"
+            className="text-[var(--sd-accent)] underline decoration-[color-mix(in_oklch,var(--sd-accent)_50%,transparent)] underline-offset-2 hover:decoration-[var(--sd-accent)] break-all"
           >
             {seg.text}
           </a>
@@ -515,8 +512,8 @@ function CaptureBody({
 
   return (
     <div className="flex flex-col gap-2 pr-8">
-      {/* Capture body — serif throughout per UI-SPEC §5i */}
-      <div className="font-serif text-base text-[var(--ink)] whitespace-pre-wrap break-words">
+      {/* Capture body — Space Grotesk (sd register), no serif */}
+      <div className="text-[15px] leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
         {rendered}
       </div>
       {/* Issue #221: rich link-preview unfurls for URLs in this capture. */}
@@ -527,14 +524,15 @@ function CaptureBody({
           ))}
         </div>
       )}
-      {/* Metadata strip — mono timestamp + project chips per UI-SPEC §5i / §4a */}
-      <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--ink-muted)]">
+      {/* Metadata strip — mono timestamp + neutral sd chips (single cyan accent
+          reserved elsewhere; meta stays on the grey ladder). */}
+      <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--sd-ink-faint)]">
         {!compact && capture.projects.length > 0 && (
           <>
             {capture.projects.map((p) => (
               <span
                 key={p.id}
-                className="inline-flex items-center bg-[var(--surface)] border border-[var(--edge)] rounded-sm px-2 py-0.5 text-[var(--ink)]"
+                className="inline-flex items-center bg-[var(--sd-input)] border border-[var(--sd-line)] rounded-sm px-2 py-0.5 text-[var(--sd-ink-dull)]"
               >
                 {p.name}
               </span>
@@ -544,7 +542,7 @@ function CaptureBody({
         )}
         {sourceChannelLabel && (
           <>
-            <span className="inline-flex items-center bg-[var(--surface)] border border-[var(--edge)] rounded-sm px-2 py-0.5 text-[var(--ink)]">
+            <span className="inline-flex items-center bg-[var(--sd-input)] border border-[var(--sd-line)] rounded-sm px-2 py-0.5 text-[var(--sd-ink-dull)]">
               {sourceChannelLabel}
             </span>
             <span aria-hidden>·</span>

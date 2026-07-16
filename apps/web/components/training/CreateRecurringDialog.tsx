@@ -238,8 +238,8 @@ export function CreateRecurringDialog({
                     className={cn(
                       "inline-flex h-8 w-8 items-center justify-center rounded-md border font-mono text-[11px] uppercase transition-colors",
                       on
-                        ? "border-[var(--ink)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                        : "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] hover:border-[var(--edge-hud)] hover:text-[var(--ink)]",
+                        ? "border-[var(--sd-ink)] bg-[var(--sd-box)] text-[var(--sd-ink)]"
+                        : "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)]",
                     )}
                   >
                     {short}
@@ -303,7 +303,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+      <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
         {label}
       </div>
       {children}

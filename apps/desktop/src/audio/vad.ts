@@ -34,14 +34,22 @@ export class VadSilenceDetector {
   private buffer: Float32Array[];
   private totalSamples: number;
   private silentSamples: number;
-  private startMs: number;
+  // Anchor for both the leading grace window and the hard cap. Set on the FIRST
+  // pushed chunk, NOT in start(), so that the ~tens-of-ms-to-~100ms cpal input
+  // device open latency does NOT eat into the grace. In standby the mic is now
+  // fully released (audio-quality fix), so the first turn after standby pays the
+  // cold-open cost; anchoring the clock to the first real audio chunk keeps the
+  // 700ms leading-breath grace intact and stops the first word being clipped or
+  // a premature silence-end firing before speech has actually arrived. `-1`
+  // means "not yet received the first chunk".
+  private firstChunkMs: number;
 
   constructor(params: VadParams = VAD_DEFAULTS) {
     this.params = params;
     this.buffer = [];
     this.totalSamples = 0;
     this.silentSamples = 0;
-    this.startMs = 0;
+    this.firstChunkMs = -1;
   }
 
   /** Reset state and mark the start of a new turn. Call before pushing chunks. */
@@ -49,7 +57,8 @@ export class VadSilenceDetector {
     this.buffer = [];
     this.totalSamples = 0;
     this.silentSamples = 0;
-    this.startMs = Date.now();
+    // Defer the clock anchor to the first pushed chunk (see firstChunkMs).
+    this.firstChunkMs = -1;
   }
 
   /**
@@ -61,7 +70,13 @@ export class VadSilenceDetector {
     this.buffer.push(chunk);
     this.totalSamples += chunk.length;
 
-    const elapsedMs = Date.now() - this.startMs;
+    // Anchor the grace/hard-cap clock to the first real audio chunk so cold mic
+    // open latency (mic released in standby) can't clip the leading word.
+    if (this.firstChunkMs < 0) {
+      this.firstChunkMs = Date.now();
+    }
+
+    const elapsedMs = Date.now() - this.firstChunkMs;
 
     // Hard cap — unconditional stop.
     if (elapsedMs >= this.params.hardCapMs) {

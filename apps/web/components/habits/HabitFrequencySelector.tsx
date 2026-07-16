@@ -58,14 +58,24 @@ export function HabitFrequencySelector({
             aria-label={full}
             title={full}
             className={cn(
-              "inline-flex items-center justify-center w-8 h-8 rounded-md",
+              "inline-flex h-8 w-8 items-center justify-center rounded-md",
               "font-mono text-[11px] uppercase tracking-[0.04em] cursor-pointer-always",
               "border transition-colors duration-150 ease-out",
               on
-                ? "border-[var(--ink-amber)] bg-[color-mix(in_oklch,var(--ink-amber)_14%,var(--surface))] text-[var(--ink)]"
-                : "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
-              disabled && "opacity-40 cursor-not-allowed",
+                ? "border-transparent text-[var(--sd-accent)]"
+                : "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-faint)] hover:border-[color-mix(in_srgb,var(--sd-ink)_18%,var(--sd-line))] hover:text-[var(--sd-ink)]",
+              disabled && "cursor-not-allowed opacity-40",
             )}
+            style={
+              on
+                ? {
+                    borderColor:
+                      "color-mix(in srgb, var(--sd-accent) 40%, var(--sd-line))",
+                    background:
+                      "color-mix(in srgb, var(--sd-accent) 14%, var(--sd-input))",
+                  }
+                : undefined
+            }
           >
             {short}
           </button>
@@ -95,13 +105,23 @@ export function HabitFrequencyBadges({ value }: { value: boolean[] }) {
             key={idx}
             title={full}
             className={cn(
-              "inline-flex items-center justify-center w-[18px] h-[18px] rounded-sm",
+              "inline-flex h-[18px] w-[18px] items-center justify-center rounded-sm",
               "font-mono text-[9px] uppercase tracking-[0.02em]",
               "border",
               on
-                ? "border-[var(--ink-amber)]/60 bg-[color-mix(in_oklch,var(--ink-amber)_18%,transparent)] text-[var(--ink)]"
-                : "border-transparent text-[var(--ink-muted)]/50",
+                ? "text-[var(--sd-accent)]"
+                : "border-transparent text-[var(--sd-ink-faint)]",
             )}
+            style={
+              on
+                ? {
+                    borderColor:
+                      "color-mix(in srgb, var(--sd-accent) 45%, transparent)",
+                    background:
+                      "color-mix(in srgb, var(--sd-accent) 16%, transparent)",
+                  }
+                : undefined
+            }
           >
             {short}
           </span>

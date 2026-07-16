@@ -37,16 +37,16 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        // Document-tier select trigger — same chrome contract as Input.
-        "flex w-fit items-center justify-between gap-2 rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2 text-sm font-serif whitespace-nowrap",
-        "text-[var(--ink)] transition-colors duration-150 ease-out outline-none",
+        // sd field trigger — same chrome contract as Input.
+        "flex w-fit items-center justify-between gap-2 rounded-md border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 text-sm whitespace-nowrap",
+        "text-[var(--sd-ink)] transition-colors duration-[120ms] ease-out outline-none",
         "focus-visible:outline-none focus-visible:border-[var(--hud-cyan)]",
         "disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none",
         "aria-invalid:border-[var(--ink-coral)]",
-        "data-[placeholder]:text-[var(--ink-muted)]",
+        "data-[placeholder]:text-[var(--sd-ink-faint)]",
         "data-[size=default]:h-9 data-[size=sm]:h-8",
         "*:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2",
-        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-[var(--ink-muted)]",
+        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-[var(--sd-ink-dull)]",
         className
       )}
       {...props}
@@ -71,12 +71,11 @@ function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          // Floating menu surface — raised tier, same chrome as Popover.
-          "relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]",
-          "shadow-[0_8px_24px_rgba(0,0,0,0.22)]",
-          "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          // Solid sd menu plate — same chrome as Popover / DropdownMenu.
+          "sd-menu-surface relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-[12px] text-[var(--sd-ink)]",
+          "data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1",
+          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-100",
+          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-150",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className
@@ -109,7 +108,7 @@ function SelectLabel({
     <SelectPrimitive.Label
       data-slot="select-label"
       className={cn(
-        "px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]",
+        "px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]",
         className,
       )}
       {...props}
@@ -126,11 +125,11 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 font-serif text-sm text-[var(--ink)] outline-hidden select-none",
+        "relative flex w-full cursor-default items-center gap-2 rounded-[6px] py-1.5 pr-8 pl-2 text-sm text-[var(--sd-ink)] outline-hidden select-none",
         "transition-colors duration-100 ease-out",
-        "focus:bg-[color-mix(in_oklch,var(--ink)_6%,transparent)] focus:text-[var(--ink)]",
+        "focus:bg-[var(--sd-hover)] focus:text-[var(--sd-ink)]",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
-        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-[var(--ink-muted)]",
+        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-[var(--sd-ink-dull)]",
         "*:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className,
       )}
@@ -157,7 +156,7 @@ function SelectSeparator({
     <SelectPrimitive.Separator
       data-slot="select-separator"
       className={cn(
-        "pointer-events-none -mx-1 my-1 h-px bg-[var(--edge)]",
+        "pointer-events-none -mx-1 my-1 h-px bg-[var(--sd-line)]",
         className,
       )}
       {...props}

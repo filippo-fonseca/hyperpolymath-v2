@@ -1,14 +1,13 @@
 // Phase 5.1 (D-M4 / JARVIS-18) — buildSystemPrompt facts-block extension tests.
 //
-// RED phase: tests for the facts param + buildFactsBlock helper + cache_control move.
-//
-// After Plan 03 implementation:
-//  - buildSystemPrompt accepts `facts?: JarvisFact[]`
-//  - When facts is non-empty, emits a 5th system block (facts block) LAST
-//    with cache_control: { type: "ephemeral" } AND removes cache_control from
-//    the project-list block (new LAST = new cache breakpoint)
-//  - When facts is empty or omitted, cache_control stays on projectListContext
-//    (backward-compatible — no behavioral change)
+// Post-latency-fix (2026-07-04): the facts block is emitted AFTER the 1h
+// cache_control breakpoint (which now permanently sits on the project-list
+// block) so the volatile facts text no longer busts the ~9K-token stable
+// prefix cache. Tests assert:
+//  - facts block still LAST when present, still contains JARVIS MEMORY / [TYPE] lines
+//  - facts block is UNCACHED (cache_control undefined)
+//  - project-list ALWAYS carries { type: "ephemeral", ttl: "1h" }
+//  - block counts unchanged (5 / 4 / 6)
 
 import { describe, expect, it } from "vitest";
 import { buildSystemPrompt } from "../src/prompt-builder";
@@ -28,19 +27,22 @@ describe("buildSystemPrompt with facts param", () => {
     expect(lastBlock.text).toContain("JARVIS MEMORY");
   });
 
-  it("facts block carries cache_control: ephemeral with 1h TTL (new cache boundary)", () => {
-    // Phase 11 / CACHE-01 (D-06): tier-2 frozen system cache now uses 1h TTL.
+  it("facts block is UNCACHED — it rides after the 1h breakpoint so volatile fact mutations don't bust the cached prefix", () => {
+    // Post-latency-fix (2026-07-04): facts mutates almost every turn via
+    // extractAndPersistFacts, so it must sit AFTER every cache_control marker.
     const blocks = buildSystemPrompt({ projects: [], facts: SAMPLE_FACTS });
     const lastBlock = blocks[blocks.length - 1]!;
-    expect(lastBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+    expect(lastBlock.cache_control).toBeUndefined();
   });
 
-  it("project-list block does NOT carry cache_control when facts block is present", () => {
+  it("project-list block carries the 1h cache_control breakpoint when facts block is present", () => {
+    // Post-latency-fix: the breakpoint permanently lives on the project-list
+    // block (last block of the stable prefix), regardless of whether facts is
+    // appended after it. The stable prefix is what we want cached across turns.
     const blocks = buildSystemPrompt({ projects: [], facts: SAMPLE_FACTS });
-    // Last block is facts; second-to-last is projects
     const projectsBlock = blocks[blocks.length - 2]!;
     expect(projectsBlock.text).toContain("USER PROJECTS");
-    expect(projectsBlock.cache_control).toBeUndefined();
+    expect(projectsBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
   it("facts block contains compiled [ENTITY] annotation for entity type", () => {
@@ -95,15 +97,20 @@ describe("buildSystemPrompt with facts param", () => {
     expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
-  it("voiceActive=true + facts: returns 6 blocks [voice, personality, rules, user context, projects, facts] with 1h TTL", () => {
+  it("voiceActive=true + facts: 6 blocks [personality, spoken-contract, rules, user context, projects, facts]; breakpoint on projects, facts uncached", () => {
     const blocks = buildSystemPrompt({
       projects: [],
       voiceActive: true,
       facts: SAMPLE_FACTS,
     });
     expect(blocks).toHaveLength(6);
-    expect(blocks[0]?.text).toContain("listening as well as reading");
+    expect(blocks[0]?.text).toContain("JARVIS");
+    expect(blocks[1]?.text).toContain("SPOKEN-OUTPUT CONTRACT");
+    // Facts still last, still contains JARVIS MEMORY — but now uncached.
     expect(blocks[blocks.length - 1]?.text).toContain("JARVIS MEMORY");
-    expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+    expect(blocks[blocks.length - 1]?.cache_control).toBeUndefined();
+    // 1h breakpoint sits on the project-list block (second-to-last).
+    expect(blocks[blocks.length - 2]?.text).toContain("USER PROJECTS");
+    expect(blocks[blocks.length - 2]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 });

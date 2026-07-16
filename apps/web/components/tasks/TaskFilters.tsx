@@ -1,7 +1,6 @@
 "use client";
 
 import { useQueryStates, parseAsArrayOf, parseAsString } from "nuqs";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +12,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 
 const PRIORITIES = ["P∞", "P1", "P2", "P3"] as const;
 const STATUSES = [
@@ -138,9 +137,13 @@ export function TaskFilters({ projects }: Props) {
       {/* + Filter dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="font-sans text-[13px]">
-            + Filter
-          </Button>
+          <button
+            type="button"
+            className="inline-flex h-8 items-center gap-1 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)] data-[state=open]:bg-[var(--sd-selected)] data-[state=open]:text-[var(--sd-ink)]"
+          >
+            <Plus size={12} strokeWidth={2} />
+            Filter
+          </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuLabel className="font-sans text-[13px]">
@@ -237,16 +240,15 @@ export function TaskFilters({ projects }: Props) {
 
       {/* Clear all filters */}
       {hasFilters && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="font-sans text-[13px] text-muted-foreground"
+        <button
+          type="button"
+          className="inline-flex h-8 items-center rounded-[6px] px-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
           onClick={() =>
             setFilters({ priority: [], status: [], due: [], project: [] })
           }
         >
           Clear
-        </Button>
+        </button>
       )}
     </div>
   );
@@ -259,18 +261,20 @@ function ChipPill({
   label: string;
   onRemove: () => void;
 }) {
-  // Per UI-SPEC §Filter Chip Pills active chip:
-  // bg primary, text primary-foreground, rounded-full, px-3 py-1, font-sans 13px, X icon ml-1
+  // sd register (seed): an active filter reads as the two-tier selection —
+  // neutral --sd-selected backplate + an accent cyan dot marking it live + the
+  // label in --sd-ink. 6px chrome radius, hairline border, mono chip type.
   return (
-    <span className="inline-flex items-center bg-primary text-primary-foreground rounded-full px-3 py-1 font-sans text-[13px]">
-      {label}
+    <span className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-selected)] py-1 pl-2 pr-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink)]">
+      <span aria-hidden className="sd-dot sd-dot-synced" />
+      <span className="normal-case tracking-normal">{label}</span>
       <button
         type="button"
         onClick={onRemove}
         aria-label="Remove filter"
-        className="ml-1 hover:opacity-70"
+        className="rounded-[3px] p-0.5 text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
       >
-        <X size={13} />
+        <X size={12} strokeWidth={2} />
       </button>
     </span>
   );

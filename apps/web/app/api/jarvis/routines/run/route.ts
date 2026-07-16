@@ -1,12 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import {
-  emitJarvisResponseChunk,
-  emitJarvisResponseEnd,
-  emitJarvisResponseStart,
-  emitJarvisToolCall,
-} from "@/lib/voice/physical-extension/bus";
-import { runRoutine } from "@/lib/jarvis/routine-runner";
+import { fireRoutineOverBus, resolveUserTimezone } from "@/lib/jarvis/routine-fire";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { isOwnerUser } from "@/lib/auth/owner";
@@ -30,9 +24,19 @@ interface RunRoutineBody {
   /** Load + run a persisted routine by id (routine-model persistence). */
   routineId?: unknown;
   /** OR run an inline spec — lets block-engine run without persistence. */
-  routine?: { name?: unknown; blocks?: unknown } | null;
+  routine?: {
+    name?: unknown;
+    blocks?: unknown;
+    synthesize?: unknown;
+    parallel?: unknown;
+    loadingInstruction?: unknown;
+  } | null;
   /** default true — desktop TTS is the primary consumer. */
   isVoice?: unknown;
+  /** Option C: gather blocks silently + speak ONE synthesized brief. */
+  synthesize?: unknown;
+  /** Parallel gather (synthesize-only): run gather blocks concurrently. */
+  parallel?: unknown;
 }
 
 /**
@@ -81,6 +85,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Resolve the routine — either inline or by loading a persisted one.
   let routineName: string;
   let blocks: RoutineBlock[];
+  // Synthesis flag: an explicit top-level body flag wins; otherwise inherit
+  // from the inline routine's / persisted spec's `synthesize` field.
+  let synthesize = body.synthesize === undefined ? undefined : Boolean(body.synthesize);
+  // Parallel-gather flag: same resolution precedence as synthesize (explicit
+  // top-level wins → inline routine.parallel → persisted spec.parallel).
+  let parallel = body.parallel === undefined ? undefined : Boolean(body.parallel);
+  // Routine-level loading instruction: interpreted into a fresh opener line that
+  // REPLACES the default. Sourced from the inline routine / persisted spec.
+  let loadingInstruction: string | undefined;
 
   if (body.routine && Array.isArray(body.routine.blocks)) {
     routineName =
@@ -88,6 +101,16 @@ export async function POST(req: NextRequest): Promise<Response> {
         ? body.routine.name.trim()
         : "routine";
     blocks = body.routine.blocks as RoutineBlock[];
+    if (synthesize === undefined && body.routine.synthesize !== undefined) {
+      synthesize = Boolean(body.routine.synthesize);
+    }
+    if (parallel === undefined && body.routine.parallel !== undefined) {
+      parallel = Boolean(body.routine.parallel);
+    }
+    if (typeof body.routine.loadingInstruction === "string") {
+      const t = body.routine.loadingInstruction.trim();
+      if (t) loadingInstruction = t;
+    }
   } else if (typeof body.routineId === "string" && body.routineId.length > 0) {
     const listed = await listRoutines();
     if (!listed.success) {
@@ -105,6 +128,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
     routineName = found.name;
     blocks = found.spec.blocks;
+    if (synthesize === undefined) synthesize = found.spec.synthesize === true;
+    if (parallel === undefined) parallel = found.spec.parallel === true;
+    if (loadingInstruction === undefined) {
+      const t = found.spec.loadingInstruction?.trim();
+      if (t) loadingInstruction = t;
+    }
   } else {
     return Response.json(
       { error: "Provide either { routine: { blocks } } or { routineId }" },
@@ -124,55 +153,24 @@ export async function POST(req: NextRequest): Promise<Response> {
     process.env.ANTHROPIC_API_KEY ??
     "";
 
-  const runId = crypto.randomUUID();
+  // Local timezone for the opener / filler greeting contract — sourced the same
+  // way run-turn.ts sources it (users.timezone, fallback America/New_York).
+  const timezone = await resolveUserTimezone(userId);
 
-  // Fire-and-forget: stream the whole run over the physical SSE bus. Each block
-  // maps to one turnId (= its blockId) so the desktop's per-turn listeners
-  // segment the run cleanly, speaking each block back-to-back.
-  void runRoutine(
-    blocks,
-    {
-      userId,
-      apiKey: anthropicKey,
-      source: { device: "routine", input: isVoice ? "voice" : "text" },
-      isVoice,
-      mode: jarvisMode,
-      routineName,
-      runId,
-      abortSignal: req.signal,
-    },
-    {
-      onBlockStart: (blockId) => {
-        emitJarvisResponseStart({ turnId: blockId, at: Date.now() });
-      },
-      onTextDelta: (blockId, delta) => {
-        emitJarvisResponseChunk({ turnId: blockId, delta, at: Date.now() });
-      },
-      onAction: (blockId, toolUseId, name, result) => {
-        emitJarvisToolCall({ turnId: blockId, toolUseId, name, result, at: Date.now() });
-      },
-      onBlockDone: (result) => {
-        // On an errored block, onError already surfaced the message; still emit
-        // exactly one response-end here (the single close for the block turnId).
-        emitJarvisResponseEnd({ turnId: result.blockId, at: Date.now() });
-      },
-      onError: (blockId, message) => {
-        // Surface the error into the block's spoken stream; the matching
-        // response-end is emitted once by onBlockDone (which always fires after
-        // the block settles), so we do NOT close here to avoid a double-end.
-        emitJarvisResponseChunk({
-          turnId: blockId,
-          delta: `(routine block error: ${message})`,
-          at: Date.now(),
-        });
-      },
-      onRoutineDone: () => {
-        // Completion is observable from the last block's response-end; no
-        // dedicated marker in v1 (see UNIT-PLAN §6.3 — deferred).
-      },
-    },
-  ).catch((err: unknown) => {
-    console.error("[routines/run] routine execution failed", err);
+  // Fire-and-forget: stream the whole run over the physical SSE bus (each block
+  // = one turnId, so the desktop segments + speaks a multi-block run with no
+  // protocol change). Shared with the voice-transcript utterance interception.
+  const runId = fireRoutineOverBus(blocks, {
+    userId,
+    apiKey: anthropicKey,
+    isVoice,
+    mode: jarvisMode,
+    synthesize: synthesize === true,
+    parallel: parallel === true,
+    routineName,
+    loadingInstruction,
+    timezone,
+    abortSignal: req.signal,
   });
 
   return Response.json({ ok: true, runId, blockCount: blocks.length }, { headers: CORS });

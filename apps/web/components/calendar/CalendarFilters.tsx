@@ -68,7 +68,7 @@ export function CalendarFilters({ calendars }: Props) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--edge)] bg-[var(--surface)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
+          className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)] transition-colors duration-150 ease-out cursor-pointer-always"
           aria-label="Calendar visibility filter"
         >
           <span className="flex items-center gap-1.5">
@@ -82,7 +82,7 @@ export function CalendarFilters({ calendars }: Props) {
                 .map((c) => (
                   <span
                     key={c.id}
-                    className="h-2 w-2 rounded-full ring-1 ring-[var(--surface)]"
+                    className="h-2 w-2 rounded-full ring-1 ring-[var(--sd-input)]"
                     style={{ backgroundColor: c.backgroundColor }}
                     aria-hidden
                   />
@@ -95,17 +95,9 @@ export function CalendarFilters({ calendars }: Props) {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className={
-          // Glassy pill matching /settings PROFILE pill: translucent surface +
-          // backdrop-blur + inset cyan glow + soft outer halo + thin
-          // cyan-tinged border on hover.
-          "w-64 p-1.5 rounded-xl " +
-          "bg-[color-mix(in_oklch,var(--surface-raised)_82%,transparent)] " +
-          "glass-tile " +
-          ""
-        }
+        className="w-64 p-1.5 rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-ink)]"
       >
-        <p className="px-2 pt-1 pb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+        <p className="px-2 pt-1 pb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
           Show calendars
         </p>
         <ul className="space-y-0.5">
@@ -118,10 +110,10 @@ export function CalendarFilters({ calendars }: Props) {
                   onClick={() => toggle(c.id)}
                   aria-pressed={active}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 font-sans text-[13px] cursor-pointer-always",
+                    "flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-[13px] cursor-pointer-always",
                     "transition-colors duration-150 ease-out",
-                    "hover:bg-[var(--surface)]",
-                    active ? "text-[var(--ink)]" : "text-[var(--ink-muted)]",
+                    "hover:bg-[var(--sd-hover)]",
+                    active ? "text-[var(--sd-ink)]" : "text-[var(--sd-ink-dull)]",
                   )}
                 >
                   <span
@@ -131,7 +123,7 @@ export function CalendarFilters({ calendars }: Props) {
                   />
                   <span className="flex-1 text-left truncate">{c.summary}</span>
                   {active ? (
-                    <Check size={12} strokeWidth={2} className="text-[var(--ink-muted)] flex-shrink-0" />
+                    <Check size={12} strokeWidth={2} className="text-[var(--sd-accent)] flex-shrink-0" />
                   ) : null}
                 </button>
               </li>

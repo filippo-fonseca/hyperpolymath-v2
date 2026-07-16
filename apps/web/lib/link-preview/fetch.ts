@@ -3,6 +3,8 @@
 // oEmbed) for a URL. Pure I/O + parsing; persistence lives in the query helper.
 // Always resolves (never throws): on any failure it returns status 'error' so the
 // caller degrades to a plain link.
+import { promises as dns } from "node:dns";
+import { isIP } from "node:net";
 import { parse } from "node-html-parser";
 import {
   classifyMediaType,
@@ -17,10 +19,9 @@ import type { LinkPreviewProviderData, LinkPreviewResult } from "./types";
 
 const FETCH_TIMEOUT_MS = 6000;
 const MAX_HTML_BYTES = 1_500_000; // don't parse enormous pages
-const MAX_REDIRECTS = 5;
-const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const MAX_REDIRECTS = 3;
 const USER_AGENT =
-  "Mozilla/5.0 (compatible; HyperpolymathLinkPreview/1.0; +https://hyperpolymath.app)";
+  "Mozilla/5.0 (compatible; HyperpolymathLinkPreview/1.0; +https://hyperpolymath.com)";
 
 function truncate(s: string | null | undefined, n = 500): string | null {
   if (!s) return null;
@@ -28,33 +29,122 @@ function truncate(s: string | null | undefined, n = 500): string | null {
   return t.length > n ? `${t.slice(0, n - 1)}…` : t || null;
 }
 
+// MAJOR-1 — SSRF hardening. Reject any address in a private / loopback /
+// link-local / CGNAT / ULA range before we let Node's fetch resolve it. Also
+// reject the literal "localhost" hostname up front (some resolvers hand back
+// external IPs for "localhost" on hostile networks; belt-and-braces).
+function isPrivateIPv4(addr: string): boolean {
+  const parts = addr.split(".").map((p) => Number.parseInt(p, 10));
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n) || n < 0 || n > 255)) {
+    return true; // malformed → refuse
+  }
+  const [a, b] = parts;
+  if (a === undefined || b === undefined) return true;
+  if (a === 10) return true; // 10.0.0.0/8
+  if (a === 127) return true; // 127.0.0.0/8 loopback
+  if (a === 0) return true; // 0.0.0.0/8
+  if (a === 169 && b === 254) return true; // 169.254.0.0/16 link-local (incl. metadata)
+  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+  if (a === 192 && b === 168) return true; // 192.168.0.0/16
+  if (a === 100 && b >= 64 && b <= 127) return true; // 100.64.0.0/10 CGNAT
+  if (a >= 224) return true; // multicast + reserved
+  return false;
+}
+
+function isPrivateIPv6(addr: string): boolean {
+  const normalized = addr.toLowerCase();
+  if (normalized === "::1" || normalized === "::") return true; // loopback + unspecified
+  if (normalized.startsWith("fe80:") || normalized.startsWith("fe80::")) return true; // link-local fe80::/10
+  if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true; // fc00::/7 ULA
+  if (normalized.startsWith("ff")) return true; // multicast
+  // IPv4-mapped: ::ffff:127.0.0.1
+  const mapped = normalized.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (mapped?.[1]) return isPrivateIPv4(mapped[1]);
+  return false;
+}
+
+function isPrivateAddress(addr: string, family: number): boolean {
+  return family === 6 ? isPrivateIPv6(addr) : isPrivateIPv4(addr);
+}
+
+/**
+ * Resolve the hostname of `url` and refuse if any resolved address is in a
+ * private range, or if the hostname is a literal `localhost` / loopback IP.
+ * Called once before the initial fetch and again on every redirect hop.
+ *
+ * Note: this is a best-effort mitigation. It does NOT close a DNS-rebinding
+ * race where the resolver returns a public address here and a private one
+ * on the actual fetch — the runtime would need a custom `undici` connector
+ * that pins the resolved IP for that. Combined with `redirect: "manual"`
+ * and the hop cap, the attack surface for the current single-user threat
+ * model is acceptable.
+ */
+async function assertSafeHost(url: URL): Promise<void> {
+  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (!hostname) throw new Error("link-preview: empty hostname");
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+    throw new Error("link-preview: refused to fetch localhost");
+  }
+  // If the URL already carries an IP literal, check it directly and skip DNS.
+  const family = isIP(hostname);
+  if (family !== 0) {
+    if (isPrivateAddress(hostname, family)) {
+      throw new Error(`link-preview: refused private address ${hostname}`);
+    }
+    return;
+  }
+  const results = await dns.lookup(hostname, { all: true });
+  if (results.length === 0) {
+    throw new Error(`link-preview: DNS resolution failed for ${hostname}`);
+  }
+  for (const { address, family: fam } of results) {
+    if (isPrivateAddress(address, fam)) {
+      throw new Error(
+        `link-preview: refused ${hostname} → ${address} (private/link-local)`,
+      );
+    }
+  }
+}
+
+/**
+ * Fetch `url` with a hard timeout, following up to MAX_REDIRECTS hops
+ * manually so each redirect target is re-validated by assertSafeHost().
+ * `redirect: "manual"` prevents `fetch` from silently pivoting to a
+ * private-IP target that was reached via a public 302.
+ */
 async function fetchWithTimeout(url: string, accept: string): Promise<Response> {
   // One controller across all hops so the total time budget still caps at 6s.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    let currentUrl = url;
-    // Manual redirect handling so we can validate EVERY hop's host (the SSRF
-    // choke point). Guards the initial URL and each redirect Location target.
-    for (let remaining = MAX_REDIRECTS; ; remaining--) {
-      const parsed = safeParseUrl(currentUrl);
+    let current = url;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+      const parsed = safeParseUrl(current);
       if (!parsed || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) {
-        throw new Error("Unsupported redirect target");
+        throw new Error("link-preview: unsupported redirect scheme");
       }
-      await assertHostAllowed(parsed);
-      const res = await fetch(currentUrl, {
+      await assertSafeHost(parsed);
+      const res = await fetch(current, {
         signal: controller.signal,
         redirect: "manual",
         headers: { "user-agent": USER_AGENT, accept },
       });
-      const location = res.headers.get("location");
-      if (REDIRECT_STATUSES.has(res.status) && location) {
-        if (remaining <= 0) throw new Error("Too many redirects");
-        currentUrl = new URL(location, currentUrl).href;
-        continue;
+      // Non-redirect status: return it.
+      if (res.status < 300 || res.status >= 400) {
+        return res;
       }
-      return res;
+      const location = res.headers.get("location");
+      if (!location) return res; // 3xx with no Location — return as-is
+      // Resolve relative Location against the current URL, then loop.
+      current = new URL(location, current).href;
+      // Consume the redirect response body so the connection can be reused.
+      try {
+        await res.body?.cancel();
+      } catch {
+        // ignore
+      }
     }
+    throw new Error(`link-preview: exceeded ${MAX_REDIRECTS} redirects`);
   } finally {
     clearTimeout(timer);
   }
@@ -73,6 +163,59 @@ function errorResult(url: string, message: string): LinkPreviewResult {
     providerData: null,
     error: truncate(message, 300),
   };
+}
+
+/**
+ * MAJOR-2 — stream the response body up to MAX_HTML_BYTES, aborting the
+ * reader as soon as we exceed the cap. `res.arrayBuffer()` buffered the
+ * ENTIRE response before slicing, which is a memory-DoS gadget on a fast
+ * link within the 6s timeout. This reads the reader chunk-by-chunk and
+ * bails as soon as we have enough bytes.
+ */
+async function readCapped(res: Response, cap: number): Promise<Uint8Array> {
+  const reader = res.body?.getReader();
+  if (!reader) {
+    // Fallback: some transports may not expose a reader. Cap via arrayBuffer
+    // is imperfect but preserves behavior for edge cases.
+    const buf = new Uint8Array(await res.arrayBuffer());
+    return buf.slice(0, cap);
+  }
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      const remaining = cap - total;
+      if (value.byteLength >= remaining) {
+        chunks.push(value.slice(0, remaining));
+        total += remaining;
+        // Abort the underlying stream — we have what we need.
+        try {
+          await reader.cancel();
+        } catch {
+          // ignore
+        }
+        break;
+      }
+      chunks.push(value);
+      total += value.byteLength;
+    }
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      // ignore
+    }
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
 }
 
 /** Pull an og:/twitter:/name meta value or <title> from parsed HTML. */
@@ -238,6 +381,12 @@ async function fetchGeneric(url: string): Promise<LinkPreviewResult> {
   const contentType = res.headers.get("content-type") ?? "";
   if (!contentType.includes("html")) {
     // Non-HTML (image, pdf, etc.): a bare favicon card is the best we can do.
+    // Drain the body so the connection can be reused; we don't need the bytes.
+    try {
+      await res.body?.cancel();
+    } catch {
+      // ignore
+    }
     return {
       url,
       status: "ok",
@@ -251,7 +400,8 @@ async function fetchGeneric(url: string): Promise<LinkPreviewResult> {
       error: null,
     };
   }
-  const html = await readCappedText(res);
+  const bytes = await readCapped(res, MAX_HTML_BYTES);
+  const html = new TextDecoder("utf-8").decode(bytes);
   const meta = extractMeta(html);
   // Resolve a relative og:image against the final URL.
   let imageUrl = meta.imageUrl;

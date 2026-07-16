@@ -110,6 +110,31 @@ pub fn run_applescript(
         })
 }
 
+/// Execute a JXA (JavaScript for Automation) snippet via `osascript -l
+/// JavaScript -e`. Same hard-timeout + SIGKILL wrapper as `run_applescript`,
+/// but the JavaScript OSA language instead of AppleScript. JXA is needed for
+/// Contacts.app queries: `Application("Contacts").people.whose(...)` launches
+/// Contacts in the background and works even when it isn't already open,
+/// whereas AppleScript `tell application "Contacts"` returns -600 "Application
+/// isn't running". `label` is a short human-readable tag for logging.
+#[tauri::command]
+pub fn run_jxa(
+    script: String,
+    label: String,
+    timeout_ms: Option<u32>,
+) -> Result<String, String> {
+    eprintln!("[jxa] executing: {}", label);
+    let timeout = Duration::from_millis(timeout_ms.map(u64::from).unwrap_or(DEFAULT_TIMEOUT_MS));
+    let mut cmd = Command::new("osascript");
+    cmd.arg("-l").arg("JavaScript").arg("-e").arg(&script);
+    run_with_timeout(cmd, None, timeout, "jxa")
+        .and_then(|o| output_to_result(o, "jxa"))
+        .map_err(|e| {
+            eprintln!("[jxa] '{label}' failed: {e}");
+            e
+        })
+}
+
 /// Run a Shortcuts.app shortcut by name via the `shortcuts` CLI (macOS 12+).
 /// When `input` is provided it is piped to the shortcut's stdin using
 /// `--input-path -`. Research Q4: Focus-mode toggling is only reliable through

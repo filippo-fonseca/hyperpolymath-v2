@@ -52,17 +52,17 @@ function StatusRow({ serviceKey, status, value }: StatusRowProps) {
   const dotGlyph = status === "n/a" ? "◌" : "●";
   const dotColor =
     status === "ok"
-      ? "var(--hud-cyan)"
+      ? "var(--sd-accent)"
       : status === "down"
         ? "var(--ink-coral)"
-        : "var(--ink-muted)";
+        : "var(--sd-ink-dull)";
   return (
     <div
       className="flex items-baseline gap-4 py-1 font-mono-stats text-xs"
       role="row"
       aria-label={`${serviceKey}: ${status}`}
     >
-      <span className="w-48 text-[var(--ink-muted)]">{serviceKey}</span>
+      <span className="w-48 text-[var(--sd-ink-dull)]">{serviceKey}</span>
       <span
         className="inline-flex items-center gap-2 w-24"
         style={{ color: dotColor }}
@@ -70,7 +70,7 @@ function StatusRow({ serviceKey, status, value }: StatusRowProps) {
         <span aria-hidden="true">{dotGlyph}</span>
         <span className="uppercase tracking-[0.06em]">{status}</span>
       </span>
-      <span className="text-[var(--ink)]">{value}</span>
+      <span className="text-[var(--sd-ink)]">{value}</span>
     </div>
   );
 }
@@ -80,21 +80,21 @@ export default async function HealthPage() {
   const data = await fetchHealth();
 
   return (
-    <div className="agent-mode-scope relative min-h-screen bg-[var(--canvas)] px-6 py-12">
+    <div className="agent-mode-scope relative min-h-screen bg-[var(--sd-app)] px-6 py-12">
       <HudCornerCrops
         size={12}
         className="fixed inset-0 pointer-events-none z-0"
       />
       <main className="relative z-10 max-w-2xl mx-auto">
         {/* HUD-coded H1 — the only mono italic H1 in the app (UI-SPEC §4b). */}
-        <h1 className="font-mono italic font-medium text-2xl text-[var(--ink)]">
+        <h1 className="font-mono italic font-medium text-2xl text-[var(--sd-ink)]">
           System Health
         </h1>
 
         {/* 1px --edge-hud hairline separating heading from readout. */}
         <div
           className="h-px my-6"
-          style={{ backgroundColor: "var(--edge-hud)" }}
+          style={{ backgroundColor: "var(--sd-accent)" }}
           aria-hidden="true"
         />
 
@@ -130,9 +130,9 @@ export default async function HealthPage() {
               className="flex items-baseline gap-4 py-1 font-mono-stats text-xs"
               role="row"
             >
-              <span className="w-48 text-[var(--ink-muted)]">checked_at</span>
+              <span className="w-48 text-[var(--sd-ink-dull)]">checked_at</span>
               <span className="w-24" aria-hidden="true" />
-              <span className="text-[var(--ink)]">{data.checked_at}</span>
+              <span className="text-[var(--sd-ink)]">{data.checked_at}</span>
             </div>
           </div>
           <span
@@ -145,7 +145,7 @@ export default async function HealthPage() {
         </div>
 
         {/* Bottom rail — refresh hint per UI-SPEC §5c. */}
-        <div className="mt-12 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] opacity-60">
+        <div className="mt-12 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)] opacity-60">
           <span aria-hidden="true">╶──</span>
           <span>refresh ⌘R · serves at /api/health</span>
           <span aria-hidden="true">──╴</span>

@@ -1,7 +1,8 @@
-// Computer-control tool: web_search
+// Search tool: web_search
 //
-// Server builds the search URL and returns a structured open_url action
-// for the desktop client. No side effects on the server side.
+// For ordinary web questions, the server can perform a low-latency search
+// and return result snippets for the model to answer from. Maps queries still
+// return a structured open_url action for the desktop client.
 //
 // NON-strict (grammar budget): server-side Zod validation covers this.
 
@@ -20,6 +21,6 @@ export type WebSearchInput = z.infer<typeof WebSearchInputSchema>;
 export const webSearchTool = {
   name: "web_search" as const,
   description:
-    "Search the web or Google Maps on the user's behalf. The `query` is the search terms. `engine` defaults to 'google'; use 'maps' when the user asks to find a place, get directions, or look something up on a map. The server builds the URL; the desktop opens it. Always announce the action before calling this tool: emit a short butler text block first, then this tool_use block.",
+    "Search the web or Google Maps on the user's behalf. The `query` is the search terms. `engine` defaults to 'google'; use 'google' for quick current/web questions so the server can return search results for a spoken answer, and use 'maps' when the user asks to find a place, get directions, or look something up on a map. For 'maps', the desktop opens Google Maps. For 'google', answer directly from returned results when present. Do not call open_url after web_search unless the user explicitly asked to open a page; if the receipt contains an open_url action fallback, the desktop will open the Google results page.",
   input_schema: toJsonSchema(WebSearchInputSchema),
 };

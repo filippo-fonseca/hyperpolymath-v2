@@ -1,0 +1,56 @@
+{
+ "agent_id": "unit-calendar",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-calendar",
+ "branch": "sd3/unit-calendar",
+ "unit_id": "unit-calendar",
+ "phase": "awaiting_review",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-15T16:39:15.000Z",
+ "verification": {
+  "typecheck": "green — tsc --noEmit exit 0",
+  "build": "green — Compiled successfully, 38/38 pages incl /calendar (needs network for next/font/google; env-only, outside fence)",
+  "boot": "clean — dev :3829 ready 317ms, / 200, /calendar 307->/sign-in (auth gate correct); capture console log zero errors/warnings",
+  "register_audit": "clean — no font-serif / glass-tile / glass-button / backdrop-blur / hud-cyan in fence; ZERO arbitrary bracket utilities (all sd tokens via inline style)",
+  "compiled_css_proof": "all --sd-* tokens used (box,line,ink,ink-dull,ink-faint,accent,input,hover,app,selected) defined in built CSS; both themes flip via .dark/.light (dark bg lab 3.05 indigo, light bg lab 96.5 parchment)",
+  "authed_capture": "IMPOSSIBLE in-lane — no dev-auth bypass, /calendar redirects to Google sign-in. Per §1 shipped token-audit + compiled-CSS + boot-clean fallback frames; Conductor pixel-verifies /calendar month/week/detail/filters on :3000",
+  "fence_integrity": "clean — git diff outside calendar/ + .planning/ = NONE; globals.css untouched; ui/ consumed not edited",
+  "evidence": ".planning/sd3-calendar-verification.md, sd3-calendar-fallback-signin-dark.png, sd3-calendar-fallback-signin-light.png",
+  "server_hygiene": "killed only port 3829; browser global lock acquired+released"
+ },
+ "commits": [
+  "3cc11f64 docs(calendar): record the sd3 seed plan for unit-calendar",
+  "30a0e152 feat(calendar): add local dimensional CalendarIcon on the sd recipe",
+  "a82abfcb style(calendar): move DisconnectBanner + connect EmptyState to the sd register",
+  "2d689876 style(calendar): DayWeekToggle to sd tokens + mono date label",
+  "d0a57cac style(calendar): CalendarFilters to sd register, drop glass-tile popover",
+  "91dbbd77 style(calendar): grid to sd — --sd-box cells, --sd-line grid, today ring, sd chip grammar, deglowed now-line",
+  "e4783aac style(calendar): CalendarClient header to sd title row + dimensional icon; toolbar off glass-tile, accent-ghost New event",
+  "df093aa2 style(calendar): EventDetailPanel to solid sd plate, no serif, mono tz, functional recurring pill",
+  "eae5ca4b chore(calendar): sd3 verification report + boot-clean fallback frames"
+ ],
+ "assumptions": [
+  "Seed = fable-plan-calendar.md (ignored inherited fable-plan-sd3.md). UI-CONTRACT-SD3 §0/§1 bind.",
+  "No dimensional CalendarIcon exists in components/ui/icons (out of fence). Building one LOCALLY in components/calendar/CalendarIcon.tsx that consumes the shared ui/icons/shared helpers (consume, don't edit).",
+  "§0 bans serif outside Logotype AND seed says 'no serif' -> following LifeOsHero (true sd3 exemplar, no serif); NOT TaskListRow (sd2-era, still font-serif).",
+  "Grid is hand-rolled time-grid (day/3day/week). There is NO month view in this codebase; not adding one (preserve features). Will verify week view.",
+  "Chip grammar per seed: --sd-input surface + --sd-line hairline; calendar-source color tints a small LEADING DOT ONLY (surfaces stay sd, single cyan accent law). Replaces the current colored-bg/left-border chips.",
+  "now-line: keep crisp 1px cyan bar + dot but DROP the box-shadow glow (§0 bans glow rings/shadow-glow).",
+  "Arbitrary utilities restricted to ones already emitted (WidgetCard/TaskListRow/LifeOsHero: bg-[var(--sd-box)], border-[var(--sd-line)], text-[var(--sd-*)], bg-[var(--sd-hover)], bg-[var(--sd-accent)], ring-[var(--sd-accent)]); grid internals use inline style={{}} var lookups to sidestep the Tailwind scan gap."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "874-line client + gcal surfaces; design-critical"
+ },
+ "notes": [
+  "PLAN (sealed): 8 files. (1) CalendarIcon.tsx NEW local dimensional icon. (2) CalendarClient header -> sd title row + eyebrow + dimensional icon + mono count; toolbar -> drop glass-tile, --sd-box surface, New-event -> sd accent-ghost, drop inline --hud-cyan for --sd-accent. (3) DayWeekToggle -> sd tokens, mono date label. (4) CalendarFilters -> drop glass-tile, sd surfaces. (5) CalendarGrid -> --sd-box cells on --sd-line grid, today=1px cyan ring, chips=--sd-input+hairline+leading-dot, no serif, now-line no glow. (6) EventDetailPanel -> solid --sd-box plate, no serif, mono time/tz, functional pill for recurring. (7) EmptyState -> drop glass-tile, calm sd + faint dimensional icon. (8) DisconnectBanner -> no serif, sd tokens (coral functional edge kept). Data/gcal logic untouched. Atomic commits per file.",
+  "No advisor_path set for this unit; steering directive in this control file is authoritative. Server hygiene: only kill my own port 3829.",
+  "RESUME (2026-07-15T16:39Z): control file was stale (phase=implementing, commits=[]) but all 8 planned commits had already landed on sd3/unit-calendar and working tree was clean. Reconciled: ran full verification floor (typecheck+build+boot+register audit+compiled-CSS proof+both-theme token flip), committed verification report + fallback frames (eae5ca4b), set status=awaiting_review. No code re-touched — implementation was complete."
+ ],
+ "steering": "Initial directive: your seed is .planning/fable-plan-calendar.md (ignore any inherited fable-plan-sd3.md). Read it + UI-CONTRACT-SD3.md (incl §3 server hygiene: kill only your own port, never pkill broad patterns). Seal your plan in this control file, then proceed. Browser: headless, global lock. Atomic commits, explicit pathspecs."
+}

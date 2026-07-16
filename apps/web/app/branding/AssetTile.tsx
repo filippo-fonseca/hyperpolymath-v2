@@ -56,19 +56,19 @@ export function AssetTile({
         aria-label={`Expand ${label} (${theme.label})`}
         className="group block overflow-hidden rounded-[12px] cursor-zoom-in p-0 transition-shadow hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.25)]"
         style={{
-          border: "1px solid var(--edge)",
+          border: "1px solid var(--sd-line)",
           aspectRatio: ratio,
-          background: "var(--surface)",
+          background: "var(--sd-box)",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
           alt={`${label} — ${theme.label}`}
-          className="block h-full w-full transition-transform group-hover:scale-[1.01]"
+          className="block h-full w-full"
         />
       </button>
-      <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+      <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--sd-ink-dull)]">
         {theme.label}
       </p>
 
@@ -78,7 +78,7 @@ export function AssetTile({
           // Click on backdrop (the dialog element itself, not its content) closes.
           if (e.target === dialogRef.current) closeFullscreen();
         }}
-        className="m-0 max-h-none max-w-none border-0 bg-transparent p-0 outline-none backdrop:bg-black/85 backdrop:backdrop-blur-sm"
+        className="m-0 max-h-none max-w-none border-0 bg-transparent p-0 outline-none backdrop:bg-black/85"
         style={{ width: "100vw", height: "100vh" }}
       >
         <div
@@ -97,7 +97,7 @@ export function AssetTile({
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] opacity-60">
                 {ASSETS[id].label}
               </p>
-              <p className="mt-1 font-serif text-[18px]">{theme.label}</p>
+              <p className="mt-1 text-[18px]">{theme.label}</p>
               <p className="font-mono text-[11px] uppercase tracking-[0.16em] opacity-40 mt-1">
                 {width}×{height}
               </p>
@@ -123,7 +123,7 @@ export function AssetTile({
               width: "auto",
               height: "auto",
               objectFit: "contain",
-              background: "var(--surface)",
+              background: "var(--sd-box)",
             }}
           />
         </div>

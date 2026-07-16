@@ -107,21 +107,21 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
         strategy={verticalListSortingStrategy}
       >
         <div className="flex flex-col">
-          {/* Header row — mono metadata chrome per UI-SPEC §5h */}
-          <div className="flex items-center gap-2 h-8 px-2 border-b border-[var(--edge)]">
+          {/* Header row — mono metadata chrome, sd hairline divider */}
+          <div className="flex items-center gap-2 h-8 px-2 border-b border-[var(--sd-line)]">
             <div className="w-4 flex-shrink-0" /> {/* drag handle placeholder */}
             <div className="w-4 flex-shrink-0" /> {/* checkbox placeholder */}
             <div className="w-4 flex-shrink-0" /> {/* priority placeholder */}
-            <span className="flex-1 font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <span className="flex-1 font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
               Title
             </span>
-            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] w-28 flex-shrink-0">
+            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] w-28 flex-shrink-0">
               Project
             </span>
-            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] w-24 flex-shrink-0">
+            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] w-24 flex-shrink-0">
               Status
             </span>
-            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] w-20 flex-shrink-0">
+            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] w-20 flex-shrink-0">
               Due
             </span>
             <div className="w-6 flex-shrink-0" />
@@ -148,13 +148,13 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
         {activeTask ? (
           <div
             className={cn(
-              "flex items-center gap-2 h-10 px-3 rounded-md opacity-95",
-              "bg-[var(--surface)] border border-[var(--edge)]",
+              "flex items-center gap-2 h-10 px-3 rounded-[6px] opacity-95",
+              "bg-[var(--sd-box)] border border-[var(--sd-line)]",
             )}
             style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
           >
             <PriorityChip priority={activeTask.priority} />
-            <span className="font-serif text-base text-[var(--ink)] truncate flex-1">
+            <span className="font-serif text-base text-[var(--sd-ink)] truncate flex-1">
               {activeTask.title}
             </span>
           </div>

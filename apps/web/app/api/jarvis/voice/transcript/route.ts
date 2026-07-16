@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
 
 import {
   emitJarvisResponseChunk,
@@ -8,7 +8,13 @@ import {
   emitJarvisToolCall,
   emitPhysicalTranscript,
 } from "@/lib/voice/physical-extension/bus";
+import { phraseMatches } from "@hyperpolymath/jarvis-core/routines";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
+import {
+  fireRoutineOverBus,
+  getEnabledRoutines,
+  resolveUserTimezone,
+} from "@/lib/jarvis/routine-fire";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 import { buildRecentHistory } from "@/lib/jarvis/recent-history";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
@@ -79,24 +85,45 @@ export async function POST(req: NextRequest): Promise<Response> {
   const groqKey =
     (groqUserId ? await getUserKeyOrNull(groqUserId, "groq") : null) ??
     process.env.GROQ_API_KEY;
-  const groq = new Groq({ apiKey: groqKey });
+  // maxRetries: 0 kills the SDK's silent retry-after backoff (a 429 with
+  // `retry-after: 44` otherwise makes it sleep 44s and retry invisibly, which
+  // is the source of the 44–89s voice-turn hangs). timeout caps a genuinely
+  // slow inference call. In-provider model fallback (below) handles the 429.
+  const groq = new Groq({ apiKey: groqKey, maxRetries: 0, timeout: 15_000 });
+
+  // Try turbo first, then fall back to whisper-large-v3 on ANY error (429 /
+  // timeout / 5xx). Empirically the two models sit on SEPARATE daily quota
+  // buckets, so when turbo is exhausted (or slow) v3 still serves in ~0.5s.
+  // distil-whisper-large-v3-en is decommissioned on Groq — do not add it.
+  const STT_MODELS = ["whisper-large-v3-turbo", "whisper-large-v3"] as const;
 
   let transcript: string;
   let sttDoneAt: number;
 
-  try {
-    const transcription = await groq.audio.transcriptions.create({
-      file,
-      model: "whisper-large-v3-turbo",
-      response_format: "json",
-      language: "en",
-    });
-    sttDoneAt = Date.now();
-    transcript = transcription.text;
-  } catch (err) {
-    console.error("[voice/transcript] Groq failed", err);
+  const sttStartedAt = Date.now();
+  let transcription: Awaited<ReturnType<typeof groq.audio.transcriptions.create>> | undefined;
+  let lastErr: unknown;
+  for (const model of STT_MODELS) {
+    try {
+      transcription = await groq.audio.transcriptions.create({
+        file,
+        model,
+        response_format: "json",
+        language: "en",
+      });
+      break;
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[voice-timing] stt ${model} failed status=${(err as { status?: number })?.status}`);
+    }
+  }
+  if (!transcription) {
+    console.error("[voice/transcript] Groq failed", lastErr);
     return Response.json({ error: "STT failed" }, { status: 500, headers: CORS });
   }
+  sttDoneAt = Date.now();
+  console.log(`[voice-timing] stt ${sttDoneAt - sttStartedAt}ms`);
+  transcript = (transcription as { text: string }).text;
 
   // Probe mode: the desktop polls a rolling audio tail to detect the
   // "Done, JARVIS" stop phrase. Return the raw transcript ONLY — no SSE
@@ -135,14 +162,78 @@ export async function POST(req: NextRequest): Promise<Response> {
     return new Response("Forbidden", { status: 403, headers: CORS });
   }
 
+  // Utterance/wake routine interception. If this transcript matches an enabled
+  // phrase-triggered routine, run that routine's blocks over the SSE bus INSTEAD
+  // of a normal conversation turn. This makes an utterance trigger fire from ANY
+  // state — idle OR mid-conversation — which is what the editor promises (the
+  // desktop idle probe alone only caught the narrow idle window). Fail-open: any
+  // error here falls through to a normal turn.
+  try {
+    const enabledRoutines = await getEnabledRoutines(userId);
+    const matched = enabledRoutines.find((r) =>
+      r.spec.triggers.some(
+        (t) =>
+          (t.type === "utterance" && phraseMatches(transcript, t.match)) ||
+          (t.type === "wake" && phraseMatches(transcript, t.phrase)),
+      ),
+    );
+    if (matched) {
+      console.log(
+        `[voice/transcript] utterance matched routine "${matched.name}" (${matched.id}) — firing ${matched.spec.blocks.length} block(s) instead of a normal turn`,
+      );
+      // Mint the turn identity BEFORE emitting the user echo, and thread it into
+      // the routine fire as echoTurnId. The routine runs fire-and-forget, so its
+      // first response-start can land at the client AFTER a concurrent normal
+      // turn's; stamping the SAME id on the echo lets the desktop reducer pair
+      // the user bubble to the routine's first reply by identity rather than by
+      // arrival order (which would otherwise swap rows under that interleaving).
+      const routineTurnId = crypto.randomUUID();
+      // Show the user's spoken phrase, then stream the routine's spoken blocks.
+      emitPhysicalTranscript({
+        transcript,
+        sttDoneAt,
+        vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
+        at: sttDoneAt,
+        turnId: routineTurnId,
+      });
+      const routineKey =
+        (await getUserKeyOrNull(userId, "anthropic")) ?? process.env.ANTHROPIC_API_KEY ?? "";
+      const routineTimezone = await resolveUserTimezone(userId);
+      const runId = fireRoutineOverBus(matched.spec.blocks, {
+        userId,
+        apiKey: routineKey,
+        isVoice: true,
+        mode: jarvisMode,
+        synthesize: matched.spec.synthesize === true,
+        parallel: matched.spec.parallel === true,
+        routineName: matched.name,
+        loadingInstruction: matched.spec.loadingInstruction?.trim() || undefined,
+        timezone: routineTimezone,
+        echoTurnId: routineTurnId,
+      });
+      return Response.json(
+        { transcript, sttDoneAt, routine: matched.id, runId, turnId: routineTurnId },
+        { headers: CORS },
+      );
+    }
+  } catch (err) {
+    console.error("[voice/transcript] utterance routine check failed", err);
+  }
+
+  // Mint the reply turnId BEFORE the user-echo emit and stamp it on the echo, so
+  // the desktop reducer pairs the user bubble to THIS turn's reply by identity.
+  // Under overlap with a routine-interception turn (whose response-start fires
+  // late, fire-and-forget), pure arrival-order FIFO could otherwise attach the
+  // wrong reply to this user row.
+  const turnId = crypto.randomUUID();
   emitPhysicalTranscript({
     transcript,
     sttDoneAt,
     vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
     at: sttDoneAt,
+    turnId,
   });
 
-  const turnId = crypto.randomUUID();
   const userTurnId = crypto.randomUUID();
   const userTurnCreatedAt = new Date();
   const assistantTurnCreatedAt = new Date(userTurnCreatedAt.getTime() + 1);
@@ -193,91 +284,104 @@ export async function POST(req: NextRequest): Promise<Response> {
   let assistantText = "";
   const assistantActions: Array<{ toolUseId: string; name: string; result: unknown }> = [];
 
-  void runJarvisTurnStream({
-    userId,
-    apiKey: anthropicKey,
-    input: transcript,
-    // Thread the recent conversation window in front of the current turn so
-    // pronoun / entity references ("send him a message") resolve. The current
-    // user turn is appended last and is the only turn the model must act on.
-    messages: [...recentHistory, { role: "user", content: transcript }],
-    // Provenance: paired-device token name; the headless ESP32 path has no
-    // token identity, so it reads as the physical extender.
-    source: { device: desktopIdentity?.deviceName ?? "Physical extender", input: "voice" },
-    isVoice: true,
-    mode: jarvisMode,
-    sttDoneAt,
-    vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
-    onTextDelta: (delta) => {
-      assistantText += delta;
-      emitJarvisResponseChunk({ turnId, delta, at: Date.now() });
-    },
-    onAction: (toolUseId, name, result) => {
-      assistantActions.push({ toolUseId, name, result });
-      emitJarvisToolCall({ turnId, toolUseId, name, result, at: Date.now() });
-    },
-    onDone: () => {
-      emitJarvisResponseEnd({ turnId, at: Date.now() });
-      // Persist the completed assistant turn so browser chat history shows
-      // desktop-originated turns on next page load.
-      void db
-        .insert(jarvisTurns)
-        .values({
-          id: turnId,
-          userId,
-          kind: "assistant",
-          text: null,
-          textDelta: assistantText,
-          actions: assistantActions,
-          clarification: null,
-          status: "done",
-          errorMessage: null,
-          createdAt: assistantTurnCreatedAt,
-        })
-        .onConflictDoUpdate({
-          target: jarvisTurns.id,
-          set: {
+  // Start the agent turn NOW (before the return), then hand the promise to
+  // `after` purely for the Vercel keep-alive property. Starting it before the
+  // response makes first-SSE-chunk time independent of dev's flush behavior:
+  // `after()` defers scheduling, and `next dev` does not reliably detach the
+  // response from the request's pending work, which previously delayed both the
+  // echo and the turn start until the whole turn finished. The turn communicates
+  // entirely over the separate SSE stream and persists to the DB — it does NOT
+  // need the POST response open.
+  console.log(`[voice-timing] setup ${Date.now() - sttDoneAt}ms (stt-done → turn start)`);
+  const turnPromise = runJarvisTurnStream({
+      userId,
+      apiKey: anthropicKey,
+      input: transcript,
+      // Thread the recent conversation window in front of the current turn so
+      // pronoun / entity references ("send him a message") resolve. The current
+      // user turn is appended last and is the only turn the model must act on.
+      messages: [...recentHistory, { role: "user", content: transcript }],
+      // Provenance: paired-device token name; the headless ESP32 path has no
+      // token identity, so it reads as the physical extender.
+      source: { device: desktopIdentity?.deviceName ?? "Physical extender", input: "voice" },
+      isVoice: true,
+      mode: jarvisMode,
+      sttDoneAt,
+      vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
+      onTextDelta: (delta) => {
+        assistantText += delta;
+        emitJarvisResponseChunk({ turnId, delta, at: Date.now() });
+      },
+      onAction: (toolUseId, name, result) => {
+        assistantActions.push({ toolUseId, name, result });
+        emitJarvisToolCall({ turnId, toolUseId, name, result, at: Date.now() });
+      },
+      onDone: () => {
+        emitJarvisResponseEnd({ turnId, at: Date.now() });
+        // Persist the completed assistant turn so browser chat history shows
+        // desktop-originated turns on next page load.
+        void db
+          .insert(jarvisTurns)
+          .values({
+            id: turnId,
+            userId,
+            kind: "assistant",
+            text: null,
             textDelta: assistantText,
             actions: assistantActions,
+            clarification: null,
             status: "done",
             errorMessage: null,
-          },
-        })
-        .catch((err: unknown) => {
-          console.error("[voice/transcript] failed to persist assistant turn", err);
-        });
-    },
-    onError: (message) => {
-      emitJarvisResponseEnd({ turnId, at: Date.now() });
-      // Persist the error turn so the browser shows failed turns on reload.
-      void db
-        .insert(jarvisTurns)
-        .values({
-          id: turnId,
-          userId,
-          kind: "assistant",
-          text: null,
-          textDelta: assistantText || null,
-          actions: assistantActions,
-          clarification: null,
-          status: "error",
-          errorMessage: message,
-          createdAt: assistantTurnCreatedAt,
-        })
-        .onConflictDoUpdate({
-          target: jarvisTurns.id,
-          set: {
+            createdAt: assistantTurnCreatedAt,
+          })
+          .onConflictDoUpdate({
+            target: jarvisTurns.id,
+            set: {
+              textDelta: assistantText,
+              actions: assistantActions,
+              status: "done",
+              errorMessage: null,
+            },
+          })
+          .catch((err: unknown) => {
+            console.error("[voice/transcript] failed to persist assistant turn", err);
+          });
+      },
+      onError: (message) => {
+        emitJarvisResponseEnd({ turnId, at: Date.now() });
+        // Persist the error turn so the browser shows failed turns on reload.
+        void db
+          .insert(jarvisTurns)
+          .values({
+            id: turnId,
+            userId,
+            kind: "assistant",
+            text: null,
             textDelta: assistantText || null,
             actions: assistantActions,
+            clarification: null,
             status: "error",
             errorMessage: message,
-          },
-        })
-        .catch((err: unknown) => {
-          console.error("[voice/transcript] failed to persist error turn", err);
-        });
-    },
-  });
+            createdAt: assistantTurnCreatedAt,
+          })
+          .onConflictDoUpdate({
+            target: jarvisTurns.id,
+            set: {
+              textDelta: assistantText || null,
+              actions: assistantActions,
+              status: "error",
+              errorMessage: message,
+            },
+          })
+          .catch((err: unknown) => {
+            console.error("[voice/transcript] failed to persist error turn", err);
+          });
+      },
+    });
+
+  // Keep the serverless function alive until the turn completes (Vercel drains
+  // pending work registered via `after`); does not gate the response.
+  after(() => turnPromise);
 
   return Response.json({ transcript, turnId }, { headers: CORS });
 }

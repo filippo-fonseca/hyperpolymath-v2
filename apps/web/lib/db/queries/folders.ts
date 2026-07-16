@@ -6,7 +6,7 @@ import {
   type FolderRow,
   type FolderWithProjects,
 } from "@/lib/pages/folder-projects";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 
 // Re-export the client-safe types + pure helpers so server callers keep a single
 // import site (the runtime helpers live in lib/pages/folder-projects.ts so they
@@ -24,6 +24,9 @@ const FOLDER_COLS = {
   parentId: pageFolders.parentId,
   name: pageFolders.name,
   orderIndex: pageFolders.orderIndex,
+  positionKey: pageFolders.positionKey,
+  createdAt: pageFolders.createdAt,
+  updatedAt: pageFolders.updatedAt,
 } as const;
 
 /** All wiki folders for a user, ordered for stable tree rendering. */
@@ -32,7 +35,7 @@ export async function getFoldersForUser(userId: string): Promise<FolderRow[]> {
     .select(FOLDER_COLS)
     .from(pageFolders)
     .where(eq(pageFolders.userId, userId))
-    .orderBy(asc(pageFolders.orderIndex), asc(pageFolders.name));
+    .orderBy(sql`${pageFolders.positionKey} ASC NULLS LAST`, asc(pageFolders.name));
 }
 
 /** All folder->project links for a user (the M:N junction rows). */
@@ -107,10 +110,13 @@ export async function getFoldersByEffectiveProject(
 
   return folders
     .filter((f) => getEffectiveProjectIds(f.id, folderMap).includes(projectId))
-    .map(({ id, parentId, name, orderIndex }) => ({
+    .map(({ id, parentId, name, orderIndex, positionKey, createdAt, updatedAt }) => ({
       id,
       parentId,
       name,
       orderIndex,
+      positionKey,
+      createdAt,
+      updatedAt,
     }));
 }

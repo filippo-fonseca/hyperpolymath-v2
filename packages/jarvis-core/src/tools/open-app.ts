@@ -25,6 +25,6 @@ export type OpenAppInput = z.infer<typeof OpenAppInputSchema>;
 export const openAppTool = {
   name: "open_app" as const,
   description:
-    "Launch a macOS application via the desktop client. The `app` field is the application name as it appears in /Applications (e.g. 'Safari', 'Spotify', 'Slack', 'Figma'). The `label` field is an optional human-readable override for the spoken acknowledgement. Always announce the action before calling this tool: emit a short butler text block first, then this tool_use block.",
+    "Launch a macOS application via the desktop client. The `app` field is the application name as it appears in /Applications (e.g. 'Spotify', 'Figma'). The `label` field is an optional human-readable override for the spoken acknowledgement. Always announce the action before calling this tool: emit a short butler text block first, then this tool_use block. PREFER studio_open_widget INSTEAD when the request matches an available Studio widget kind — WhatsApp/messages, a web page, weather, news, camera, clock, or settings — so it renders the native HUD widget rather than launching a separate app. Use open_app ONLY for apps with no widget equivalent (e.g. 'open Spotify', 'launch Figma').",
   input_schema: toJsonSchema(OpenAppInputSchema),
 };

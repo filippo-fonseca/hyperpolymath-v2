@@ -76,46 +76,46 @@ export function HashtagSidebar({
         type="button"
         onClick={() => onSelect(isActive ? null : h.id)}
         className={cn(
-          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md font-sans text-[13px] font-normal text-left",
+          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-[13px] font-normal text-left transition-colors",
           isActive
-            ? "bg-secondary font-medium text-foreground"
-            : "text-foreground hover:bg-secondary/60",
+            ? "bg-[var(--sd-selected)] font-medium text-[var(--sd-ink)]"
+            : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
           isOrphan && !isActive && "opacity-40"
         )}
         aria-pressed={isActive}
       >
         <span className="truncate">#{h.displayName}</span>
-        <span className="text-muted-foreground tabular-nums shrink-0">{h.count}</span>
+        <span className="text-[var(--sd-ink-faint)] tabular-nums shrink-0">{h.count}</span>
       </button>
     );
   }
 
   return (
-    <div className="flex flex-col p-4 rounded-xl glass-tile">
+    <div className="flex flex-col p-3 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       {/* All row — filter-clear; sits above the "Hashtags"heading. */}
       <button
         type="button"
         onClick={() => onSelect(null)}
         className={cn(
-          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md font-sans text-[13px] font-normal text-left",
+          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-[13px] font-normal text-left transition-colors",
           allIsActive
-            ? "bg-secondary font-medium text-foreground"
-            : "text-foreground hover:bg-secondary/60"
+            ? "bg-[var(--sd-selected)] font-medium text-[var(--sd-ink)]"
+            : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
         )}
         aria-pressed={allIsActive}
       >
         <span className="truncate">All</span>
-        <span className="text-muted-foreground tabular-nums shrink-0">{totalCount}</span>
+        <span className="text-[var(--sd-ink-faint)] tabular-nums shrink-0">{totalCount}</span>
       </button>
 
       <button
         type="button"
         onClick={onToggleFavorites}
         className={cn(
-          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md font-sans text-[13px] font-normal text-left",
+          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-[13px] font-normal text-left transition-colors",
           favoritesActive
-            ? "bg-secondary font-medium text-foreground"
-            : "text-foreground hover:bg-secondary/60"
+            ? "bg-[var(--sd-selected)] font-medium text-[var(--sd-ink)]"
+            : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
         )}
         aria-pressed={favoritesActive}
       >
@@ -127,18 +127,18 @@ export function HashtagSidebar({
           />
           <span className="truncate">Favorites</span>
         </span>
-        <span className="text-muted-foreground tabular-nums shrink-0">{favoritesCount}</span>
+        <span className="text-[var(--sd-ink-faint)] tabular-nums shrink-0">{favoritesCount}</span>
       </button>
 
-      <div className="border-b border-border my-2" />
+      <div className="border-b border-[var(--sd-line)] my-2" />
 
-      <h3 className="font-sans text-[13px] uppercase tracking-wider text-muted-foreground mb-2 px-2">
+      <h3 className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)] mb-2 px-2">
         Hashtags
       </h3>
 
       <div className="flex flex-col gap-0.5">
         {active.length === 0 && orphans.length === 0 && (
-          <p className="font-sans text-[13px] text-muted-foreground italic px-2 py-1">
+          <p className="text-[13px] text-[var(--sd-ink-faint)] italic px-2 py-1">
             No hashtags yet.
           </p>
         )}
@@ -148,7 +148,7 @@ export function HashtagSidebar({
             <button
               type="button"
               onClick={() => setShowAll((v) => !v)}
-              className="font-sans text-[13px] text-muted-foreground hover:text-foreground px-2 py-1 text-left"
+              className="text-[13px] text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] px-2 py-1 text-left transition-colors"
             >
               {showAll ? "Hide unused" : `Show all (${orphans.length} unused)`}
             </button>

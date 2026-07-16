@@ -1,0 +1,73 @@
+{
+ "agent_id": "sd3-unit-settings-misc",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-settings-misc",
+ "branch": "sd3/unit-settings-misc",
+ "unit_id": "unit-settings-misc",
+ "phase": "awaiting_review",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-15T18:02:45.884725+00:00",
+ "verification": {
+  "typecheck": "pass",
+  "build": "pass (exit 0; all fence routes compiled)",
+  "banned_pattern_sweep": "clean (0 glass/blur/gradient/glow/hover-scale/serif in fence)",
+  "screenshots": "settings dark+light, people dark, onboarding dark @1440x900 headless via sanctioned throwaway preview (deleted; tree clean)",
+  "evidence_dir": ".planning/sd3-settings-evidence/",
+  "note": ".planning/sd3-settings-verification.md"
+ },
+ "commits": [
+  {
+   "hash": "46e6a12c",
+   "subject": "sd3(settings): hub page + section nav to the sd register"
+  },
+  {
+   "hash": "c0c395f7",
+   "subject": "sd3(settings/people/misc): drop dead font-serif alias across serif-only files"
+  },
+  {
+   "hash": "54c586c1",
+   "subject": "sd3(people): roster + detail + edit to the sd register"
+  },
+  {
+   "hash": "fee21d29",
+   "subject": "sd3(graph): explorer chrome + empty state to the sd register"
+  },
+  {
+   "hash": "5090e0f6",
+   "subject": "sd3(onboarding): flow to the sd register \u2014 single cyan, sd plates, calm"
+  },
+  {
+   "hash": "91456cb4",
+   "subject": "sd3(tour): product tour coachmark to the sd register"
+  },
+  {
+   "hash": "6788564e",
+   "subject": "sd3(manifesto/branding/health): long-tail pages to the sd register"
+  },
+  {
+   "hash": "642e0767",
+   "subject": "sd3(settings): align subpages + components to sd token system"
+  },
+  {
+   "hash": "0811b040",
+   "subject": "docs(sd3/settings): verification note + both-theme evidence frames"
+  }
+ ],
+ "assumptions": [
+  "HudCoreBubble 150px hero kept on onboarding welcome \u2014 blessed brand presence sphere (shared, out-of-fence, also on shipped landing hero). Flagged for Conductor; one-line size change if you want it reduced.",
+  "font-serif stripped on sight in touched files \u2014 no-op alias for Space Grotesk, zero visual change.",
+  "env files (.env/.env.local) copied from repo root into worktree so build could run; gitignored, tree clean.",
+  "Graph node color palette left as data-viz (canvas internals per fence); only chrome went sd."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": "claude-opus-4-8",
+ "notes": [
+  "Read contract \u00a70/\u00a71/\u00a73, DESIGN-SYSTEM.md v2, scout-A. Fence mapped: settings(13)+components/settings(14)+people(6)+graph(2)+onboarding(2)+ProductTour+manifesto+branding(2)+health. No advisor channel present.",
+  "Complete: 9 atomic commits across settings/people/graph/onboarding/tour/long-tail. typecheck+build green, fence sweep clean, both-theme evidence committed. Authed surfaces need :3000 post-merge pixel-verify (page-level requireOnboarded gates; captured via throwaway preview). WAITING for Conductor review."
+ ],
+ "steering": [],
+ "port": 3833
+}

@@ -7,6 +7,7 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { DayNavigator } from "@/components/journaling/DayNavigator";
 import { JournalEntryEditor } from "@/components/journaling/JournalEntryEditor";
 import { JournalCalendar } from "@/components/journaling/JournalCalendar";
+import { PageIcon } from "@/components/ui/icons";
 import { useState } from "react";
 
 interface Props {
@@ -80,12 +81,23 @@ export function JournalingClient({
   }
 
   return (
-    <main className="flex flex-col gap-4 p-4 md:p-6 min-h-full bg-[var(--canvas)]">
-      {/* Page header */}
-      <div className="flex items-center justify-between">
-        <h1 className="font-serif text-[22px] font-semibold text-[var(--ink)]">
-          Journal
-        </h1>
+    <main
+      className="flex min-h-full flex-col gap-5 p-4 md:p-6"
+      style={{ background: "var(--sd-app)" }}
+    >
+      {/* Page header — sd title row: dimensional icon + mono eyebrow + title. */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <PageIcon size={34} kind="daily" title="Journal" />
+          <div className="flex flex-col gap-1">
+            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+              Daily log
+            </span>
+            <h1 className="text-[22px] font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]">
+              Journal<span className="text-[var(--sd-accent)]">.</span>
+            </h1>
+          </div>
+        </div>
         <DayNavigator date={selectedDate} onChange={handleSelectDate} />
       </div>
 
@@ -95,7 +107,7 @@ export function JournalingClient({
             textarea state never lingers from the previous day */}
         <JournalEntryEditor key={selectedDate} date={selectedDate} entry={activeEntry} />
 
-        {/* Calendar sidebar — month/week/year views, neumorphic selected day */}
+        {/* Calendar sidebar — month/week/year views, sd-tokenized day cells */}
         <JournalCalendar
           selectedDate={selectedDate}
           entries={history}

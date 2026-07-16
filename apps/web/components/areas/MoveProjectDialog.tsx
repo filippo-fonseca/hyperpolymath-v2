@@ -72,7 +72,7 @@ export function MoveProjectDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Move project</DialogTitle>
-          <DialogDescription className="font-serif italic text-sm text-[var(--ink-muted)]">
+          <DialogDescription className="text-sm text-[var(--ink-muted)]">
             {projectName} → another area
           </DialogDescription>
         </DialogHeader>

@@ -12,9 +12,13 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
+tauri = { version = "2", features = ["tray-icon", "macos-private-api", "unstable"] }
 tauri-plugin-store = "2"
 tauri-plugin-http = "2"
+# Direct reqwest for the whatsapp_reconnect Tauri command's POST /api/logout
+# to the local bridge. Matches the version already pulled transitively by
+# tauri-plugin-http so no duplicate copy is added to the tree.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-shell = "2"

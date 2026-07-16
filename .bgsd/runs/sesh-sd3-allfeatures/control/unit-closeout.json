@@ -1,0 +1,63 @@
+{
+ "agent_id": "sd3-unit-closeout",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-closeout",
+ "branch": "sd3/unit-closeout",
+ "unit_id": "unit-closeout",
+ "phase": "verified",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-15T22:35:40Z",
+ "verification": {
+  "typecheck": "PASS (pnpm --filter web typecheck, tsc --noEmit exit 0)",
+  "build": "PASS (pnpm --filter web build exit 0, full route table; needs dummy DATABASE_URL because the worktree has no .env* — env infra gap, not code)",
+  "boot": "PASS (next start :3836; / -> 200, /design -> 200)",
+  "console": "PASS (zero app errors; the 4 errors are /_vercel/insights + /_vercel/speed-insights 404s, prod-only infra)",
+  "glass_excision": "PROVEN: every excised class -> 0 real consumers; 0 dead selectors/knob-refs in globals.css; braces 275/275; net -153 lines",
+  "d1_focus_ring": "PROVEN: --ring-focus (unified focus-ring token) no longer contains any hud-cyan-glow layer in either the light or dark def (grep the shadow literal, per steer)",
+  "headless": "PASS (lock protocol honored, one browser, 1440x900): /design dark+light viewport+full + landing-hero dark sentinel",
+  "note": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-closeout/.planning/sd3-VERIFICATION.md"
+ },
+ "commits": [
+  "459e12fc sd3(closeout): migrate residual glass consumers to sd surfaces",
+  "ec6f63ae sd3(closeout): excise dead glass/sidebar/lifeos CSS from globals",
+  "6309b67a docs(sd3/closeout): extend DESIGN-SYSTEM canon for sd3 systems",
+  "76185300 docs(sd3/closeout): add sd3 sections to the /design living reference",
+  "1f0d0b33 docs(sd3/closeout): verification note + PR dossier + both-theme evidence",
+  "f2375678 sd3(closeout): strip JARVIS composer glow layer (Tester-r5 D1) [REVERTED — mis-targeted]",
+  "f7536cb3 Revert f2375678",
+  "198d785c sd3(closeout): strip banned glow from unified focus ring (Tester-r5 D1, correct target)",
+  "0249a46d docs(sd3/closeout): record corrected D1 (unified focus-ring de-glow)"
+ ],
+ "deliverables": {
+  "glass_excision": "done (459e12fc + ec6f63ae)",
+  "integration_gates": "green (typecheck + build)",
+  "canon_docs": "docs/DESIGN-SYSTEM.md (§9/§13 extended; §20-23 added) + /design route (§12-15 incl. live SfxPlayground)",
+  "pr_dossier": ".planning/sd3-PR-BODY.md (Conductor opens the PR; not opened by this agent)",
+  "d1_fence_extension": "done (198d785c) — unified --ring-focus token de-glowed (light 10px + dark 12px hud-cyan-glow layers stripped), crisp cyan ring kept"
+ },
+ "steering_ack": [
+  "CONDUCTOR STEER D1 RECEIVED + EXECUTED. Steer named CaptureComposer.tsx; root cause is the shared --ring-focus token (unified focus-ring law, aliased by --ring-doc/--ring-hud, applied at the app-wide :focus-visible rule in globals.css). Removed ONLY the third glow layer (0 0 12px/10px --hud-cyan-glow = rgba(34,211,238,0.18)) from both dark and light defs; kept 0 0 0 2px canvas + 0 0 0 4px hud-cyan ring. Verified by grepping the shadow literal (0 glow layers remain). globals.css-only. Note: a first attempt (f2375678) mis-targeted the JarvisInput hud-focus-breathe keyframe and was reverted (f7536cb3) before the correct fix."
+ ],
+ "assumptions": [
+  "Build gate requires DATABASE_URL; the worktree carries no .env* (propagation gap), so build was run with a dummy DATABASE_URL. A static build never connects and compile+TypeScript are clean before page-data collection. Treated as infra-blocked, not a code defect (same class as the known preview-build env gap).",
+  "Kept --glass-raise/drop/hi/lo/border/bg knobs: they are shadow primitives still composed by live sd surfaces (LandingSideNav, AreasTree, ProjectAutocomplete, PageProperties, receipt cards), proven by grep. Only the glass CLASSES + 6 now-dead knobs were removed.",
+  "Left two descriptive comments referencing '.glass-button' (DayNavigator.tsx, page-block-editor.css); they document the sd surfaces that replaced glass-button, not consumers.",
+  "D1 de-glows the unified --ring-focus token app-wide (every focus-visible element), not just CaptureComposer, since that token is the source of the composer's third box-shadow layer and the steer invoked the 'unified focus-ring law'. This matches §0's glow-ring ban. The crisp 4px cyan ring is preserved per 'remove ONLY that blur layer'."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": "claude-opus-4-8",
+ "notes": [
+  "All 4 seed jobs complete + D1 fence extension (corrected target). 9 commits on sd3/unit-closeout off base 38291bff; working tree clean.",
+  "PR dossier at .planning/sd3-PR-BODY.md; NOT opened (Conductor's job).",
+  "Server on :3836 stopped; browser lock released; .playwright-mcp scratch cleaned.",
+  "Deferred (per RUN.md): desktop restyle #291 (item-9006d9a8); D2 hashtag rail #293 (item-b1703636); Porcupine/window-mgmt/ElevenLabs #264.",
+  "WAITING for Conductor review."
+ ],
+ "steering": [
+  "CONDUCTOR STEER (tester D1): FENCE EXTENSION — apps/web/components/captures/CaptureComposer.tsx. The focused composer's box-shadow stacks a third layer `rgba(34,211,238,0.18) 0 0 12px 0` — a banned glow. Remove ONLY that blur layer; keep the crisp 2px accent focus ring (unified focus-ring law). Own atomic commit; verify via computed box-shadow in your gate boot or grep the shadow literal."
+ ],
+ "port": 3836
+}

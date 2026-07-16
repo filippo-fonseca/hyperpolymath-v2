@@ -45,7 +45,9 @@ const nextConfig: NextConfig = {
   // the whole app (Next inline bootstrap, Supabase, Anthropic streaming, Google
   // OAuth, fonts), and it can't be verified without a real browser pass. Add a
   // full nonce-based CSP as a follow-up after testing in a Vercel preview.
-  // microphone=(self) is required for in-browser voice (STT getUserMedia).
+  // microphone=(self) is required for in-browser voice (STT getUserMedia);
+  // camera=(self) is required for the Studio's hand-tracking (HandLandmarker
+  // getUserMedia). Both are same-origin only.
   async headers() {
     return [
       {
@@ -60,7 +62,7 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(self), geolocation=()",
+            value: "camera=(self), microphone=(self), geolocation=()",
           },
           { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
         ],

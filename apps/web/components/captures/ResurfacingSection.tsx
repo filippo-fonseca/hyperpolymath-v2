@@ -41,21 +41,21 @@ export function ResurfacingSection({ captures, onSelect, onDismiss }: Props) {
     <Collapsible
       open={open}
       onOpenChange={setOpen}
-      className="rounded-xl border border-[var(--hud-cyan)]/25 bg-[var(--hud-cyan)]/[0.04]"
+      className="rounded-[14px] border border-[color-mix(in_oklch,var(--sd-accent)_28%,var(--sd-line))] bg-[color-mix(in_oklch,var(--sd-accent)_6%,var(--sd-box))]"
     >
       <CollapsibleTrigger className="group flex w-full items-center gap-2 px-4 py-3 text-left">
         <ChevronRight
           size={15}
           className={cn(
-            "text-[var(--hud-cyan)] transition-transform duration-200",
+            "text-[var(--sd-accent)] transition-transform duration-200",
             open && "rotate-90",
           )}
         />
-        <CalendarClock size={15} className="text-[var(--hud-cyan)]" />
-        <span className="font-sans text-[13px] font-medium uppercase tracking-wider text-foreground">
+        <CalendarClock size={15} className="text-[var(--sd-accent)]" />
+        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--sd-ink)]">
           Resurfacing today
         </span>
-        <span className="font-sans text-[12px] text-muted-foreground">
+        <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-faint)]">
           {captures.length}
         </span>
       </CollapsibleTrigger>
@@ -66,21 +66,21 @@ export function ResurfacingSection({ captures, onSelect, onDismiss }: Props) {
             const overdue = due ? !isToday(due) && due.getTime() < Date.now() : false;
             return (
               <li key={c.id}>
-                <div className="group flex items-start gap-2 rounded-lg px-2 py-2 hover:bg-background/60 transition-colors">
+                <div className="group flex items-start gap-2 rounded-lg px-2 py-2 hover:bg-[var(--sd-hover)] transition-colors">
                   <button
                     type="button"
                     onClick={() => onSelect(c)}
                     className="flex-1 min-w-0 text-left"
                     title="Open capture"
                   >
-                    <p className="font-serif text-[14px] text-foreground line-clamp-2">
+                    <p className="text-[14px] text-[var(--sd-ink)] line-clamp-2">
                       {c.content}
                     </p>
                     {due && (
                       <p
                         className={cn(
-                          "mt-0.5 font-sans text-[12px]",
-                          overdue ? "text-[var(--ink-coral)]" : "text-muted-foreground",
+                          "mt-0.5 text-[12px]",
+                          overdue ? "text-[var(--ink-coral)]" : "text-[var(--sd-ink-faint)]",
                         )}
                       >
                         {overdue ? "Was due " : "Due "}
@@ -93,7 +93,7 @@ export function ResurfacingSection({ captures, onSelect, onDismiss }: Props) {
                     onClick={() => onDismiss(c)}
                     title="Dismiss (clear resurface date)"
                     aria-label="Dismiss (clear resurface date)"
-                    className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-[var(--ink-coral)] transition-all flex-shrink-0"
+                    className="p-1 rounded text-[var(--sd-ink-faint)] opacity-0 group-hover:opacity-100 hover:text-[var(--ink-coral)] transition-all flex-shrink-0"
                   >
                     <X size={14} strokeWidth={1.5} />
                   </button>

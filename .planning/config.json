@@ -23,18 +23,34 @@
     "auto_advance": false,
     "node_repair": true,
     "node_repair_budget": 2,
-    "ui_phase": true,
+    "ui_phase": false,
     "ui_safety_gate": true,
     "text_mode": false,
     "research_before_questions": false,
     "discuss_mode": "discuss",
     "skip_discuss": false,
-    "_auto_chain_active": false
+    "_auto_chain_active": false,
+    "code_review": true,
+    "ai_integration_phase": false
   },
   "hooks": {
     "context_warnings": true
   },
   "agent_skills": {},
   "mode": "yolo",
-  "granularity": "coarse"
+  "granularity": "coarse",
+  "bgsd_unit_posture": {
+    "unit_id": "imessage-send-harden",
+    "model": "opus",
+    "effort": "xhigh",
+    "difficulty": 0.35
+  },
+  "bgsd_phase_config": {
+    "unit_id": "imessage-send-harden",
+    "research": true,
+    "plan_check": true,
+    "code_review": true,
+    "ai_integration_phase": false,
+    "ui_phase": false
+  }
 }

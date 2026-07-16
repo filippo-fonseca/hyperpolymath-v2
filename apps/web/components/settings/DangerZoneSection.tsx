@@ -42,10 +42,10 @@ export function DangerZoneSection({ email }: { email: string }) {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="font-serif text-2xl font-semibold text-[var(--ink-coral)]">
+        <h3 className="text-2xl font-semibold text-[var(--ink-coral)]">
           Delete account
         </h3>
-        <p className="font-serif text-sm text-[var(--ink-muted)]">
+        <p className="text-sm text-[var(--sd-ink-dull)]">
           Permanently erase your account and everything in it: tasks, captures, projects, notes,
           calendar connection, and all other data. This cannot be undone.
         </p>
@@ -60,9 +60,9 @@ export function DangerZoneSection({ email }: { email: string }) {
           <div className="space-y-2">
             <label
               htmlFor="delete-account-confirm"
-              className="block font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-muted)]"
+              className="block font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--sd-ink-dull)]"
             >
-              Type <span className="text-[var(--ink)] normal-case tracking-normal">{email}</span> to
+              Type <span className="text-[var(--sd-ink)] normal-case tracking-normal">{email}</span> to
               confirm
             </label>
             <Input
@@ -77,7 +77,7 @@ export function DangerZoneSection({ email }: { email: string }) {
             />
           </div>
 
-          {error ? <p className="font-serif text-sm text-[var(--ink-coral)]">{error}</p> : null}
+          {error ? <p className="text-sm text-[var(--ink-coral)]">{error}</p> : null}
 
           <div className="flex items-center gap-2">
             <Button
@@ -93,7 +93,7 @@ export function DangerZoneSection({ email }: { email: string }) {
                   Deleting…
                 </>
               ) : (
-                "Permanently delete account"
+ "Permanently delete account"
               )}
             </Button>
             <Button type="button" variant="outline" size="sm" disabled={pending} onClick={reset}>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.hyperpolymath.whatsapp-sync
+
+  launchd agent that keeps tools/whatsapp-sync/sync.mjs running under the
+  user login session, mirroring new WhatsApp messages from the desktop
+  bridge's SQLite store into Postgres via /api/whatsapp/ingest.
+
+  Install:
+    1. cp this file to ~/Library/LaunchAgents/
+    2. Edit these values below (run `which node` first to grab the right path
+       for your machine — Apple Silicon Homebrew is /opt/homebrew/bin/node,
+       Intel is /usr/local/bin/node, nvm is under ~/.nvm):
+         - ProgramArguments[0]: absolute path to your `node` binary
+         - ProgramArguments[1]: absolute path to sync.mjs in your checkout
+         - EnvironmentVariables.JARVIS_APP_URL: your Vercel URL if not local
+         - EnvironmentVariables.JARVIS_DEVICE_TOKEN: your hpd_… token
+    3. launchctl load ~/Library/LaunchAgents/com.hyperpolymath.whatsapp-sync.plist
+    4. tail -f /tmp/whatsapp-sync.out.log
+
+  KeepAlive + RunAtLoad mean the daemon starts on login and is relaunched
+  by launchd if it exits for any reason. The sync loop itself swallows
+  per-tick errors so transient network / SQLite locks don't kill it.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.hyperpolymath.whatsapp-sync</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/REPLACE_WITH_YOUR_NODE_PATH</string>
+    <string>/Users/YOU/Developer/Projects/hyperpolymath-v2/tools/whatsapp-sync/sync.mjs</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>JARVIS_APP_URL</key>
+    <string>http://localhost:3000</string>
+    <key>JARVIS_DEVICE_TOKEN</key>
+    <string>hpd_REPLACE_ME</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>ThrottleInterval</key>
+  <integer>15</integer>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/whatsapp-sync.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/whatsapp-sync.err.log</string>
+</dict>
+</plist>

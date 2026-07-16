@@ -50,7 +50,16 @@ export const ttsPlayer = new TtsPlayer();
 
 export function startJarvisResponseListener(): void {
   onJarvisResponseStart(({ turnId }) => {
-    ttsPlayer.resetTurn();
+    // Do NOT reset any global TTS state here: turns can overlap (routine
+    // opener + brief-gather, per-block fillers). The player is turn-aware and
+    // owns per-turn seq bookkeeping via the turnId we pass on enqueue/endTurn.
+    //
+    // First-seen wins on duplicate response-start (e.g. reconnect/retry): the
+    // TtsPlayer's turnOrder already treats first-seen as canonical, and the
+    // buffer's ttsSeq must stay in lockstep with the player's per-turn nextSeq,
+    // so re-seeding would enqueue seq 0,1,2 against a nextSeq that has moved
+    // past them and permanently wedge the turn.
+    if (turnBuffers.has(turnId)) return;
     turnBuffers.set(turnId, { text: "", toolCalls: [], ttsBuffer: "", ttsSeq: 0 });
   });
 
@@ -65,7 +74,7 @@ export function startJarvisResponseListener(): void {
     for (const s of sentences) {
       const cleaned = s.trim();
       if (!cleaned) continue;
-      ttsPlayer.enqueueSentence(cleaned, buf.ttsSeq++);
+      ttsPlayer.enqueueSentence(turnId, cleaned, buf.ttsSeq++);
     }
   });
 
@@ -79,10 +88,12 @@ export function startJarvisResponseListener(): void {
     const buf = turnBuffers.get(turnId);
     if (!buf) return;
 
-    // Flush any unfinished tail sentence.
+    // Flush any unfinished tail sentence, then signal end-of-turn so the
+    // player retires the turn once it drains and moves on to the next.
     if (buf.ttsBuffer.trim()) {
-      ttsPlayer.enqueueSentence(buf.ttsBuffer.trim(), buf.ttsSeq++);
+      ttsPlayer.enqueueSentence(turnId, buf.ttsBuffer.trim(), buf.ttsSeq++);
     }
+    ttsPlayer.endTurn(turnId);
 
     turnBuffers.delete(turnId);
     const completed: JarvisResponseComplete = {

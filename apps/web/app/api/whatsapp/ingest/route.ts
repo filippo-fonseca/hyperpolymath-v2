@@ -16,6 +16,7 @@
 // the agent + daily briefings with zero mid-turn desktop round-trip.
 
 import type { NextRequest } from "next/server";
+import { sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
@@ -104,19 +105,27 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 
   try {
-    // onConflictDoNothing on the (userId, chatJid, externalId) unique index —
-    // replays after a crash just no-op. We could measure the exact `inserted`
-    // count via RETURNING, but for the worker's purposes the batch size is a
-    // good-enough progress signal and cheaper to return.
+    // Upsert on the (userId, chatJid, externalId) unique index. Replays after a
+    // crash no-op on the immutable fields, but we DO refresh the resolved names
+    // (chatName / senderName): the sync worker learned to resolve contact names
+    // from whatsmeow_contacts, so a re-sync of rows first ingested with null
+    // names backfills them here instead of being ignored. `inserted` counts all
+    // affected rows (insert OR name-refresh) — a good-enough progress signal.
     const result = await db
       .insert(whatsappMessages)
       .values(rows)
-      .onConflictDoNothing({
+      .onConflictDoUpdate({
         target: [
           whatsappMessages.userId,
           whatsappMessages.chatJid,
           whatsappMessages.externalId,
         ],
+        set: {
+          // COALESCE so a later null-name replay never wipes a name we already
+          // resolved; a newly-resolved name upgrades an existing null.
+          chatName: sql`coalesce(excluded.chat_name, ${whatsappMessages.chatName})`,
+          senderName: sql`coalesce(excluded.sender_name, ${whatsappMessages.senderName})`,
+        },
       })
       .returning({ id: whatsappMessages.id });
     return Response.json({ inserted: result.length, received: rows.length }, { headers: CORS });

@@ -116,9 +116,9 @@ export function CapturesFeed({
   }
 
   return (
-    // Neumorphic tile feed — each capture is a pillow surface; we space them
-    // vertically so the dual-direction shadow can breathe. mode="popLayout"
-    // still drives the per-row exit via the motion exit prop on CaptureCard.
+    // sd plate feed — each capture is a solid --sd-box plate; spaced vertically
+    // so the hairline chrome reads cleanly. mode="popLayout" still drives the
+    // per-row exit via the motion exit prop on CaptureCard.
     <div className="flex flex-col gap-3">
       <AnimatePresence mode="popLayout" initial={false}>
         {captures.map((c) => (
@@ -151,12 +151,12 @@ function EmptyState({
   actionLabel?: string;
   onAction?: () => void;
 }) {
-  // Phase 06.1 Plan 04 (UI-SPEC §5i, §12b) — document-tier empty state:
-  // serif H2 24px + serif body --ink-muted + Document primary <Button>.
+  // sd empty state — Space Grotesk H2 24px + body on --sd-ink-dull + primary
+  // <Button> (the sd primitive). No serif.
   return (
     <div className="flex flex-col items-center text-center py-24 px-6 gap-3">
-      <h2 className="font-serif text-2xl font-semibold leading-tight text-[var(--ink)]">{title}</h2>
-      <p className="font-serif text-base text-[var(--ink-muted)] max-w-md">{body}</p>
+      <h2 className="text-2xl font-semibold leading-tight text-[var(--sd-ink)]">{title}</h2>
+      <p className="text-base text-[var(--sd-ink-dull)] max-w-md">{body}</p>
       {actionLabel && onAction && (
         <Button onClick={onAction} className="mt-4">
           {actionLabel}

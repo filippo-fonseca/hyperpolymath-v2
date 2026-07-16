@@ -23,7 +23,7 @@ import { forceCollide } from "d3-force";
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
   loading: () => (
-    <div className="grid h-full w-full place-items-center font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+    <div className="grid h-full w-full place-items-center font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
       loading graph…
     </div>
   ),
@@ -97,12 +97,12 @@ interface GLink {
   tgtType: string;
 }
 
-// Shared glassy pill chrome — mirrors PROFILE pill in settings nav.
-// Glass translucent surface + backdrop-blur + inset cyan glow + soft outer halo.
+// Shared sd plate chrome for the graph toolbars and node inspector: --sd-box
+// surface, 12px radius, 1px hairline + dark-only inset top highlight. No glass,
+// no blur, no glow.
 const tile =
-  "rounded-xl " +
-  "glass-tile " +
-  "";
+  "rounded-[12px] border border-[var(--sd-line)] " +
+  "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]";
 
 export function GraphExplorer({
   snapshotDate,
@@ -259,30 +259,32 @@ export function GraphExplorer({
   }
 
   return (
-    <main className="relative flex h-full min-h-0 flex-col gap-3 bg-[var(--canvas)] p-4 text-[var(--ink)]">
+    <main className="relative flex h-full min-h-0 flex-col gap-3 bg-[var(--sd-app)] p-4 text-[var(--sd-ink)]">
       {/* MCP / snapshot header */}
       <header
-        className={`${tile} flex flex-wrap items-center justify-between gap-3 bg-[var(--surface)] px-5 py-3`}
+        className={`${tile} flex flex-wrap items-center justify-between gap-3 bg-[var(--sd-box)] px-5 py-3`}
       >
         <div className="min-w-0">
-          <h1 className="font-serif text-xl font-semibold">Knowledge graph</h1>
-          <p className="mt-0.5 font-mono text-[11px] text-[var(--ink-muted)]">
+          <h1 className="text-xl font-semibold">Knowledge graph</h1>
+          <p className="mt-0.5 font-mono text-[11px] text-[var(--sd-ink-faint)]">
             {meta.totalNodes} nodes · {meta.totalEdges} edges · snapshot {snapshotDate} · schema v{schemaVersion}
           </p>
         </div>
         <div className="flex items-center gap-3 font-mono text-[11px]">
           <span
-            className={
-              mcpTokenActive
-                ? "rounded-full bg-emerald-500/15 px-2.5 py-1 text-emerald-400"
-                : "rounded-full bg-amber-500/15 px-2.5 py-1 text-amber-400"
-            }
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 py-1 text-[var(--sd-ink-dull)]"
           >
+            <span
+              className="inline-block size-1.5 rounded-full"
+              style={{
+                background: mcpTokenActive ? "var(--ink-sage)" : "var(--ink-amber)",
+              }}
+            />
             {mcpTokenActive ? "MCP token active" : "no MCP token"}
           </span>
           <Link
             href="/settings/mcp-tokens"
-            className="text-[var(--ink-muted)] underline-offset-2 hover:text-[var(--ink)] hover:underline"
+            className="text-[var(--sd-ink-faint)] underline-offset-2 hover:text-[var(--sd-ink)] hover:underline"
           >
             manage MCP →
           </Link>
@@ -291,9 +293,9 @@ export function GraphExplorer({
 
       {/* Filter legend */}
       <div
-        className={`${tile} flex flex-wrap items-center gap-2 bg-[var(--surface)] px-5 py-2.5`}
+        className={`${tile} flex flex-wrap items-center gap-2 bg-[var(--sd-box)] px-5 py-2.5`}
       >
-        <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+        <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
           show
         </span>
         {presentTypes.map((t) => {
@@ -306,8 +308,8 @@ export function GraphExplorer({
               onClick={() => toggleType(t)}
               className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] transition-opacity ${
                 on
-                  ? "border-[var(--edge)] text-[var(--ink)]"
-                  : "border-transparent text-[var(--ink-muted)] opacity-50"
+                  ? "border-[var(--sd-line)] text-[var(--sd-ink)]"
+                  : "border-transparent text-[var(--sd-ink-faint)] opacity-50"
               }`}
             >
               <span
@@ -361,24 +363,24 @@ export function GraphExplorer({
           )}
 
           {/* hint pill */}
-          <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-white/5 bg-black/40 px-2.5 py-1 font-mono text-[10px] text-white/60 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
+          <div className="pointer-events-none absolute bottom-3 left-3 rounded-[8px] border border-white/10 bg-black/50 px-2.5 py-1 font-mono text-[10px] text-white/60">
             scroll to zoom · drag to pan · click a node to inspect
           </div>
         </div>
 
         {/* Detail panel */}
         {selected && (
-          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] p-5 shadow-[inset_6px_0_18px_color-mix(in_oklch,var(--ink)_6%,transparent),inset_0_1px_0_color-mix(in_oklch,white_50%,transparent)]">
+          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-[var(--sd-line)] bg-[var(--sd-box)] p-5">
             <div className="flex items-center gap-2">
               <span
                 className="inline-block h-3 w-3 rounded-full"
                 style={{ background: selected.color }}
               />
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
                 {typeLabel(selected.type)}
               </span>
             </div>
-            <h2 className="mt-2 font-serif text-lg leading-snug text-[var(--ink)]">
+            <h2 className="mt-2 text-lg leading-snug text-[var(--sd-ink)]">
               {selected.name}
             </h2>
 
@@ -387,8 +389,8 @@ export function GraphExplorer({
                 .filter(([k]) => !["id", "type", "name", "title", "text"].includes(k))
                 .map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-3">
-                    <dt className="text-[var(--ink-muted)]">{k}</dt>
-                    <dd className="truncate text-right text-[var(--ink)]">
+                    <dt className="text-[var(--sd-ink-faint)]">{k}</dt>
+                    <dd className="truncate text-right text-[var(--sd-ink)]">
                       {Array.isArray(v) ? v.join(", ") || "—" : String(v ?? "—")}
                     </dd>
                   </div>
@@ -396,7 +398,7 @@ export function GraphExplorer({
             </dl>
 
             <div className="mt-5">
-              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
                 connected · {neighbors.length}
               </p>
               <ul className="mt-2 space-y-1">
@@ -405,20 +407,20 @@ export function GraphExplorer({
                     <button
                       type="button"
                       onClick={() => selectById(n.id)}
-                      className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left hover:bg-[var(--surface-raised)]"
+                      className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left hover:bg-[var(--sd-hover)]"
                     >
                       <span
                         className="inline-block h-2 w-2 shrink-0 rounded-full"
                         style={{ background: n.color }}
                       />
-                      <span className="truncate font-serif text-[13px] text-[var(--ink)]">
+                      <span className="truncate text-[13px] text-[var(--sd-ink)]">
                         {n.name}
                       </span>
                     </button>
                   </li>
                 ))}
                 {neighbors.length === 0 && (
-                  <li className="px-1.5 font-serif text-[13px] text-[var(--ink-muted)]">
+                  <li className="px-1.5 text-[13px] text-[var(--sd-ink-faint)]">
                     No connections in the current view.
                   </li>
                 )}

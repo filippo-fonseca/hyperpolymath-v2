@@ -3,12 +3,10 @@
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
 import "./page-block-editor.css";
+import "./blocks/link-embed-block.css";
 
 import { undoJarvisAction } from "@/app/actions/jarvis";
-import {
-  resolveOrCreatePerson,
-  searchPeopleForCurrentUser,
-} from "@/app/actions/people";
+import { resolveOrCreatePerson, searchPeopleForCurrentUser } from "@/app/actions/people";
 import {
   type WikiReferenceCandidate,
   searchEntitiesForReference,
@@ -35,7 +33,6 @@ import {
 import {
   type DefaultReactSuggestionItem,
   SuggestionMenuController,
-  createReactBlockSpec,
   getDefaultReactSlashMenuItems,
   useCreateBlockNote,
 } from "@blocknote/react";
@@ -54,30 +51,12 @@ import {
   entityReferenceInlineSpec,
 } from "./EntityReferenceInline";
 import { PERSON_MENTION_TYPE, personMentionInlineSpec } from "./PersonMentionInline";
-
-// Notion-style callout: a leading emoji plus editable inline content on a
-// tinted surface. Not a standard markdown block — it degrades to its inner
-// text in the markdown mirror, but keeps full fidelity in content_json.
-const calloutBlock = createReactBlockSpec(
-  {
-    type: "callout",
-    content: "inline",
-    propSchema: { emoji: { default: "💡" } },
-  },
-  {
-    render: (props) => (
-      <div className="bn-callout">
-        <span className="bn-callout-emoji" contentEditable={false}>
-          {props.block.props.emoji}
-        </span>
-        <div className="bn-callout-body" ref={props.contentRef} />
-      </div>
-    ),
-  }
-)();
+import { calloutBlock } from "./blocks/CalloutBlock";
+import { linkEmbedBlock } from "./blocks/LinkEmbedBlock";
+import { linkEmbedSlashItems, useLinkEmbedPaste } from "./PageLinkEmbedControls";
 
 const schema = BlockNoteSchema.create({
-  blockSpecs: { ...defaultBlockSpecs, callout: calloutBlock },
+  blockSpecs: { ...defaultBlockSpecs, callout: calloutBlock, linkEmbed: linkEmbedBlock },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,
     [JARVIS_RECEIPT_TYPE]: jarvisReceiptInlineSpec,
@@ -222,6 +201,7 @@ export default function PageBlockEditor({
   });
 
   const queryClient = useQueryClient();
+  const linkPaste = useLinkEmbedPaste(editor);
 
   // Local ref to the editor wrapper. Used to scope the Cmd+K keydown listener
   // (below) so it only fires when the user is actually inside the editor. The
@@ -531,7 +511,9 @@ export default function PageBlockEditor({
         className="flex flex-1 flex-col cursor-text"
         data-hide-receipts={hideReceipts ? "true" : "false"}
         onMouseDown={handleSurfaceMouseDown}
+        onPaste={linkPaste.onPaste}
       >
+        {linkPaste.menu}
         <BlockNoteView
           editor={editor}
           theme={theme}
@@ -551,6 +533,7 @@ export default function PageBlockEditor({
                 [
                   ...withSlashShorthand(getDefaultReactSlashMenuItems(editor)),
                   insertCalloutItem(editor),
+                  ...linkEmbedSlashItems(editor),
                   jarvisSlashItem(editor),
                 ],
                 query
@@ -584,8 +567,7 @@ export default function PageBlockEditor({
                   subtext: person.email ?? undefined,
                   aliases: person.email ? [person.email] : [],
                   group: "People",
-                  onItemClick: () =>
-                    insertPersonMention(editor, person.id, person.name),
+                  onItemClick: () => insertPersonMention(editor, person.id, person.name),
                 })),
                 ...entities,
               ];
@@ -707,7 +689,7 @@ function insertEntityReference(editor: Editor, candidate: WikiReferenceCandidate
  */
 async function entityReferenceItems(
   editor: Editor,
-  query: string,
+  query: string
 ): Promise<DefaultReactSuggestionItem[]> {
   const candidates = await searchEntitiesForReference(query);
   return candidates.map((candidate) => ({

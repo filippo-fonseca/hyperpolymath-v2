@@ -1,12 +1,36 @@
 mod audio;
 mod commands;
 mod computer;
+mod say;
+mod studio_webview;
+mod whatsapp;
 
 use tauri::{
-    menu::{Menu, MenuItem},
+    image::Image,
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
 };
+use tauri_plugin_opener::OpenerExt;
+
+/// Fire an invoke-to-talk turn. Shared by the tray's left-click and the
+/// explicit "Talk to JARVIS" menu item so both paths behave identically: the
+/// webview's `tray-invoke` listener routes this through the conversation FSM.
+/// Deliberately does NOT focus/show the HUD — the mic opens without stealing
+/// focus from whatever the user is currently in.
+fn invoke_talk(app: &tauri::AppHandle) {
+    let _ = app.emit("tray-invoke", ());
+}
+
+/// Resolve the web app base URL for the "Open JARVIS Settings" item. Mirrors
+/// the JS side (`src/env.ts`), which reads `VITE_API_BASE_URL` and defaults to
+/// localhost:3000. On the Rust side we read it from the process environment
+/// (exported alongside `tauri dev`) and fall back to the same default.
+fn jarvis_settings_url() -> String {
+    let base = std::env::var("VITE_API_BASE_URL")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    format!("{}/jarvis", base.trim_end_matches('/'))
+}
 
 /// Toggle the floating HUD window between shown+focused and hidden.
 /// Called from the tray's left-click and the "Show/Hide HUD" menu item.
@@ -32,6 +56,9 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        // Managed handle to the native `say` fallback child, so a new utterance
+        // or a stop can preempt the previous one (barge-in). See `say.rs`.
+        .manage(say::SayFallback::default())
         .setup(|app| {
             // macOS: run as a Regular app — Dock icon + standard app menu, so
             // Cmd+Q quits and the window is a normal, closable, movable window.
@@ -70,22 +97,61 @@ pub fn run() {
                 });
             }
 
-            // Tray menu: Show/Hide HUD + Quit.
+            // Tray menu: a real menu-bar app feel — Talk, Show/Hide HUD, open
+            // web Settings, then a separator and Quit.
+            let talk_item =
+                MenuItem::with_id(app, "talk", "Talk to JARVIS", true, None::<&str>)?;
             let toggle_item =
                 MenuItem::with_id(app, "toggle-hud", "Show / Hide HUD", true, None::<&str>)?;
+            let settings_item = MenuItem::with_id(
+                app,
+                "open-settings",
+                "Open JARVIS Settings",
+                true,
+                None::<&str>,
+            )?;
+            let separator = PredefinedMenuItem::separator(app)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit JARVIS", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&toggle_item, &quit_item])?;
+            let menu = Menu::with_items(
+                app,
+                &[
+                    &talk_item,
+                    &toggle_item,
+                    &settings_item,
+                    &separator,
+                    &quit_item,
+                ],
+            )?;
+
+            // macOS menu-bar icon: a monochrome TEMPLATE glyph (black shape on
+            // transparent alpha) so macOS auto-tints it for light/dark bars and
+            // the highlighted state — not the shrunk full-colour app icon.
+            // `include_image!` decodes the PNG at compile time into raw RGBA,
+            // so this works identically in `tauri dev` and packaged builds with
+            // no runtime path/resource resolution.
+            let tray_icon: Image<'static> =
+                tauri::include_image!("./icons/tray-icon-template.png");
 
             let _tray = TrayIconBuilder::with_id("jarvis-tray")
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(tray_icon)
+                // macOS: treat the icon as a template so it renders as a tinted
+                // menu-bar glyph rather than a literal bitmap.
+                .icon_as_template(true)
                 .tooltip("JARVIS Desktop")
                 .menu(&menu)
                 // Left-click INVOKES a turn (invoke-to-talk); the right-click
-                // menu owns Show/Hide HUD + Quit so visibility toggling is not
-                // conflated with invocation.
+                // menu owns Talk / Show-Hide HUD / Settings / Quit so
+                // visibility toggling is not conflated with invocation.
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
+                    "talk" => invoke_talk(app),
                     "toggle-hud" => toggle_hud(app),
+                    "open-settings" => {
+                        let url = jarvis_settings_url();
+                        if let Err(err) = app.opener().open_url(url, None::<&str>) {
+                            eprintln!("[tray] failed to open JARVIS Settings: {err}");
+                        }
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -99,10 +165,15 @@ pub fn run() {
                         // listener routes this through the conversation FSM.
                         // Do NOT set_focus on the HUD here — let the mic open
                         // without stealing focus from whatever the user is in.
-                        let _ = tray.app_handle().emit("tray-invoke", ());
+                        invoke_talk(tray.app_handle());
                     }
                 })
                 .build(app)?;
+
+            // Spawn + supervise the bundled WhatsApp bridge sidecar so the
+            // send path (POST localhost:8080/api/send) works with no manual
+            // `go run`. Forwards QR/ready events to the HUD; restarts on crash.
+            whatsapp::start(app.handle());
 
             Ok(())
         })
@@ -114,7 +185,10 @@ pub fn run() {
             commands::tts_play_pcm,
             commands::tts_stop,
             commands::tts_clear,
+            say::speak_fallback,
+            say::speak_fallback_stop,
             computer::run_applescript,
+            computer::run_jxa,
             computer::run_shortcut,
             computer::type_text,
             computer::press_key,
@@ -124,7 +198,25 @@ pub fn run() {
             computer::take_screenshot_to_file,
             computer::system_control,
             computer::accessibility_trusted,
+            studio_webview::studio_webview_create,
+            studio_webview::studio_webview_set_bounds,
+            studio_webview::studio_webview_show,
+            studio_webview::studio_webview_hide,
+            studio_webview::studio_webview_destroy,
+            studio_webview::studio_webview_navigate,
+            studio_webview::studio_webview_scroll,
+            studio_webview::studio_webview_click,
+            whatsapp::whatsapp_reconnect,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Kill the WhatsApp bridge sidecar when the app is quitting so it
+            // does not outlive the HUD (the session persists on disk).
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                if let Some(bridge) = app.try_state::<whatsapp::WhatsappBridge>() {
+                    bridge.kill();
+                }
+            }
+        });
 }

@@ -104,18 +104,18 @@ export function ProjectCapturesSection({
           aria-controls="project-captures-body"
           className="group flex items-center gap-2 -ml-1 px-1 py-1 rounded-sm hover:bg-[var(--surface)] transition-colors cursor-pointer"
         >
-          <span className="text-[var(--ink-muted)] group-hover:text-[var(--ink)] transition-colors">
+          <span className="text-[var(--sd-ink-dull)] group-hover:text-[var(--sd-ink)] transition-colors">
             {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </span>
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)] group-hover:text-[var(--ink)] transition-colors">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sd-ink-dull)] group-hover:text-[var(--sd-ink)] transition-colors">
             Captures
           </h2>
-          <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)]">
+          <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-dull)]">
             ({projectCaptures.length})
           </span>
         </button>
         {!collapsed && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
             ⌘↵ to capture
           </span>
         )}
@@ -171,10 +171,10 @@ export function ProjectCapturesSection({
 function EmptyCaptures() {
   return (
     <div className="rounded-md border border-dashed border-[var(--edge)] px-5 py-6 text-center">
-      <p className="font-serif italic text-[15px] text-[var(--ink-muted)]">
+      <p className="font-sans italic text-[15px] text-[var(--sd-ink-dull)]">
         Nothing captured here yet.
       </p>
-      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]/70 mt-1.5">
+      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]/70 mt-1.5">
         Type a thought above — ⌘↵ to file it.
       </p>
     </div>

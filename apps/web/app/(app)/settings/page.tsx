@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { Brain, KeyRound, Laptop, Network, Repeat } from "lucide-react";
+import { KeyRound, Laptop } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { Card } from "@/components/ui/card";
 import { SettingsForm } from "@/components/settings-form";
 import { SignOutButton } from "@/components/sign-out-button";
 import { DangerZoneSection } from "@/components/settings/DangerZoneSection";
@@ -19,6 +18,12 @@ import { TimezoneOverrideRow } from "@/components/settings/TimezoneOverrideRow";
 import { VoiceSettingsSection } from "@/components/settings/voice/VoiceSettingsSection";
 import { DistanceUnitToggle } from "@/components/training/settings/DistanceUnitToggle";
 import { SettingsSectionNav } from "@/components/settings/SettingsSectionNav";
+import {
+  SettingsCard,
+  SectionEyebrow,
+  CardTitle,
+  CardDescription,
+} from "@/components/settings/sd-primitives";
 import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
 import { PagesBackupSection } from "@/components/settings/PagesBackupSection";
 import { getPagesBackupSettings } from "@/lib/db/queries/pages-backup";
@@ -83,18 +88,17 @@ export default async function SettingsPage() {
     }
   }
 
-  // Glass surface system (globals.css) — translucent blurred tile with
-  // specular edge + inset cyan glow. Knobs live in the --glass-* vars.
-  const tile = "glass-tile p-6 space-y-4 rounded-xl";
-
-  const sectionHeader =
-    "font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-muted)] pl-1 pt-2";
+  const manageLink =
+    "inline-flex items-center font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-150 ease-out cursor-pointer-always";
 
   return (
-    <main className="min-h-screen bg-[var(--canvas)] px-6 py-10">
-      <div className="max-w-2xl mx-auto">
+    <main className="min-h-screen bg-[var(--sd-app)] px-6 py-10">
+      <div className="mx-auto max-w-2xl">
         <header className="mb-6">
-          <h1 className="font-serif text-4xl font-semibold text-[var(--ink)]">
+          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--sd-ink-faint)]">
+            Preferences
+          </p>
+          <h1 className="mt-1 text-[26px] font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">
             Settings
           </h1>
         </header>
@@ -103,16 +107,14 @@ export default async function SettingsPage() {
 
         <div className="space-y-10">
           {/* PROFILE */}
-          <section id="profile" className="space-y-4 scroll-mt-24">
-            <h2 className={sectionHeader}>Profile</h2>
+          <section id="profile" className="scroll-mt-24 space-y-4">
+            <SectionEyebrow>Profile</SectionEyebrow>
 
-            <Card className={tile}>
-              <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                Profile
-              </h3>
-              <p className="font-serif text-base text-[var(--ink-muted)]">
-                {user.email}
-              </p>
+            <SettingsCard className="space-y-4">
+              <div>
+                <CardTitle>Profile</CardTitle>
+                <CardDescription className="mt-1">{user.email}</CardDescription>
+              </div>
               <ProfileSection
                 userId={user.id}
                 email={user.email}
@@ -122,52 +124,48 @@ export default async function SettingsPage() {
                 initialGithubUsername={user.githubUsername}
                 oauthAvatarUrl={oauthAvatar.avatarUrl}
               />
-            </Card>
+            </SettingsCard>
 
-            <Card className={tile}>
-              <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                Graduation year
-              </h3>
+            <SettingsCard className="space-y-4">
+              <CardTitle>Graduation year</CardTitle>
               <SettingsForm
                 currentYear={user.graduationYear ?? new Date().getFullYear() + 4}
               />
-            </Card>
+            </SettingsCard>
           </section>
 
           {/* APPEARANCE */}
-          <section id="appearance" className="space-y-4 scroll-mt-24">
-            <h2 className={sectionHeader}>Appearance</h2>
+          <section id="appearance" className="scroll-mt-24 space-y-4">
+            <SectionEyebrow>Appearance</SectionEyebrow>
 
-            <Card className={tile}>
-              <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                Theme
-              </h3>
-              <p className="font-serif text-base text-[var(--ink-muted)]">
-                Light, dark, or follow your system.
-              </p>
+            <SettingsCard className="space-y-4">
+              <div>
+                <CardTitle>Theme</CardTitle>
+                <CardDescription className="mt-1">
+                  Light, dark, or follow your system.
+                </CardDescription>
+              </div>
               <ThemeToggle variant="settings" />
-            </Card>
+            </SettingsCard>
 
-            <Card className={tile}>
-              <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                Distance unit
-              </h3>
-              <p className="font-serif text-base text-[var(--ink-muted)]">
-                Used across the training planner, completion dialog, and stats.
-                Stored data stays in kilometers; only the display converts.
-              </p>
+            <SettingsCard className="space-y-4">
+              <div>
+                <CardTitle>Distance unit</CardTitle>
+                <CardDescription className="mt-1">
+                  Used across the training planner, completion dialog, and stats.
+                  Stored data stays in kilometers; only the display converts.
+                </CardDescription>
+              </div>
               <DistanceUnitToggle value={currentDistanceUnit} />
-            </Card>
+            </SettingsCard>
           </section>
 
           {/* INTEGRATIONS */}
-          <section id="integrations" className="space-y-4 scroll-mt-24">
-            <h2 className={sectionHeader}>Integrations</h2>
+          <section id="integrations" className="scroll-mt-24 space-y-4">
+            <SectionEyebrow>Integrations</SectionEyebrow>
 
-            <Card className={tile}>
-              <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                Google
-              </h3>
+            <SettingsCard className="space-y-4">
+              <CardTitle>Google</CardTitle>
               <GcalConnectionRow status={gcalStatus} />
               {gcalStatus === "connected" && calendars.length > 0 && (
                 <>
@@ -182,186 +180,102 @@ export default async function SettingsPage() {
                   <TimezoneOverrideRow currentTimezone={currentTimezone} />
                 </>
               )}
-            </Card>
+            </SettingsCard>
 
-            <Card className={tile}>
-              <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                Pages backup
-              </h3>
-              <p className="font-serif text-base text-[var(--ink-muted)]">
-                Keep an automatic daily copy of your entire Wiki in Google Drive.
-                Each page is exported as Markdown into a private folder only this
-                app can touch (the <code>drive.file</code> scope). If you
-                connected Google before backups existed, reconnect once to grant
-                Drive permission.
-              </p>
+            <SettingsCard className="space-y-4">
+              <div>
+                <CardTitle>Pages backup</CardTitle>
+                <CardDescription className="mt-1">
+                  Keep an automatic daily copy of your entire Wiki in Google Drive.
+                  Each page is exported as Markdown into a private folder only this
+                  app can touch (the <code>drive.file</code> scope). If you
+                  connected Google before backups existed, reconnect once to grant
+                  Drive permission.
+                </CardDescription>
+              </div>
               <PagesBackupSection
                 settings={backupSettings}
                 gcalConnected={gcalStatus === "connected"}
               />
-            </Card>
+            </SettingsCard>
           </section>
 
           {/* API KEYS (BYOK) */}
-          <section id="api-keys" className="space-y-4 scroll-mt-24">
-            <h2 className={sectionHeader}>API keys</h2>
+          <section id="api-keys" className="scroll-mt-24 space-y-4">
+            <SectionEyebrow>API keys</SectionEyebrow>
 
-            <Card className={tile}>
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)] shadow-[inset_1px_1px_2px_color-mix(in_oklch,var(--ink)_10%,transparent),inset_-1px_-1px_2px_color-mix(in_oklch,white_70%,transparent)]">
-                  <KeyRound className="h-4 w-4" />
-                </span>
-                <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            <SettingsCard className="space-y-4">
+              <div>
+                <CardTitle icon={<KeyRound className="h-4 w-4" />}>
                   Provider keys
-                </h3>
+                </CardTitle>
+                <CardDescription className="mt-2">
+                  JARVIS and the voice features run on your own paid API keys. They
+                  are encrypted at rest and used only for your requests.
+                </CardDescription>
               </div>
-              <p className="font-serif text-base text-[var(--ink-muted)]">
-                JARVIS and the voice features run on your own paid API keys. They
-                are encrypted at rest and used only for your requests.
-              </p>
               <ApiKeysSection status={apiKeyStatus} />
-            </Card>
+            </SettingsCard>
           </section>
 
           {/* VOICE */}
-          <section id="voice" className="space-y-4 scroll-mt-24">
-            <h2 className={sectionHeader}>Voice</h2>
+          <section id="voice" className="scroll-mt-24 space-y-4">
+            <SectionEyebrow>Voice</SectionEyebrow>
             <VoiceSettingsSection />
           </section>
 
-          {/* JARVIS */}
-          <section id="jarvis" className="space-y-4 scroll-mt-24">
-            <h2 className={sectionHeader}>JARVIS</h2>
-
-            <Card className={tile}>
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)] shadow-[inset_1px_1px_2px_color-mix(in_oklch,var(--ink)_10%,transparent),inset_-1px_-1px_2px_color-mix(in_oklch,white_70%,transparent)]">
-                  <Brain className="h-4 w-4" />
-                </span>
-                <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                  Memory
-                </h3>
-              </div>
-              <p className="font-serif text-base text-[var(--ink-muted)]">
-                Review, edit, or remove facts JARVIS has remembered about you.
-              </p>
-              <Link
-                href="/settings/memory"
-                className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
-              >
-                Manage memory →
-              </Link>
-            </Card>
-
-            <Card className={tile}>
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)] shadow-[inset_1px_1px_2px_color-mix(in_oklch,var(--ink)_10%,transparent),inset_-1px_-1px_2px_color-mix(in_oklch,white_70%,transparent)]">
-                  <Network className="h-4 w-4" />
-                </span>
-                <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                  Personal context
-                </h3>
-              </div>
-              <p className="font-serif text-base text-[var(--ink-muted)]">
-                See the snapshot of you that external agents read — and rebuild
-                it on demand without waiting for the nightly refresh.
-              </p>
-              <Link
-                href="/settings/context"
-                className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
-              >
-                View snapshot →
-              </Link>
-            </Card>
-
-            <Card className={tile}>
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)] shadow-[inset_1px_1px_2px_color-mix(in_oklch,var(--ink)_10%,transparent),inset_-1px_-1px_2px_color-mix(in_oklch,white_70%,transparent)]">
-                  <Repeat className="h-4 w-4" />
-                </span>
-                <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                  Routines
-                </h3>
-              </div>
-              <p className="font-serif text-base text-[var(--ink-muted)]">
-                Author repeatable JARVIS routines — a trigger and an ordered list
-                of smart blocks that run in sequence.
-              </p>
-              <Link
-                href="/settings/routines"
-                className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
-              >
-                Manage routines →
-              </Link>
-            </Card>
-          </section>
-
           {/* DEVICES */}
-          <section id="devices" className="space-y-4 scroll-mt-24">
-            <h2 className={sectionHeader}>Devices</h2>
+          <section id="devices" className="scroll-mt-24 space-y-4">
+            <SectionEyebrow>Devices</SectionEyebrow>
 
-            <Card className={tile}>
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)] shadow-[inset_1px_1px_2px_color-mix(in_oklch,var(--ink)_10%,transparent),inset_-1px_-1px_2px_color-mix(in_oklch,white_70%,transparent)]">
-                  <Laptop className="h-4 w-4" />
-                </span>
-                <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            <SettingsCard className="space-y-4">
+              <div>
+                <CardTitle icon={<Laptop className="h-4 w-4" />}>
                   Desktop devices
-                </h3>
+                </CardTitle>
+                <CardDescription className="mt-2">
+                  Mint a bearer token for the desktop app, then paste it once into
+                  the device to pair it. Revoke any device at any time.
+                </CardDescription>
               </div>
-              <p className="font-serif text-base text-[var(--ink-muted)]">
-                Mint a bearer token for the desktop app, then paste it once into
-                the device to pair it. Revoke any device at any time.
-              </p>
-              <Link
-                href="/settings/desktop"
-                className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
-              >
+              <Link href="/settings/desktop" className={manageLink}>
                 Manage devices →
               </Link>
-            </Card>
+            </SettingsCard>
           </section>
 
           {/* TOKENS */}
-          <section id="tokens" className="space-y-4 scroll-mt-24">
-            <h2 className={sectionHeader}>Tokens</h2>
+          <section id="tokens" className="scroll-mt-24 space-y-4">
+            <SectionEyebrow>Tokens</SectionEyebrow>
 
-            <Card className={tile}>
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)] shadow-[inset_1px_1px_2px_color-mix(in_oklch,var(--ink)_10%,transparent),inset_-1px_-1px_2px_color-mix(in_oklch,white_70%,transparent)]">
-                  <KeyRound className="h-4 w-4" />
-                </span>
-                <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            <SettingsCard className="space-y-4">
+              <div>
+                <CardTitle icon={<KeyRound className="h-4 w-4" />}>
                   MCP tokens
-                </h3>
+                </CardTitle>
+                <CardDescription className="mt-2">
+                  Mint a bearer token for Claude Desktop, Claude Code, or
+                  claude.ai to read your personal context via MCP. Revoke anytime.
+                </CardDescription>
               </div>
-              <p className="font-serif text-base text-[var(--ink-muted)]">
-                Mint a bearer token for Claude Desktop, Claude Code, or
-                claude.ai to read your personal context via MCP. Revoke anytime.
-              </p>
-              <Link
-                href="/settings/mcp-tokens"
-                className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
-              >
+              <Link href="/settings/mcp-tokens" className={manageLink}>
                 Manage tokens →
               </Link>
-            </Card>
+            </SettingsCard>
           </section>
 
           {/* ACCOUNT */}
-          <section id="account" className="space-y-4 scroll-mt-24 pb-16">
-            <h2 className={sectionHeader}>Account</h2>
+          <section id="account" className="scroll-mt-24 space-y-4 pb-16">
+            <SectionEyebrow>Account</SectionEyebrow>
 
-            <Card className={tile}>
-              <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                Sign out
-              </h3>
+            <SettingsCard className="space-y-4">
+              <CardTitle>Sign out</CardTitle>
               <SignOutButton />
-            </Card>
+            </SettingsCard>
 
-            <Card className={`${tile} border-[var(--ink-coral)]/30`}>
+            <SettingsCard className="border-[var(--ink-coral)]/30">
               <DangerZoneSection email={user.email} />
-            </Card>
+            </SettingsCard>
           </section>
         </div>
       </div>

@@ -1,0 +1,6 @@
+# Seed — unit-sidebar-overhaul-s1d1 (Kiwi) [OPUS HIGH]
+MANDATORY FIRST: read /Users/filippofonseca/Developer/Projects/hyperpolymath-v2/.bgsd/runs/sesh-sd2-overhaul/specs/UI-CONTRACT.md IN FULL. Your sections + §9 (bans) + §10 (verification) + §11 (verbatim source classes) are LAW. The reference screenshots live at /Users/filippofonseca/Developer/Projects/hyperpolymath-v2/.playwright-mcp/spacedrive-{1,2,3}.png — study them before coding.
+## Mission
+Sidebar full overhaul per UI-CONTRACT §1+§2+§11 (verbatim row grammar, workspace pill w/ Logotype, section headers w/ hover-reveal actions, count badges, bottom utility strip w/ overflow menu, mask-fade scroll). Fences: components/shell/Sidebar.tsx, SidebarTree.tsx, PersistentNav.tsx + private helpers. NOT TopTabBar, not globals (may add .text-tiny + mask utilities to globals sd-campaign block if missing).
+## Discipline
+Atomic commits w/ explicit pathspecs; record hashes on control file; reread advisor directive after EVERY commit. THE CONDUCTOR REVIEWS YOUR FIRST SCREENSHOT: after your first substantive commit, boot dev on your port, screenshot /lifeos (or the sidebar) 1440x900 dark, save to .planning/iter-1.png, note it on your control file, THEN CONTINUE working while awaiting steering. Both themes at verification; zero jank (no mount flash, transform/opacity only).

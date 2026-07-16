@@ -47,7 +47,7 @@ export function ThinkingWord({ active }: { active: boolean }) {
 
   return (
     <span
-      className="inline-flex items-center font-mono text-sm text-muted-foreground"
+      className="inline-flex items-center font-mono text-sm text-[var(--sd-ink-dull)]"
       aria-live="polite"
     >
       <AnimatePresence mode="wait">

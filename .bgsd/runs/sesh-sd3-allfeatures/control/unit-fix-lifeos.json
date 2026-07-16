@@ -1,0 +1,46 @@
+{
+ "agent_id": "sd3-unit-fix-lifeos",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-fix-lifeos",
+ "branch": "sd3/unit-fix-lifeos",
+ "unit_id": "unit-fix-lifeos",
+ "phase": "verified",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-15T20:25:00.000000",
+ "verification": {
+  "typecheck": "green (tsc --noEmit clean)",
+  "build": "green (Compiled successfully in 13.2s; /lifeos built). Two CSS parse warnings are pre-existing ::highlight(wiki-search) at globals.css:274/279, not from this unit.",
+  "boot": ":3835 next start Ready; /lifeos -> 200 authed",
+  "console": "4 errors, all environmental (Vercel insights/speed-insights 404 on localhost + physical-extension SSE reconnect warning); none from lifeos",
+  "item1_inner_scroll": "PASS — captures list scrollHeight 607 > clientHeight 98, scrollTop 509.5 > 0 after scroll; habits also scrolls; WidgetCard content wrapper min-h-0 closed the flex trap",
+  "item2_resize": "PASS — 5 handles render; mid-drag 1px cyan dashed projection (border dashed lab(68.5 -35.7 -24.0)=--sd-accent, 573x511=2x2); overflowing grow CLAMPS (localStorage null); Tasks 2x2->2x1 commits + persists across reload (span 2/span 1); Reset layout verb clears key back to defaults",
+  "one_viewport": "PASS — document.scrollHeight 900 <= innerHeight 900 on first paint, mid-resize, post-commit, post-reload, post-reset",
+  "both_themes": "PASS — dark + light default decks + light resized deck captured, all resolve via sd tokens",
+  "auth": "Real local session minted (GoTrue admin generate_link->verify signed with container JWT secret; @supabase/ssr serialized sb-127-auth-token cookies; injected via Playwright) so all assertions ran on the REAL authed /lifeos with owner data. Throwaway helpers + seed captures removed post-capture.",
+  "evidence": ".planning/sd3-lifeos-VERIFY.md + sd3-lifeos-deck-dark.png, sd3-lifeos-deck-light.png, sd3-lifeos-resize-mid-dark.png, sd3-lifeos-resize-persisted-light.png, sd3-lifeos-captures-scrolled-dark.png"
+ },
+ "commits": [
+  {"hash": "38392945", "subject": "sd3(lifeos): close flex min-height trap on WidgetCard content layer"},
+  {"hash": "759f1969", "subject": "sd3(lifeos): widget-span store — 4x2 unit grid, dense packing, persistence"},
+  {"hash": "4d6f6eca", "subject": "sd3(lifeos): dynamic widget resize — drag handle, dashed projection, snap+clamp"},
+  {"hash": "67754818", "subject": "sd3(lifeos): Reset layout verb in the canvas header"},
+  {"hash": "3e67e357", "subject": "sd3(lifeos): verification note + both-theme evidence (inner scroll + resize)"}
+ ],
+ "assumptions": [
+  "Seed's unit-grid resize vocabulary (1-2 col / 1-2 row, 2x2 max) is best served by reworking LifeOsBentoGrid from a 12-col to a 4-col x 2-row unit grid; default spans (tasks 2x2 left, four 1x1 right) preserve the shipped one-viewport IA hole-free.",
+  "Inner-scroll root cause was the flex/grid min-height trap: all widget lists already carried min-h-0/flex-1/overflow-y-auto/sd-scroll-hover; the missing link was min-h-0 on the WidgetCard z-10 content wrapper.",
+  "User's 'captures + wiki' — /wiki is a separate page route OUTSIDE this unit's fence (components/lifeos/**); all lifeos widget cards are fixed here, the wiki page is not in scope.",
+  "Default deck fills the 4x2 grid exactly (hole-free) so a grow has no free cells until something is shrunk first; this is the intended 'within reason' clamp model (verified: overflowing grow clamps, Tasks-shrink-to-2x1 commits)."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": "claude-opus-4-8",
+ "notes": [
+  "Fence respected: only apps/web/components/lifeos/** + additive globals.css. ui/ untouched.",
+  "WAITING for Conductor review per seed."
+ ],
+ "steering": [],
+ "port": 3835
+}

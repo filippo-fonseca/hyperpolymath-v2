@@ -1,0 +1,57 @@
+{
+ "agent_id": "sd3-unit-fix-people-sidebar",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-fix-people-sidebar",
+ "branch": "sd3/unit-fix-people-sidebar",
+ "unit_id": "unit-fix-people-sidebar",
+ "phase": "verified",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-16T02:14:04.461898+00:00",
+ "verification": {
+  "typecheck": "green (pnpm --filter web typecheck)",
+  "build": "green (pnpm --filter web build; env copied from main checkout for page-data pass)",
+  "compiled_css_scan_gap": "confirmed .sidebar-logo-flyout/.sidebar-logo-mono base+pointer:fine reveal+reduced-motion guard all present in compiled CSS",
+  "headless": "1440x900 both themes on :3834 via temporary preview route (deleted after); one browser, lock acquired/released",
+  "evidence": [
+   ".planning/sd3-people-modal-dark.png",
+   ".planning/sd3-people-modal-light.png",
+   ".planning/sd3-sidebar-flyout-dark.png",
+   ".planning/sd3-sidebar-flyout-light.png"
+  ],
+  "doc": ".planning/sd3-fix-people-sidebar-verification.md"
+ },
+ "commits": [
+  {
+   "hash": "5340a2a2",
+   "subject": "sd3(people): bring person detail sheet to sd register"
+  },
+  {
+   "hash": "8aec7e65",
+   "subject": "sd3(people): align roster card tag chips to the sd filter-rail grammar"
+  },
+  {
+   "hash": "f7333be4",
+   "subject": "sd3(sidebar): reveal full wordmark on collapsed-rail hover"
+  },
+  {
+   "hash": "67fa38f5",
+   "subject": "docs(sd3/people-sidebar): verification note + both-theme evidence"
+  }
+ ],
+ "assumptions": [
+  "The 'person modal' is the Sheet-based PersonDetailPanel (opened from /people cards); seed said 'ui/dialog shell' but the detail surface is a Sheet, which is already sd \u2014 consumed, not edited.",
+  "Canonical people tag chip = the /people filter-rail grammar (mono/uppercase, border-only); aligned modal + roster card chips to it.",
+  "Copied .env/.env.local from the main checkout into the worktree for the build/dev page-data pass (gitignored; not committed)."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": "claude-opus-4-8",
+ "notes": [
+  "Started: item1 person detail modal (Sheet PersonDetailPanel) sd refresh; item2 collapsed-rail hover wordmark flyout. Seed validated against worktree.",
+  "DONE: 4 commits (2 items + coherence + evidence). typecheck+build green. Both-theme headless evidence via deleted preview route. Server :3834 stopped. status=awaiting_review, waiting for Conductor. Authed /people best pixel-verified on :3000 post-merge."
+ ],
+ "steering": [],
+ "port": 3834
+}

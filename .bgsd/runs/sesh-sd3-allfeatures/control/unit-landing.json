@@ -1,0 +1,71 @@
+{
+ "agent_id": "unit-landing",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-landing",
+ "branch": "sd3/unit-landing",
+ "unit_id": "unit-landing",
+ "phase": "done",
+ "status": "done",
+ "heartbeat_at": "2026-07-15T02:40:00.000Z",
+ "verification": {
+  "typecheck": "green (tsc --noEmit, exit 0)",
+  "build": "green (next build; Compiled successfully in 22.8s; 38/38 static pages)",
+  "build_notes": "Two non-fatal 'Parsing CSS source code failed' lines emitted by Turbopack/Lightning-CSS on globals.css (not touched by this unit; pre-existing). Build still compiled + generated all pages.",
+  "headless_frames": "1440x900, logged-out, forced .dark confirmed. Full-page capture + per-section crops committed under .planning/frames/.",
+  "frames": [
+   ".planning/frames/landing-full-1440-dark.png",
+   ".planning/frames/landing-primitives-icon-led.png",
+   ".planning/frames/landing-surface-icon-led.png",
+   ".planning/frames/landing-jarvis-demo.png",
+   ".planning/frames/landing-footer-sd.png",
+   ".planning/frames/landing-architecture-banner.png"
+  ],
+  "console": "Only Vercel Web Analytics + Speed-Insights 404s (scripts exist only on Vercel deploys; expected under local `next start`). No app errors.",
+  "reveals": "All scroll-reveal fade-ups settle to opacity 1 (checked primitives/surface/demo: 0 hidden nodes after scroll pass).",
+  "conductor_review": "APPROVED 2026-07-15 \u2014 pixel pass on landing-full-1440-dark: continuous dark sd plate coherent end-to-end. Escalation RULED: light diagram banners are an old-register trace per user's 'remove all traces' order; public/diagrams/{stack,architecture}.svg regeneration in dark sd register routed to unit-quick-wins. Assumptions (forced .dark canvas, header kept, coral error token) all RATIFIED."
+ },
+ "commits": [
+  "d9961ae1 style(landing): migrate the footer to the sd register",
+  "4415df44 style(landing): move the side-nav inactive ink onto the sd register",
+  "886177c1 chore(landing): sd-register verification frames (1440 dark)",
+  "d0baf969 docs(landing): record the sd3 seed plan for unit-landing",
+  "a9c8e041 style(landing): migrate the JARVIS demo cluster + waitlist to sd grammar",
+  "779a332a style(landing): migrate STACK/ARCH banners, FRAMEWORK, BUILD LOG to sd",
+  "7ff00c49 style(landing): migrate THE SURFACE + LifeOS canvas preview to sd",
+  "49f6345b style(landing): recompose THE PRIMITIVES as icon-led sd rows",
+  "fba35866 style(landing): migrate ENGINE, CHOICE, MCP to the sd register",
+  "96e5a502 style(landing): migrate WHO + MEET KIWI to the sd register",
+  "af8bb126 style(landing): force the body onto one continuous dark sd plate"
+ ],
+ "assumptions": [
+  "Whole landing forced onto .dark near-black canvas (#08090d, hero's world) with --sd-accent pinned to var(--hud-cyan) on the LandingPage root, so every body section resolves dark sd tokens and the public page renders dark regardless of the app's system theme (per seed 'one continuous dark canvas').",
+  "LandingHeader kept on its existing (--edge/--ink/--canvas) tokens: the mission declares the hero (ThesisSection) + LandingHeader DONE / do-not-rebuild. Those tokens resolve dark under the forced .dark root, so the header reads dark; left as-is per instruction.",
+  "WaitlistForm error text kept on var(--ink-coral): that is the canonical semantic destructive token (--color-destructive: var(--ink-coral)), still in use design-system-wide. The single-hue cyan law governs decorative accent, not error signals, so the error color is intentionally NOT recolored."
+ ],
+ "blockers": [],
+ "escalations": [
+  {
+   "severity": "review-decision",
+   "title": "The two diagram banners (STACK + ARCHITECTURE) render as large LIGHT paper/serif figures on the dark canvas \u2014 the most significant remaining register break.",
+   "detail": "public/diagrams/stack.svg and architecture.svg bake a light 'paper' gradient (#f7f3ea) with serif type. DiagramBannerCard.tsx frames each in an sd hairline plate + mono eyebrow (deliberate 'intentional printed figure on the dark canvas' device, sealed by prior commit 779a332a). This reads as an old-editorial-register plate inside the otherwise cyan-on-near-black sd page. I did NOT change it because: (1) the SVG assets live in public/diagrams/ which is OUTSIDE this unit's fence (components/landing/** + page.tsx only, NOTHING else), and (2) recoloring them cleanly means regenerating the two hand-authored SVGs in a dark register, not a CSS filter hack. DECISION FOR CONDUCTOR/HUMAN: accept the printed-figure device as intentional contrast, OR widen the fence and spin a follow-up unit to regenerate both diagrams in the dark sd register. See .planning/frames/landing-architecture-banner.png and landing-full-1440-dark.png."
+  }
+ ],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "public landing 14-section sd migration; brand-critical"
+ },
+ "notes": [
+  "RESUME COMPLETION: on resume the unit was ~95% done (all 14 body sections committed by the prior session; only LandingFooter uncommitted + LandingSideNav still on old --ink-muted).",
+  "Finished the fence: (1) committed the in-progress LandingFooter sd migration (--edge/--ink/--surface -> --sd-line/--sd-ink/--sd-box/--sd-input/--sd-accent, Logotype wordmark, card-v2 link plates); (2) migrated LandingSideNav inactive dots/labels --ink-muted -> --sd-ink-faint (active state keeps the shared hud-cyan signature = --sd-accent on landing).",
+  "CursorSpotlight left as-is: already cyan (var(--hud-cyan) radial, soft-light blend, pointer:fine + reduced-motion guarded) \u2014 fits the sd register per plan 'keep if it fits (cyan, subtle)'.",
+  "Verified in the real app (headless, 1440, logged-out): near-black continuous plate, cyan-accented mono eyebrows, chip/pill grammar, card-v2 plates with sd-line hairlines, icon-led rows (primitives/surface), left rail neumorphic side-nav with cyan active + muted inactive. All coherent EXCEPT the two light diagram banners (see escalations).",
+  "BuildLog degrades gracefully in this env (GitHub API 403, no token) -> 'Commit feed unavailable. See the repo directly.' \u2014 designed fallback, not a defect.",
+  "Cleanup done: prod server on :3824 stopped, browser closed, global browser lock (/tmp/bgsd-browser.lock) released, .playwright-mcp scratch removed. Tree clean.",
+  "GATE: status=awaiting_review. WAITING for Conductor review per seed. No merge, no PR, no push."
+ ],
+ "steering": "Initial directive: read your seed plan (.planning/fable-plan-sd3.md) and the session contract (UI-CONTRACT-SD3.md) fully before touching code. Seal your plan in the control file, then WAIT for a fresh steering read before implementation per checkpoint protocol. Browser: headless only, global lock. Commit atomically with explicit pathspecs.",
+ "conductor_acceptance": "Accepted by Conductor (Kiwi): 11 atomic commits, gates green, frames reviewed, escalation resolved by routing."
+}

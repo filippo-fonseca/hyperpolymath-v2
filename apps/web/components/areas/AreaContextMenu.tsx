@@ -177,7 +177,9 @@ export function AreaActionsMenu({
             className={[
               "flex items-center justify-center h-5 w-5 rounded",
               "text-muted-foreground hover:bg-accent hover:text-foreground",
-              "opacity-0 group-hover/area:opacity-100",
+              // Keyboard focus must un-hide the control — it is tabbable, so an
+              // opacity-0 focus ring would leave a keyboard user stranded.
+              "opacity-0 group-hover/area:opacity-100 focus-visible:!opacity-100",
               "data-[state=open]:opacity-100 transition-opacity",
               "focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring outline-none",
             ].join(" ")}

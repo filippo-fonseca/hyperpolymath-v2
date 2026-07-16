@@ -8,7 +8,7 @@
  *   - Live gram equivalent preview under each macro % field: "= {g}g"
  *   - Validation: Zod sum=100 from server action + client-side guard
  *   - Error copy: "Percentages must add up to 100. Adjust the values to continue." (exact UI-SPEC)
- *   - Submit: "Save targets" glass-button
+ *   - Submit: "Save targets" accent Button
  *
  * Implements NUTR-TARGETS-UI-01.
  */
@@ -16,6 +16,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { upsertNutritionTargetsAction } from "@/app/actions/nutrition";
 import { deriveTargetGrams } from "@/lib/nutrition/macro-math";
 
@@ -141,7 +142,7 @@ export function NutritionTargetsForm({ initialTargets }: Props) {
   }
 
   const labelClass =
-    "block font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] mb-1";
+    "block font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] mb-1";
   const fieldClass = "flex flex-col gap-1";
   const errorClass = "font-mono text-[10.5px] text-[var(--ink-coral)]";
 
@@ -162,7 +163,7 @@ export function NutritionTargetsForm({ initialTargets }: Props) {
             setKcal(e.target.value);
             setError(null);
           }}
-          className="max-w-xs focus-visible:ring-[var(--ring-doc)]"
+          className="max-w-xs"
           aria-label="Daily calorie target"
         />
       </div>
@@ -182,10 +183,10 @@ export function NutritionTargetsForm({ initialTargets }: Props) {
               step="0.1"
               value={macros.p}
               onChange={(e) => handleMacroChange("p", e.target.value)}
-              className="max-w-[120px] focus-visible:ring-[var(--ring-doc)]"
+              className="max-w-[120px]"
               aria-label="Protein percentage"
             />
-            <span className="font-mono text-[10.5px] text-[var(--ink-muted)]">
+            <span className="font-mono text-[10.5px] tabular-nums text-[var(--sd-ink-faint)]">
               = {gramPreview.proteinG}g
             </span>
           </div>
@@ -202,10 +203,10 @@ export function NutritionTargetsForm({ initialTargets }: Props) {
               step="0.1"
               value={macros.c}
               onChange={(e) => handleMacroChange("c", e.target.value)}
-              className="max-w-[120px] focus-visible:ring-[var(--ring-doc)]"
+              className="max-w-[120px]"
               aria-label="Carbohydrates percentage"
             />
-            <span className="font-mono text-[10.5px] text-[var(--ink-muted)]">
+            <span className="font-mono text-[10.5px] tabular-nums text-[var(--sd-ink-faint)]">
               = {gramPreview.carbsG}g
             </span>
           </div>
@@ -222,29 +223,30 @@ export function NutritionTargetsForm({ initialTargets }: Props) {
               step="0.1"
               value={macros.f}
               onChange={(e) => handleMacroChange("f", e.target.value)}
-              className="max-w-[120px] focus-visible:ring-[var(--ring-doc)]"
+              className="max-w-[120px]"
               aria-label="Fat percentage"
             />
-            <span className="font-mono text-[10.5px] text-[var(--ink-muted)]">
+            <span className="font-mono text-[10.5px] tabular-nums text-[var(--sd-ink-faint)]">
               = {gramPreview.fatG}g
             </span>
           </div>
         </div>
 
         {/* Sum indicator */}
-        <p className="font-mono text-[10.5px] text-[var(--ink-muted)]">
+        <p className="font-mono text-[10.5px] tabular-nums text-[var(--sd-ink-faint)]">
           Sum: {Math.round((macros.p + macros.c + macros.f) * 10) / 10}%
         </p>
       </div>
 
       {/* Save button */}
-      <button
+      <Button
         type="submit"
+        size="sm"
         disabled={isSubmitting}
-        className="glass-button self-start rounded-md px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink)] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-doc)]"
+        className="self-start font-mono text-[11px] uppercase tracking-[0.06em]"
       >
         {isSubmitting ? "Saving…" : "Save targets"}
-      </button>
+      </Button>
     </form>
   );
 }

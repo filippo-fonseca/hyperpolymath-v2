@@ -130,30 +130,31 @@ export function HeroJarvisLine() {
     <div className="flex justify-center" aria-live="polite">
       <motion.div
         key={exampleIdx}
-        className="inline-flex flex-col items-start gap-2 px-5 py-4 rounded bg-[var(--surface-raised)] min-w-[260px] sm:min-w-[420px] max-w-[560px] w-full"
+        className="inline-flex flex-col items-start gap-2 px-5 py-4 rounded bg-[var(--sd-box)] min-w-[260px] sm:min-w-[420px] max-w-[560px] w-full"
         style={{
-          border: "1px solid var(--edge-hud)",
-          boxShadow: "var(--glow-hud-subtle)",
+          border: "1px solid color-mix(in oklch, var(--sd-accent) 30%, var(--sd-line))",
+          boxShadow: "none",
         }}
-        initial={
-          reducedMotion ? false : { opacity: 0, y: 8, scale: 0.985 }
-        }
+        // SSR-safe: `initial` is identical on server and first client render
+        // (both resolve { opacity: 0, ... }); only the transition is branched,
+        // so reduced motion settles instantly (0ms) with no hydration mismatch.
+        initial={{ opacity: 0, y: 8, scale: 0.985 }}
         animate={{
           opacity: phase === "fadeout" ? 0 : 1,
           y: 0,
           scale: 1,
         }}
         transition={{
-          duration: phase === "fadeout" ? 0.38 : 0.55,
+          duration: reducedMotion ? 0 : phase === "fadeout" ? 0.38 : 0.55,
           ease: EASE_OUT_QUART,
         }}
       >
         {/* Mode badge — flips between TYPED ($ ) and SPOKEN (mic) so the
             hero advertises both input modalities. */}
-        <div className="flex items-center justify-between w-full pb-1 mb-1 border-b border-[var(--edge-hud)] opacity-80">
+        <div className="flex items-center justify-between w-full pb-1 mb-1 border-b border-[var(--sd-line)] opacity-80">
           <div
             className="inline-flex items-center gap-1.5 font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
-            style={{ color: "var(--hud-cyan-light)" }}
+            style={{ color: "var(--sd-accent)" }}
           >
             {example.mode === "voice" ? (
               <>
@@ -169,22 +170,22 @@ export function HeroJarvisLine() {
           </div>
           <span
             className="font-mono text-[14px] tracking-[0.14em] opacity-60"
-            style={{ color: "var(--ink-muted)" }}
+            style={{ color: "var(--sd-ink-faint)" }}
           >
             JARVIS
           </span>
         </div>
 
         {/* Input line — prefix flips between $ and a mic glyph */}
-        <div className="font-mono font-mono-stats text-[14px] leading-[1.55] text-[var(--ink)] whitespace-pre-wrap break-words text-left w-full">
-          <span style={{ color: "var(--hud-cyan)" }}>
+        <div className="font-mono font-mono-stats text-[14px] leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words text-left w-full">
+          <span style={{ color: "var(--sd-accent)" }}>
             {example.mode === "voice" ? "🎙  " : "$ "}
           </span>
           <span>{typedText}</span>
           {showCaret && (
             <span
               className="hud-streaming-caret inline-block ml-[2px]"
-              style={{ color: "var(--hud-cyan)" }}
+              style={{ color: "var(--sd-accent)" }}
               aria-hidden="true"
             >
               ▮
@@ -197,20 +198,20 @@ export function HeroJarvisLine() {
           {showReceipt && (
             <motion.div
               key={`receipt-${exampleIdx}`}
-              initial={reducedMotion ? false : { opacity: 0, y: 4 }}
+              initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.32, ease: EASE_OUT_QUART }}
+              transition={{ duration: reducedMotion ? 0 : 0.32, ease: EASE_OUT_QUART }}
               className="font-mono font-mono-stats text-[14px] leading-[1.55] text-left w-full"
             >
-              <span style={{ color: "var(--hud-cyan)" }}>⚜ </span>
+              <span style={{ color: "var(--sd-accent)" }}>⚜ </span>
               <span
                 className="font-medium"
-                style={{ color: "var(--hud-cyan)" }}
+                style={{ color: "var(--sd-accent)" }}
               >
                 {example.verb}
               </span>
-              <span className="text-[var(--ink-muted)]">  →  {example.body}</span>
+              <span className="text-[var(--sd-ink-faint)]">  →  {example.body}</span>
             </motion.div>
           )}
         </AnimatePresence>

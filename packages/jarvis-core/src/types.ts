@@ -17,7 +17,7 @@ export type JarvisToolName =
   | "update_event" | "delete_event"
   | "find_tasks" | "find_captures" | "find_events"
   | "create_person" | "find_people" | "link_people"
-  | "open_url" | "open_app" | "web_search"
+  | "open_url" | "open_app" | "open_workspace" | "web_search"
   // Clicky slice — desktop action tools + server-side weather
   | "send_message" | "system_control" | "type_text" | "press_key"
   | "take_screenshot" | "run_applescript" | "run_shortcut" | "play_music"
@@ -27,6 +27,8 @@ export type JarvisToolName =
   | "get_news"
   // WhatsApp — server-side read of synced messages
   | "read_whatsapp"
+  // iMessage — server-side read of synced messages
+  | "read_imessage"
   // Computer Use fallback — catch-all agentic desktop loop
   | "computer_use";
 
@@ -219,6 +221,17 @@ export interface OpenAppAction {
   label?: string;
 }
 
+export interface OpenWorkspaceItem {
+  type: "url" | "app";
+  value: string;
+  label?: string;
+  fullscreen?: boolean;
+}
+
+export interface OpenWorkspaceAction {
+  items: OpenWorkspaceItem[];
+}
+
 export interface WebSearchAction {
   query: string;
   engine?: "google" | "maps";
@@ -307,6 +320,16 @@ export interface ReadWhatsappAction {
   unrepliedOnly?: boolean;
 }
 
+// iMessage — server-side read. No DesktopAction; the executor queries the
+// synced imessage_messages table and returns a grouped receipt for the agent
+// to narrate. See tools/read-imessage.ts for schema.
+export interface ReadImessageAction {
+  chat?: string;
+  since_hours?: number;
+  maxResults?: number;
+  unrepliedOnly?: boolean;
+}
+
 
 /** Computer Use fallback — catch-all for desktop tasks no named tool covers.
  *  The executor mints a session_id and returns a DesktopAction; the desktop
@@ -321,6 +344,7 @@ export interface ComputerUseAction {
 export type DesktopAction =
   | { kind: "open_url"; url: string; label: string }
   | { kind: "open_app"; app: string; label: string }
+  | { kind: "open_workspace"; items: OpenWorkspaceItem[] }
   | {
       kind: "send_message";
       /** iMessage → AppleScript via Messages.app; whatsapp → HTTP POST to the
@@ -349,6 +373,62 @@ export type DesktopAction =
       /** Server-minted UUID correlating every step of one loop. */
       session_id: string;
     };
+
+// ---------------------------------------------------------------------------
+// JARVIS management — per-user PERSONALITY config that tunes the spoken voice.
+//
+// Persisted in Postgres (jarvis_personality_config, one row per user) and
+// injected into the cached system prefix via buildPersonalityTuningBlock. The
+// DEFAULT_PERSONALITY_CONFIG below reproduces today's canon voice EXACTLY —
+// an absent or all-default config emits no tuning block, so nothing regresses.
+// Shared across web (server actions + API routes), the prompt builder, and the
+// desktop (config sync).
+
+export type PersonalityPreset = "canon" | "minimal" | "storyteller";
+export type PersonalityFormality = "formal" | "balanced" | "casual";
+export type PersonalityVerbosity = "concise" | "balanced" | "expansive";
+export type PersonalityWit = "dry" | "moderate" | "playful";
+
+export interface PersonalityConfig {
+  preset: PersonalityPreset;
+  formality: PersonalityFormality;
+  verbosity: PersonalityVerbosity;
+  wit: PersonalityWit;
+  /** Freeform user directives layered on top of the dials. Null/empty = none. */
+  customInstructions: string | null;
+}
+
+/**
+ * The canonical default. MUST equal today's behavior so an unconfigured user
+ * sees no change. `isDefaultPersonalityConfig` treats a config equal to this
+ * (with empty/whitespace custom instructions) as a no-op → no tuning block.
+ */
+export const DEFAULT_PERSONALITY_CONFIG: PersonalityConfig = {
+  preset: "canon",
+  formality: "formal",
+  verbosity: "concise",
+  wit: "dry",
+  customInstructions: null,
+};
+
+// ---------------------------------------------------------------------------
+// JARVIS management — per-user STARTUP config, mirroring the desktop startup
+// shape (apps/desktop/src/settings.ts). Persisted in jarvis_startup_config and
+// read by the desktop via the bearer-auth GET route. Web is the source of truth.
+
+export type StartupOpenTarget = { type: "url" | "app"; value: string };
+
+export interface StartupConfig {
+  briefingEnabled: boolean;
+  openOnStart: StartupOpenTarget[];
+  startupShortcuts: string[];
+}
+
+export const DEFAULT_STARTUP_CONFIG: StartupConfig = {
+  briefingEnabled: true,
+  openOnStart: [],
+  startupShortcuts: [],
+};
 
 // ---------------------------------------------------------------------------
 // Phase 16 — SessionEntity: tracks entities touched during this JARVIS turn

@@ -1,0 +1,93 @@
+{
+ "agent_id": "unit-sidebar-fixes",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-sidebar-fixes",
+ "branch": "sd3/unit-sidebar-fixes",
+ "unit_id": "unit-sidebar-fixes",
+ "phase": "done",
+ "status": "done",
+ "heartbeat_at": "2026-07-15T02:40:22.000Z",
+ "plan": {
+  "sealed_at": "2026-07-15T02:05:00.000Z",
+  "root_cause": "Tailwind scan gap (Scout B, confirmed by inspection): --sd-sidebar is defined in :root (globals.css:1537) so bg-[var(--sd-sidebar)] is an arbitrary utility used ONLY in Sidebar.tsx and is not emitted -> panel transparent (BUG2). --font-logotype is an @theme token (globals.css:35) but its font-logotype utility, used only in Logotype.tsx, is likewise not emitted -> wordmark falls back to sans (BUG3). Both fixed by sidestepping Tailwind (real CSS class + inline style); root-fixing the scanner is not a cheap one-liner, documented instead.",
+  "steps": [
+   "BUG2: add real class .sd-sidebar-surface { background: var(--sd-sidebar); } to globals.css beside existing real classes (~1710); change SIDEBAR_SURFACE const from bg-[var(--sd-sidebar)] to sd-sidebar-surface.",
+   "BUG3: add fontFamily: var(--font-logotype) to Logotype.tsx existing style block so EB Garamond always applies (wordmark + collapsed monogram).",
+   "BUG1: delete Radix DropdownMenu header (sealed decision \u00a72). Replace WorkspacePill with plain wordmark (no chevron/menu, not a collapse button) + dedicated ALWAYS-MOUNTED collapse icon-button (PanelLeftClose/Open, 16px, ghost). Gate header variant on REAL collapsed (pass collapsed not effectiveCollapsed at call site). Remove ChevronDown import. Keep cyan status dot, drop pill box chrome.",
+   "Verify: pnpm typecheck + build green; headless captures (expanded dark+light, collapsed rail, hover-peek, post hard-refresh) under lock; grep compiled CSS for .sd-sidebar-surface; computed background + fontFamily assertions."
+  ],
+  "fence": [
+   "apps/web/components/shell/Sidebar.tsx",
+   "apps/web/components/ui/Logotype.tsx",
+   "apps/web/app/globals.css"
+  ]
+ },
+ "verification": {
+  "typecheck": "green (tsc --noEmit, re-run on resume 2026-07-15, exit 0)",
+  "build": "green (next build) recorded at plan-seal; source (Sidebar.tsx, Logotype.tsx, globals.css) is byte-identical since the three approved commits (git status shows only untracked planning artifacts), so the recorded green build still holds. Did NOT re-run next build on resume to avoid .next contention with the live dev server used for browser evidence.",
+  "compiled_css": "confirmed .sd-sidebar-surface{background:var(--sd-sidebar)} at globals.css:1714; token chain --sd-sidebar:var(--sd-darker-box) at :root (1537); --font-logotype at @theme (35).",
+  "browser": "DONE (headless, global lock acquired+released around each capture; dev server on :3821). AUTHED SIDEBAR NOT SHOOTABLE ON THIS BOX: /lifeos (the sidebar-bearing app route) redirects to /sign-in (verified live), and no session can be minted here \u2014 Docker is unavailable so no local Supabase can be started, and prod creds must not be used to seed a test user. Per UI-CONTRACT \u00a71 auth clause, the authed sidebar is deferred to the Conductor's :3000 post-merge pixel-verify. INSTEAD captured deterministic live proof of the exact two scan-gap bugs, which do not need auth (both fixes are global CSS: the .sd-sidebar-surface class and the --font-logotype token resolve on any page): rendered the REAL class + token in the running app and read computed styles. BUG2 (transparent overlay) FIXED: .sd-sidebar-surface computes to an OPAQUE background in both themes \u2014 light oklch(0.896798 ...), dark oklch(0.233799 ...), never transparent/rgba(...,0). BUG3 (wordmark font) FIXED: a span with fontFamily:var(--font-logotype) computes to '\"EB Garamond\", \"EB Garamond Fallback\", Georgia, ...' (resolves EB Garamond) in both themes. BUG1 (collapse trap) verified by source inspection: SidebarHeader is passed the REAL `collapsed` (Sidebar.tsx:201), body nav reads effectiveCollapsed; header renders an always-mounted PanelLeftClose (expanded) / PanelLeftOpen (collapsed) ghost icon-button and a plain non-interactive wordmark/monogram \u2014 no Radix workspace DropdownMenu remains in the header (the surviving DropdownMenu at ~676 is the bottom identity/about menu, correctly out of scope). Frames committed under .planning/: sd3-sidebar-proof-dark.png, sd3-sidebar-proof-light.png (both show the opaque panel + EB Garamond wordmark/monogram with the computed values labeled) and sd3-sidebar-signin-fallback-{dark,light}.png (the /lifeos->/sign-in redirect that documents the auth gate).",
+  "conductor_review": "APPROVED 2026-07-15 \u2014 computed-style proof frames verified (opaque .sd-sidebar-surface both themes; EB Garamond wordmark+monogram). Collapse-cycle interactive verify batched to Conductor authed pass on :3000. Merge reconciliation with unit-orb-sfx collapse cue handled by Conductor."
+ },
+ "commits": [
+  {
+   "hash": "a4ea1f7b",
+   "msg": "fix(sidebar): always render the wordmark in EB Garamond",
+   "files": [
+    "apps/web/components/ui/Logotype.tsx"
+   ]
+  },
+  {
+   "hash": "f93fc2bf",
+   "msg": "fix(sidebar): real .sd-sidebar-surface class for the panel background",
+   "files": [
+    "apps/web/app/globals.css"
+   ]
+  },
+  {
+   "hash": "675a598d",
+   "msg": "fix(sidebar): remove workspace dropdown, fix the collapse trap",
+   "files": [
+    "apps/web/components/shell/Sidebar.tsx"
+   ]
+  },
+  {
+   "hash": "5b5f4a50",
+   "msg": "docs(sidebar): sd3 browser evidence \u2014 computed-style proof of BUG2/BUG3 fixes + auth-gate fallback frames",
+   "files": [
+    ".planning/sd3-sidebar-proof-dark.png",
+    ".planning/sd3-sidebar-proof-light.png",
+    ".planning/sd3-sidebar-signin-fallback-dark.png",
+    ".planning/sd3-sidebar-signin-fallback-light.png"
+   ]
+  },
+  {
+   "hash": "5eff4a3b",
+   "msg": "docs(sidebar): record the sd3 unit-sidebar-fixes seed plan",
+   "files": [
+    ".planning/fable-plan-sd3.md"
+   ]
+  }
+ ],
+ "assumptions": [
+  "Per seed step 2 ('gate any variant rendering on the REAL collapsed, never on hover'), SidebarHeader reads the real `collapsed`, so during a collapsed hover-peek the panel widens but the header stays in its collapsed form (monogram + expand button). This is the deliberate anti-trap choice: if the header followed effectiveCollapsed, the expand button would morph into a collapse button the instant hover fired, i.e. the control would change identity under the pointer \u2014 exactly the failure \u00a72 forbids. Logged as a judgment call since it makes the peek header intentionally not match the widened body. (Conductor APPROVED this on 2026-07-15.)",
+  "Stayed strictly in-fence: Sidebar.tsx, Logotype.tsx, globals.css only. No Tailwind config touched \u2014 the scan-gap root cause is not a cheap one-liner (arbitrary/shell-only utilities), so both bugs are fixed by sidestepping the scanner (real class + inline style) per the contract's TAILWIND SCAN GAP guidance.",
+  "Authed sidebar screenshots (expanded/collapsed/hover-peek/post-refresh of the real component) were NOT capturable on this box: /lifeos redirects to /sign-in and no session could be minted (Docker down -> no local Supabase; prod must not be seeded). Substituted deterministic live computed-style proof of the exact two CSS scan-gap bugs (which need no auth) + the sign-in fallback frames, and deferred authed pixel-verification to the Conductor's :3000 post-merge check per UI-CONTRACT \u00a71."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "sidebar bug trio (collapse trap, transparent overlay, wordmark font) + dropdown removal; user-facing correctness critical"
+ },
+ "notes": [
+  "Resume: no prior commits on branch; branch at sd2 merge base. No sd3 advisor channel exists (advisor_path in bgsd-unit.json points at stale sd2 run), so proceeding on the control-file steering directive.",
+  "Worktree lacked node_modules; running pnpm install.",
+  "Resume completion 2026-07-15: plan + 3 fix commits were already APPROVED. Finished the ONLY remaining item (browser evidence) per steering: re-ran typecheck (green), confirmed compiled-CSS class + token chain, captured live computed-style proof of BUG2/BUG3 in both themes (opaque .sd-sidebar-surface + EB Garamond logotype), and committed 4 sd3- frames under .planning/ (did NOT overwrite the inherited sd2 iter-*.png frames). Authed full-sidebar frames deferred to Conductor :3000 pixel-verify (auth infeasible here). status -> awaiting_review."
+ ],
+ "steering": "Conductor 2026-07-15: Plan + 3 commits APPROVED \u2014 the anti-trap judgment call (header gates on real collapsed during hover-peek) is correct, keep it. Remaining work ONLY: finish the browser evidence under the lock protocol (headless, one at a time, release immediately): expanded dark+light, collapsed rail, hover-peek, post-hard-refresh transparency repro check, computed background + fontFamily assertions in notes; commit frames under .planning/ with an sd3- prefix (do NOT overwrite inherited sd2 iter-*.png frames), then set status=awaiting_review and exit. If the lock is held >15min by a dead PID, reclaim it.",
+ "conductor_acceptance": "Accepted by Conductor (Kiwi): 5 atomic commits (3 fixes + evidence), gates green, scan-gap root cause documented."
+}

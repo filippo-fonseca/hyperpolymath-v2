@@ -56,7 +56,8 @@ describe("buildToolDefinitions — read_whatsapp registration", () => {
     expect(iGmail).toBe(iWeather + 1);
     expect(iNews).toBe(iGmail + 1);
     expect(iWa).toBe(iNews + 1);
-    expect(iCu).toBe(iWa + 1);
+    // read_imessage is inserted between read_whatsapp and computer_use.
+    expect(iCu).toBeGreaterThan(iWa);
     expect(iCu).toBe(names.length - 1);
   });
 });

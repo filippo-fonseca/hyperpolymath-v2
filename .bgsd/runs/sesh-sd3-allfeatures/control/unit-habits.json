@@ -1,0 +1,86 @@
+{
+ "agent_id": "unit-habits",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-habits",
+ "branch": "sd3/unit-habits",
+ "unit_id": "unit-habits",
+ "phase": "done",
+ "status": "done",
+ "heartbeat_at": "2026-07-15T03:52:00.000Z",
+ "verification": {
+  "typecheck": "PASS (pnpm --filter web typecheck EXIT=0; zero real errors \u2014 earlier failures were a missing node_modules, fixed by pnpm install)",
+  "build": "PASS (pnpm --filter web build EXIT=0)",
+  "banned_token_grep": "CLEAN \u2014 no glass-tile/glass-button/backdrop-blur/--ink-muted/--edge/--surface/font-serif/TILE_NEUMORPHIC/shadow-glow anywhere in fence",
+  "scan_gap": "PASS \u2014 every sd arbitrary utility used (bg/text/border/ring-[var(--sd-*)]) confirmed present in compiled .next CSS; one-off accent tints + page bg + strip dots use inline style, no new arbitrary utilities",
+  "sfx": "habitCheck wired at the single completion call-site in handleToggle (fires only not-done\u2192done; no-op when muted/gesture-locked)",
+  "browser": "HEADLESS on :3826 under the global lock (acquired + released cleanly). Authed /habits is Google-OAuth-only (no local Supabase), so frames were captured via a THROWAWAY mock-data preview route rendering the real habits components; the temp route was deleted and the tree verified clean (no out-of-fence file persists). Only console errors were environmental (local Supabase realtime WebSocket refused) + HMR recompile blips \u2014 none from unit code.",
+  "frames": [
+   ".planning/sd3-habits-today-dark.png (Today: hatched progress plate, cyan check-off/strikethrough, amber streak chips)",
+   ".planning/sd3-habits-today-light.png (warm parchment resolves through tokens)",
+   ".planning/sd3-habits-manage-dark.png (cyan frequency badges + cyan 7-day completion strip + overflow menus)",
+   ".planning/sd3-habits-dialog-dark.png (mono labels, cyan schedule/area chips, solid dim overlay no blur, no serif)",
+   ".planning/sd3-habits-calendar-dark.png",
+   ".planning/sd3-habits-calendar-light.png (--sd-box cells, cyan selected/today, both themes)"
+  ],
+  "conductor_review": "APPROVED 2026-07-15 \u2014 pixel pass on today-dark/light: on register (donut icon, hatched progress, cyan check, amber streak chips, parchment resolves). computeStreak helper RATIFIED. Watch-item for integration tester: 'New habit' button should resolve to accent primary post-merge (unit branched pre-primitives)."
+ },
+ "sealed_plan": {
+  "summary": "Reskin /habits to the Spacedrive register. Same features + data flow, new skin. Kill glass-tile/backdrop-blur/glow + all --ink/--edge/--surface old tokens; move to --sd-* tokens, single cyan accent, functional amber for streak chip only. Consume merged lifeos entity-card + WidgetCard primitives (ProgressRow hatched, StatusPill, Chip, EmptyState, CardDivider) \u2014 same grammar as TodayHabitsWidget. Dimensional HabitIcon in header + rows. Wire sfx.play('habitCheck') on completion. Motion opacity/transform 120-160ms, reduced-motion guarded.",
+  "commits_planned": [
+   "1. page.tsx: sd header scaffold (mono eyebrow + HabitIcon 26px + title with accent dot, sans quote), sd page bg/text tokens",
+   "2. HabitsClient.tsx: full sd rewrite \u2014 segmented tab strip, Today ProgressRow + DayHabitRow (check-off motion + sfx.habitCheck), Manage rows + 7-day sd strip, Archive, CheckCircle cyan, menus; consume entity-card primitives",
+   "3. HabitFrequencySelector.tsx: sd tokens (selected day = cyan accent)",
+   "4. MiniCalendar.tsx: sd heatmap-tokenized \u2014 --sd-box cells, cyan intensity, --sd-line grid, selected/today = accent, both themes",
+   "5. HabitDialog.tsx: sd content styling (labels, inputs consume ui, area chips accent, schedule)",
+   "6. verification frames (sd3- prefix) + control update"
+  ],
+  "scan_gap_guard": "reuse only emitted sd utilities (text/bg/border-[var(--sd-*)] confirmed used in shipped lifeos/shell); one-off cyan-intensity fills + page bg via inline style, never new arbitrary utilities"
+ },
+ "commits": [
+  {
+   "hash": "5d052da7",
+   "subject": "feat(habits): sd page scaffold \u2014 dimensional icon + mono eyebrow + accent-dot title"
+  },
+  {
+   "hash": "da0bf87c",
+   "subject": "feat(habits): sd rewrite of HabitsClient \u2014 segmented tabs, cyan check-off + sfx, plate rows, streak chip"
+  },
+  {
+   "hash": "cba4ca92",
+   "subject": "feat(habits): sd tokens for HabitFrequencySelector \u2014 cyan selected day"
+  },
+  {
+   "hash": "bac9ec61",
+   "subject": "feat(habits): sd-tokenize MiniCalendar \u2014 --sd-box cells, cyan selected/today"
+  },
+  {
+   "hash": "fe93fffe",
+   "subject": "feat(habits): sd content styling for HabitDialog \u2014 cyan area chips, no serif"
+  },
+  {
+   "hash": "460225d8",
+   "subject": "chore(habits): sd3 verification frames \u2014 Today/Manage/dialog/calendar, both themes"
+  }
+ ],
+ "assumptions": [
+  "control file at hyperpolymath-v2/.bgsd path is authoritative; .planning/bgsd-unit.json + config.json in worktree are stale (sesh-sd2 sidebar unit) \u2014 ignored per seed note",
+  "components/lifeos/entity-card.tsx + WidgetCard.tsx are MERGED/stable on this branch (commit 5be0a2ae), so importing them is 'consume', not a live cross-fence dependency",
+  "no advisor_path present in this unit's control file \u2014 steering channel is the control file itself",
+  "Kept the amber accent ONLY as a functional streak chip (Flame + count, tone=var(--ink-amber), shown at >=2 consecutive scheduled+done days); everything else is single cyan. This is the contract's sanctioned 'amber = streak chip only'. A small computeStreak helper reads existing completion data (no new server round-trip) \u2014 it's the one behavioural addition on top of the pure reskin; flag if a strict same-features-only reskin is preferred and I'll drop it."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "user-named feature surface; largest single component in app; design-critical"
+ },
+ "notes": [
+  "impl complete across all 5 fence files; typecheck EXIT=0 (zero real errors), build EXIT=0; all sd arbitrary utilities confirmed in compiled CSS (scan-gap guard passed). Added a functional-amber streak chip (>=2 consecutive scheduled+done days) as the sole non-cyan accent, per contract's 'amber = streak chip only'. Proceeding to headless verification on :3826.",
+  "READY FOR CONDUCTOR REVIEW. All 5 fence files reskinned to sd + 6 both-theme frames committed. Conductor should pixel-verify the LIVE authed /habits on :3000 post-merge (auth couldn't be minted headless)."
+ ],
+ "steering": "Initial directive: your seed is .planning/fable-plan-habits.md (NOT fable-plan-sd3.md, which is another unit's inherited seed). Read it + UI-CONTRACT-SD3.md fully, seal your plan in this control file, then proceed. Browser: headless, global lock, one at a time. Atomic commits, explicit pathspecs. APPENDED DIRECTIVE (Conductor): when stopping your dev/prod server, kill ONLY your own PID or port (kill $(lsof -ti tcp:<your-port>)). NEVER pkill broad patterns like 'next'/'pnpm dev' \u2014 you have twice killed the Conductor's :3000 review server.",
+ "conductor_acceptance": "Accepted by Conductor (Kiwi): 6 atomic commits, gates green, frames reviewed."
+}

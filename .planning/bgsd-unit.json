@@ -1,0 +1,28 @@
+{
+  "unit_id": "unit-sidebar-overhaul-s1d1",
+  "run_id": "sesh-sd2-overhaul",
+  "scale": "feature",
+  "title": "unit-sidebar-overhaul-s1d1",
+  "scope": "See .planning/fable-plan.md + UI-CONTRACT",
+  "criteria": [
+    "contract sections implemented exactly",
+    "iter-1 screenshot for Conductor review",
+    "both themes",
+    "zero jank"
+  ],
+  "touched": [],
+  "model": "claude-opus-4-8",
+  "model_assignment": {
+    "tier": "heavy",
+    "effort": "high",
+    "reason": "design-critical overhaul unit"
+  },
+  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2/.bgsd/runs/sesh-sd2-overhaul/advisor/unit-sidebar-overhaul-s1d1.md",
+  "advisor_checkpoints": [
+    "after planning",
+    "after every commit",
+    "on blocker or assumption",
+    "before verification",
+    "after every verification result"
+  ]
+}

@@ -22,12 +22,8 @@ interface Props {
   weeks?: number;
 }
 
-// Glassy pill tile — mirrors /settings PROFILE pill (translucent surface,
-// backdrop blur, inset cyan glow, thin cyan-tinged border, soft outer halo).
-const TILE =
-  "rounded-xl p-4 " +
-  "glass-tile " +
-  "";
+// sd plate — shipped .sd-panel primitive (UI-CONTRACT §0). No glass/blur/glow.
+const TILE = "sd-panel p-4";
 
 /**
  * Weekly duration bar chart (TRN-11) — at least one over-time chart per
@@ -81,10 +77,10 @@ export function DurationTrendChart({
   return (
     <div className={TILE}>
       <div className="flex items-baseline justify-between">
-        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
           Duration trend · last {weeks} weeks
         </h3>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--ink-muted)]">
+        <span className="font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--sd-ink-dull)]">
           {formatMinutes(totalMin)} · {windowLabel} aware
         </span>
       </div>
@@ -101,8 +97,10 @@ export function DurationTrendChart({
                     aria-label={`Week of ${b.label}: ${formatMinutes(b.min)}`}
                     className="group flex flex-1 flex-col justify-end"
                   >
+                    {/* Static height (layout, never animated — §14); only the
+                        fill colour transitions on hover. */}
                     <div
-                      className="w-full rounded-sm border border-[var(--edge)]/40 bg-[var(--hud-cyan)]/70 transition-[height,background-color] duration-200 group-hover:bg-[var(--hud-cyan)]"
+                      className="w-full rounded-sm border border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] bg-[color-mix(in_srgb,var(--sd-accent)_70%,transparent)] transition-colors duration-150 group-hover:bg-[var(--sd-accent)]"
                       style={{
                         height: `${Math.max(pct, b.min > 0 ? 3 : 0)}%`,
                         minHeight: b.min > 0 ? 2 : 0,
@@ -110,7 +108,7 @@ export function DurationTrendChart({
                     />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top"className="font-mono text-[10px]">
+                <TooltipContent side="top" className="font-mono text-[10px]">
                   Week of {b.label} — {formatMinutes(b.min)}
                 </TooltipContent>
               </Tooltip>
@@ -123,7 +121,7 @@ export function DurationTrendChart({
         {buckets.map((b, i) => (
           <span
             key={i}
-            className="flex-1 truncate text-center font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--ink-muted)]"
+            className="flex-1 truncate text-center font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]"
           >
             {/* Show every 2nd label so they don't crowd */}
             {i % 2 === 0 ? b.label : ""}

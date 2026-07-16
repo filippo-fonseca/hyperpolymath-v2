@@ -108,7 +108,7 @@ export function ProjectAutocomplete({
               key={p.id}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-sans text-[13px]",
-                "backdrop-blur-md border border-[var(--edge-hud)] text-[var(--ink)]",
+                "border border-[var(--edge-hud)] text-[var(--ink)]",
                 "bg-[color:color-mix(in_oklch,var(--surface-raised)_82%,transparent)]",
                 "shadow-[inset_0_1px_0_var(--glass-hi),inset_0_-1px_0_var(--glass-lo)]"
               )}

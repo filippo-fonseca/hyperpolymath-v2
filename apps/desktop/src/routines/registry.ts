@@ -30,7 +30,8 @@ let routines: Routine[] = [];
 
 /** wake + utterance triggers, compiled to matchers over probed STT text. */
 export interface PhraseEntry {
-  re: RegExp;
+  /** Normalized phrase (lowercased, punctuation stripped, single-spaced). */
+  norm: string;
   routineId: string;
   type: "wake" | "utterance";
 }
@@ -73,20 +74,31 @@ export function setSchedulerSync(fn: (routines: Routine[]) => void): void {
 
 // --- Phrase matching (consumed by the generalized wake probe) -------------
 
-/** Escape arbitrary user text for safe use inside a RegExp. */
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/**
+ * Normalize phrase / STT text for tolerant voice matching: lowercase, drop all
+ * punctuation (so a trailing "." or the apostrophe in "I'm" can't break a
+ * match), and collapse whitespace. "I'm back home." and a raw "im back home"
+ * transcript both normalize to "im back home".
+ */
+function normalizePhrase(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
  * Match probed STT text against the routine phrase table. Returns the first
  * matching routine id, or null. Injected into wake-probe via setPhraseMatcher
  * so ONE idle mic loop serves both the built-in "Daddy's Home" wake and every
- * phrase-triggered routine.
+ * phrase-triggered routine. Whole-phrase, space-padded inclusion after
+ * normalization — robust to case, punctuation, and STT quirks.
  */
 export function matchPhrase(text: string): string | null {
+  const haystack = ` ${normalizePhrase(text)} `;
   for (const entry of phraseTable) {
-    if (entry.re.test(text)) return entry.routineId;
+    if (entry.norm && haystack.includes(` ${entry.norm} `)) return entry.routineId;
   }
   return null;
 }
@@ -108,13 +120,13 @@ function rebuildDispatch(): void {
     for (const trigger of routine.spec.triggers) {
       if (trigger.type === "wake") {
         nextPhrase.push({
-          re: new RegExp(`\\b${escapeRegExp(trigger.phrase.trim())}\\b`, "i"),
+          norm: normalizePhrase(trigger.phrase),
           routineId: routine.id,
           type: "wake",
         });
       } else if (trigger.type === "utterance") {
         nextPhrase.push({
-          re: new RegExp(`\\b${escapeRegExp(trigger.match.trim())}\\b`, "i"),
+          norm: normalizePhrase(trigger.match),
           routineId: routine.id,
           type: "utterance",
         });

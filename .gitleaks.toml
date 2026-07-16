@@ -15,6 +15,7 @@ paths = [
   '''CLAUDE\.md$''',
   '''\.planning/''',
   '''resources/''',
+  '''\.bgsd/queue/queue\.json$''',
 ]
 regexes = [
   '''YOUR-PROJECT-REF''',

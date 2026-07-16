@@ -42,7 +42,7 @@ export function ShortcutsCheatSheet() {
       <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-[var(--edge)]">
           <div className="flex items-center justify-between">
-            <DialogTitle className="font-serif text-lg text-[var(--ink)]">
+            <DialogTitle className="text-lg text-[var(--ink)]">
               Keyboard shortcuts
             </DialogTitle>
             <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
@@ -69,7 +69,7 @@ export function ShortcutsCheatSheet() {
                       key={s.id}
                       className="flex items-center justify-between gap-4 py-1"
                     >
-                      <span className="font-serif text-sm text-[var(--ink)]">
+                      <span className="text-sm text-[var(--ink)]">
                         {s.description}
                       </span>
                       <span className="flex items-center gap-1 shrink-0">
