@@ -144,6 +144,15 @@ export function LandingFooter() {
         {/* ── Quiet system links: the campaign design system ── */}
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
           <Link
+            href="/changelog"
+            className="transition-colors hover:text-[var(--sd-accent)]"
+          >
+            Changelog
+          </Link>
+          <span aria-hidden="true" className="opacity-40">
+            ·
+          </span>
+          <Link
             href="/design"
             className="transition-colors hover:text-[var(--sd-accent)]"
           >
