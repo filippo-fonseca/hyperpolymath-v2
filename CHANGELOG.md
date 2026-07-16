@@ -166,12 +166,50 @@ Three additive migrations, all non-destructive:
 - `0025_jarvis_config` (`jarvis_personality_config`, `jarvis_startup_config`)
 - `0031_wiki_position_keys` (fractional ordering for pages and folders)
 
+### Security
+
+- **Row level security was enabled on nine tables that never had it.** They
+  were created without RLS while Supabase's default privileges granted `anon`
+  SELECT, and the anon key ships in the client bundle, so every row was
+  readable by anyone who loaded the site and queried PostgREST directly. The
+  affected tables were `whatsapp_messages`, `imessage_messages`,
+  `link_previews`, `page_field_definitions`, `page_field_values`,
+  `tasks_hashtags`, `agentmail_ingest_events`, `cron_runs`, and
+  `kiwi_dev_runs`. The two message tables were empty when this was found, so
+  no message content was exposed. They would not have stayed empty: this same
+  release ships desktop iMessage and WhatsApp sync, and the first sync would
+  have written message bodies into a publicly readable table. Owner-scoped
+  tables now carry owner-only policies; internal tables are deny-by-default.
+
+### Fixed (post-ship, same day)
+
+- **A fresh local `supabase start` no longer builds a broken database.**
+  Thirteen migrations existed only in `drizzle/` and were never mirrored into
+  `supabase/migrations/`, so a from-scratch local database came up missing 12
+  tables and 6 columns, and `/lifeos` 500'd on
+  `column captures.source_channel does not exist`. Production was never
+  affected, since it is fed from `drizzle/`. Verified by rebuilding from
+  scratch: 43 tables and 408 columns before, 55 and 526 after, matching the
+  known-good schema exactly.
+- **`/api/health` no longer reports `supabase: down` on a fresh stack.** No
+  migration granted the API roles any DML. The cloud project hides this
+  because its default privileges auto-grant new objects; the local stack's
+  `postgres` role grants only TRUNCATE, REFERENCES, TRIGGER, and MAINTAIN to
+  `anon`, which is why a blanket `GRANT ALL` appeared to do nothing. The
+  grants are now explicit, and cover future tables.
+
 ### Known issues
 
 - The web test suite has 17 failing files, concentrated in the JARVIS and
   voice suites. These are mock and fixture problems rather than product
   defects, and they predate this release.
-- Two migration directories (`drizzle/` for production, `supabase/migrations/`
-  for local development) have drifted bidirectionally, and neither is a
-  complete description of the schema. A fresh local `supabase start` will not
-  reproduce production. This is tracked and not yet fixed.
+- The two migration directories still exist and must be kept in sync by hand:
+  a new migration in `drizzle/` has to be mirrored into
+  `supabase/migrations/` in the same commit. The drift is also bidirectional,
+  since `page_folders` and `folder_projects` live only in
+  `supabase/migrations/`. Collapsing the two into a single source is the real
+  fix and has not been done.
+- `gos_reflections` and `gos_sessions` carry policies granting `anon`
+  unrestricted access via `USING (true)`. These tables are not part of
+  `schema.ts` and were left alone pending a decision on whether that is
+  intentional.
