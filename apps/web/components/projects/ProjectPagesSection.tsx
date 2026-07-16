@@ -5,19 +5,17 @@ import {
   deleteFolder,
   getFolderProjectsForCurrentUser,
   getFoldersForCurrentUser,
-  getSidebarTreeForCurrentUser,
   renameFolder,
   setFolderProjects,
-  setPageFolder,
 } from "@/app/actions/folders";
-import { createPage, getPagesForCurrentUser } from "@/app/actions/pages";
+import { createPage, deletePage, getPagesForCurrentUser, updatePage } from "@/app/actions/pages";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
-import { ProjectLinker } from "@/components/pages/ProjectLinker";
-import { ProjectPillRow } from "@/components/pages/ProjectPill";
-import {
-  type FolderProjectLink,
-  type FolderRow,
-} from "@/lib/pages/folder-projects";
+import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
+import { ExplorerItemContextMenu } from "@/components/wiki/explorer-parts/ExplorerItemContextMenu";
+import { FolderIcon } from "@/components/ui/icons/FolderIcon";
+import { PagePreviewCard } from "@/components/wiki/preview/PagePreviewCard";
+import type { ExplorerItem } from "@/components/wiki/explorer-types";
+import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import {
   buildProjectZip,
@@ -27,24 +25,13 @@ import {
 import { buildPagesTree, type TreeFolder } from "@/lib/pages/tree";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { cn } from "@/lib/utils";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import {
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Download,
-  FileText,
-  Folder,
-  FolderPlus,
-  Loader2,
-  Pencil,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FolderPlus, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 interface Props {
   userId: string;
@@ -53,25 +40,26 @@ interface Props {
   initialPages: PageWithProjects[];
 }
 
+const STAGGER_LIMIT = 24;
+
 /**
- * Project-scoped wiki surface. Phase 21: folders are project-independent and
- * link to projects via the folder_projects M:N junction. This section shows
- * folders whose EFFECTIVE project set (own + inherited from ancestors) includes
- * THIS project, and the pages linked to this project grouped by their (global)
- * page-level folder. "New folder" creates a folder and links it to this
- * project; "+ New page" creates a page pre-linked to this project (optionally
- * placed in a folder).
+ * Project-scoped wiki surface. Renders the project's relevant top-level folders
+ * (effective set includes this project) and directly-linked loose pages in one
+ * Drive/Explorer grid. Folders navigate to the Wiki Explorer (`/wiki?folder=`);
+ * pages open the page detail. Matches the Explorer's visual language: flat
+ * `--sd-*` chrome, dimensional folder icons, PagePreviewCard tiles, cyan
+ * selection, hover-only background shift.
  */
 export function ProjectPagesSection({ userId, projectId, initialPages }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const reduceMotion = useReducedMotion();
+
   const [collapsed, setCollapsed] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
-  const [showNewFolder, setShowNewFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<ExplorerItem | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -110,68 +98,75 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
     queryFn: () => getProjectsForCurrentUser(),
     initialData: [],
   });
-  // Areas + projects (incl. archived) drive the Area-grouped ProjectLinker used
-  // to edit each folder's OWN project links. No initialData on purpose: the
-  // global QueryClient sets refetchOnMount:false and nothing invalidates the
-  // ["sidebar-tree"] key, so a seeded [] would stick forever and the dropdown
-  // would render empty. Leaving it unseeded lets the queryFn run on mount.
-  const { data: areas = [] } = useQuery({
-    queryKey: ["sidebar-tree", userId],
-    queryFn: () => getSidebarTreeForCurrentUser(),
-  });
 
-  const projectNames = useMemo(
-    () => new Map(projects.map((p) => [p.id, p.name] as const)),
-    [projects]
-  );
-  const folderNames = useMemo(
-    () => new Map(allFolders.map((f) => [f.id, f.name] as const)),
-    [allFolders]
+  const projectName = useMemo(
+    () => projects.find((p) => p.id === projectId)?.name ?? "project",
+    [projects, projectId],
   );
 
-  // Full wiki tree (effective sets + pills per folder/page), built once, then
-  // pruned to the subtrees relevant to THIS project below.
+  // Full wiki tree (effective sets, pills) → prune to subtrees relevant here.
   const tree = useMemo(
     () => buildPagesTree(allFolders, folderLinks, allPages),
-    [allFolders, folderLinks, allPages]
+    [allFolders, folderLinks, allPages],
   );
-
-  // The folder subtrees whose EFFECTIVE project set includes this project, with
-  // their full descendant hierarchy preserved. A child whose effective set also
-  // includes the project nests under its parent (inheritance keeps it relevant).
   const relevantRoots = useMemo(
     () => pruneTreeToProject(tree.roots, projectId),
-    [tree.roots, projectId]
+    [tree.roots, projectId],
   );
 
-  // Standalone pages (no folder) linked directly to this project.
+  // Loose pages linked directly to this project (no folder).
   const looseStandalone = useMemo(
     () =>
       tree.standalonePages.filter((p) =>
-        p.projectLinks.some((l) => l.projectId === projectId)
+        p.projectLinks.some((l) => l.projectId === projectId),
       ),
-    [tree.standalonePages, projectId]
+    [tree.standalonePages, projectId],
   );
 
-  // Count of pages this project actually surfaces (folder pages in relevant
-  // subtrees that are linked to this project + loose standalone pages).
   const projectPages = useMemo(
-    () => allPages.filter((p) => p.projects.some((proj) => proj.id === projectId)),
-    [allPages, projectId]
+    () =>
+      allPages.filter((p) => p.projects.some((proj) => proj.id === projectId)),
+    [allPages, projectId],
   );
 
-  // Flat list of relevant folders for the "move page to folder" select.
-  const flatRelevantFolders = useMemo(() => {
-    const acc: FolderRow[] = [];
-    const walk = (nodes: TreeFolder[]) => {
+  // Item counts for folder tiles (folders + pages under each subtree).
+  const folderCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const walk = (nodes: TreeFolder[]): number => {
+      let sum = 0;
       for (const n of nodes) {
-        acc.push({ id: n.id, parentId: n.parentId, name: n.name, orderIndex: 0 });
-        walk(n.subfolders);
+        const own = n.pages.length + n.subfolders.length;
+        counts.set(n.id, own + walk(n.subfolders));
+        sum += 1;
       }
+      return sum;
     };
     walk(relevantRoots);
-    return acc;
+    return counts;
   }, [relevantRoots]);
+
+  // Grid item list: top-level folders first, then loose pages.
+  const items: ExplorerItem[] = useMemo(() => {
+    const acc: ExplorerItem[] = [];
+    for (const folder of relevantRoots) {
+      acc.push({
+        kind: "folder",
+        id: folder.id,
+        folder: {
+          id: folder.id,
+          parentId: folder.parentId,
+          name: folder.name,
+          orderIndex: 0,
+        },
+        itemCount: folderCounts.get(folder.id) ?? 0,
+      });
+    }
+    for (const page of looseStandalone) {
+      const full = allPages.find((p) => p.id === page.id);
+      if (full) acc.push({ kind: "page", id: page.id, page: full });
+    }
+    return acc;
+  }, [relevantRoots, looseStandalone, folderCounts, allPages]);
 
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
@@ -179,16 +174,18 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
     queryClient.invalidateQueries({ queryKey: tableKey("folder_projects", userId) });
   }
 
-  function toggleFolder(id: string) {
-    setCollapsedFolders((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
+  const openItem = useCallback(
+    (item: ExplorerItem) => {
+      if (item.kind === "folder") {
+        router.push(`/wiki?folder=${item.folder.id}`);
+        return;
+      }
+      router.push(`/wiki/${item.id}`);
+    },
+    [router],
+  );
 
-  async function handleNewPage(folderId: string | null) {
+  async function handleNewPage() {
     if (creating) return;
     setCreating(true);
     try {
@@ -198,7 +195,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
         title: "",
         content: "",
         projectIds: [projectId],
-        folderId,
+        folderId: null,
       });
       if (result.success) router.push(`/wiki/${result.data.id}`);
     } finally {
@@ -206,218 +203,56 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
     }
   }
 
-  async function handleCreateFolder() {
-    const name = newFolderName.trim();
-    if (!name) return;
-    setNewFolderName("");
-    setShowNewFolder(false);
-    // Folders are project-independent; create then link to this project so it
-    // appears under this project's effective set.
+  async function handleCreateFolder(name: string) {
     const res = await createFolder({ name });
     if (res.success) {
       await setFolderProjects({ folderId: res.data.id, projectIds: [projectId] });
       invalidateAll();
+    } else {
+      toast.error(res.error);
     }
   }
 
-  async function handleRename(id: string) {
-    const name = renameValue.trim();
-    setRenamingId(null);
-    if (!name) return;
-    const res = await renameFolder({ id, name });
-    if (res.success) invalidateAll();
+  async function submitRename(name: string) {
+    if (!renameTarget) return;
+    if (renameTarget.kind === "folder") {
+      const r = await renameFolder({ id: renameTarget.id, name });
+      if (!r.success) toast.error(r.error);
+      else invalidateAll();
+    } else {
+      const r = await updatePage({ id: renameTarget.id, title: name });
+      if (!r.success) toast.error(r.error);
+      else invalidateAll();
+    }
+    setRenameTarget(null);
   }
 
-  async function handleDeleteFolder(id: string) {
-    const res = await deleteFolder(id);
-    if (res.success) invalidateAll();
+  async function handleDelete(item: ExplorerItem) {
+    if (item.kind === "folder") {
+      const r = await deleteFolder(item.id);
+      if (!r.success) toast.error(r.error);
+      else invalidateAll();
+      return;
+    }
+    const r = await deletePage(item.id);
+    if (!r.success) toast.error(r.error);
+    else invalidateAll();
   }
 
-  async function handleMovePage(pageId: string, folderId: string | null) {
-    const res = await setPageFolder({ pageId, folderId });
-    if (res.success) invalidateAll();
-  }
-
-  // WIKI-EXPORT-03: download every page whose EFFECTIVE project set includes
-  // this project (direct links + folder inheritance) as a structure-preserving
-  // .zip laid out by each page's folder path. Receipts are stripped by the
-  // shared builder; pages with no folder land at the bundle root.
   function handleExportDocs() {
-    const projectName = projectNames.get(projectId) ?? "project";
     const files = buildProjectZip(
       allFolders,
       folderLinks,
       allPages,
       projectId,
-      projectName
+      projectName,
     );
     downloadZipFiles(files, `${safeFileName(projectName)}-docs.zip`);
   }
 
-  // Disable export when this project surfaces no pages at all.
+  const hasContent = items.length > 0;
   const hasExportablePages =
     projectPages.length > 0 || relevantRoots.length > 0;
-
-  /**
-   * Toggle a folder's OWN link to a project. Only `ownProjectIds` is editable;
-   * inherited links are read-only (enforced by the ProjectLinker). We recompute
-   * the own set from the folder's current own links plus/minus the toggled id and
-   * send ONLY the own set to setFolderProjects (never the inherited ids).
-   */
-  async function handleToggleFolderProject(
-    folder: TreeFolder,
-    projectId: string,
-    next: boolean
-  ) {
-    const ownSet = new Set(folder.ownProjectIds);
-    if (next) ownSet.add(projectId);
-    else ownSet.delete(projectId);
-    const res = await setFolderProjects({ folderId: folder.id, projectIds: [...ownSet] });
-    if (res.success) invalidateAll();
-  }
-
-  // Recursive folder renderer: nests subfolders, shows effective-project pills,
-  // marks folders whose membership in THIS project is inherited, and keeps the
-  // existing rename / new-page / delete affordances.
-  const FOLDER_INDENT = 16;
-  function renderFolderNode(folder: TreeFolder, depth: number): React.ReactNode {
-    const open = !collapsedFolders.has(folder.id);
-    const isRenaming = renamingId === folder.id;
-    const pagesIn = folder.pages;
-    // The folder's pill set for THIS surface (own + inherited). The membership
-    // in the CURRENT project is inherited when projectId is inherited but not
-    // owned — surfaced via the pill style + the "inherited" tag below.
-    const inheritedHere =
-      folder.inheritedProjectIds.includes(projectId) &&
-      !folder.ownProjectIds.includes(projectId);
-    const folderPills = folder.projectLinks.map((l) => ({
-      projectId: l.projectId,
-      isInherited: l.isInherited,
-      sourceFolderName: l.sourceFolder ? folderNames.get(l.sourceFolder) : undefined,
-    }));
-    // Inherited folder links for the ProjectLinker's read-only section: name the
-    // owning ancestor via the folder map. These are never togglable.
-    const folderInheritedLinks = folder.projectLinks
-      .filter((l) => l.isInherited)
-      .map((l) => ({
-        projectId: l.projectId,
-        sourceFolderName: (l.sourceFolder && folderNames.get(l.sourceFolder)) || "a parent folder",
-      }));
-    return (
-      <div key={folder.id} className="flex flex-col" style={{ paddingLeft: depth * FOLDER_INDENT }}>
-        <div className="group/folder flex items-center gap-2 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors">
-          <button
-            type="button"
-            onClick={() => toggleFolder(folder.id)}
-            className="flex items-center gap-2 min-w-0 flex-shrink text-left cursor-pointer"
-          >
-            <span className="text-[var(--ink-muted)] flex-shrink-0">
-              {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            </span>
-            <Folder
-              size={13}
-              strokeWidth={1.5}
-              className="text-[var(--ink-muted)] flex-shrink-0"
-            />
-            {isRenaming ? (
-              <input
-                // biome-ignore lint/a11y/noAutofocus: intentional focus on rename
-                autoFocus
-                type="text"
-                value={renameValue}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleRename(folder.id);
-                  if (e.key === "Escape") setRenamingId(null);
-                }}
-                className="min-w-0 px-1.5 py-0.5 text-[13px] font-serif bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] focus:outline-none focus:border-[var(--ink-muted)]"
-              />
-            ) : (
-              <span className="min-w-0 text-[13px] font-serif text-[var(--ink)] truncate">
-                {folder.name}
-              </span>
-            )}
-            <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)] flex-shrink-0">
-              {pagesIn.length}
-            </span>
-          </button>
-          {inheritedHere && (
-            <span
-              title="This folder is linked to this project through a parent folder"
-              className="font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)] border border-dashed border-[var(--edge)] rounded-sm px-1 py-px italic opacity-70 flex-shrink-0"
-            >
-              inherited
-            </span>
-          )}
-          <ProjectPillRow links={folderPills} projectNames={projectNames} className="flex-1" />
-          <div className="flex items-center gap-1 opacity-0 group-hover/folder:opacity-100 transition-opacity flex-shrink-0">
-            {!isRenaming && (
-              <ProjectLinker
-                areas={areas}
-                selectedProjectIds={folder.ownProjectIds}
-                inheritedLinks={folderInheritedLinks}
-                onToggle={(projectId, next) =>
-                  handleToggleFolderProject(folder, projectId, next)
-                }
-                triggerLabel="Projects"
-              />
-            )}
-            {isRenaming ? (
-              <>
-                <IconBtn label="Save name" onClick={() => handleRename(folder.id)}>
-                  <Check size={12} strokeWidth={1.5} />
-                </IconBtn>
-                <IconBtn label="Cancel rename" onClick={() => setRenamingId(null)}>
-                  <X size={12} strokeWidth={1.5} />
-                </IconBtn>
-              </>
-            ) : (
-              <>
-                <IconBtn label="New page in folder" onClick={() => handleNewPage(folder.id)}>
-                  <Plus size={12} strokeWidth={1.5} />
-                </IconBtn>
-                <IconBtn
-                  label="Rename folder"
-                  onClick={() => {
-                    setRenamingId(folder.id);
-                    setRenameValue(folder.name);
-                  }}
-                >
-                  <Pencil size={12} strokeWidth={1.5} />
-                </IconBtn>
-                <IconBtn label="Delete folder" onClick={() => handleDeleteFolder(folder.id)}>
-                  <Trash2 size={12} strokeWidth={1.5} />
-                </IconBtn>
-              </>
-            )}
-          </div>
-        </div>
-        {open && (
-          <div className="flex flex-col pl-6">
-            {folder.subfolders.map((sub) => renderFolderNode(sub, depth + 1))}
-            {pagesIn.length === 0 && folder.subfolders.length === 0 ? (
-              <p className="py-1.5 px-2 text-[12px] font-serif italic text-[var(--ink-muted)]">
-                Empty folder.
-              </p>
-            ) : (
-              pagesIn.map((page) => (
-                <PageRow
-                  key={page.id}
-                  page={page}
-                  folders={flatRelevantFolders}
-                  currentFolderId={folder.id}
-                  projectNames={projectNames}
-                  onOpen={() => router.push(`/wiki/${page.id}`)}
-                  onMove={(fid) => handleMovePage(page.id, fid)}
-                />
-              ))
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <section className="flex flex-col gap-4">
@@ -427,126 +262,287 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
           onClick={() => setCollapsed((v) => !v)}
           aria-expanded={!collapsed}
           aria-controls="project-pages-body"
-          className="group flex items-center gap-2 -ml-1 px-1 py-1 rounded-sm hover:bg-[var(--surface)] transition-colors cursor-pointer"
+          className={cn(
+            "group flex items-center gap-2 -ml-1 rounded-[6px] px-1 py-1 cursor-pointer",
+            "transition-[background-color,color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-0",
+          )}
         >
-          <span className="text-[var(--ink-muted)] group-hover:text-[var(--ink)] transition-colors">
+          <span className="text-[var(--sd-ink-dull)] transition-colors group-hover:text-[var(--sd-ink)]">
             {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </span>
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)] group-hover:text-[var(--ink)] transition-colors">
+          <h2 className="font-mono text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[var(--sd-ink-dull)] transition-colors group-hover:text-[var(--sd-ink)]">
             Wiki
           </h2>
-          <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)]">
+          <span className="font-mono text-[0.68rem] tabular-nums text-[var(--sd-ink-dull)]">
             ({projectPages.length})
           </span>
         </button>
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <button
-              type="button"
+            <ChromeButton
               onClick={handleExportDocs}
               disabled={!hasExportablePages}
               title="Export this project's docs as a .zip of markdown files"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Download size={12} strokeWidth={1.5} />
-              <span>Export docs</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowNewFolder(true);
-                setNewFolderName("");
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer"
-            >
-              <FolderPlus size={12} strokeWidth={1.5} />
-              <span>New folder</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleNewPage(null)}
+              icon={<Download size={12} strokeWidth={1.8} />}
+              label="Export docs"
+            />
+            <ChromeButton
+              onClick={() => setNewFolderOpen(true)}
+              icon={<FolderPlus size={12} strokeWidth={1.8} />}
+              label="New folder"
+            />
+            <ChromeButton
+              onClick={handleNewPage}
               disabled={creating}
-              aria-busy={creating}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-wait"
-            >
-              {creating ? (
-                <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
-              ) : (
-                <Plus size={12} strokeWidth={1.5} />
-              )}
-              <span>New page</span>
-            </button>
+              busy={creating}
+              icon={
+                creating ? (
+                  <Loader2 size={12} strokeWidth={1.8} className="animate-spin" />
+                ) : (
+                  <Plus size={12} strokeWidth={1.8} />
+                )
+              }
+              label="New page"
+            />
           </div>
         )}
       </div>
 
       {!collapsed && (
-        <div id="project-pages-body" className="flex flex-col gap-3">
-          {showNewFolder && (
-            <div className="flex items-center gap-2">
-              <Folder size={13} strokeWidth={1.5} className="text-[var(--ink-muted)] flex-shrink-0" />
-              <input
-                // biome-ignore lint/a11y/noAutofocus: intentional focus on reveal
-                autoFocus
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateFolder();
-                  if (e.key === "Escape") {
-                    setShowNewFolder(false);
-                    setNewFolderName("");
-                  }
-                }}
-                placeholder="Folder name…"
-                className="flex-1 px-2 py-1 text-[13px] font-serif bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)]"
+        <div
+          id="project-pages-body"
+          className="overflow-hidden rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-box)]"
+        >
+          <div className="p-4">
+            {!hasContent ? (
+              <EmptyProjectPages
+                onNewPage={handleNewPage}
+                onNewFolder={() => setNewFolderOpen(true)}
+                creating={creating}
               />
-              <IconBtn label="Create folder" onClick={handleCreateFolder}>
-                <Check size={13} strokeWidth={1.5} />
-              </IconBtn>
-              <IconBtn
-                label="Cancel"
-                onClick={() => {
-                  setShowNewFolder(false);
-                  setNewFolderName("");
-                }}
+            ) : (
+              <div
+                className="grid gap-3"
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}
+                data-view="grid"
               >
-                <X size={13} strokeWidth={1.5} />
-              </IconBtn>
-            </div>
-          )}
-
-          {projectPages.length === 0 && relevantRoots.length === 0 ? (
-            <EmptyPages />
-          ) : (
-            <div className="flex flex-col gap-2">
-              {relevantRoots.map((folder) => renderFolderNode(folder, 0))}
-
-              {looseStandalone.length > 0 && (
-                <div className="flex flex-col">
-                  {relevantRoots.length > 0 && (
-                    <p className="py-1 px-1 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-                      Unfiled
-                    </p>
-                  )}
-                  {looseStandalone.map((page) => (
-                    <PageRow
-                      key={page.id}
-                      page={page}
-                      folders={flatRelevantFolders}
-                      currentFolderId={null}
-                      projectNames={projectNames}
-                      onOpen={() => router.push(`/wiki/${page.id}`)}
-                      onMove={(fid) => handleMovePage(page.id, fid)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                <AnimatePresence initial={false}>
+                  {items.map((item, index) => {
+                    const id = `${item.kind}:${item.id}`;
+                    const selected = selectedId === id;
+                    const delay = reduceMotion ? 0 : Math.min(index, STAGGER_LIMIT) * 0.01;
+                    return (
+                      <motion.div
+                        key={id}
+                        layout={!reduceMotion}
+                        initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          transition: { duration: 0.18, delay, ease: "easeOut" },
+                        }}
+                        exit={
+                          reduceMotion
+                            ? { opacity: 0 }
+                            : { opacity: 0, y: 4, transition: { duration: 0.12 } }
+                        }
+                      >
+                        <ExplorerItemContextMenu
+                          item={item}
+                          onOpen={openItem}
+                          onRename={setRenameTarget}
+                          onDelete={handleDelete}
+                        >
+                          <ProjectGridTile
+                            item={item}
+                            selected={selected}
+                            onClick={() => setSelectedId(id)}
+                            onDoubleClick={() => openItem(item)}
+                          />
+                        </ExplorerItemContextMenu>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            )}
+          </div>
         </div>
       )}
+
+      <WikiFolderNameDialog
+        open={newFolderOpen}
+        onOpenChange={setNewFolderOpen}
+        title="New folder"
+        submitLabel="Create"
+        onSubmit={(name) => handleCreateFolder(name)}
+      />
+      <WikiFolderNameDialog
+        open={renameTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setRenameTarget(null);
+        }}
+        title={renameTarget?.kind === "folder" ? "Rename folder" : "Rename page"}
+        initialValue={
+          renameTarget
+            ? renameTarget.kind === "folder"
+              ? renameTarget.folder.name
+              : renameTarget.page.title
+            : ""
+        }
+        placeholder={renameTarget?.kind === "folder" ? "Folder name" : "Page title"}
+        submitLabel="Save"
+        onSubmit={submitRename}
+      />
     </section>
+  );
+}
+
+function ProjectGridTile({
+  item,
+  selected,
+  onClick,
+  onDoubleClick,
+}: {
+  item: ExplorerItem;
+  selected: boolean;
+  onClick: () => void;
+  onDoubleClick: () => void;
+}) {
+  if (item.kind === "folder") {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        aria-selected={selected}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onDoubleClick();
+          }
+        }}
+        className={cn(
+          "group flex h-full min-h-[176px] cursor-pointer flex-col items-center justify-between gap-2 rounded-[10px] border p-4 text-center outline-none",
+          "border-[var(--sd-line)] bg-[var(--sd-box)]",
+          "transition-[background-color,border-color] duration-[120ms] ease-out",
+          "hover:bg-[var(--sd-hover)]",
+          "focus-visible:border-[var(--hud-cyan)]",
+          selected && "border-[var(--hud-cyan)] bg-[var(--sd-selected)]",
+        )}
+      >
+        <FolderIcon size={72} variant="closed" />
+        <div className="min-w-0 space-y-0.5">
+          <div className="truncate font-sans text-[0.82rem] font-medium text-[var(--sd-ink)]">
+            {item.folder.name}
+          </div>
+          <div className="font-mono text-[0.65rem] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+            {item.itemCount === 0
+              ? "Empty"
+              : `${item.itemCount} item${item.itemCount === 1 ? "" : "s"}`}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-selected={selected}
+      onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onDoubleClick();
+        }
+      }}
+      className="cursor-pointer rounded-[8px] outline-none focus-visible:shadow-[inset_0_0_0_1px_var(--hud-cyan)]"
+    >
+      <PagePreviewCard
+        page={item.page}
+        icon={item.page.emoji ?? null}
+        selected={selected}
+      />
+    </div>
+  );
+}
+
+function ChromeButton({
+  onClick,
+  disabled,
+  busy,
+  title,
+  icon,
+  label,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+  title?: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-busy={busy || undefined}
+      title={title}
+      className={cn(
+        "flex h-7 items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 text-[0.75rem] text-[var(--sd-ink)] cursor-pointer",
+        "transition-[background-color,border-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)]",
+        "focus-visible:outline-none focus-visible:border-[var(--hud-cyan)]",
+        "disabled:cursor-not-allowed disabled:opacity-40",
+      )}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function EmptyProjectPages({
+  onNewPage,
+  onNewFolder,
+  creating,
+}: {
+  onNewPage: () => void;
+  onNewFolder: () => void;
+  creating: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed border-[var(--sd-line)] px-6 py-10 text-center">
+      <FolderIcon size={64} variant="closed" />
+      <p className="font-sans text-[15px] italic text-[var(--sd-ink-dull)]">
+        No pages here yet. Add a page or folder to keep notes, meeting logs, or reference docs.
+      </p>
+      <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+        <ChromeButton
+          onClick={onNewPage}
+          disabled={creating}
+          busy={creating}
+          icon={
+            creating ? (
+              <Loader2 size={12} strokeWidth={1.8} className="animate-spin" />
+            ) : (
+              <Plus size={12} strokeWidth={1.8} />
+            )
+          }
+          label="New page"
+        />
+        <ChromeButton
+          onClick={onNewFolder}
+          icon={<FolderPlus size={12} strokeWidth={1.8} />}
+          label="New folder"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -556,10 +552,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
  * own effective set includes the project OR any descendant qualifies (so an
  * intermediate folder is not dropped if a deeper subfolder is relevant).
  */
-function pruneTreeToProject(
-  nodes: TreeFolder[],
-  projectId: string,
-): TreeFolder[] {
+function pruneTreeToProject(nodes: TreeFolder[], projectId: string): TreeFolder[] {
   const out: TreeFolder[] = [];
   for (const node of nodes) {
     const prunedSubs = pruneTreeToProject(node.subfolders, projectId);
@@ -568,108 +561,11 @@ function pruneTreeToProject(
       out.push({
         ...node,
         subfolders: prunedSubs,
-        // Drop pages that are not linked to this project from the folder view.
         pages: node.pages.filter((p) =>
-          p.projectLinks.some((l) => l.projectId === projectId)
+          p.projectLinks.some((l) => l.projectId === projectId),
         ),
       });
     }
   }
   return out;
-}
-
-function PageRow({
-  page,
-  folders,
-  currentFolderId,
-  projectNames,
-  onOpen,
-  onMove,
-}: {
-  page: {
-    id: string;
-    title: string;
-    emoji: string | null;
-    updatedAt: Date;
-    projectLinks: Array<{
-      projectId: string;
-      isInherited: boolean;
-      sourceFolderName?: string;
-    }>;
-  };
-  folders: FolderRow[];
-  currentFolderId: string | null;
-  projectNames: Map<string, string>;
-  onOpen: () => void;
-  onMove: (folderId: string | null) => void;
-}) {
-  return (
-    <div className="group/row flex items-center gap-2 py-1.5 px-2 rounded-sm hover:bg-[var(--surface)] transition-colors duration-100">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex items-center gap-3 min-w-0 flex-shrink text-left cursor-pointer"
-      >
-        <span className="w-4 flex-shrink-0 text-center text-[14px] leading-none">
-          {page.emoji ? (
-            <span>{page.emoji}</span>
-          ) : (
-            <FileText size={14} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
-          )}
-        </span>
-        <span className="min-w-0 text-[13px] font-serif text-[var(--ink)] truncate">
-          {page.title || <span className="text-[var(--ink-muted)] italic">Untitled page</span>}
-        </span>
-      </button>
-      <ProjectPillRow links={page.projectLinks} projectNames={projectNames} className="flex-1" />
-      <select
-        value={currentFolderId ?? ""}
-        onChange={(e) => onMove(e.target.value === "" ? null : e.target.value)}
-        aria-label="Move page to folder"
-        className="flex-shrink-0 max-w-[8rem] text-[11px] font-mono bg-transparent border border-transparent group-hover/row:border-[var(--edge)] rounded-sm px-1 py-0.5 text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)] cursor-pointer"
-      >
-        <option value="">No folder</option>
-        {folders.map((f) => (
-          <option key={f.id} value={f.id}>
-            {f.name}
-          </option>
-        ))}
-      </select>
-      <span className="flex-shrink-0 text-[11px] font-mono text-[var(--ink-muted)]">
-        {formatDistanceToNow(new Date(page.updatedAt), { addSuffix: true })}
-      </span>
-    </div>
-  );
-}
-
-function IconBtn({
-  label,
-  onClick,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      className="flex items-center justify-center w-6 h-6 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors cursor-pointer"
-    >
-      {children}
-    </button>
-  );
-}
-
-function EmptyPages() {
-  return (
-    <div className="rounded-md border border-dashed border-[var(--edge)] px-5 py-6 text-center">
-      <p className="font-serif italic text-[15px] text-[var(--ink-muted)]">
-        No pages yet. Add one to keep notes, meeting logs, or reference docs for this project.
-      </p>
-    </div>
-  );
 }

@@ -63,6 +63,49 @@ export async function postClaim(): Promise<void> {
 }
 
 /**
+ * POST /api/jarvis/voice/warmup
+ *
+ * Fire-and-forget cache pre-warm. The FIRST real voice turn of a session pays
+ * ~45s to create the Anthropic 1h prompt cache; every turn after reads it in
+ * ~600ms. Hitting this ahead of the user's first spoken command (at boot and
+ * on every wake) moves that one-time creation off the critical path so turn 1
+ * reads a warm cache. Side-effect-free on the server (no turn persisted, no
+ * SSE, no TTS). Non-fatal: a failed warmup just means the first turn pays the
+ * old cost.
+ */
+export async function postWarmup(): Promise<void> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/warmup`, {
+      method: "POST",
+      headers: {
+        ...(await authHeaders(triggerSecret)),
+        ...JARVIS_MODE_HEADER,
+        "content-type": "application/json",
+      },
+      body: "{}",
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[warmup] ${res.status}`);
+      return;
+    }
+    const json = (await res.json()) as {
+      cacheRead?: number;
+      cacheCreated?: number;
+      ms?: number;
+    };
+    // eslint-disable-next-line no-console
+    console.log(
+      `[warmup] cache read/create ${json.cacheRead ?? "?"}/${json.cacheCreated ?? "?"} in ${json.ms ?? "?"}ms`,
+    );
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[warmup] failed", err);
+  }
+}
+
+/**
  * POST /api/jarvis/tts
  * Fetches raw PCM audio (16-bit signed LE @ 24kHz mono) from ElevenLabs
  * via the server proxy. The desktop auth path sends X-Trigger-Secret
@@ -231,6 +274,83 @@ export async function postText(text: string): Promise<boolean> {
 }
 
 /**
+ * POST /api/jarvis/voice/history/clear
+ * Wipes the server-side conversation memory (jarvis_turns) for this user —
+ * the same table the voice agent reads as its 15-minute cross-turn memory.
+ * The HUD's Clear control calls this after emptying the visible transcript so
+ * a fresh conversation doesn't inherit stale turns (including curl-fired test
+ * turns). Best-effort: a failure is logged and surfaced as `false`.
+ */
+export async function clearHistory(): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/history/clear`, {
+      method: "POST",
+      headers: {
+        ...(await authHeaders(triggerSecret)),
+        "content-type": "application/json",
+      },
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[voice/history/clear] ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[voice/history/clear] error", err);
+    return false;
+  }
+}
+
+/**
+ * POST /api/jarvis/voice/history/receipt
+ *
+ * Records the true terminal outcome of a desktop-gated WhatsApp send into the
+ * server's cross-turn memory (jarvis_turns), so a following "did you send it?"
+ * turn is answered from a real receipt rather than a guess. Fire-and-forget:
+ * the send already succeeded/failed and was spoken; this only teaches the agent
+ * what happened. Failures to POST are logged, never surfaced.
+ */
+export async function postWhatsappReceipt(args: {
+  recipient: string;
+  jid?: string;
+  text: string;
+  success: boolean;
+  at?: string;
+}): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/history/receipt`, {
+      method: "POST",
+      headers: {
+        ...(await authHeaders(triggerSecret)),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        channel: "whatsapp",
+        recipient: args.recipient,
+        ...(args.jid ? { jid: args.jid } : {}),
+        text: args.text,
+        success: args.success,
+        at: args.at ?? new Date().toISOString(),
+      }),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[voice/history/receipt] ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[voice/history/receipt] error", err);
+    return false;
+  }
+}
+
+/**
  * POST /api/jarvis/voice/transcript
  * Sends the captured WAV to the server for Groq STT transcription.
  * The server fans the transcript out to browser tabs via physicalBus SSE.
@@ -364,6 +484,254 @@ export async function postRunRoutine(routine: Routine): Promise<boolean> {
     // eslint-disable-next-line no-console
     console.warn("[routines] run POST failed", err);
     return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Startup config (web = source of truth; local Tauri store = offline fallback).
+// The desktop reads the owner's canonical STARTUP config from the web on boot
+// so editing it on the web JARVIS tab changes what the desktop does at session
+// start (briefing toggle, apps/URLs to open, macOS Shortcuts to run). The local
+// settings store is mirrored from this and used verbatim when the fetch fails.
+// ---------------------------------------------------------------------------
+
+/** One item the desktop opens on session-start. Mirrors StartupOpenItem in
+ *  settings.ts and the web's StartupOpenTarget. */
+export interface StartupConfigOpenItem {
+  type: "url" | "app";
+  value: string;
+}
+
+/** The web's canonical startup config, as returned by GET
+ *  /api/jarvis/config/startup. Shapes match jarvis_startup_config. */
+export interface StartupConfig {
+  briefingEnabled: boolean;
+  openOnStart: StartupConfigOpenItem[];
+  startupShortcuts: string[];
+}
+
+/** Bound the boot-time fetch so a slow/dead server can never wedge session
+ *  start — on timeout we abort and fall back to the local store. */
+const STARTUP_CONFIG_TIMEOUT_MS = 4_000;
+
+/** Narrow a raw openOnStart value from the wire: drop malformed entries. */
+function coerceOpenItems(raw: unknown): StartupConfigOpenItem[] {
+  if (!Array.isArray(raw)) return [];
+  const items: StartupConfigOpenItem[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const type = (entry as Record<string, unknown>)["type"];
+    const value = (entry as Record<string, unknown>)["value"];
+    if ((type === "url" || type === "app") && typeof value === "string" && value.trim()) {
+      items.push({ type, value: value.trim() });
+    }
+  }
+  return items;
+}
+
+/** Narrow a raw shortcuts value from the wire: keep non-empty strings only. */
+function coerceShortcuts(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((name): name is string => typeof name === "string" && name.trim().length > 0)
+    .map((name) => name.trim());
+}
+
+/**
+ * GET /api/jarvis/config/startup
+ * Reads the owner's canonical startup config (bearer + owner gated). Web is the
+ * source of truth. Returns null on ANY failure — non-ok status, parse error,
+ * transport failure, or the {@link STARTUP_CONFIG_TIMEOUT_MS} timeout — so the
+ * caller can fall back to the local Tauri store and session start never blocks
+ * on the network. The returned shapes are sanitized (malformed entries dropped)
+ * so consumers always see well-formed values.
+ */
+export async function fetchStartupConfig(): Promise<StartupConfig | null> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), STARTUP_CONFIG_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/config/startup`, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[config/startup] GET ${res.status}`);
+      return null;
+    }
+    const json = (await res.json()) as {
+      briefingEnabled?: unknown;
+      openOnStart?: unknown;
+      startupShortcuts?: unknown;
+    };
+    return {
+      briefingEnabled: typeof json.briefingEnabled === "boolean" ? json.briefingEnabled : true,
+      openOnStart: coerceOpenItems(json.openOnStart),
+      startupShortcuts: coerceShortcuts(json.startupShortcuts),
+    };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[config/startup] GET failed", err);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// iMessage recipient resolution (tie-breaker / fallback for the send gate).
+// macOS Contacts is the desktop's authoritative source; this cross-references a
+// NAME against handles the owner has actually messaged (ingested chat.db →
+// imessage_messages) so a send never lands on a guessed/random handle.
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/imessage/resolve?name=<person>
+ * Returns the distinct raw iMessage handles (phone/email) the owner has
+ * recently messaged whose resolved contact name matches `name`, most-recent
+ * first. Bearer + owner gated. Fail-safe: returns [] on any non-ok/parse/
+ * transport failure so the caller can fall back to Contacts or an honest
+ * "couldn't find them" line rather than crashing the send path.
+ */
+export async function resolveRecentImessageHandles(name: string): Promise<string[]> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const url = `${apiBaseUrl}/api/imessage/resolve?name=${encodeURIComponent(name)}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[imessage/resolve] GET ${res.status}`);
+      return [];
+    }
+    const json = (await res.json()) as { handles?: unknown };
+    return Array.isArray(json.handles)
+      ? (json.handles.filter((h) => typeof h === "string") as string[])
+      : [];
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[imessage/resolve] GET failed", err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notification announcer — incoming-message polling.
+// The desktop watcher polls these two read-only endpoints on a short interval
+// while the HUD runs, passing the last-seen timestamp per channel so each poll
+// returns only what is new. Both are fail-safe: any non-ok/parse/transport
+// failure yields [] so a transient hiccup skips one tick rather than crashing
+// the watcher loop.
+// ---------------------------------------------------------------------------
+
+/** One incoming message from either channel, normalized for the announcer.
+ *  `chatJid` addresses the chat for the open-widget flow (WhatsApp); iMessage
+ *  has no in-app widget yet, so its jid is carried but unused for summoning. */
+export interface IncomingMessage {
+  channel: "whatsapp" | "imessage";
+  chatJid: string;
+  senderName: string;
+  body: string | null;
+  sentAt: string;
+}
+
+/**
+ * GET /api/studio/whatsapp?recent&since=<iso>
+ * Newest incoming (not-from-me) WhatsApp messages since `since`, normalized to
+ * IncomingMessage. Returns [] on any failure.
+ */
+export async function getWhatsappRecent(since: string | null): Promise<IncomingMessage[]> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const qs = since ? `&since=${encodeURIComponent(since)}` : "";
+    const res = await fetch(`${apiBaseUrl}/api/studio/whatsapp?recent${qs}`, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[whatsapp/recent] GET ${res.status}`);
+      return [];
+    }
+    const json = (await res.json()) as {
+      receipt?: {
+        messages?: Array<{
+          chatJid?: unknown;
+          senderName?: unknown;
+          body?: unknown;
+          sentAt?: unknown;
+        }>;
+      };
+    };
+    const rows = json.receipt?.messages;
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((r) => {
+      if (typeof r.chatJid !== "string" || typeof r.sentAt !== "string") return [];
+      return [
+        {
+          channel: "whatsapp" as const,
+          chatJid: r.chatJid,
+          senderName: typeof r.senderName === "string" ? r.senderName : r.chatJid,
+          body: typeof r.body === "string" ? r.body : null,
+          sentAt: r.sentAt,
+        },
+      ];
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[whatsapp/recent] GET failed", err);
+    return [];
+  }
+}
+
+/**
+ * GET /api/imessage/recent?since=<iso>
+ * Newest incoming iMessages since `since`, normalized to IncomingMessage.
+ * Returns [] on any failure.
+ */
+export async function getImessageRecent(since: string | null): Promise<IncomingMessage[]> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const qs = since ? `?since=${encodeURIComponent(since)}` : "";
+    const res = await fetch(`${apiBaseUrl}/api/imessage/recent${qs}`, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[imessage/recent] GET ${res.status}`);
+      return [];
+    }
+    const json = (await res.json()) as {
+      messages?: Array<{
+        chatJid?: unknown;
+        senderName?: unknown;
+        body?: unknown;
+        sentAt?: unknown;
+      }>;
+    };
+    const rows = json.messages;
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((r) => {
+      if (typeof r.chatJid !== "string" || typeof r.sentAt !== "string") return [];
+      return [
+        {
+          channel: "imessage" as const,
+          chatJid: r.chatJid,
+          senderName: typeof r.senderName === "string" ? r.senderName : "Someone",
+          body: typeof r.body === "string" ? r.body : null,
+          sentAt: r.sentAt,
+        },
+      ];
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[imessage/recent] GET failed", err);
+    return [];
   }
 }
 

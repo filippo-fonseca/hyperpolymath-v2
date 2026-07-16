@@ -21,13 +21,18 @@ import { KiwiIcon } from "@/components/shared/KiwiIcon";
  */
 
 interface KiwiAboutDialogProps {
-  children: ReactNode; // the trigger element
+  /** The trigger element. Omit when driving the dialog with `open`. */
+  children?: ReactNode;
+  /** Controlled mode — the sidebar opens this from its overflow menu, where
+   *  there is no trigger element to wrap (a menu item unmounts on select). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function KiwiAboutDialog({ children }: KiwiAboutDialogProps) {
+export function KiwiAboutDialog({ children, open, onOpenChange }: KiwiAboutDialogProps) {
   return (
-    <Dialog>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
       <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-[var(--edge)]">
         {/* Hero band — mirrors the readmehero flyer: kiwi glyph + serif
             wordmark on a cream surface, with a single italic tagline under
@@ -43,11 +48,11 @@ export function KiwiAboutDialog({ children }: KiwiAboutDialogProps) {
                 aria-hidden="true"
                 className="shrink-0"
               />
-              <DialogTitle className="font-serif text-[36px] leading-none font-semibold tracking-[-0.01em] m-0">
+              <DialogTitle className="text-[36px] leading-none font-semibold tracking-[-0.01em] m-0">
                 Hyperpolymath
               </DialogTitle>
             </div>
-            <DialogDescription className="text-center font-serif text-[14px] italic text-[var(--ink-muted)]">
+            <DialogDescription className="text-center text-[14px] italic text-[var(--ink-muted)]">
               A personal life-OS for people who refuse to specialize.
             </DialogDescription>
           </DialogHeader>
@@ -55,7 +60,7 @@ export function KiwiAboutDialog({ children }: KiwiAboutDialogProps) {
 
         {/* Body — short, document-y prose. */}
         <div
-          className="px-8 py-6 space-y-3 font-serif text-[14px] leading-[1.65] text-[var(--ink)]"
+          className="px-8 py-6 space-y-3 text-[14px] leading-[1.65] text-[var(--ink)]"
           style={{ backgroundColor: "var(--surface)" }}
         >
           <p>

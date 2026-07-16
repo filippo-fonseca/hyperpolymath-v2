@@ -707,10 +707,10 @@ export function TasksClient({
           expand/fullscreen toggle anchored top-right (D-08 / UI-SPEC S-7). */}
       <header className="mb-6 flex items-start justify-between gap-4">
         <div className="space-y-1.5">
-        <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
+        <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--sd-ink)]">
           Tasks
         </h1>
-        <p className="font-serif text-base text-[var(--ink-muted)] flex items-center gap-3">
+        <p className="font-serif text-base text-[var(--sd-ink-dull)] flex items-center gap-3">
           <span>
             {headerStats.open} open
             {headerStats.overdue > 0 ? (
@@ -720,7 +720,7 @@ export function TasksClient({
             ) : null}
           </span>
           {headerStats.done > 0 ? (
-            <span className="text-[var(--ink-muted)]/60">· {headerStats.done} done</span>
+            <span className="text-[var(--sd-ink-faint)]">· {headerStats.done} done</span>
           ) : null}
         </p>
         </div>
@@ -728,7 +728,7 @@ export function TasksClient({
           type="button"
           onClick={toggleExpanded}
           aria-label={expanded ? "Exit fullscreen" : "Expand tasks to fullscreen"}
-          className="text-[var(--ink-muted)] hover:text-[var(--ink)] p-1 rounded cursor-pointer-always transition-colors duration-150 ease-out"
+          className="text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] p-1 rounded-[5px] cursor-pointer-always transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
         >
           {expanded ? (
             <Minimize2 size={16} strokeWidth={1.5} />
@@ -738,21 +738,10 @@ export function TasksClient({
         </button>
       </header>
 
-      {/* Toolbar: filters + view toggle wrapped in a glassy pill container
-          (matches the PROFILE pill in /settings nav — translucent surface +
-          backdrop-blur + inset cyan glow + soft outer halo + thin cyan-tinged
-          border on hover). */}
-      <div
-        className={cn(
-          "flex items-center justify-between gap-4 mb-5 rounded-xl px-3 py-2 ",
-          "",
-          "glass-tile",
-          "",
-          "",
-          "",
-          ""
-        )}
-      >
+      {/* Toolbar: filters + view toggle in a solid Spacedrive chrome bar
+          (--sd-box fill, --sd-line hairline; no backdrop-blur per sd register).
+          Filters render their own sd pills inside it. */}
+      <div className="flex items-center justify-between gap-4 mb-5 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2">
         <TaskFilters projects={projects} />
         {/* Show / hide completed "lesno"tasks. Off by default per user spec —
             the kanban + list + day views all read from `filtered`, which
@@ -763,12 +752,12 @@ export function TasksClient({
           aria-pressed={showLesno}
           disabled={view !== "overview"}
           className={cn(
-            "px-2.5 py-0.5 rounded-md font-mono text-[11px] uppercase tracking-[0.06em] transition-colors duration-150 ease-out border shrink-0",
+            "px-2.5 py-0.5 rounded-[6px] font-mono text-[11px] uppercase tracking-[0.06em] transition-colors duration-[120ms] ease-out border shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
             view !== "overview"
-              ? "border-transparent text-[var(--ink-muted)]/40 cursor-not-allowed"
+              ? "border-transparent text-[var(--sd-ink-faint)]/50 cursor-not-allowed"
               : showLesno
-                ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)] cursor-pointer"
-                : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)] cursor-pointer"
+                ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)] cursor-pointer"
+                : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-line)] cursor-pointer"
           )}
           title={
             view !== "overview"
@@ -786,18 +775,20 @@ export function TasksClient({
           onClick={() => setInboxHidden((v) => !v)}
           aria-pressed={inboxHidden}
           className={cn(
-            "px-2.5 py-0.5 rounded-md font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out border shrink-0",
+            "px-2.5 py-0.5 rounded-[6px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-[120ms] ease-out border shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
             inboxHidden
-              ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
-              : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]"
+              ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)]"
+              : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-line)]"
           )}
           title={inboxHidden ? "Show the Inbox column" : "Hide the Inbox column"}
         >
           {inboxHidden ? "Show inbox" : "Hide inbox"}
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {/* Top-level surface: Overview vs. Day. */}
-          <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)]">
+          {/* Top-level surface: Overview vs. Day. Segmented group on the sd
+              ViewToggle idiom — neutral --sd-selected backplate + accent label
+              on the active segment (two-tier selection, D6). */}
+          <div className="flex items-center gap-0.5 border border-[var(--sd-line)] rounded-[6px] p-0.5 bg-[var(--sd-box)]">
             {([
               { value: "overview", label: "overview", active: view === "overview" },
               { value: "day", label: "day", active: view !== "overview" },
@@ -810,11 +801,11 @@ export function TasksClient({
                 }
                 aria-pressed={t.active}
                 className={cn(
-                  "px-2.5 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer",
-                  "transition-colors duration-150 ease-out",
+                  "px-2.5 py-0.5 rounded-[4px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer",
+                  "transition-colors duration-[120ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
                   t.active
-                    ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                    ? "bg-[var(--sd-selected)] text-[var(--sd-accent)]"
+                    : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
                 )}
               >
                 {t.label}
@@ -823,7 +814,7 @@ export function TasksClient({
           </div>
           {/* Day sub-toggle: Kanban vs. List — only in Day mode. */}
           {view !== "overview" && (
-            <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)]">
+            <div className="flex items-center gap-0.5 border border-[var(--sd-line)] rounded-[6px] p-0.5 bg-[var(--sd-box)]">
               {(["kanban", "list"] as const).map((v) => (
                 <button
                   key={v}
@@ -831,11 +822,11 @@ export function TasksClient({
                   onClick={() => setView(v)}
                   aria-pressed={view === v}
                   className={cn(
-                    "px-2.5 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer",
-                    "transition-colors duration-150 ease-out",
+                    "px-2.5 py-0.5 rounded-[4px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer",
+                    "transition-colors duration-[120ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
                     view === v
-                      ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-                      : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                      ? "bg-[var(--sd-selected)] text-[var(--sd-accent)]"
+                      : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
                   )}
                 >
                   {v}
@@ -868,45 +859,51 @@ export function TasksClient({
         />
       ) : (
         <div className="flex flex-1 min-h-0 flex-col">
-          {/* Overdue Tasks Panel (issue #143) — spans the full width above the
-              day-scoped surface. Aggregates every passed-due task grouped by
-              its original due date; cards are draggable (reusing the lifted
-              `draggedTaskId` state) so dropping one on a kanban column / list
-              drop area / overview day reschedules it forward and the optimistic
-              update removes it from the panel. Mass + per-group reschedule reuse
-              `bulkUpdateTaskDueDate` via handleRescheduleOverdue. */}
-          {overdueTasks.length > 0 ? (
-            <OverdueTasksPanel
-              overdueTasks={overdueTasks}
-              onTaskClick={setOpenTaskId}
-              onReschedule={(ids, dueYmd) => void handleRescheduleOverdue(ids, dueYmd)}
-              draggedTaskId={draggedTaskId}
-              onDragStart={(id) => setDraggedTaskId(id)}
-              onDragEnd={() => setDraggedTaskId(null)}
-            />
-          ) : null}
-
-          <div className="flex flex-1 min-h-0 flex-row gap-4">
-          {/* D-01: persistent first-class Inbox — always present across every
-              view (kanban / list / overview) so dateless tasks stay visible
-              regardless of the central day-scoped surface. */}
-          {!inboxHidden && (
-            <InboxColumn
-              inboxTasks={inboxTasks}
-              onTaskClick={setOpenTaskId}
-              draggedTaskId={draggedTaskId}
-              onDragStart={(id) => setDraggedTaskId(id)}
-              onDragEnd={() => setDraggedTaskId(null)}
-              onDrop={() => void handleInboxDrop()}
-              selectedIds={selectedIds}
-              onToggleSelected={(id) => toggleSelected(id)}
-            />
+          {/* Triage rail — Overdue (issue #143) and the undated Inbox (D-01)
+              laid half-and-half, each 50% of the rail width, side by side. Both
+              are independent collapsible disclosures sharing the same chevron
+              toggle grammar, so both can be open at once. When only one is
+              present (no overdue work, or the Inbox hidden) that panel spans the
+              full rail. Cards stay draggable (native HTML5 DnD): dropping an
+              overdue card on a day target reschedules it forward; dropping any
+              card on the Inbox nulls its due date via handleInboxDrop. `min-w-0`
+              on each half lets task titles truncate rather than overflow. */}
+          {(overdueTasks.length > 0 || !inboxHidden) && (
+            <div className="mb-4 flex flex-row items-start gap-3">
+              {overdueTasks.length > 0 ? (
+                <div className="min-w-0 flex-1">
+                  <OverdueTasksPanel
+                    overdueTasks={overdueTasks}
+                    onTaskClick={setOpenTaskId}
+                    onReschedule={(ids, dueYmd) => void handleRescheduleOverdue(ids, dueYmd)}
+                    draggedTaskId={draggedTaskId}
+                    onDragStart={(id) => setDraggedTaskId(id)}
+                    onDragEnd={() => setDraggedTaskId(null)}
+                  />
+                </div>
+              ) : null}
+              {!inboxHidden && (
+                <div className="min-w-0 flex-1">
+                  <InboxColumn
+                    inboxTasks={inboxTasks}
+                    onTaskClick={setOpenTaskId}
+                    draggedTaskId={draggedTaskId}
+                    onDragStart={(id) => setDraggedTaskId(id)}
+                    onDragEnd={() => setDraggedTaskId(null)}
+                    onDrop={() => void handleInboxDrop()}
+                    selectedIds={selectedIds}
+                    onToggleSelected={(id) => toggleSelected(id)}
+                  />
+                </div>
+              )}
+            </div>
           )}
 
-          {/* Central area — the day-scoped surface. The DaySwitcher lives HERE
-              (not page-wide) so it visually governs the central tasks and makes
-              clear it does NOT scope the dateless Inbox. Overview is inherently
-              multi-day, so it owns its own day toggles and hides the switcher. */}
+          {/* Central area — the day-scoped surface, now full width beneath the
+              triage rail. The DaySwitcher lives HERE (not page-wide) so it
+              visually governs the central tasks and makes clear it does NOT
+              scope the dateless Inbox. Overview is inherently multi-day, so it
+              owns its own day toggles and hides the switcher. */}
           <div className="flex flex-1 min-h-0 flex-col">
             {view !== "overview" && (
               <DaySwitcher dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
@@ -925,9 +922,8 @@ export function TasksClient({
                   void handleDropOnDay(dateYmd);
                 }}
                 className={cn(
-                  "flex-1 min-h-0 overflow-y-auto -mx-2 px-2 rounded-xl transition-shadow",
-                  listDragOver &&
-                    "ring-1 ring-[var(--hud-cyan)]/30 [--glass-glow-color:var(--hud-cyan)]"
+                  "flex-1 min-h-0 overflow-y-auto -mx-2 px-2 rounded-[8px] transition-shadow",
+                  listDragOver && "ring-1 ring-[var(--sd-accent)]/40"
                 )}
               >
                 <TaskList
@@ -970,7 +966,6 @@ export function TasksClient({
                 />
               </div>
             )}
-          </div>
           </div>
         </div>
       )}

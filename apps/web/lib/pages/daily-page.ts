@@ -53,3 +53,22 @@ export function shouldAutoOpenToday(args: {
 }): boolean {
   return args.dailyFetched && !args.todayExists;
 }
+
+/**
+ * Wave-3 guard for `useEnsureTodayDailyPage`. Fires the guarded insert AT MOST
+ * once per mount per calendar day. Distinct from `shouldAutoOpenToday` because
+ * this one NEVER navigates — the Wiki-home rail just needs the row to exist so
+ * the "today" card can render its preview. Race-safe against the app-wide
+ * `DailyAutoOpen` (both hit the same partial unique index, so the second write
+ * becomes a no-op).
+ */
+export function shouldEnsureTodayDailyPage(args: {
+  dailyFetched: boolean;
+  todayExists: boolean;
+  hasFiredForDate: boolean;
+}): boolean {
+  if (!args.dailyFetched) return false;
+  if (args.todayExists) return false;
+  if (args.hasFiredForDate) return false;
+  return true;
+}

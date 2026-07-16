@@ -223,7 +223,10 @@ export function GlobalJarvisDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[640px] overflow-visible border-[var(--edge-hud)] bg-[var(--surface-raised)] p-0">
+      <DialogContent
+        style={{ background: "var(--sd-box)" }}
+        className="sm:max-w-[640px] overflow-visible border-[var(--sd-line)] p-0"
+      >
         <DialogTitle className="sr-only">JARVIS</DialogTitle>
         {prefersReducedMotion ? (
           <div className="relative p-4">{panel}</div>
@@ -257,9 +260,9 @@ interface ActionListProps {
  */
 function ActionList({ actions, focusedIndex, onRun, registerItemRef }: ActionListProps) {
   return (
-    <div className="overflow-hidden rounded-xl border-[0.5px] border-[var(--edge)] bg-[var(--surface-raised)] shadow-lg">
-      <div className="flex items-center gap-2 border-b border-[var(--edge)] px-3 pb-1.5 pt-2.5">
-        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+    <div className="sd-menu-surface overflow-hidden rounded-[12px] shadow-lg">
+      <div className="flex items-center gap-2 border-b border-[var(--sd-line)] px-3 pb-1.5 pt-2.5">
+        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
           Actions
         </span>
       </div>
@@ -275,26 +278,25 @@ function ActionList({ actions, focusedIndex, onRun, registerItemRef }: ActionLis
               role="option"
               aria-selected={focused}
               onClick={() => onRun(action)}
+              style={focused ? { background: "var(--sd-selected)" } : undefined}
               className={cn(
-                "group/action flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left transition-colors duration-100",
-                focused
-                  ? "bg-[var(--surface)]"
-                  : "hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]"
+                "group/action flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-left transition-colors duration-[140ms]",
+                !focused && "hover:bg-[var(--sd-hover)]",
               )}
             >
-              <Icon size={15} strokeWidth={1.5} className="shrink-0 text-[var(--ink-muted)]" />
-              <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-[var(--ink)]">
+              <Icon size={15} strokeWidth={1.5} className="shrink-0 text-[var(--sd-ink-dull)]" />
+              <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-[var(--sd-ink)]">
                 {action.label}
               </span>
               {focused ? (
                 <CornerDownLeft
                   size={12}
                   strokeWidth={1.5}
-                  className="shrink-0 text-[var(--ink-muted)]"
+                  className="shrink-0 text-[var(--sd-accent)]"
                 />
               ) : (
                 action.shortcut && (
-                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
                     {action.shortcut}
                   </span>
                 )

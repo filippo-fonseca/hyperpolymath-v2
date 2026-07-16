@@ -1,6 +1,7 @@
 import { getHabitCompletionsInRange, getHabitsForCurrentUser } from "@/app/actions/habits";
 import { LifeOsAreasSection } from "@/components/lifeos/LifeOsAreasSection";
 import { LifeOsBentoGrid } from "@/components/lifeos/LifeOsBentoGrid";
+import { LifeOsCanvas } from "@/components/lifeos/LifeOsCanvas";
 import { LifeOsHero } from "@/components/lifeos/LifeOsHero";
 import { LifeOsInsightsWidget } from "@/components/lifeos/LifeOsInsightsWidget";
 import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
@@ -23,11 +24,12 @@ export const dynamic = "force-dynamic";
 /**
  * /lifeos — canonical homepage for the life-OS view.
  *
- * Composition top-to-bottom:
- *   1. Hero — greeting, date, day-summary chips
- *   2. JARVIS quick-send composer
- *   3. Areas tree (centerpiece)
- *   4. Bento grid — Tasks (hero) · Habits · Training · Captures (full-width)
+ * One-screen command deck (UI-CONTRACT-SD3 §2). Hero + quick-send stay pinned
+ * at the top; a two-segment toggle (Widgets / Areas) swaps a single fixed
+ * region so the page fits one viewport and never scrolls:
+ *   - Widgets: a fixed 2-row · 12-col bento — Tasks (tall) · Habits · Training
+ *     · Captures · Insights (folded in as a compact cell).
+ *   - Areas: the full areas tree, with its own internal scroll.
  *
  * All widgets are interactive client islands. They reuse the same TanStack
  * Query keys + Supabase Realtime channels as /habits / /tasks / /captures /
@@ -84,66 +86,88 @@ export default async function LifeOsPage() {
   const trainingPlanned = visibleTraining.length;
   const trainingDone = visibleTraining.filter((a) => a.status === "done").length;
 
+  // Additional stat-strip figures, all derived from data already fetched above
+  // (no new queries — oracle Q2). "This week" = the trailing 7 days.
+  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const capturesThisWeek = initialCaptures.filter(
+    (c) => new Date(c.createdAt) >= weekAgo
+  ).length;
+  const projectsActive = availableProjects.length;
+
   return (
-    <main className="lifeos-glass relative min-h-full bg-[var(--canvas)] text-[var(--ink)]">
-      <div className="relative z-10 mx-auto w-full max-w-[1280px] px-6 md:px-10 pt-6 pb-12">
-        <LifeOsHero
-          displayName={user.displayName ?? user.email}
-          habitsDone={habitsDone}
-          habitsTotal={habitsTotal}
-          tasksDueToday={tasksDueToday}
-          tasksOverdue={tasksOverdue}
-          trainingPlanned={trainingPlanned}
-          trainingDone={trainingDone}
-        />
-        <LifeOsQuickSend />
-        <LifeOsAreasSection />
-        <LifeOsBentoGrid
-          hero={
-            <WidgetCard href="/tasks" ariaLabel="Open Tasks">
-              <UpcomingTasksWidget userId={user.id} initialTasks={initialTasks} limit={7} />
-            </WidgetCard>
-          }
-          topRight={
-            <WidgetCard href="/habits" ariaLabel="Open Habits">
-              <TodayHabitsWidget
-                userId={user.id}
-                initialHabits={initialHabits}
-                initialCompletions={initialCompletions}
-                todayISO={todayISO}
-              />
-            </WidgetCard>
-          }
-          midRight={
-            <WidgetCard href="/training" ariaLabel="Open Training">
-              <TodayTrainingWidget
-                userId={user.id}
-                initialActivities={initialTrainingActivities}
-                distanceUnit={distanceUnit}
-                todayISO={todayISO}
-              />
-            </WidgetCard>
-          }
-          bottom={
-            <WidgetCard href="/captures" ariaLabel="Open Captures">
-              <RecentCapturesWidget
-                userId={user.id}
-                initialCaptures={initialCaptures}
-                availableProjects={availableProjects}
-              />
-            </WidgetCard>
-          }
-        />
-        <WidgetCard href="/insights?tab=life" ariaLabel="Open Insights">
-          <LifeOsInsightsWidget
-            jarvisTurns={insights.totalTurns}
+    <main className="h-full bg-[var(--sd-app)] text-[var(--sd-ink)]">
+      {/* One-screen command deck (UI-CONTRACT-SD3 §2): hero + quick-send stay
+          pinned; a two-segment toggle swaps the widget deck vs the areas tree
+          into a single fixed region. The page never scrolls — the canvas is
+          h-full against the AppShell scroll container and clips. */}
+      <LifeOsCanvas
+        hero={
+          <LifeOsHero
+            displayName={user.displayName ?? user.email}
+            openTasksTotal={openTasks.length}
+            tasksDueToday={tasksDueToday}
+            tasksOverdue={tasksOverdue}
             habitsDone={habitsDone}
             habitsTotal={habitsTotal}
-            trainingDone={trainingDone}
+            capturesThisWeek={capturesThisWeek}
             trainingPlanned={trainingPlanned}
+            trainingDone={trainingDone}
+            projectsActive={projectsActive}
+            jarvisTurns={insights.totalTurns}
           />
-        </WidgetCard>
-      </div>
+        }
+        quickSend={<LifeOsQuickSend />}
+        widgets={
+          <LifeOsBentoGrid
+            hero={
+              <WidgetCard href="/tasks" ariaLabel="Open Tasks">
+                <UpcomingTasksWidget userId={user.id} initialTasks={initialTasks} limit={7} />
+              </WidgetCard>
+            }
+            habits={
+              <WidgetCard href="/habits" ariaLabel="Open Habits">
+                <TodayHabitsWidget
+                  userId={user.id}
+                  initialHabits={initialHabits}
+                  initialCompletions={initialCompletions}
+                  todayISO={todayISO}
+                />
+              </WidgetCard>
+            }
+            training={
+              <WidgetCard href="/training" ariaLabel="Open Training">
+                <TodayTrainingWidget
+                  userId={user.id}
+                  initialActivities={initialTrainingActivities}
+                  distanceUnit={distanceUnit}
+                  todayISO={todayISO}
+                />
+              </WidgetCard>
+            }
+            captures={
+              <WidgetCard href="/captures" ariaLabel="Open Captures">
+                <RecentCapturesWidget
+                  userId={user.id}
+                  initialCaptures={initialCaptures}
+                  availableProjects={availableProjects}
+                />
+              </WidgetCard>
+            }
+            insights={
+              <WidgetCard href="/insights?tab=life" ariaLabel="Open Insights">
+                <LifeOsInsightsWidget
+                  jarvisTurns={insights.totalTurns}
+                  habitsDone={habitsDone}
+                  habitsTotal={habitsTotal}
+                  trainingDone={trainingDone}
+                  trainingPlanned={trainingPlanned}
+                />
+              </WidgetCard>
+            }
+          />
+        }
+        areas={<LifeOsAreasSection />}
+      />
     </main>
   );
 }

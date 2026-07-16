@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { BarChart3, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { TrainingIcon } from "@/components/ui/icons";
 import type { WeekRange } from "@/lib/training/week";
 import { cn } from "@/lib/utils";
 
@@ -52,54 +53,95 @@ export function PlannerHeader({
     plannedCount === 0 ? null : Math.round((doneCount / plannedCount) * 100);
 
   return (
-    <div className="flex items-center justify-between gap-4 px-1 pb-3">
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1">
+    <div className="flex flex-col gap-3 px-1 pb-4">
+      {/* Title row — dimensional icon + mono eyebrow (§7/§8). */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <TrainingIcon size={28} />
+          <div className="flex flex-col gap-0.5">
+            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+              Week planner
+            </span>
+            <h1 className="text-[20px] font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]">
+              Training
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
           <Button
+            asChild
             type="button"
             variant="ghost"
             size="sm"
-            className="h-7 w-7 p-0"
-            onClick={onPrevWeek}
-            aria-label="Previous week"
+            className="h-7 gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
           >
-            <ChevronLeft size={14} strokeWidth={1.5} />
+            <Link href="/training/stats" aria-label="Open training stats">
+              <BarChart3 size={13} strokeWidth={1.5} />
+              Stats
+            </Link>
           </Button>
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className={cn(
-              "h-7 px-2 font-mono text-[11px] uppercase tracking-[0.06em]",
-              isCurrentWeek && "text-[var(--ink-muted)]",
-            )}
-            onClick={onJumpToday}
-            disabled={isCurrentWeek}
-            aria-label="Jump to current week"
+            className="h-7 gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
+            onClick={onManageTypesClick}
           >
-            This week
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={onNextWeek}
-            aria-label="Next week"
-          >
-            <ChevronRight size={14} strokeWidth={1.5} />
+            <Settings size={13} strokeWidth={1.5} />
+            Manage types
           </Button>
         </div>
-        <span className="font-serif text-sm text-[var(--ink)]">
-          {startLabel} – {endLabel}
-        </span>
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* Control row — week nav + range on the left, adherence pill right. */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={onPrevWeek}
+              aria-label="Previous week"
+            >
+              <ChevronLeft size={14} strokeWidth={1.5} />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-7 px-2 font-mono text-[11px] uppercase tracking-[0.06em]",
+                isCurrentWeek && "text-[var(--sd-ink-faint)]",
+              )}
+              onClick={onJumpToday}
+              disabled={isCurrentWeek}
+              aria-label="Jump to current week"
+            >
+              This week
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={onNextWeek}
+              aria-label="Next week"
+            >
+              <ChevronRight size={14} strokeWidth={1.5} />
+            </Button>
+          </div>
+          <span className="text-sm font-medium tabular-nums text-[var(--sd-ink)]">
+            {startLabel} – {endLabel}
+          </span>
+        </div>
+
         <span
           className={cn(
-            "rounded-full border border-[var(--edge)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]",
-            adherencePct !== null && adherencePct >= 80 && "text-[var(--ink)]",
+            "inline-flex h-6 items-center rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--sd-ink-dull)]",
+            adherencePct !== null && adherencePct >= 80 && "text-[var(--sd-ink)]",
           )}
           title={
             adherencePct === null
@@ -111,28 +153,6 @@ export function PlannerHeader({
             ? "— %"
             : `${adherencePct}% · ${doneCount}/${plannedCount}`}
         </span>
-        <Button
-          asChild
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
-        >
-          <Link href="/training/stats" aria-label="Open training stats">
-            <BarChart3 size={13} strokeWidth={1.5} />
-            Stats
-          </Link>
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
-          onClick={onManageTypesClick}
-        >
-          <Settings size={13} strokeWidth={1.5} />
-          Manage types
-        </Button>
       </div>
     </div>
   );

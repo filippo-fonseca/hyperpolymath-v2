@@ -105,7 +105,7 @@ export function ProjectDetailClient({
     // Body is a single centered measure (max-w-[1080px]) of stacked sections
     // with hairline dividers — no card chrome, no neumorphic shadows; depth
     // comes from edge contrast + restraint, matching the journal aesthetic.
-    <div className="flex flex-col min-h-full bg-[var(--canvas)] text-[var(--ink)]">
+    <div className="flex flex-col min-h-full bg-[var(--canvas)] text-[var(--sd-ink)]">
       {/* Breadcrumb strip — sits flush at the top above the banner so the
           user always sees Areas → {area} → {project} from inside the
           project. Live-bound to `liveProject.name` so renames refresh

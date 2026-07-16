@@ -10,15 +10,15 @@
     "beforeBuildCommand": "pnpm vite build"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "label": "main",
         "title": "JARVIS",
-        "width": 420,
-        "height": 560,
-        "minWidth": 360,
-        "minHeight": 420,
+        "width": 1512,
+        "height": 945,
+        "minWidth": 1100,
+        "minHeight": 700,
         "center": true,
         "resizable": true,
         "fullscreen": false,
@@ -31,12 +31,35 @@
     ],
     "macOSPrivateApi": true,
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": ["'self'", "ipc:", "http://ipc.localhost"],
+        "script-src": ["'self'", "'wasm-unsafe-eval'", "ipc:", "http://ipc.localhost"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "img-src": ["'self'", "data:", "blob:", "https:"],
+        "media-src": ["'self'", "blob:", "mediastream:"],
+        "font-src": ["'self'", "data:"],
+        "connect-src": [
+          "'self'",
+          "ipc:",
+          "http://ipc.localhost",
+          "http://localhost:3000",
+          "ws://localhost:1420",
+          "https:",
+          "wss:"
+        ],
+        "worker-src": ["'self'", "blob:"],
+        "child-src": ["'self'", "blob:"],
+        "frame-src": ["'self'", "https:"],
+        "object-src": ["'none'"],
+        "base-uri": ["'self'"],
+        "form-action": ["'self'"]
+      }
     }
   },
   "bundle": {
     "active": true,
     "targets": ["app", "dmg"],
+    "externalBin": ["binaries/whatsapp-bridge"],
     "category": "Utility",
     "shortDescription": "JARVIS microphone middleman",
     "longDescription": "Owns the microphone for JARVIS voice commands so the browser does not have to prompt per session.",

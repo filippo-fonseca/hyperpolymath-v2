@@ -110,7 +110,7 @@ describe("zCreateEvent", () => {
 });
 
 describe("buildToolDefinitions", () => {
-  it("returns thirty-three tools in order: 5 originals, update/delete/find (Phase 16), people (Phase D), computer-control, clicky slice, read_gmail, get_news, read_whatsapp, computer_use", () => {
+  it("returns thirty-four tools in order: 5 originals, update/delete/find (Phase 16), people (Phase D), computer-control, clicky slice, read_gmail, get_news, read_whatsapp, read_imessage, computer_use", () => {
     const tools = buildToolDefinitions();
     expect(tools.map((t) => t.name)).toEqual([
       "create_task",
@@ -145,6 +145,7 @@ describe("buildToolDefinitions", () => {
       "read_gmail",
       "get_news",
       "read_whatsapp",
+      "read_imessage",
       "computer_use",
     ]);
   });

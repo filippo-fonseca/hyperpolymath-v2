@@ -1,0 +1,360 @@
+{
+  "items": [
+    {
+      "id": "item-7c25e1eb-1783206204182",
+      "content_key": "21cfb05e263fcfdb528c7c31f781c6b1075bad80c489b6627b1769e83118bc59",
+      "title": "Faster web-search MCP: quick-Google-and-answer",
+      "body": "Improve JARVIS web search so asking a question triggers a quick web lookup and a spoken answer back, low-latency. Evaluate Browserbase (browserbase.com) as the browsing/search backend. Current web-search path needs to be faster + more reliable for ad-hoc questions.",
+      "source": "user:for-later",
+      "state": "queued",
+      "attempts": 0,
+      "created_at": "2026-07-04T23:03:24.181Z",
+      "updated_at": "2026-07-04T23:03:24.181Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-04T23:03:24.181Z"
+        }
+      ]
+    },
+    {
+      "id": "item-c1112f6f-1783732614708",
+      "content_key": "02cbec4f780521098acdcabe736b89266b51eb533d189f92b7c2cc1c7a870855",
+      "title": "Spacedrive-inspired app-wide restyle",
+      "body": "Extend the wiki's Spacedrive visual language (--sd-* token ladder, 6px chrome, dimensional icons, cyan focus rings) app-wide: sidebar, top tab bar, tasks, captures, projects, settings, dialogs. Keep .glass-tile editorial register where intentional. GitHub issue #254.",
+      "source": "conductor sesh-1783700667211",
+      "state": "done",
+      "attempts": 0,
+      "created_at": "2026-07-11T01:16:54.707Z",
+      "updated_at": "2026-07-14T01:41:33.252Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-11T01:16:54.707Z"
+        },
+        {
+          "from": "queued",
+          "to": "done",
+          "at": "2026-07-14T01:41:33.252Z",
+          "meta": {
+            "manual": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "item-edf5314f-1783735852681",
+      "content_key": "ccfab80c1d96ca76ca5c4bf212cff7d42ff9fce8cfd5ca7e5adafb7b98e30ca3",
+      "title": "Improve rest of app with the new look (start: briefing + tasks)",
+      "body": "Propagate the genuine Spacedrive visual language (real tokens from .planning/SPACEDRIVE-TOKENS.md, post wiki-drive-fidelity redesign) to the rest of the app, STARTING with the briefing surface and tasks, then the remaining surfaces (captures, projects, settings, dialogs). Related: GH issue #254 (app-wide restyle) and bgsd item-c1112f6f — this refines it with the corrected, authentic token set.",
+      "source": "user directive, conductor sesh-1783700667211",
+      "state": "done",
+      "attempts": 0,
+      "created_at": "2026-07-11T02:10:52.680Z",
+      "updated_at": "2026-07-14T01:41:33.301Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-11T02:10:52.680Z"
+        },
+        {
+          "from": "queued",
+          "to": "done",
+          "at": "2026-07-14T01:41:33.301Z",
+          "meta": {
+            "manual": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "item-2eb49c19-1783806050304",
+      "content_key": "159cd85df862614079116579ba32e1331daf70e321dfdfab7bad47de0de83320",
+      "title": "Harden link-preview fetch (SSRF + unbounded body)",
+      "body": "REVIEW.md sesh-1783791929518 MAJORs 1-2: apps/web/lib/link-preview/fetch.ts has no host/DNS private-IP filter (169.254.169.254/localhost/RFC1918 reachable, redirect: follow) and reads res.arrayBuffer() before the 1.5MB slice. Add IP filtering + streamed size cap.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 261,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/261"
+      },
+      "created_at": "2026-07-11T21:40:50.301Z",
+      "updated_at": "2026-07-11T21:40:50.301Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-11T21:40:50.301Z"
+        }
+      ]
+    },
+    {
+      "id": "item-21c7a64d-1783806051490",
+      "content_key": "ab0fab0b8187a71e070109f36195606a8df34fc8ecba6256f936107ded38db9c",
+      "title": "Tauri hardening: CSP + child-webview isolation",
+      "body": "REVIEW.md MAJOR 3: csp: null + withGlobalTauri: true while child-webviews load arbitrary external URLs. Define a CSP and restrict the global bridge.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 262,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/262"
+      },
+      "created_at": "2026-07-11T21:40:51.487Z",
+      "updated_at": "2026-07-11T21:40:51.487Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-11T21:40:51.487Z"
+        }
+      ]
+    },
+    {
+      "id": "item-f497a0b8-1783806052254",
+      "content_key": "c029772275d9df60d41db9d8d2829e73e16fbfb4ffb0c255ee92c7196008bdca",
+      "title": "Studio polish trio: orb drag listener leak, WhatsApp 30s poll, emitStudioAction userId",
+      "body": "REVIEW.md MAJORs 4-6: OrbWidget leaks global pointer listeners on cancelled drags (add unmount cleanup); WhatsAppWidget 30s hard poll should use Realtime invalidation; add userId field to emitStudioAction so the bus is partitionable beyond the owner gate.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 263,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/263"
+      },
+      "created_at": "2026-07-11T21:40:52.250Z",
+      "updated_at": "2026-07-11T21:40:52.250Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-11T21:40:52.250Z"
+        }
+      ]
+    },
+    {
+      "id": "item-1ecb3494-1783806061775",
+      "content_key": "cccc7f36aa616d0a4eff6e342a6ba97051878e77e4e901fa4919c72cdda00b0f",
+      "title": "JARVIS HUD deferred follow-ups: Porcupine wake word, window management, local ElevenLabs key",
+      "body": "From sesh-1783791929518 close-out: (1) Porcupine wake-word engine to replace the probe-based wake; (2) HUD window management (snap/tile/z-order); (3) refresh the stale local ElevenLabs key so local TTS stops 502ing; (4) deferred manual smoke: real spoken voice turn + hand-cursor camera opt-in.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 264,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/264"
+      },
+      "created_at": "2026-07-11T21:41:01.771Z",
+      "updated_at": "2026-07-11T21:41:01.771Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-11T21:41:01.771Z"
+        }
+      ]
+    },
+    {
+      "id": "item-a65c7983-1783816571092",
+      "content_key": "5331c6dcc72b26710b41870e917013825edd24f1c03e41e1319c9f84aab32bcf",
+      "title": "Universal @mentions across the platform and JARVIS",
+      "body": "First-class @mention system: typing @ anywhere (task descriptions, captures, wiki pages, chat with JARVIS, comments) opens an entity picker that can reference ANY entity — tasks, captures, projects, areas, people, wiki pages, events. Mentions render as rich inline chips that link to the entity, and JARVIS understands them in prompts ('add this to @Marathon-Training') and can emit them in replies. Needs: shared mention-autocomplete component, canonical entity-reference format (type:id), renderers per surface, and JARVIS tool/prompt support for resolving mentions.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 265,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/265"
+      },
+      "created_at": "2026-07-12T00:36:11.084Z",
+      "updated_at": "2026-07-12T00:36:11.084Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-12T00:36:11.084Z"
+        }
+      ]
+    },
+    {
+      "id": "item-7bae7d13-1783861284637",
+      "content_key": "b1f84021d8d50b4cb3034fb9aa7f096d3f83568564b5c2a681b02bedf44a5dd4",
+      "title": "Spacedrive UI refactor — EVERYTHING (desktop app, web app, all integrations)",
+      "body": "Full Spacedrive-mode UI refactor across every surface: desktop HUD, entire web app, and all integration surfaces. Extends/supersedes #254 and the #256 canonical brief — user re-confirmed 2026-07-12 during Loop 4 testing: 'UI refactor into the spacedrive mode for everything: desktop app, web app, everything, and all the integrations.' Run as its own bgsd sesh.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 266,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/266"
+      },
+      "created_at": "2026-07-12T13:01:24.632Z",
+      "updated_at": "2026-07-12T13:01:24.632Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-12T13:01:24.632Z"
+        }
+      ]
+    },
+    {
+      "id": "item-18908aa5-1783971403182",
+      "content_key": "cf3405e484a79a1a762fbb909bef265c470ad551bceb4077557063468aa0317c",
+      "title": "Voice pipeline: stop partial+full utterance spawning two server turns",
+      "body": "Upstream cause behind the Studio dup-widget/transcript defects (client-side mitigated in PR #284): wake-probe rolling tails + utterance-routine interception can run TWO full agentic turns for one spoken query (partial fires a routine turn, full fires a normal turn) — double cost/latency and two tool loops. Fix server-side: debounce/suppress a turn whose utterance is a strict prefix of a fuller one arriving within a short window, or gate routine interception on utterance finality. See .bgsd/seshs/studio-hud-1783966331/RESEARCH-implementation.md defect 2.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 285,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/285"
+      },
+      "created_at": "2026-07-13T19:36:43.181Z",
+      "updated_at": "2026-07-13T19:36:43.181Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-13T19:36:43.181Z"
+        }
+      ]
+    },
+    {
+      "id": "item-8b684bbf-1783972829918",
+      "content_key": "7c945f7a88c8238590159a1c15232e69c4b375b6531f442be1cc1f6f06152299",
+      "title": "sd restyle Wave A: captures + quick-capture/cmdk + toasts",
+      "body": "Per .bgsd/runs/sesh-1783963573841/specs/ROADMAP-PLATFORM.md Wave A. Seed all units with docs/DESIGN-SYSTEM.md. Captures list/grid on Tile primitive + InspectorShell; cmdk + quick-capture on dialog-pop law; toasts onto sd. GH #254.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 286,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/286"
+      },
+      "created_at": "2026-07-13T20:00:29.917Z",
+      "updated_at": "2026-07-13T20:00:29.917Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-13T20:00:29.917Z"
+        }
+      ]
+    },
+    {
+      "id": "item-152b7503-1783972830893",
+      "content_key": "60a40354e17374dd61fd45d0d2eee8c04cf5aac28b32034a0066d346aae66208",
+      "title": "sd restyle Wave B: projects + areas page + settings",
+      "body": "Per ROADMAP-PLATFORM.md Wave B. Projects (entity cards + stat strip + inspector), areas page-level, settings forms on sd-input register. Seed with docs/DESIGN-SYSTEM.md. GH #254.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 287,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/287"
+      },
+      "created_at": "2026-07-13T20:00:30.892Z",
+      "updated_at": "2026-07-13T20:00:30.892Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-13T20:00:30.892Z"
+        }
+      ]
+    },
+    {
+      "id": "item-736f26ab-1783972831932",
+      "content_key": "eb5af0ccc7ea3a8bf69d4653b6541d22f0b9ac7c3be8574ae335c3408829e2ba",
+      "title": "sd restyle Wave C: Jarvis console + sign-in + DEV tab",
+      "body": "Per ROADMAP-PLATFORM.md Wave C. Jarvis console/scrollback (taste-critical, HUD-cyan home field), sign-in mini-orb, DEVELOPMENT tab. Seed with docs/DESIGN-SYSTEM.md. GH #254.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 288,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/288"
+      },
+      "created_at": "2026-07-13T20:00:31.932Z",
+      "updated_at": "2026-07-13T20:00:31.932Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-13T20:00:31.932Z"
+        }
+      ]
+    },
+    {
+      "id": "item-2c67c4db-1783972833079",
+      "content_key": "7ccb0808d710c331b4e6d36e0f299e05d609d6b476604be6c259b3cc88753b8f",
+      "title": "sd restyle Wave D: dialog sweep + dead-CSS excision + register audit",
+      "body": "Per ROADMAP-PLATFORM.md Wave D. Grep-driven Radix dialog/menu sweep onto sd-panel-gradient; remove .glass-tile/.lifeos-glass/.sidebar-* once zero consumers; full bgsd-verify register audit both themes. GH #254.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 289,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/289"
+      },
+      "created_at": "2026-07-13T20:00:33.078Z",
+      "updated_at": "2026-07-13T20:00:33.078Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-13T20:00:33.078Z"
+        }
+      ]
+    },
+    {
+      "id": "item-9006d9a8-1784078279988",
+      "content_key": "f3d18c510409cc5d9c769508d092294cde6a2618e5221c27eb140ac2a9fc71a9",
+      "title": "Desktop app UI restyle — bring apps/desktop to the new Spacedrive register",
+      "body": "After sesh-sd3 (Space Drive All Features) ships: restyle the JARVIS desktop app UI to match the new Spacedrive look shipped in PR #290 and sesh-sd3 — dimensional icons, Space Grotesk, sd tokens, card v2 grammar, clean spacey aesthetic. User explicitly asked to be reminded.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 291,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/291"
+      },
+      "created_at": "2026-07-15T01:17:59.987Z",
+      "updated_at": "2026-07-15T01:17:59.987Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-15T01:17:59.987Z"
+        }
+      ]
+    },
+    {
+      "id": "item-b1703636-1784153808543",
+      "content_key": "e4a7c8323af1b3d73e373735ee7045063f90dab8c48fd139a777fdda3ca49c8c",
+      "title": "Captures: hashtag rail ignores inline #hashtags",
+      "body": "Tester sd3 authed pass D2: left HASHTAGS rail shows 'No hashtags yet' while feed captures render inline hashtag chips (#calendar, #research, #implants). Rail likely keys off the extracted tags relation, not inline text. Decide: extract inline hashtags into the relation on capture create, or have the rail union both sources. Evidence frame: .bgsd/runs/sesh-sd3-allfeatures/review/authed-pass-1/captures-hashtag-rail-crop-dark.png",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 293,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/293"
+      },
+      "created_at": "2026-07-15T22:16:48.541Z",
+      "updated_at": "2026-07-15T22:16:48.541Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-15T22:16:48.541Z"
+        }
+      ]
+    }
+  ]
+}

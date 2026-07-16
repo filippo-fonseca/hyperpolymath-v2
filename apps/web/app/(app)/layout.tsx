@@ -89,11 +89,11 @@ export default async function AppLayout({
           {/* `?` opens shortcuts cheat sheet (when no input is focused) */}
           <ShortcutsCheatSheet />
           {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC).
-            Glass register: translucent frosted surface (see .glass-toast). */}
+            sd register: solid --sd-box surface, hairline --sd-line, no blur (see .sd-toast). */}
           <Toaster
             position="bottom-right"
             duration={4000}
-            toastOptions={{ className: "glass-toast" }}
+            toastOptions={{ className: "sd-toast" }}
           />
           {/* Phase 7 Plan 07-03 — always-mounted voice lifecycle owner.
             JarvisListenerMount is a client wrapper that holds the

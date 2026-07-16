@@ -1,0 +1,2 @@
+SessionEnd hook ["$CLAUDE_PROJECT_DIR/.claude/hooks/stop-keep-awake.sh"] failed: /bin/sh: /Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.claude/hooks/stop-keep-awake.sh: Permission denied
+

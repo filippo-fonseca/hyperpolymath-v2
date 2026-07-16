@@ -124,4 +124,51 @@ describe("splitDeltas (LAT-02 sentence boundary)", () => {
       remainder: "",
     });
   });
+
+  // Unit 3 hardening: the TERMINATOR now also breaks `.!?` immediately followed
+  // (NO space) by an uppercase letter or quote, so two glued utterances split
+  // into two spoken sentences instead of one run-on blob.
+  describe("run-on split (defect 3a) — [.!?] before uppercase/quote", () => {
+    test("regression: '…send one.Just Tita, sir. ' splits into two sentences", () => {
+      // The exact transcript glue from the bug report: period, NO space, then
+      // an uppercase letter. Must NOT be spoken as one run-on fragment.
+      const { sentences, remainder } = splitDeltas("", "I can send one.Just Tita, sir. ");
+      expect(sentences).toEqual(["I can send one.", "Just Tita, sir. "]);
+      expect(remainder).toBe("");
+    });
+
+    test("exclamation glued to an uppercase start splits", () => {
+      expect(splitDeltas("", "Done!Next up. ")).toEqual({
+        sentences: ["Done!", "Next up. "],
+        remainder: "",
+      });
+    });
+
+    test("period glued to an opening quote is a boundary", () => {
+      // A dot immediately before an opening quote splits there (the lookahead
+      // does not consume the quote, so it opens the next sentence).
+      const { sentences } = splitDeltas("", "She said it.'Right away' ");
+      expect(sentences[0]).toBe("She said it.");
+    });
+
+    // Guard (spec §6): the uppercase-break heuristic must NOT fire inside
+    // decimals or lowercase-abbreviation content.
+    test("guard: '1.5 hours' is NOT split (digit after the dot)", () => {
+      expect(splitDeltas("", "It takes 1.5 hours")).toEqual({
+        sentences: [],
+        remainder: "It takes 1.5 hours",
+      });
+    });
+
+    test("guard: 'C. elegans' does not split at the dot before a space+lowercase", () => {
+      // "C. elegans" — the dot is followed by a SPACE then lowercase, so only
+      // the accepted `. ` abbreviation split can fire, never the new arm; and
+      // since a space follows, it matches the plain `. ` terminator (a known,
+      // pre-existing abbreviation limitation), not the uppercase-glue arm.
+      expect(splitDeltas("", "The worm C.elegans is a model organism")).toEqual({
+        sentences: [],
+        remainder: "The worm C.elegans is a model organism",
+      });
+    });
+  });
 });

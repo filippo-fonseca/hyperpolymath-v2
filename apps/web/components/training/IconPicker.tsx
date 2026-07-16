@@ -36,11 +36,11 @@ export function IconPicker({ value, onChange }: Props) {
               aria-label="No icon"
               onClick={() => onChange(null)}
               className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-md border text-[var(--ink-muted)] transition-colors",
-                "hover:bg-[var(--surface)] hover:text-[var(--ink)]",
+                "flex h-7 w-7 items-center justify-center rounded-md border text-[var(--sd-ink-dull)] transition-colors",
+                "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
                 value == null
-                  ? "border-[var(--ink)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                  : "border-[var(--edge)] bg-[var(--surface)]",
+                  ? "border-[var(--sd-ink)] bg-[var(--sd-box)] text-[var(--sd-ink)]"
+                  : "border-[var(--sd-line)] bg-[var(--sd-input)]",
               )}
             >
               <Ban size={12} strokeWidth={1.5} />
@@ -63,8 +63,8 @@ export function IconPicker({ value, onChange }: Props) {
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-md border transition-colors",
                     selected
-                      ? "border-[var(--ink)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                      : "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
+                      ? "border-[var(--sd-ink)] bg-[var(--sd-box)] text-[var(--sd-ink)]"
+                      : "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-accent)]",
                   )}
                 >
                   <Icon size={14} strokeWidth={1.5} />

@@ -1,4 +1,5 @@
 import { SectionEyebrow } from "./SectionEyebrow";
+import { Reveal } from "./Reveal";
 import {
   fetchRecentCommits,
   shippedThisWeek,
@@ -37,12 +38,12 @@ export async function BuildLog() {
   const currentPhase = roadmapText ? parseCurrentPhase(roadmapText) : null;
 
   return (
-    <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
+    <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 09 · BUILD LOG" />
-      <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
+      <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
         Live from main.
       </h2>
-      <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
         I&rsquo;m building Hyperpolymath in public, in named phases, one wave
         at a time. There&rsquo;s no private roadmap and no fake demos. The
         page below this line is the source of truth.
@@ -51,17 +52,17 @@ export async function BuildLog() {
       {/* Block 1 — Currently Shipping (always renders) */}
       <div className="mt-8">
         <SectionEyebrow label="CURRENTLY SHIPPING" />
-        <div className="mt-2 border-t border-[var(--edge)] pt-3">
+        <div className="mt-2 border-t border-[var(--sd-line)] pt-3">
           {currentPhase ? (
-            <p className="font-serif text-[18px] text-[var(--ink)]">
+            <p className="text-[18px] text-[var(--sd-ink)]">
               <span aria-hidden="true">▶ </span>
               Phase {currentPhase.number} · {currentPhase.name}
-              <span className="ml-2 font-mono text-[14px] text-[var(--ink-muted)]">
+              <span className="ml-2 font-mono text-[14px] text-[var(--sd-ink-faint)]">
                 · In Progress ({currentPhase.plansComplete} plans)
               </span>
             </p>
           ) : (
-            <p className="font-mono text-[14px] text-[var(--ink-muted)]">
+            <p className="font-mono text-[14px] text-[var(--sd-ink-faint)]">
               → Phase data unavailable.
             </p>
           )}
@@ -77,7 +78,7 @@ export async function BuildLog() {
       ) : (
         <DegradedFeed />
       )}
-    </section>
+    </Reveal>
   );
 }
 
@@ -85,7 +86,7 @@ function LastCommits({ commits }: { commits: ReadonlyArray<Commit> }) {
   return (
     <div className="mt-8">
       <SectionEyebrow label="LAST 7 COMMITS" />
-      <div className="mt-2 border-t border-[var(--edge)] pt-3 space-y-2">
+      <div className="mt-2 border-t border-[var(--sd-line)] pt-3 space-y-2">
         {commits.map((c) => (
           <div
             key={c.sha}
@@ -96,12 +97,12 @@ function LastCommits({ commits }: { commits: ReadonlyArray<Commit> }) {
               href={`${REPO_URL}/commit/${c.sha}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
+              className="text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] transition-colors"
             >
               {c.shortSha}
             </a>
-            <span className="text-[var(--ink-muted)]">{c.date.slice(0, 10)}</span>
-            <span className="text-[var(--ink)] truncate">{c.subject}</span>
+            <span className="text-[var(--sd-ink-faint)]">{c.date.slice(0, 10)}</span>
+            <span className="text-[var(--sd-ink)] truncate">{c.subject}</span>
           </div>
         ))}
       </div>
@@ -118,7 +119,7 @@ function CommitAvatar({ author }: { author: Commit["author"] }) {
   if (!author.avatarUrl || !author.login) {
     return (
       <span
-        className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full bg-[var(--surface-raised)] border border-[var(--edge)] text-[10px] text-[var(--ink-muted)]"
+        className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full bg-[var(--sd-input)] border border-[var(--sd-line)] text-[10px] text-[var(--sd-ink-faint)]"
         aria-hidden="true"
       >
         ?
@@ -138,7 +139,7 @@ function CommitAvatar({ author }: { author: Commit["author"] }) {
         alt={`${author.login} avatar`}
         width={22}
         height={22}
-        className="block w-[22px] h-[22px] rounded-full border border-[var(--edge)]"
+        className="block w-[22px] h-[22px] rounded-full border border-[var(--sd-line)]"
         loading="lazy"
         decoding="async"
       />
@@ -165,12 +166,12 @@ function ShippedThisWeekBlock({ summary }: { summary: WeeklySummary }) {
   return (
     <div className="mt-8">
       <SectionEyebrow label="SHIPPED THIS WEEK" />
-      <div className="mt-2 border-t border-[var(--edge)] pt-3 flex flex-col md:flex-row md:items-baseline md:justify-between gap-1">
-        <p className="font-serif text-[18px] text-[var(--ink)]">
+      <div className="mt-2 border-t border-[var(--sd-line)] pt-3 flex flex-col md:flex-row md:items-baseline md:justify-between gap-1">
+        <p className="text-[18px] text-[var(--sd-ink)]">
           {parts.length > 0 ? parts.join(" · ") : "Quiet week."}
         </p>
         {ago && (
-          <p className="font-mono font-mono-stats text-[14px] text-[var(--ink-muted)]">
+          <p className="font-mono font-mono-stats text-[14px] text-[var(--sd-ink-faint)]">
             (latest: {ago})
           </p>
         )}
@@ -182,13 +183,13 @@ function ShippedThisWeekBlock({ summary }: { summary: WeeklySummary }) {
 function DegradedFeed() {
   return (
     <div className="mt-8">
-      <p className="font-mono text-[14px] text-[var(--ink-muted)]">
+      <p className="font-mono text-[14px] text-[var(--sd-ink-faint)]">
         →{" "}
         <a
           href={REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-[var(--ink)] transition-colors"
+          className="hover:text-[var(--sd-ink)] transition-colors"
         >
           Commit feed unavailable. See the repo directly.
         </a>

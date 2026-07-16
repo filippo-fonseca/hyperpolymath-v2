@@ -6,36 +6,47 @@
 // System-prompt builder for the JARVIS Anthropic call.
 //
 // Returns an array of text blocks compatible with Anthropic's `system` field
-// (array shape, with cache_control breakpoints). The LAST block ALWAYS
-// carries `cache_control: { type: "ephemeral" }` to mark the cache
-// boundary — Anthropic caches everything before the breakpoint within the
-// system section (research §1.3).
+// (array shape, with cache_control breakpoints). The STABLE PREFIX ending at
+// the project-list block ALWAYS carries the 1h `cache_control` breakpoint;
+// any volatile blocks (facts, mode addendum) ride UNCACHED after it —
+// Anthropic caches everything before the breakpoint within the system
+// section (research §1.3).
 //
-// `voiceActive` is Phase 7 forward-compat: when true, a fourth block is
-// prepended ahead of the personality with voice-aware addendum copy. Plan
-// 05-01 always passes false (or omits); Phase 7 flips it on.
+// Volatile-after-breakpoint rule: prompt caching is prefix-based, so any
+// block that changes turn-to-turn must sit AFTER every cache_control marker
+// or it invalidates the whole cached prefix. The JARVIS MEMORY (facts) block
+// mutates on nearly every turn (extractAndPersistFacts is fire-and-forget in
+// run-turn.ts) — so it MUST NOT sit inside a cached prefix. Same for the
+// COMPUTER_MODE_ADDENDUM, which varies per-turn with `mode`.
 //
-// Phase 5.1 (D-M4 / JARVIS-18): `facts` param added. When non-empty, a new
-// JARVIS MEMORY block is appended as the LAST system block with
-// cache_control: { type: "ephemeral" }. The project-list block then loses
-// cache_control (it's no longer the last block). When facts is empty or
-// omitted, cache_control stays on the project-list block — backward-
-// compatible, no behavioral change.
+// `voiceActive` is Phase 7 forward-compat: when true, a spoken-output-contract
+// block is inserted right after the personality. Plan 05-01 always passes
+// false (or omits); Phase 7 flips it on.
 //
-// Phase 11 (CACHE-01 / D-06): the LAST block's cache_control upgrades to
+// Phase 5.1 (D-M4 / JARVIS-18): `facts` param added. When non-empty, a
+// JARVIS MEMORY block is appended AFTER the project-list block. Post-latency-
+// fix (2026-07-04): facts is UNCACHED — cache_control stays on project-list
+// so the stable prefix caches across turns even when facts mutate.
+//
+// Phase 11 (CACHE-01 / D-06): the project-list block carries
 // { type: "ephemeral", ttl: "1h" } so tier 2 (frozen system) caches for
 // 1 hour instead of the 5-min default. The new snapshot block (tier 3)
 // is appended at the route boundary (NOT here) and uses default 5-min.
-// Three breakpoints total: tools (last) + system (this block) at 1h,
+// Three breakpoints total: tools (last) + system (project-list) at 1h,
 // snapshot at 5m. See apps/web/app/api/jarvis/route.ts.
 
 import {
   COMPUTER_MODE_ADDENDUM,
   JARVIS_PERSONALITY,
+  SPOKEN_OUTPUT_CONTRACT,
   TOOL_USE_RULES,
-  VOICE_ADDENDUM,
 } from "./personality";
-import type { JarvisFact, ProjectSummary } from "./types";
+import {
+  DEFAULT_PERSONALITY_CONFIG,
+  type JarvisFact,
+  type PersonalityConfig,
+  type ProjectSummary,
+} from "./types";
 
 export interface SystemBlock {
   type: "text";
@@ -89,6 +100,93 @@ export function buildFactsBlock(facts: JarvisFact[]): string {
   return `JARVIS MEMORY (persistent facts about the user — honour these in every turn):\n${lines.join("\n")}`;
 }
 
+/**
+ * True when a personality config equals today's canon baseline: preset "canon",
+ * formality "formal", verbosity "concise", wit "dry", and no meaningful custom
+ * instructions. Such a config is a NO-OP — buildPersonalityTuningBlock returns
+ * null for it so nothing is injected and the default persona is unchanged.
+ */
+export function isDefaultPersonalityConfig(config: PersonalityConfig): boolean {
+  const custom = config.customInstructions?.trim();
+  return (
+    config.preset === DEFAULT_PERSONALITY_CONFIG.preset &&
+    config.formality === DEFAULT_PERSONALITY_CONFIG.formality &&
+    config.verbosity === DEFAULT_PERSONALITY_CONFIG.verbosity &&
+    config.wit === DEFAULT_PERSONALITY_CONFIG.wit &&
+    (!custom || custom.length === 0)
+  );
+}
+
+// Directive fragments per dial, keyed by the NON-DEFAULT values only. The
+// default value for each dial maps to an empty string (no directive) so it
+// layers cleanly on top of JARVIS_PERSONALITY without contradicting it.
+const PRESET_DIRECTIVES: Record<PersonalityConfig["preset"], string> = {
+  // canon = baseline persona; no override.
+  canon: "",
+  minimal:
+    "Persona lean — MINIMAL: strip flourish. State the useful fact and any needed question, nothing more. Suppress observational wit unless a one-word aside is genuinely apt. Favour the shortest correct acknowledgement.",
+  storyteller:
+    "Persona lean — STORYTELLER: allow a touch more narrative texture and connective framing when it aids clarity, while staying in JARVIS register. Never pad; the extra colour must earn its place.",
+};
+
+const FORMALITY_DIRECTIVES: Record<PersonalityConfig["formality"], string> = {
+  formal: "",
+  balanced:
+    "Formality — BALANCED: keep the British register but relax the starch slightly; contractions and a warmer tone are fine. Still never sycophantic.",
+  casual:
+    "Formality — CASUAL: loosen the register noticeably — conversational and easy, contractions throughout. Keep it JARVIS, not a hype-man; no exclamation-mark enthusiasm.",
+};
+
+const VERBOSITY_DIRECTIVES: Record<PersonalityConfig["verbosity"], string> = {
+  concise: "",
+  balanced:
+    "Verbosity — BALANCED: a sentence or two more room than the concise baseline when it genuinely helps, but do not ramble.",
+  expansive:
+    "Verbosity — EXPANSIVE: fuller answers are welcome when the request invites them; explain and contextualise more freely. Concision still wins for simple filing turns.",
+};
+
+const WIT_DIRECTIVES: Record<PersonalityConfig["wit"], string> = {
+  dry: "",
+  moderate:
+    "Wit — MODERATE: lean into the dry observational humour a little more often, still specific to what was just filed and never forced.",
+  playful:
+    "Wit — PLAYFUL: wit dial up — more frequent, more overt teasing when apt, still grounded in the specific request. Never generic AI jokiness.",
+};
+
+/**
+ * Translate a PersonalityConfig into a SHORT (~40-120 token) system directive
+ * that tunes JARVIS's SPOKEN VOICE on top of the base persona. Returns null for
+ * an all-default (canon) config so nothing is injected and today's voice is
+ * unchanged. Only non-default dials contribute a line; custom instructions are
+ * always appended verbatim when present.
+ *
+ * This LAYERS on the persona/spoken-output/tool-use contracts — it never
+ * replaces them. It must sit INSIDE the cached prefix (a personality change is
+ * rare, so busting the cache then is acceptable).
+ */
+export function buildPersonalityTuningBlock(config: PersonalityConfig): string | null {
+  if (isDefaultPersonalityConfig(config)) return null;
+
+  const lines: string[] = [];
+  const preset = PRESET_DIRECTIVES[config.preset];
+  const formality = FORMALITY_DIRECTIVES[config.formality];
+  const verbosity = VERBOSITY_DIRECTIVES[config.verbosity];
+  const wit = WIT_DIRECTIVES[config.wit];
+  if (preset) lines.push(`- ${preset}`);
+  if (formality) lines.push(`- ${formality}`);
+  if (verbosity) lines.push(`- ${verbosity}`);
+  if (wit) lines.push(`- ${wit}`);
+
+  const custom = config.customInstructions?.trim();
+  if (custom) lines.push(`- Custom directive from the user: ${custom}`);
+
+  // Defensive: if somehow no line accrued (shouldn't happen given the
+  // isDefault guard above), emit nothing rather than an empty header.
+  if (lines.length === 0) return null;
+
+  return `VOICE TUNING (user-configured — layer these ON TOP of the persona and spoken-output rules above; they refine tone only and never override the safety/voice contract or concision discipline):\n${lines.join("\n")}`;
+}
+
 export function buildSystemPrompt(opts: {
   projects: ProjectSummary[];
   voiceActive?: boolean;
@@ -110,31 +208,60 @@ export function buildSystemPrompt(opts: {
    * unchanged. Omit (or any other value) for browser/mobile turns — no change.
    */
   mode?: "computer";
+  /**
+   * JARVIS management (per-user voice tuning). When present AND not all-default,
+   * a short VOICE TUNING block is injected INSIDE the cached prefix (mirroring
+   * the user-context block) via buildPersonalityTuningBlock. An all-default
+   * (canon) config — or an absent one — emits no block, so today's voice is
+   * unchanged. A personality change busts the 1h cache once, which is fine
+   * (changes are rare). run-turn.ts loads this fail-open (load error → omit).
+   */
+  personalityConfig?: PersonalityConfig;
 }): SystemBlock[] {
   const blocks: SystemBlock[] = [];
-  if (opts.voiceActive) {
-    blocks.push({ type: "text", text: VOICE_ADDENDUM });
-  }
   blocks.push({ type: "text", text: JARVIS_PERSONALITY });
+  // SPOKEN-OUTPUT CONTRACT injected LOAD-BEARINGLY, right after the personality,
+  // whenever the turn is spoken. It is the single instruction that turns a
+  // screen-formatted data dump into a butler's brief (no markdown, interpret
+  // don't recite, ≤2-3 sentences/source, one closing question).
+  if (opts.voiceActive) {
+    blocks.push({ type: "text", text: SPOKEN_OUTPUT_CONTRACT });
+  }
   blocks.push({ type: "text", text: TOOL_USE_RULES });
   blocks.push({ type: "text", text: buildUserContextBlock(opts.userDisplayName) });
 
+  // VOICE TUNING block (JARVIS management): layers user-configured tone on top
+  // of the persona. Sits inside the cached prefix (before the project-list 1h
+  // breakpoint) so it caches across turns for a given config. Null (all-default
+  // / absent) → nothing injected → today's persona unchanged.
+  if (opts.personalityConfig) {
+    const tuning = buildPersonalityTuningBlock(opts.personalityConfig);
+    if (tuning) blocks.push({ type: "text", text: tuning });
+  }
+
   const hasFacts = opts.facts && opts.facts.length > 0;
 
-  // Project-list block: carries cache_control ONLY when there's no facts block
-  // following it (backward-compatible: if facts is empty/omitted, this stays LAST).
+  // Project-list block: ALWAYS carries the 1h cache breakpoint. This block
+  // caps the STABLE PREFIX (personality + spoken-contract + tool-rules +
+  // user-context + project-list) — the ~9K-token slab that is identical
+  // across turns within the same session. Everything after this block
+  // (facts, mode addendum) is volatile and rides uncached.
   blocks.push({
     type: "text",
     text: buildProjectListContext(opts.projects),
-    ...(hasFacts ? {} : { cache_control: { type: "ephemeral" as const, ttl: "1h" as const } }),
+    cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
   });
 
-  // Facts block (D-M4): appended LAST when present, carrying the cache breakpoint.
+  // Facts block (D-M4): appended AFTER the 1h breakpoint, UNCACHED.
+  // extractAndPersistFacts mutates jarvis_facts on almost every turn, so
+  // the facts text is turn-volatile — keeping it inside the cached prefix
+  // would invalidate the whole ~9K prefix each turn (root cause of the
+  // 40-50s per-turn latency fixed here). Content is preserved; only the
+  // cache placement moves.
   if (hasFacts) {
     blocks.push({
       type: "text",
       text: buildFactsBlock(opts.facts!),
-      cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
     });
   }
 

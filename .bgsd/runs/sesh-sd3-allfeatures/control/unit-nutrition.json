@@ -1,0 +1,76 @@
+{
+ "agent_id": "unit-nutrition",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-nutrition",
+ "branch": "sd3/unit-nutrition",
+ "unit_id": "unit-nutrition",
+ "phase": "awaiting_review",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-15T04:05:00.000Z",
+ "verification": {
+  "typecheck": "GREEN — tsc --noEmit exit 0, zero errors (earlier missing-module errors were the worktree lacking node_modules; resolved via pnpm install --frozen-lockfile)",
+  "build": "GREEN — pnpm --filter web build exit 0; /nutrition + /nutrition/stats compiled as dynamic routes; clean boot",
+  "fence_sweep": "CLEAN — zero register offenders in components/nutrition/** + app/(app)/nutrition/** (only functional --ink-coral/--ink-amber remain, sanctioned)",
+  "frames": [
+   ".planning/sd3-nutrition-day-dark.png",
+   ".planning/sd3-nutrition-day-light.png",
+   ".planning/sd3-nutrition-macrostrip-dark.png",
+   ".planning/sd3-nutrition-macrostrip-light.png",
+   ".planning/sd3-nutrition-serving-dark.png",
+   ".planning/sd3-nutrition-stats-dark.png"
+  ],
+  "evidence_commit": "d9486538",
+  "auth_fallback": "Both surfaces auth-gated; sanctioned temporary mock-preview route (app/nutrition-preview) used to capture headless frames, then DELETED — tree verified clean. Conductor pixel-verifies authed surfaces on :3000 post-merge.",
+  "verification_note": ".planning/sd3-nutrition-verification.md"
+ },
+ "commits": [
+  "0003b749 feat(nutrition): local dimensional NutritionIcon (apple motif) consuming shared icon recipe [unit 1]",
+  "4001a9c7 feat(nutrition): sd title-row scaffold + NutritionClient reduced to content [unit 2]",
+  "2dc87e8c feat(nutrition): DayNavigator to sd ghost grammar [unit 3]",
+  "bcd6300a feat(nutrition): macro summary to sd stat strip (hatched cyan, functional overshoot) [unit 4]",
+  "7f51aa3a feat(nutrition): MealSlotPillBar to sd segmented tabs (habits parity) [unit 5]",
+  "d3357b6f feat(nutrition): meal slot views to sd plates + chip rows [unit 6]",
+  "7a3568e0 feat(nutrition): FoodSearch/result/serving/manual to sd fields + Button primitives [unit 7]",
+  "8d07522d feat(nutrition): MealsManagerSheet to sd content — plates, Button primitives, sd type [unit 8]",
+  "a348e3b2 feat(nutrition): NutritionTargetsForm to sd — Button primitive, sd tokens, tabular gram previews [unit 9]",
+  "ef24d708 feat(nutrition): stats surface to sd — plates, cyan primary series, token grids [unit 11; unit 10 QuickAddComposer inherits sd MealSlotPillBar, no change needed]"
+ ],
+ "assumptions": [
+  "No advisor file present at /.../advisor/unit-nutrition.md — proceeding on seed + UI-CONTRACT-SD3 as steering.",
+  "components/ui/icons is out of fence (unit-primitives owns it); creating a local dimensional NutritionIcon inside components/nutrition/ that CONSUMES the shared icon primitives (BodyGradient/DimensionalSvg/etc) — no edit to ui/icons.",
+  "app/(app)/settings/nutrition/page.tsx is OUT of fence (settings belongs to another unit); restyling only NutritionTargetsForm (a component in-fence), leaving the settings page wrapper untouched.",
+  "--font-serif already resolves to Space Grotesk app-wide; still removing all font-serif usages to obey the register (sans/sd type scale)."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "widest OLD surface (37 files, 19 glass offenses); design-critical"
+ },
+ "plan": {
+  "fence": "apps/web/components/nutrition/** + apps/web/app/(app)/nutrition/**; globals.css additive-only (none expected); ui/ primitives consumed not edited.",
+  "units": [
+   "1. NutritionIcon (local dimensional apple motif, consumes shared)",
+   "2. Page scaffold: nutrition/page.tsx sd title row (Breadcrumbs + icon + mono eyebrow + Nutrition. + subtitle); NutritionClient reduced to content",
+   "3. DayNavigator -> sd ghost segmented grammar (journaling/habits consistency)",
+   "4. DailyMacroSummary + MacroProgressBar -> icon-left stat strip, font-black tabular-nums, hatched progress, cyan + functional amber/red over/under",
+   "5. MealSlotPillBar -> sd segmented tabs (drop backdrop-blur glass rail)",
+   "6. MealSlot + FoodLogRow + NutritionDayView -> WidgetCard mini plates, chip food rows, ghost add-food verb",
+   "7. FoodSearch + FoodSearchResult + ServingPicker + ManualEntryForm -> sd fields, list rows (active bg tint), ghost steppers, no serif/glass",
+   "8. MealsManagerSheet -> sd content",
+   "9. NutritionTargetsForm -> sd content",
+   "10. QuickAddComposer inherits MealSlotPillBar",
+   "11. Stats: StatsClient + HeatMap + MacroTrendChart (cyan primary series) + PersonalBestsStrip + stats page -> sd plates, mono axes"
+  ],
+  "verification": "pnpm --filter web typecheck + build green; headless (global lock) :3831 -> /nutrition dark+light 1440x900, macro strip crops both themes, serving picker open, /nutrition/stats dark; auth fallback per S1 if needed; evidence under .planning/ sd3- prefix; then status=awaiting_review WAIT."
+ },
+ "notes": [
+  "Resume: no prior nutrition commits; effectively fresh start on merged base ed456ba8 (habits+journaling+sidebar+landing already in branch).",
+  "Resumed 2026-07-15: units 1-6 were already committed (0003b749..d3357b6f). This session completed units 7-11 (7a3568e0 FoodSearch flow, 8d07522d MealsManagerSheet, a348e3b2 NutritionTargetsForm, ef24d708 stats; unit 10 QuickAddComposer needed no change — inherits sd MealSlotPillBar). Then installed deps, ran typecheck+build green, captured both-theme frames via sanctioned mock-preview, committed evidence d9486538. All 11 plan units done. Fence fully clean.",
+  "Post-review cleanup reminder: delete this worktree (git worktree remove --force) once the unit is merged."
+ ],
+ "steering": "Initial directive: your seed is .planning/fable-plan-nutrition.md. Read it + UI-CONTRACT-SD3.md incl S3 server hygiene (kill only tcp:3831, never broad pkill). Seal your plan in this control file, then proceed. Browser: headless, global lock. Atomic commits, explicit pathspecs."
+}

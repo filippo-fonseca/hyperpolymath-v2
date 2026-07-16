@@ -52,10 +52,10 @@ export function AreasPageClient({
       </div>
 
       <header className="mb-4 text-center space-y-1">
-        <h1 className="font-serif text-3xl font-semibold tracking-tight text-[var(--ink)]">
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--ink)]">
           Areas
         </h1>
-        <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
+        <p className="text-[14px] text-[var(--ink-muted)]">
           "Energy is the currency of productivity." — Ali Abdaal
         </p>
       </header>
@@ -87,7 +87,7 @@ export function AreasPageClient({
                 ) : (
                   <span className="w-5 shrink-0" aria-hidden="true" />
                 )}
-                <span className="font-serif text-[15px] text-[var(--ink)] flex-1 leading-snug">
+                <span className="text-[15px] text-[var(--ink)] flex-1 leading-snug">
                   {area.name}
                   {isSentinel(area) && (
                     <em className="font-mono text-[10px] not-italic text-[var(--ink-muted)] ml-2 tracking-[0.06em]">

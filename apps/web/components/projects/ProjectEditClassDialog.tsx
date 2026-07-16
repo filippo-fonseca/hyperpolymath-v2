@@ -158,7 +158,7 @@ export function ProjectEditClassDialog({
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : handleClose())}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl font-semibold">
+          <DialogTitle className="font-sans text-xl font-semibold">
             Edit class metadata
           </DialogTitle>
         </DialogHeader>

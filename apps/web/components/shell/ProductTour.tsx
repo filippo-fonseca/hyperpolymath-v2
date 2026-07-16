@@ -155,22 +155,22 @@ function getCardPosition(
 
 const ACCENT_COLORS: Record<TourStep["accent"], { color: string; glow: string; bg: string; border: string }> = {
   violet: {
-    color: "var(--ink-violet)",
-    glow: "color-mix(in oklch, var(--ink-violet) 35%, transparent)",
-    bg: "color-mix(in oklch, var(--ink-violet) 8%, transparent)",
-    border: "color-mix(in oklch, var(--ink-violet) 22%, transparent)",
+    color: "var(--sd-accent)",
+    glow: "color-mix(in oklch, var(--sd-accent) 35%, transparent)",
+    bg: "color-mix(in oklch, var(--sd-accent) 8%, transparent)",
+    border: "color-mix(in oklch, var(--sd-accent) 22%, transparent)",
   },
   blue: {
-    color: "var(--ink-blue)",
-    glow: "color-mix(in oklch, var(--ink-blue) 35%, transparent)",
-    bg: "color-mix(in oklch, var(--ink-blue) 8%, transparent)",
-    border: "color-mix(in oklch, var(--ink-blue) 22%, transparent)",
+    color: "var(--sd-accent)",
+    glow: "color-mix(in oklch, var(--sd-accent) 35%, transparent)",
+    bg: "color-mix(in oklch, var(--sd-accent) 8%, transparent)",
+    border: "color-mix(in oklch, var(--sd-accent) 22%, transparent)",
   },
   cyan: {
-    color: "var(--hud-cyan)",
-    glow: "var(--hud-cyan-glow)",
-    bg: "color-mix(in oklch, var(--hud-cyan) 8%, transparent)",
-    border: "color-mix(in oklch, var(--hud-cyan) 22%, transparent)",
+    color: "var(--sd-accent)",
+    glow: "color-mix(in oklch, var(--sd-accent) 35%, transparent)",
+    bg: "color-mix(in oklch, var(--sd-accent) 8%, transparent)",
+    border: "color-mix(in oklch, var(--sd-accent) 22%, transparent)",
   },
 };
 
@@ -338,7 +338,7 @@ export function ProductTour() {
           fill="oklch(10% 0.005 240 / 0.72)"
           mask="url(#tour-spotlight-mask)"
         />
-        {/* Spotlight border glow */}
+        {/* Spotlight border — a clean cyan hairline around the isolated target */}
         {sr && (
           <rect
             x={sr.left}
@@ -350,7 +350,6 @@ export function ProductTour() {
             fill="none"
             stroke={accent.color}
             strokeWidth="1.5"
-            style={{ filter: `drop-shadow(0 0 8px ${accent.glow})` }}
           />
         )}
       </svg>
@@ -369,25 +368,20 @@ export function ProductTour() {
       {cardPos && (
         <div
           ref={cardRef}
-          className="absolute glass-tile rounded-2xl"
+          className="absolute overflow-hidden rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]"
           style={{
             top: cardPos.top,
             left: cardPos.left,
             width: 300,
             zIndex: 1,
-            // Override glass-tile glow with step accent
-            ["--glass-glow-color" as string]: accent.color,
-            boxShadow: `var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 var(--glass-lo), inset 0 0 24px ${accent.bg}, 0 0 32px ${accent.glow}`,
           }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Accent stripe top edge */}
           <div
-            className="absolute inset-x-0 top-0 h-[2px] rounded-t-2xl"
+            className="absolute inset-x-0 top-0 h-[2px]"
             aria-hidden="true"
-            style={{
-              background: `linear-gradient(90deg, ${accent.color} 0%, color-mix(in oklch, ${accent.color} 40%, transparent) 100%)`,
-            }}
+            style={{ background: "var(--sd-accent)" }}
           />
 
           <div className="px-5 py-5 space-y-3">
@@ -400,7 +394,7 @@ export function ProductTour() {
                 >
                   Step {stepIdx + 1} of {STEPS.length}
                 </span>
-                <h3 className="font-serif font-semibold text-[1.05rem] leading-tight text-[var(--ink)]">
+                <h3 className="font-semibold text-[1.05rem] leading-tight text-[var(--sd-ink)]">
                   {step.title}
                 </h3>
               </div>
@@ -409,35 +403,35 @@ export function ProductTour() {
                 onClick={markDone}
                 aria-label="Skip tour"
                 className="shrink-0 inline-flex items-center justify-center h-6 w-6 rounded-lg transition-colors mt-0.5"
-                style={{ color: "var(--ink-muted)" }}
+                style={{ color: "var(--sd-ink-dull)" }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "color-mix(in oklch, var(--ink) 8%, transparent)";
-                  e.currentTarget.style.color = "var(--ink)";
+                  e.currentTarget.style.background = "color-mix(in oklch, var(--sd-ink) 8%, transparent)";
+                  e.currentTarget.style.color = "var(--sd-ink)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--ink-muted)";
+                  e.currentTarget.style.color = "var(--sd-ink-dull)";
                 }}
               >
                 <X size={12} strokeWidth={2} />
               </button>
             </div>
 
-            <p className="font-serif text-sm leading-relaxed text-[var(--ink-muted)]">
+            <p className="text-sm leading-relaxed text-[var(--sd-ink-dull)]">
               {step.body}
             </p>
 
             {/* Progress bar */}
             <div
               className="h-[2px] rounded-full overflow-hidden"
-              style={{ background: "var(--edge)" }}
+              style={{ background: "var(--sd-line)" }}
               aria-hidden="true"
             >
               <div
                 className="h-full rounded-full transition-all duration-400"
                 style={{
                   width: `${progress}%`,
-                  background: `linear-gradient(90deg, var(--ink-violet), var(--ink-blue))`,
+                  background: "var(--sd-accent)",
                 }}
               />
             </div>
@@ -449,12 +443,12 @@ export function ProductTour() {
                 onClick={goPrev}
                 disabled={isFirst}
                 className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.1em] transition-colors disabled:opacity-30"
-                style={{ color: "var(--ink-muted)" }}
+                style={{ color: "var(--sd-ink-dull)" }}
                 onMouseEnter={(e) => {
-                  if (!isFirst) e.currentTarget.style.color = "var(--ink)";
+                  if (!isFirst) e.currentTarget.style.color = "var(--sd-ink)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "var(--ink-muted)";
+                  e.currentTarget.style.color = "var(--sd-ink-dull)";
                 }}
               >
                 <ChevronLeft size={11} strokeWidth={2} />
@@ -466,12 +460,12 @@ export function ProductTour() {
                   type="button"
                   onClick={markDone}
                   className="font-mono text-[10px] uppercase tracking-[0.1em] transition-colors"
-                  style={{ color: "var(--ink-muted)" }}
+                  style={{ color: "var(--sd-ink-dull)" }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "var(--ink)";
+                    e.currentTarget.style.color = "var(--sd-ink)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "var(--ink-muted)";
+                    e.currentTarget.style.color = "var(--sd-ink-dull)";
                   }}
                 >
                   Skip
@@ -480,13 +474,7 @@ export function ProductTour() {
                 <button
                   type="button"
                   onClick={goNext}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-[0.1em] transition-all duration-150"
-                  style={{
-                    background: `linear-gradient(135deg, var(--ink-violet) 0%, var(--ink-blue) 100%)`,
-                    color: "oklch(97% 0.003 75)",
-                    boxShadow: `0 2px 8px color-mix(in oklch, var(--ink-violet) 28%, transparent), inset 0 1px 0 oklch(100% 0 0 / 0.15)`,
-                    border: "1px solid oklch(100% 0 0 / 0.1)",
-                  }}
+                  className="sd-btn-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] transition-opacity duration-150"
                 >
                   {isLast ? "Done" : "Next"}
                   {!isLast && <ChevronRight size={11} strokeWidth={2.5} />}

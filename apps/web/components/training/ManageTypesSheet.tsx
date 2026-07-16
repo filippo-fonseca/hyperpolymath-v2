@@ -76,7 +76,7 @@ export function ManageTypesSheet({
         side="right"
         className="flex h-full w-full flex-col gap-0 sm:max-w-[560px]"
       >
-        <SheetHeader className="border-b border-[var(--edge)]">
+        <SheetHeader className="border-b border-[var(--sd-line)]">
           <SheetTitle>Activity types & batches</SheetTitle>
           <SheetDescription>
             Group your activity types into batches. Drag to reorder. Pick a
@@ -86,12 +86,12 @@ export function ManageTypesSheet({
 
         {isEmpty ? (
           <div className="flex flex-1 flex-col gap-3 p-4">
-            <p className="font-serif text-sm text-[var(--ink-muted)]">
+            <p className="text-sm text-[var(--sd-ink-dull)]">
               Create your first activity type to start planning. Types are the
               templates ("Run", "Yoga", "Lift") you reuse across days. Batches
               are optional groupings ("Cardio", "Strength").
             </p>
-            <div className="rounded border border-dashed border-[var(--edge)] p-3">
+            <div className="rounded border border-dashed border-[var(--sd-line)] p-3">
               <TypeEditor batchId={null} types={[]} allBatches={[]} />
             </div>
           </div>
@@ -104,10 +104,10 @@ export function ManageTypesSheet({
               onSelectBatchForTypes={setScope}
             />
 
-            <div className="border-t border-[var(--edge)]" />
+            <div className="border-t border-[var(--sd-line)]" />
 
             <div className="flex flex-col gap-1">
-              <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+              <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
                 {scope === "__ungrouped__"
                   ? "Ungrouped types"
                   : `Types in ${batches.find((b) => b.id === scope)?.name ?? "batch"}`}

@@ -16,13 +16,12 @@
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 
-import { postClaim } from "@/api/client";
+import { postClaim, postWarmup, clearHistory } from "@/api/client";
 import {
   cancelCaptureTurn,
   onCaptureState,
   onExtendedChange,
   onManualModeChange,
-  onMicAmplitude,
   onNoSpeechDetected,
   onTranscriptReceived,
   setManualMode,
@@ -36,6 +35,7 @@ import {
   onJarvisResponseEnd,
   onJarvisResponseStart,
   onJarvisToolCall,
+  onPhysicalTranscript,
   startPhysicalExtenderListener,
   reconnectPhysicalExtenderListener,
   stopPhysicalExtenderListener,
@@ -49,10 +49,14 @@ import {
   ttsPlayer,
   type JarvisResponseComplete,
 } from "@/jarvis-response";
+import type { VoiceStatus } from "@/audio/tts-player";
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
-import { describeAction, handleAction, parseAction } from "@/actions/dispatcher";
-import { onConfirmPendingChange, startConfirmGate } from "@/actions/confirm-gate";
+import { describeAction, handleAction, parseAction, routeOpenUrl } from "@/actions/dispatcher";
+import { onConfirmPendingChange, onMessageSent, startConfirmGate } from "@/actions/confirm-gate";
+import { playSendSound } from "@/studio/sound/studio-sfx";
+import { startWhatsappQrOverlay } from "@/hud/whatsapp-qr";
+import { wireWhatsappSettings } from "@/hud/whatsapp-settings";
 import {
   getJarvisState,
   onJarvisState,
@@ -60,8 +64,26 @@ import {
   startConversationMachine,
   type JarvisState,
 } from "@/conversation/state-machine";
+import {
+  createEchoDedupeState,
+  decidePaintEcho,
+  type EchoInput,
+} from "@/conversation/echo-dedupe";
+import {
+  createTranscriptState,
+  reduceClear,
+  reduceReplyDelta,
+  reduceReplyStart,
+  reduceUserEcho,
+  type BubbleId,
+  type ReduceResult,
+  type RenderOp,
+  type TranscriptState,
+} from "@/conversation/transcript-order";
 import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
-import { mountOrb } from "@/hud/orb";
+import { startRoutineLoader } from "@/hud/routine-loader";
+import { startBackgroundTasksMonitor } from "@/hud/background-tasks";
+import { startNotificationAnnouncer } from "@/hud/notification-announcer";
 import { wireStartupWakeSettings } from "@/hud/startup-settings";
 import {
   refreshIdleLoopForPhrases,
@@ -70,6 +92,7 @@ import {
   setRoutineFireHandler,
   setWakeEnabled,
   setWakeTriggerHandler,
+  setWakeWarmupHandler,
 } from "@/wake/wake-probe";
 import { safeRegister } from "@/hotkeys/register";
 import {
@@ -83,6 +106,14 @@ import {
 } from "@/routines/registry";
 import { syncHotkeys } from "@/routines/hotkeys";
 import { startScheduler, syncTimeRoutines } from "@/routines/scheduler";
+import { startStudioBridge } from "@studio/bridge";
+import { mountStudio } from "@studio/StudioApp";
+import {
+  isStudioAvailable,
+  openBrowserUrl,
+} from "@studio/actions/browser-router";
+import { shouldSuppressBriefingEcho } from "@/briefing/briefing";
+import { openSettingsWidget } from "@studio/actions/open-settings";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 // Re-fetch the owner's enabled routines on this cadence so the desktop's
@@ -160,59 +191,141 @@ function autoScroll(el: HTMLElement, wasNearBottom: boolean): void {
   if (wasNearBottom) el.scrollTop = el.scrollHeight;
 }
 
-/** Append a completed user-utterance bubble. */
-function appendUserTurn(text: string): void {
-  const el = transcriptEl();
-  if (!el || !text.trim()) return;
-  const near = isNearBottom(el);
-  el.classList.add("has-content");
-  const turn = document.createElement("div");
-  turn.className = "turn user";
+// Transcript turn-pairing. The user bubble (from local STT) and the JARVIS
+// reply bubble (from the SSE `response-start`) can arrive in EITHER order, and
+// TWO turns can be live at once (a partial-utterance turn and the full-question
+// turn, each with its own server turnId). A single-pair machine mis-ordered
+// those overlapping turns; the pure, turnId-keyed reducer in
+// conversation/transcript-order.ts now owns ALL ordering. This region is a dumb
+// executor: it drives the reducer with each event and replays the returned ops
+// (create-user / create-reply / append-delta) against the DOM, mapping each
+// stable BubbleId to its element. Deltas address a bubble by id, so two live
+// reply turns never share a writer (the invariant that was broken before).
+const transcriptState = { current: createTranscriptState() };
+// Stable BubbleId → { turn container, body element }. The turn container is the
+// `.turn` div (positioned in sibling order); the body is the single writer.
+const bubbleEls = new Map<BubbleId, { turn: HTMLElement; body: HTMLElement }>();
+
+/** Local wall-clock stamp for a transcript turn, e.g. "5:42 PM". */
+function nowStamp(): string {
+  return new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+/** Build the speaker header row ("you"/"jarvis" + right-aligned timestamp). */
+function whoRow(label: string): HTMLElement {
   const who = document.createElement("div");
   who.className = "who";
-  who.textContent = "you";
+  who.textContent = label;
+  const when = document.createElement("span");
+  when.className = "when";
+  when.textContent = nowStamp();
+  who.appendChild(when);
+  return who;
+}
+
+/** Create a `.turn` bubble (user or jarvis) and register its body by BubbleId. */
+function makeBubble(id: BubbleId, role: "user" | "jarvis", text: string): HTMLElement {
+  const turn = document.createElement("div");
+  turn.className = `turn ${role}`;
+  const who = whoRow(role === "user" ? "you" : "jarvis");
   const body = document.createElement("div");
   body.className = "body";
-  body.textContent = text;
+  if (text) body.textContent = text;
   turn.append(who, body);
-  el.appendChild(turn);
+  bubbleEls.set(id, { turn, body });
+  return turn;
+}
+
+/** Replay one RenderOp against the transcript DOM. `beforeId` names the existing
+ *  bubble the new one renders ABOVE (null = append at end). */
+function applyRenderOp(el: HTMLElement, op: RenderOp): void {
+  if (op.op === "append-delta") {
+    const target = bubbleEls.get(op.id);
+    if (!target) return;
+    target.body.textContent = appendWithBoundarySpacing(target.body.textContent ?? "", op.delta);
+    return;
+  }
+  el.classList.add("has-content");
+  const turn =
+    op.op === "create-user"
+      ? makeBubble(op.id, "user", op.text)
+      : makeBubble(op.id, "jarvis", "");
+  const anchor = op.beforeId ? bubbleEls.get(op.beforeId)?.turn ?? null : null;
+  if (anchor) el.insertBefore(turn, anchor);
+  else el.appendChild(turn);
+}
+
+/** Drive the reducer with an event and paint the resulting ops in order. */
+function dispatchTranscript(reduce: (s: TranscriptState) => ReduceResult): void {
+  const el = transcriptEl();
+  if (!el) return;
+  const near = isNearBottom(el);
+  const { state, ops } = reduce(transcriptState.current);
+  transcriptState.current = state;
+  for (const op of ops) applyRenderOp(el, op);
   autoScroll(el, near);
 }
 
-// The in-progress JARVIS reply bubble's body element (grows as chunks stream).
-let currentReplyBody: HTMLElement | null = null;
-
-/** Start a fresh JARVIS reply bubble for the streaming turn. */
-function startJarvisTurn(): void {
-  const el = transcriptEl();
-  if (!el) return;
-  el.classList.add("has-content");
-  const turn = document.createElement("div");
-  turn.className = "turn jarvis";
-  const who = document.createElement("div");
-  who.className = "who";
-  who.textContent = "jarvis";
-  const body = document.createElement("div");
-  body.className = "body";
-  turn.append(who, body);
-  el.appendChild(turn);
-  currentReplyBody = body;
-  el.scrollTop = el.scrollHeight;
+// Optimistic user bubble: DISABLED (see the wiring note in boot()). Kept as
+// no-ops so the boot()/no-speech references stay valid without reintroducing a
+// second, ad-hoc ordering path that could strand a "recognising…" ghost.
+function beginOptimisticUserTurn(): void {
+  /* intentionally disabled */
+}
+function clearOptimisticUserTurn(): void {
+  /* intentionally disabled */
 }
 
 /** Append a streamed delta to the in-progress JARVIS reply bubble. */
-function appendJarvisDelta(delta: string): void {
-  const el = transcriptEl();
-  if (!el) return;
-  if (!currentReplyBody) startJarvisTurn();
-  const near = isNearBottom(el);
-  if (currentReplyBody) currentReplyBody.textContent += delta;
-  autoScroll(el, near);
+function appendWithBoundarySpacing(current: string, delta: string): string {
+  if (!current || !delta) return current + delta;
+  const last = current.at(-1) ?? "";
+  const first = delta.at(0) ?? "";
+  if (/\s/.test(last) || /^\s/.test(delta)) return current + delta;
+  if (/[.!?]/.test(last) && /[A-Z"']/.test(first)) return `${current} ${delta}`;
+  return current + delta;
 }
 
-function paintTranscript(text: string): void {
-  // Visible transcript log.
-  appendUserTurn(text);
+// Dedupe the user-echo paint across its two sources: the early `transcript`
+// SSE event (paints at ~STT time, the common/fast path — always carries an
+// sttDoneAt identity) and the capture-POST resolution (onTranscriptReceived, a
+// fallback that currently arrives text-only). Whichever fires first paints the
+// bubble; the OTHER source's echo of the SAME utterance is suppressed so we
+// never append a duplicate. The decision lives in the pure decidePaintEcho:
+// it dedupes on the per-utterance sttDoneAt identity when present (exact,
+// time-independent — so a genuine REPEAT utterance, which carries a fresh id,
+// always paints), and falls back to a short text+recency window only for the
+// id-less source. Ties break toward painting so a recognised utterance is
+// never silently dropped.
+const echoDedupeState = createEchoDedupeState();
+
+/**
+ * Deduped entry point for the user-echo paint. Both the SSE `transcript` event
+ * (with its sttDoneAt) and the POST-driven onTranscriptReceived call route
+ * through here; decidePaintEcho drops only a true second echo of the same
+ * utterance, never a legitimately new one.
+ */
+function paintTranscriptDeduped(input: EchoInput, turnId?: string): void {
+  // The proactive briefing fires by POSTing a synthetic "Daddy's home…" prompt,
+  // which the server echoes back as a user transcript turn. Drop that one echo
+  // so wake never injects a fake typed user message into the conversation — the
+  // spoken briefing and listening still happen; only the phantom bubble is gone.
+  if (shouldSuppressBriefingEcho(input.text)) return;
+  if (decidePaintEcho(input, echoDedupeState)) {
+    // Thread the reply turnId (when the SSE `transcript` event carried one) so
+    // the reducer pairs this user bubble to its reply by identity. The POST
+    // fallback source is turnless → FIFO pairing.
+    paintTranscript(input.text, turnId);
+  }
+}
+
+function paintTranscript(text: string, turnId?: string): void {
+  if (!text.trim()) return;
+  // Route through the pure reducer: a user echo fills the reply-first turn
+  // awaiting a user bubble (identity match when a turnId is present, else the
+  // oldest turnless one; rendering above that reply), else opens a new
+  // user-first turn at the end (recording the turnId so its reply pairs by id).
+  dispatchTranscript((s) => reduceUserEcho(s, text, turnId));
   // Keep the drawer QA row in sync.
   const panel = document.getElementById("transcript-panel");
   const out = document.getElementById("transcript-text");
@@ -222,10 +335,10 @@ function paintTranscript(text: string): void {
   }
 }
 
-function paintResponseStart(): void {
-  // Open a new JARVIS reply bubble in the visible transcript.
-  currentReplyBody = null;
-  startJarvisTurn();
+function paintResponseStart(turnId: string): void {
+  // Open (or bind) this turnId's reply bubble under its own user turn. The
+  // reducer is idempotent for a duplicate response-start on the same turnId.
+  dispatchTranscript((s) => reduceReplyStart(s, turnId));
   // Drawer QA mirror.
   const panel = document.getElementById("response-panel");
   const textEl = document.getElementById("response-text");
@@ -238,11 +351,51 @@ function paintResponseStart(): void {
   }
 }
 
-function paintResponseChunk(delta: string): void {
-  appendJarvisDelta(delta);
+function paintResponseChunk(turnId: string, delta: string): void {
+  // Deltas route to the bubble keyed by THIS turnId — never a global "current"
+  // — so two overlapping reply streams never cross-write.
+  dispatchTranscript((s) => reduceReplyDelta(s, turnId, delta));
   // Drawer QA mirror.
   const textEl = document.getElementById("response-text");
-  if (textEl) textEl.textContent = (textEl.textContent ?? "") + delta;
+  if (textEl) textEl.textContent = appendWithBoundarySpacing(textEl.textContent ?? "", delta);
+}
+
+/**
+ * Clear the conversation "from scratch". Two halves must both happen:
+ *   1. Empty the visible transcript DOM and reset the pure ordering state +
+ *      bubble map, so the next utterance starts a clean turn (a stale bubble id
+ *      would otherwise route a delta into a removed node).
+ *   2. Wipe the server-side memory (jarvis_turns) via clearHistory(), so the
+ *      voice agent's recency-windowed context (buildRecentHistory) no longer
+ *      inherits stale turns — including test turns fired via curl.
+ * The DOM wipe is immediate and never blocks on the network; the server wipe is
+ * best-effort and merely disables the button for its round-trip.
+ */
+async function clearConversation(): Promise<void> {
+  const el = transcriptEl();
+  if (el) {
+    // Remove every turn bubble but keep the static empty-state hint node.
+    el.querySelectorAll(".turn").forEach((t) => t.remove());
+    el.classList.remove("has-content");
+  }
+  // Reset the pure ordering state + bubble map so a fresh turn can't reference
+  // removed nodes.
+  transcriptState.current = reduceClear(transcriptState.current).state;
+  bubbleEls.clear();
+
+  // Clear the drawer QA mirrors too, so they don't strand a stale exchange.
+  const transcriptText = document.getElementById("transcript-text");
+  if (transcriptText) transcriptText.textContent = "";
+  const responseText = document.getElementById("response-text");
+  if (responseText) responseText.textContent = "";
+
+  const btn = document.getElementById("clear-convo-btn") as HTMLButtonElement | null;
+  if (btn) btn.disabled = true;
+  try {
+    await clearHistory();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // Append a receipt line to BOTH the pinned footer (most-recent kept, capped)
@@ -320,6 +473,29 @@ function paintTtsState(playing: boolean): void {
   idleLabel.style.display = playing ? "none" : "";
 }
 
+/**
+ * Toggle the "voice degraded" HUD chip. Shown while ElevenLabs is down and
+ * JARVIS is speaking through the local fallback voice; hidden on recovery so
+ * silence is never mysterious and a working ElevenLabs never leaves a stale
+ * warning up. The reason (key_missing / auth / transient) sharpens the tooltip.
+ */
+function paintVoiceStatus(status: VoiceStatus): void {
+  const el = document.getElementById("voice-degraded");
+  if (!el) return;
+  if (status.state === "degraded") {
+    el.hidden = false;
+    const detail =
+      status.reason === "key_missing" || status.reason === "auth"
+        ? "ElevenLabs key unavailable — using local voice"
+        : status.reason === "transient"
+          ? "ElevenLabs unreachable — using local voice"
+          : "ElevenLabs unavailable — using local voice";
+    el.setAttribute("title", detail);
+  } else {
+    el.hidden = true;
+  }
+}
+
 let _wakeRegistered = false;
 let _extendRegistered = false;
 
@@ -387,6 +563,14 @@ function wireStopButton(): void {
   btn.addEventListener("click", () => {
     ttsPlayer.stop();
     paintTtsState(false);
+  });
+}
+
+function wireClearButton(): void {
+  const btn = document.getElementById("clear-convo-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    void clearConversation();
   });
 }
 
@@ -617,6 +801,13 @@ async function boot(): Promise<void> {
   // an app restart.
   setWakeTriggerHandler(() => void startConversation());
 
+  // 3a-quater. On-wake cache pre-warm. The wake probe fires this the instant a
+  // wake phrase is detected (built-in "daddy's home" or a routine phrase), in
+  // parallel with the mic-release + FSM handoff, so the first agent turn of the
+  // wake→command sequence reads a warm Anthropic 1h prompt cache instead of
+  // paying ~45s to create it. Fire-and-forget; never blocks the voice loop.
+  setWakeWarmupHandler(() => void postWarmup());
+
   // 3a-ter. Routine triggers. Wire the injection seams that connect the
   // registry (dispatch + fireRoutine), the wake probe (phrase matching), the
   // hotkey manager, and the time scheduler — all data-driven from the owner's
@@ -674,12 +865,35 @@ async function boot(): Promise<void> {
   // 5. Register SSE + capture listeners
   onSseStatusChange(paintSseStatus);
   onCaptureState(paintCaptureState);
+  // NOTE: optimistic "recognising…" bubble disabled — it could strand when the
+  // reply/SSE beat the transcript reconcile, leaving a stuck placeholder. The
+  // real transcript paints via onTranscriptReceived below (~1s) instead.
+  void beginOptimisticUserTurn;
   onExtendedChange(paintExtended);
-  onTranscriptReceived(paintTranscript);
+  // Primary echo paint: the server emits the transcript over SSE at STT time
+  // (~1s), so the user's bubble appears immediately on every turn regardless of
+  // when the POST response flushes. The POST-driven onTranscriptReceived below
+  // stays as a fallback; paintTranscriptDeduped drops whichever fires second so
+  // the same utterance never double-paints.
+  onPhysicalTranscript((p) =>
+    paintTranscriptDeduped({ text: p.transcript, sttDoneAt: p.sttDoneAt }, p.turnId),
+  );
+  // POST fallback. Threads the response's sttDoneAt through when the server
+  // provides it so identity dedupe works from both sources.
+  //
+  // WEB FOLLOW-UP (not fixed here — apps/web is owned by another agent): the
+  // normal-turn response of app/api/jarvis/voice/transcript/route.ts returns
+  // `{ transcript, turnId }` and omits `sttDoneAt` (the SSE `transcript` event
+  // and the empty/probe responses DO include it). Adding `sttDoneAt` to that
+  // final `Response.json` would give the POST fallback a shared identity too,
+  // making the dedupe fully identity-based. Until then the desktop dedupe stays
+  // correct via the SSE identity + short-window race guard below.
+  onTranscriptReceived((text, sttDoneAt) => paintTranscriptDeduped({ text, sttDoneAt }));
   // Empty / failed STT → flash a butler line through the acknowledge strip so
   // the user gets immediate feedback instead of a silent stall. The strip's
   // own guard keeps this from clobbering a live streaming response.
   onNoSpeechDetected((reason) => {
+    clearOptimisticUserTurn();
     flashAckStrip(
       reason === "stt-failed" ? "Sorry sir, transcription failed" : "Didn't catch that, sir",
     );
@@ -690,10 +904,14 @@ async function boot(): Promise<void> {
   ttsPlayer.onStateChange((state) => {
     paintTtsState(state === "playing");
   });
+  // Voice-degraded HUD chip: reflects the ElevenLabs→local-voice fallback.
+  ttsPlayer.onVoiceStatusChange((status) => {
+    paintVoiceStatus(status);
+  });
 
-  onJarvisResponseStart(() => paintResponseStart());
-  onJarvisResponseChunk(({ delta }) => paintResponseChunk(delta));
-  onJarvisToolCall(({ name, result }) => {
+  onJarvisResponseStart(({ turnId }) => paintResponseStart(turnId));
+  onJarvisResponseChunk(({ turnId, delta }) => paintResponseChunk(turnId, delta));
+  onJarvisToolCall(({ name, result, turnId }) => {
     paintToolCall(name, result);
     // Computer-control tool results carry an `action` on their result. Key
     // strictly off result.action.kind (fixed contract with the backend agent):
@@ -703,6 +921,18 @@ async function boot(): Promise<void> {
     const action = parseAction(rawAction);
     if (action) {
       flashActionLine(describeAction(action));
+      // URL-LEAK FIX: an open_url must NOT launch the system browser for content
+      // JARVIS can show in the in-app browser widget. Route http(s) URLs into
+      // the widget whenever Studio is available (deduped per turn against the
+      // materialize + studio-action paths); the system opener stays only as the
+      // fallback (Studio unavailable) or for non-http schemes (mailto: etc.).
+      if (
+        action.kind === "open_url" &&
+        routeOpenUrl(action.url, { studioAvailable: isStudioAvailable() }) === "widget"
+      ) {
+        openBrowserUrl(action.url, turnId);
+        return;
+      }
       // FOCUS RULE (RESEARCH Q4): handleAction opens the URL/app which
       // foregrounds the target. We do NOT set_focus() the HUD after an open —
       // that would yank key focus back from the app the user wants to use. The
@@ -724,6 +954,7 @@ async function boot(): Promise<void> {
   wireCancelButton();
   wireStopButton();
   wireWakeButton();
+  wireClearButton();
   wireExtendButton();
 
   // Route ESP32 `trigger` events through the conversation FSM so the physical
@@ -762,33 +993,52 @@ async function boot(): Promise<void> {
   onConfirmPendingChange((confirmPending) => {
     document.body.dataset.confirmPending = confirmPending ? "true" : "false";
   });
+  // Subtle "sent" cue when an outgoing message (WhatsApp or iMessage) is
+  // confirmed dispatched. Mirrors the web app's send-to-JARVIS effect; gated
+  // on the Sound setting inside playSendSound.
+  onMessageSent(() => playSendSound());
   startConfirmGate();
 
-  // 5c. The single cyan arc-reactor orb (Task 2.4). One component, four states,
-  //     live amplitude: mic RMS while listening, TTS output while speaking.
-  let latestMicLevel = 0;
-  onMicAmplitude((level) => {
-    latestMicLevel = level;
-  });
-  const orbCanvas = document.getElementById("orb-canvas") as HTMLCanvasElement | null;
-  if (orbCanvas) {
-    mountOrb(orbCanvas, {
-      getState: () => getJarvisState(),
-      getMicLevel: () => latestMicLevel,
-      getSpeakingLevel: () => ttsPlayer.getSpeakingLevel(),
-    });
-  }
-
-  // 5c-bis. Acknowledge strip: auto-fading first-clause echo of each JARVIS
+  // 5c. Acknowledge strip: auto-fading first-clause echo of each JARVIS
   // utterance under the status line. Subscribes to the same SSE response
   // events painted above; purely presentational.
   startAckStrip();
 
-  // 5d. Settings drawer (gear toggle) — chrome stays out of the way by default.
+  // 5c-ter. Routine HUD loader: on a synthesize(+parallel) voice routine ("I'm
+  // back home"), render the live progress ring + a ticking source
+  // checklist, driven by the jarvis-routine-progress SSE stream. Coexists with
+  // the spoken brief (a normal response cycle) without overlapping the transcript.
+  startRoutineLoader();
+
+  // 5c-quater. Background-task loader chips: any dispatched action that runs
+  // detached async work (a WhatsApp/iMessage send, a screenshot describe, a
+  // long AppleScript, a computer-use post) registers a task that renders as a
+  // running loader chip (top-right, stacked), resolving to done/failed on its
+  // own. Lets you keep talking to JARVIS while sends go out in the background,
+  // even several at once. Additive + presentational — the dispatch path stays
+  // fire-and-forget.
+  startBackgroundTasksMonitor();
+
+  // 5c-quinquies. Incoming-message notification announcer: polls WhatsApp +
+  // iMessage for new messages FROM people and, when the "Message notifications"
+  // setting is on, surfaces a toast near the orb and opens the relevant chat
+  // widget; when "Auto-read aloud" is on it also speaks the message in the
+  // butler register (FSM-idle-gated so it never talks over a turn). Additive +
+  // fail-safe — a bad poll skips one tick.
+  startNotificationAnnouncer();
+
+  // 5d. Settings gear → opens the Settings widget on the studio stage.
+  // The gear was previously unclickable (studio layers painted over it and
+  // swallowed the hit — fixed by lifting .gear-btn above the studio stack in
+  // index.html) and toggled the legacy DOM settings sheet. It now summons the
+  // singleton Settings widget so the HUD's settings live in one surface,
+  // reachable by mouse AND the synthetic hand pointer (the button is a normal
+  // DOM target either driver can land on). The legacy DOM sheet stays wired for
+  // its close button and the disconnect banner (device-token recovery).
   const gearBtn = document.getElementById("gear-btn");
   const settingsEl = document.getElementById("settings");
   const settingsCloseBtn = document.getElementById("settings-close");
-  gearBtn?.addEventListener("click", () => settingsEl?.classList.toggle("open"));
+  gearBtn?.addEventListener("click", () => openSettingsWidget());
   settingsCloseBtn?.addEventListener("click", () => settingsEl?.classList.remove("open"));
 
   // The disconnect banner (shown only when body[data-sse="error"]) is a shortcut
@@ -810,6 +1060,15 @@ async function boot(): Promise<void> {
     void startConversation();
   });
 
+  // WhatsApp pairing overlay: render the QR the bundled bridge sidecar emits on
+  // first run / re-auth, and dismiss it once the phone links the device.
+  void startWhatsappQrOverlay();
+
+  // WhatsApp settings section: Reconnect button + status pill. Reuses the
+  // whatsapp-qr / whatsapp-ready events for its pill and invokes the
+  // whatsapp_reconnect Tauri command to trigger re-pairing.
+  void wireWhatsappSettings(settings);
+
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);
   await wireExtendShortcut();
@@ -818,6 +1077,13 @@ async function boot(): Promise<void> {
   setInterval(() => {
     void postClaim();
   }, CLAIM_HEARTBEAT_MS);
+
+  // Boot-time cache pre-warm. Fire the Anthropic 1h prompt-cache creation now,
+  // once, so the user's FIRST spoken command of the session reads a warm cache
+  // (~600ms) instead of paying the ~45s one-time creation on turn 1. Also warms
+  // the web's Postgres pool + compiles the voice route. Fire-and-forget — never
+  // blocks boot; a warmup miss just means turn 1 pays the old cost.
+  void postWarmup();
 
   // Routine triggers: start the time scheduler, do the initial sync (fetches
   // the owner's enabled routines and rebuilds all dispatch tables), then poll
@@ -859,6 +1125,12 @@ async function boot(): Promise<void> {
     "[boot] JARVIS Desktop ready",
     settings.physicalExtenderEnabled ? "— Physical Extender mode" : "— Hotkey mode (Cmd+Shift+J)",
   );
+}
+
+const studioRoot = document.getElementById("studio-root");
+if (studioRoot) {
+  startStudioBridge();
+  mountStudio(studioRoot);
 }
 
 boot().catch((err) => {

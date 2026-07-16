@@ -48,12 +48,30 @@ describe("buildSystemPrompt", () => {
     expect(blocks).toHaveLength(4);
   });
 
-  it("returns 5 blocks when voiceActive=true; voice addendum at index 0", () => {
+  it("returns 5 blocks when voiceActive=true; SPOKEN-OUTPUT CONTRACT at index 1 (right after personality)", () => {
     const blocks = buildSystemPrompt({ projects: [], voiceActive: true });
     expect(blocks).toHaveLength(5);
-    // Phase 5.1: VOICE_ADDENDUM now describes leading text block behavior (not voice_summary fields)
-    expect(blocks[0]?.text).toContain("listening as well as reading");
-    expect(blocks[0]?.text).toContain("JARVIS would");
+    // The contract is now load-bearing: injected right AFTER the personality
+    // (index 1), not before it. Index 0 stays the personality.
+    expect(blocks[0]?.text).toContain("JARVIS");
+    expect(blocks[1]?.text).toContain("SPOKEN-OUTPUT CONTRACT");
+  });
+
+  it("voiceActive=true: SPOKEN-OUTPUT CONTRACT carries the no-markdown + interpret rules (Unit 1 regression gate)", () => {
+    const blocks = buildSystemPrompt({ projects: [], voiceActive: true });
+    const contract = blocks[1]?.text ?? "";
+    // No-markdown hard rule.
+    expect(contract).toContain("PLAIN SPOKEN PROSE ONLY");
+    expect(contract).toContain("Never emit markdown");
+    // Interpret-don't-recite.
+    expect(contract).toContain("INTERPRET, DON'T RECITE");
+    // Length caps + one-question rule.
+    expect(contract).toContain("2-3 sentences per data source");
+    expect(contract).toContain("ONE QUESTION PER TURN");
+    expect(contract).toContain("Never restate");
+    // The contract must NOT be present when the turn is not spoken.
+    const textOnly = buildSystemPrompt({ projects: [], voiceActive: false });
+    expect(textOnly.some((b) => b.text.includes("SPOKEN-OUTPUT CONTRACT"))).toBe(false);
   });
 
   it("cache_control: ephemeral with 1h TTL set on the LAST block (project context)", () => {
@@ -90,12 +108,11 @@ describe("buildSystemPrompt", () => {
     expect(blocks[1]?.text).toContain("create_task");
   });
 
-  it("voiceActive=true: voice addendum precedes personality block", () => {
+  it("voiceActive=true: SPOKEN-OUTPUT CONTRACT sits between personality and tool rules", () => {
     const blocks = buildSystemPrompt({ projects: [], voiceActive: true });
-    // [0]=voice, [1]=personality, [2]=tool rules, [3]=projects
-    // Phase 5.1: VOICE_ADDENDUM describes leading text block behavior
-    expect(blocks[0]?.text).toContain("listening as well as reading");
-    expect(blocks[1]?.text).toContain("JARVIS");
+    // [0]=personality, [1]=SPOKEN-OUTPUT CONTRACT, [2]=tool rules, [3]=user ctx, [4]=projects
+    expect(blocks[0]?.text).toContain("JARVIS");
+    expect(blocks[1]?.text).toContain("SPOKEN-OUTPUT CONTRACT");
     expect(blocks[2]?.text).toContain("create_task");
   });
 
@@ -174,12 +191,22 @@ describe("buildSystemPrompt", () => {
         );
       });
 
-      it("routes non-imessage remembered channels via computer_use and keeps the send confirm guardrail", () => {
-        expect(COMPUTER_MODE_ADDENDUM).toMatch(/not supported by send_message/i);
-        expect(COMPUTER_MODE_ADDENDUM).toContain("computer_use");
+      it("routes WhatsApp AND iMessage through send_message (never screen-driving) and keeps the send confirm guardrail", () => {
+        // WhatsApp is fully supported by send_message — the model must NOT be
+        // told to screen-drive it via computer_use (that was a false claim).
+        expect(COMPUTER_MODE_ADDENDUM).not.toMatch(/not supported by send_message/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/both are fully supported by send_message/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/NEVER screen-drive a messaging app/i);
         expect(COMPUTER_MODE_ADDENDUM).toMatch(
           /readback-and-confirm guardrail applies to EVERY outgoing message/i,
         );
+      });
+
+      it("prevents channel re-asking and model-spoken send success claims", () => {
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/Do NOT ask which channel/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/do NOT emit ask_clarification in the same turn/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/Prefer silence plus the tool call/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/no "Off it goes"/i);
       });
 
       it("excludes one-offs and keeps the adversarial-defense rules in force", () => {
@@ -188,9 +215,11 @@ describe("buildSystemPrompt", () => {
       });
     });
 
-    it("facts + mode='computer': JARVIS MEMORY precedes the addendum; breakpoint stays on facts", () => {
+    it("facts + mode='computer': JARVIS MEMORY precedes the addendum; breakpoint on project-list; both facts and addendum uncached", () => {
       // Recall path (cross-session): remembered preferences must be IN context
-      // on computer-mode turns — facts block (cached, 1h) then addendum (uncached).
+      // on computer-mode turns. Post-latency-fix (2026-07-04): facts is
+      // volatile so it rides UNCACHED between the 1h breakpoint (on
+      // project-list) and the mode addendum.
       const blocks = buildSystemPrompt({
         projects: [],
         facts: [{ type: "preference", key: "music app", value: "spotify" }],
@@ -198,10 +227,13 @@ describe("buildSystemPrompt", () => {
       });
       const last = blocks[blocks.length - 1]!;
       const factsBlock = blocks[blocks.length - 2]!;
+      const projectsBlock = blocks[blocks.length - 3]!;
       expect(last.text).toContain("COMPUTER-CONTROL MODE");
       expect(last.cache_control).toBeUndefined();
       expect(factsBlock.text).toContain("[PREFERENCE] music app: spotify");
-      expect(factsBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+      expect(factsBlock.cache_control).toBeUndefined();
+      expect(projectsBlock.text).toContain("USER PROJECTS");
+      expect(projectsBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     });
   });
 });

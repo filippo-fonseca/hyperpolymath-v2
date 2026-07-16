@@ -6,12 +6,19 @@
 //   2. web        Next.js dev server on :3000
 //   3. desktop    Tauri desktop app (global hotkey + composer; no hardware)
 //   4. bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
+//   5. wa-bridge  WhatsApp bridge daemon on :8080 (launchd-managed; adopted)
+//   6. wa-sync    WhatsApp SQLite → Postgres mirror worker (personal-use)
+//   7. im-sync    iMessage chat.db → Postgres mirror worker (personal-use)
 //
 // Flags:
 //   --no-supabase           skip Supabase (e.g. when using a remote project)
 //   --no-web                skip Next.js dev server
 //   --no-desktop            skip Tauri desktop app (default input layer)
+//   --no-mobile             skip Expo Metro dev server
 //   --no-bridge             skip serial bridge (no ESP32 plugged in)
+//   --no-wa-bridge          skip WhatsApp bridge daemon health check
+//   --no-wa-sync            skip WhatsApp sync worker
+//   --no-im-sync            skip iMessage sync worker
 //   --only=name[,name...]   start only listed services
 //   --help                  print usage and exit
 //
@@ -22,7 +29,8 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { spawn, execSync } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import os from "node:os";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,6 +39,13 @@ const WEB_DIR = resolve(REPO_ROOT, "apps/web");
 const DESKTOP_DIR = resolve(REPO_ROOT, "apps/desktop");
 const BRIDGE_DIR = resolve(REPO_ROOT, "tools/jarvis-physical/bridge");
 const MOBILE_DIR = resolve(REPO_ROOT, "apps/mobile");
+const WA_SYNC_SCRIPT = resolve(REPO_ROOT, "tools/whatsapp-sync/sync.mjs");
+const WA_SYNC_DEFAULT_DB = resolve(
+  os.homedir(),
+  "Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db",
+);
+const IM_SYNC_SCRIPT = resolve(REPO_ROOT, "tools/imessage-sync/sync.mjs");
+const IM_SYNC_DEFAULT_DB = resolve(os.homedir(), "Library/Messages/chat.db");
 
 const FLAGS = parseFlags(process.argv.slice(2));
 
@@ -195,6 +210,98 @@ const SERVICES = [
       }),
     keepAlive: true,
     ready: (proc) => waitForLog(proc, /\[bridge\] listening on/, 30_000),
+  },
+
+  {
+    // WhatsApp bridge daemon: a persistent launchd agent
+    // (com.hyperpolymath.whatsapp-bridge) that keeps the WhatsApp linked-device
+    // connection up 24/7 on :8080, independent of the desktop app. It is NOT
+    // spawned by this orchestrator — it's installed once via
+    // `tools/whatsapp-bridge/install-daemon.sh` and managed by launchd. We only
+    // health-check it here so the status bar reflects whether the always-on
+    // bridge is reachable; the desktop app detects-and-adopts the same daemon.
+    name: "wa-bridge",
+    color: "green",
+    port: ":8080",
+    async preflight() {
+      if (await isPortListening(8080)) {
+        // Daemon already up (the normal case). Don't spawn anything — just
+        // confirm health in `ready` below.
+        return { skipStart: true };
+      }
+      warn(
+        "wa-bridge",
+        "no bridge on :8080 — install the daemon via tools/whatsapp-bridge/install-daemon.sh",
+      );
+      return { skip: true };
+    },
+    // launchd owns the process lifecycle; the CLI never spawns or holds it, so
+    // `start` is never invoked (preflight returns skipStart when the daemon is
+    // up, or skip when it isn't).
+    start: () => null,
+    keepAlive: false,
+    ready: () => waitForHttp("http://localhost:8080/api/health", 5_000),
+  },
+
+  {
+    // WhatsApp sync worker: tails the desktop bridge's SQLite capture store
+    // and mirrors new messages into Postgres via /api/whatsapp/ingest so the
+    // read_whatsapp tool + daily briefings can query them server-side.
+    name: "wa-sync",
+    color: "cyan",
+    async preflight() {
+      if (!process.env.JARVIS_DEVICE_TOKEN) {
+        warn("wa-sync", "JARVIS_DEVICE_TOKEN not set — skipping (mint one at /settings/desktop)");
+        return { skip: true };
+      }
+      const dbPath = process.env.WHATSAPP_DB_PATH ?? WA_SYNC_DEFAULT_DB;
+      if (!existsSync(dbPath)) {
+        warn("wa-sync", `no capture store yet at ${dbPath} — pair the desktop bridge first`);
+        return { skip: true };
+      }
+    },
+    start: () =>
+      spawn("node", [WA_SYNC_SCRIPT], {
+        cwd: REPO_ROOT,
+        stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          JARVIS_APP_URL: process.env.JARVIS_APP_URL ?? "http://localhost:3000",
+        },
+      }),
+    keepAlive: true,
+    ready: (proc) => waitForLog(proc, /\[whatsapp-sync\] starting/, 15_000),
+  },
+
+  {
+    // iMessage sync worker: tails ~/Library/Messages/chat.db and mirrors new
+    // messages into Postgres via /api/imessage/ingest so the read_imessage
+    // tool + daily briefings can query them server-side. Requires Full Disk
+    // Access on the `node` binary — see tools/imessage-sync/README.md.
+    name: "im-sync",
+    color: "magenta",
+    async preflight() {
+      if (!process.env.JARVIS_DEVICE_TOKEN) {
+        warn("im-sync", "JARVIS_DEVICE_TOKEN not set — skipping (mint one at /settings/desktop)");
+        return { skip: true };
+      }
+      const dbPath = process.env.IMESSAGE_DB_PATH ?? IM_SYNC_DEFAULT_DB;
+      if (!existsSync(dbPath)) {
+        warn("im-sync", `no chat.db at ${dbPath} — is this a Mac with Messages set up?`);
+        return { skip: true };
+      }
+    },
+    start: () =>
+      spawn("node", [IM_SYNC_SCRIPT], {
+        cwd: REPO_ROOT,
+        stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          JARVIS_APP_URL: process.env.JARVIS_APP_URL ?? "http://localhost:3000",
+        },
+      }),
+    keepAlive: true,
+    ready: (proc) => waitForLog(proc, /\[imessage-sync\] starting/, 15_000),
   },
 ];
 
@@ -580,13 +687,21 @@ ${C.bold("Services")}
   supabase   local Supabase (Docker)
   web        Next.js dev server on :3000
   desktop    Tauri desktop app (global hotkey + composer; no hardware)
+  mobile     Expo Metro dev server for apps/mobile on :8081
   bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
+  wa-bridge  WhatsApp bridge daemon on :8080 (launchd-managed; health-checked)
+  wa-sync    WhatsApp SQLite → Postgres mirror worker
+  im-sync    iMessage chat.db → Postgres mirror worker
 
 ${C.bold("Flags")}
   --no-supabase           skip Supabase
   --no-web                skip web dev server
   --no-desktop            skip Tauri desktop app
+  --no-mobile             skip Expo Metro dev server
   --no-bridge             skip serial bridge
+  --no-wa-bridge          skip WhatsApp bridge daemon health check
+  --no-wa-sync            skip WhatsApp sync worker
+  --no-im-sync            skip iMessage sync worker
   --only=name[,name...]   start only listed services
   --help                  show this message
 

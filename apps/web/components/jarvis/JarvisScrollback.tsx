@@ -6,6 +6,7 @@ import type { ScrollbackAssistantTurn, ScrollbackTurn, ScrollbackAction } from "
 import { JarvisReceipt } from "./JarvisReceipt";
 import { JarvisClarification } from "./JarvisClarification";
 import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
+import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 import { renderInlineMarkdown, renderUserText } from "@/lib/jarvis/inline-markdown";
 import { isDailyPageProcessText } from "@/lib/jarvis/daily-page-process";
@@ -123,7 +124,7 @@ function isUndoable(a: ScrollbackAction): boolean {
 function TurnTimestamp({ createdAt }: { createdAt: Date }) {
   return (
     <span
-      className="font-mono text-[11px] text-[var(--ink-muted)] opacity-40 group-hover:opacity-90 transition-opacity select-none whitespace-nowrap"
+      className="font-mono text-[11px] text-[var(--sd-ink-faint)] opacity-40 group-hover:opacity-90 transition-opacity select-none whitespace-nowrap"
       title={createdAt.toLocaleString()}
     >
       {createdAt.toLocaleTimeString([], {
@@ -273,9 +274,8 @@ export function JarvisScrollback({
     // Transient highlight so the target receipts are easy to spot. Inline
     // styles avoid depending on a Tailwind class that may be tree-shaken.
     el.style.transition = "box-shadow 300ms ease";
-    el.style.borderRadius = "8px";
-    el.style.boxShadow =
-      "0 0 0 2px var(--hud-cyan), 0 0 20px var(--hud-cyan-glow)";
+    el.style.borderRadius = "12px";
+    el.style.boxShadow = "0 0 0 2px var(--sd-accent)";
     const t = window.setTimeout(() => {
       el.style.boxShadow = "none";
     }, 2400);
@@ -318,7 +318,7 @@ export function JarvisScrollback({
             type="button"
             onClick={handleLoadOlderClick}
             disabled={loadingOlder}
-            className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] px-3 py-1.5 rounded text-[var(--ink-muted)] hover:text-[var(--hud-cyan-light)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] px-3 py-1.5 rounded text-[var(--sd-ink-dull)] hover:text-[var(--sd-accent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Load older messages"
           >
             {loadingOlder ? "Loading…" : "↑ Older messages"}
@@ -332,7 +332,7 @@ export function JarvisScrollback({
         // bottom-anchored hint above the input so the bubble stays uncovered
         // and the surface doesn't feel like a stack of competing greetings.
         <div className="flex h-full items-end justify-center pb-24 pointer-events-none">
-          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-[var(--ink-muted)] opacity-70 select-none">
+          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] opacity-70 select-none">
             Type below, or hold ⌘+J and speak.
           </p>
         </div>
@@ -342,49 +342,47 @@ export function JarvisScrollback({
         <div key={group.day}>
           {/* Date divider — Today / Yesterday / weekday / "Mon DD" / "Mon DD, YYYY" */}
           <div className="flex items-center gap-3 my-4 select-none">
-            <div className="flex-1 h-px bg-[var(--edge)]" />
-            <span className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)] opacity-70">
+            <div className="flex-1 h-px bg-[var(--sd-line)]" />
+            <span className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] opacity-70">
               {formatDayHeader(group.turns[0].createdAt)}
             </span>
-            <div className="flex-1 h-px bg-[var(--edge)]" />
+            <div className="flex-1 h-px bg-[var(--sd-line)]" />
           </div>
           {group.turns.map((turn) => (
             <div key={turn.id} data-turn-id={turn.id} className="group">
               {turn.kind === "user" ? (
-                // Phase 33 Plan 02 — RIGHT-aligned user bubble (iMessage register).
-                // Neutral glass surface; the `>` terminal prompt is retired.
+                // RIGHT-aligned user turn. A subtle solid --sd-input tint plate
+                // with a hairline — no blur, no glow, no terminal prompt.
                 <div className="flex justify-end mb-3">
                   <div className="flex flex-col items-end max-w-[72%]">
                     <motion.div
                       initial={shouldReduce ? false : { opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
-                      className="relative rounded-2xl px-4 py-2.5"
-                      style={{
-                        backgroundColor: "var(--glass-bg)",
-                        backdropFilter: "blur(12px)",
-                        WebkitBackdropFilter: "blur(12px)",
-                        border:
-                          "1px solid color-mix(in oklch, var(--edge) 45%, transparent)",
-                        boxShadow:
-                          "var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 var(--glass-lo)",
-                      }}
+                      transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
+                      style={{ background: "var(--sd-input)" }}
+                      className="relative rounded-[12px] border border-[var(--sd-line)] px-4 py-2.5"
                     >
                       {isDailyPageProcessText(turn.text) ? (
                         // Turns from the Daily Page "process this page" button carry
                         // a canned instruction as their text. Badge them instead of
                         // echoing the raw prompt so they read as a distinct action.
                         <span className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] glass-tile">
+                          <span
+                            style={{
+                              background: "color-mix(in oklch, var(--sd-accent) 14%, transparent)",
+                              boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 30%, transparent)",
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--sd-accent)]"
+                          >
                             <CalendarDays size={11} strokeWidth={1.75} />
                             Daily Page
                           </span>
-                          <span className="font-sans text-[14px] text-[var(--ink-muted)]">
+                          <span className="text-[14px] text-[var(--sd-ink-dull)]">
                             Processed this page
                           </span>
                         </span>
                       ) : (
-                        <p className="font-sans text-[15px] text-[var(--ink)] whitespace-pre-wrap break-words">
+                        <p className="text-[15px] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
                           {renderUserText(stripSystemTags(turn.text))}
                         </p>
                       )}
@@ -395,30 +393,26 @@ export function JarvisScrollback({
                   </div>
                 </div>
               ) : (
-                // Phase 33 Plan 02 — LEFT-aligned JARVIS bubble. Cyan glow halo
-                // marks the agent voice; the "JARVIS" label sits above so the
-                // assistant column reads as a named speaker rather than a wall
-                // of streaming prose.
+                // LEFT-aligned JARVIS turn. KiwiIcon mark + mono cyan "JARVIS"
+                // label name the speaker; the body is a solid recessed
+                // --sd-darker-box plate with a hairline — no glow halo, no blur.
                 <div className="flex justify-start mb-3">
                   <div className="flex flex-col max-w-[82%]">
-                    <span
-                      className="font-mono text-[11px] uppercase tracking-[0.08em] mb-1 ml-1"
-                      style={{ color: "var(--hud-cyan)" }}
-                    >
+                    <span className="mb-1 ml-1 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-accent)]">
+                      <KiwiIcon size={16} aria-hidden="true" />
                       JARVIS
                     </span>
                     <motion.div
                       initial={shouldReduce ? false : { opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
-                      className={`relative glass-tile rounded-2xl px-4 py-3 overflow-hidden${
+                      transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
+                      className={`relative rounded-[12px] border border-[var(--sd-line)] px-4 py-3 overflow-hidden${
                         turn.status === "error" && !shouldReduce
                           ? " hud-error-glitch"
                           : ""
                       }`}
                       style={{
-                        boxShadow:
-                          "var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 var(--glass-lo), 0 0 20px var(--hud-cyan-glow-soft)",
+                        background: "var(--sd-darker-box)",
                         borderLeft:
                           turn.status === "error"
                             ? "3px solid var(--ink-coral)"
@@ -432,7 +426,7 @@ export function JarvisScrollback({
                       turn.actions.length === 0 ? (
                         <div className="flex items-center gap-3 mb-2">
                           <HudThinkingRing size={32} />
-                          <span className="font-mono text-xs text-[var(--ink-muted)] uppercase tracking-[0.08em]">
+                          <span className="font-mono text-xs text-[var(--sd-ink-dull)] uppercase tracking-[0.08em]">
                             THINKING
                           </span>
                         </div>
@@ -445,7 +439,7 @@ export function JarvisScrollback({
                       {turn.textDelta ? (
                         <div
                           className="font-mono text-base italic font-medium leading-relaxed"
-                          style={{ color: "var(--ink)" }}
+                          style={{ color: "var(--sd-ink)" }}
                         >
                           {renderInlineMarkdown(stripSystemTags(turn.textDelta))}
                           {turn.status === "streaming" ? (
@@ -534,8 +528,7 @@ export function JarvisScrollback({
                         <button
                           type="button"
                           onClick={() => onRetry(turn.id)}
-                          className="mt-2 font-mono text-[12px] uppercase tracking-[0.06em] hover:opacity-80 transition-opacity"
-                          style={{ color: "var(--hud-cyan)" }}
+                          className="mt-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--sd-accent)] hover:opacity-80 transition-opacity"
                         >
                           ↺ Retry
                         </button>

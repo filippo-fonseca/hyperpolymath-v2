@@ -74,11 +74,18 @@ export interface JarvisEventInput {
   stages?: JarvisStageTimestamps;
 }
 
+// Routine turnIds are composite strings like `${runId}:brief`, `${runId}:opener`,
+// `${blockId}:filler` — not valid uuids. Passing them into the uuid `id` column
+// throws `invalid input syntax for type uuid` at insert time. Guard so only a
+// canonical uuid pins the row id; composite ids fall back to defaultRandom().
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function logJarvisEvent(input: JarvisEventInput): Promise<void> {
   try {
     await db.insert(jarvisEvents).values({
-      // When id is provided, pin it; otherwise let defaultRandom() assign.
-      ...(input.id ? { id: input.id } : {}),
+      // Only pin when id is a canonical uuid — composite routine turnIds
+      // (e.g. `${runId}:brief`) would otherwise blow up the uuid column.
+      ...(input.id && UUID_RE.test(input.id) ? { id: input.id } : {}),
       userId: input.userId,
       promptText: input.promptText,
       preParsedDates: input.preParsedDates as unknown,

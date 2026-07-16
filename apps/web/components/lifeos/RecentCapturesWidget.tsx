@@ -12,6 +12,17 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { ConvertCaptureToTaskDialog } from "@/components/captures/ConvertCaptureToTaskDialog";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { CaptureIcon } from "@/components/ui/icons";
+import {
+  ActionLink,
+  Chip,
+  ChipRow,
+  EmptyState,
+  EntityCardHeader,
+  OverflowChip,
+  StatusPill,
+} from "./entity-card";
+import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
 interface Props {
   userId: string;
@@ -46,108 +57,127 @@ export function RecentCapturesWidget({
     null,
   );
 
+  const jarvisCount = capturesData.filter((c) => c.createdVia === "jarvis").length;
+  const topHashtags = (() => {
+    const counts = new Map<string, number>();
+    for (const c of capturesData) {
+      for (const h of c.hashtags) {
+        counts.set(h.displayName, (counts.get(h.displayName) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  })();
+
   return (
-    <div className="flex flex-col h-full">
-      <header className="mb-4 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-3">
-          <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
-            Recent captures
-          </h3>
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)] tabular-nums">
-            {capturesData.length} total
-          </span>
-        </div>
-        <Link
-          href="/captures"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-        >
-          All →
-        </Link>
-      </header>
-      {recent.length === 0 ? (
-        <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
-          Nothing captured yet. Type into JARVIS to drop a note.
-        </p>
-      ) : (
-        <ul className="grid grid-cols-1 @lg/main:grid-cols-2 @3xl/main:grid-cols-3 gap-3">
-          {recent.map((c, i) => {
-            const isJarvis = c.createdVia === "jarvis";
-            const SourceIcon = isJarvis ? Sparkles : PenLine;
-            return (
-              <motion.li
-                key={c.id}
-                initial={reduced ? false : { opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: reduced ? 0 : 0.04 * i,
-                  duration: 0.28,
-                  ease: [0.25, 1, 0.5, 1],
-                }}
-                className="group relative rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2 transition-[border-color] duration-150 hover:border-[var(--edge-hud)]"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
-                    <SourceIcon
-                      size={11}
-                      strokeWidth={1.75}
-                      style={
-                        isJarvis
-                          ? {
-                              color: "var(--hud-cyan)",
-                              filter:
-                                "drop-shadow(0 0 4px color-mix(in oklch, var(--hud-cyan) 50%, transparent))",
-                            }
-                          : undefined
-                      }
-                    />
-                    <span className="font-mono text-[9px] uppercase tracking-[0.14em]">
-                      {isJarvis ? "JARVIS" : "Manual"}
+    <>
+      <WidgetBody>
+        <EntityCardHeader
+          icon={<CaptureIcon size={36} />}
+          title="Captures"
+          subtitle="Recent thoughts"
+          pill={
+            capturesData.length > 0 ? (
+              <StatusPill tone="progress" label={`${capturesData.length} total`} />
+            ) : (
+              <StatusPill tone="idle" label="empty" />
+            )
+          }
+          action={
+            <Link href="/captures" className="group/action cursor-pointer-always">
+              <ActionLink>All →</ActionLink>
+            </Link>
+          }
+        />
+        {recent.length === 0 ? (
+          <EmptyState icon={<CaptureIcon size={40} />}>
+            Nothing captured yet. Type into JARVIS to drop a note.
+          </EmptyState>
+        ) : (
+          // Flat sub-cards on --sd-input: no border-in-border double nesting (§6).
+          // Compact cell (SD3 §2): a single-column stream that scrolls inside
+          // the tile rather than a page-widening grid.
+          <ul className="sd-scroll-hover -mr-2 mt-3.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-2">
+            {recent.map((c, i) => {
+              const isJarvis = c.createdVia === "jarvis";
+              const SourceIcon = isJarvis ? Sparkles : PenLine;
+              return (
+                <motion.li
+                  key={c.id}
+                  initial={reduced ? false : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    delay: reduced ? 0 : 0.01 * Math.min(i, 24),
+                    duration: 0.16,
+                    ease: "easeOut",
+                  }}
+                  className="group relative flex flex-col gap-2 rounded-[10px] bg-[var(--sd-input)] p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-[var(--sd-ink-faint)]">
+                      <SourceIcon
+                        size={11}
+                        strokeWidth={1.75}
+                        style={isJarvis ? { color: "var(--sd-accent)" } : undefined}
+                      />
+                      <span className="font-mono text-[9px] uppercase tracking-[0.14em]">
+                        {isJarvis ? "JARVIS" : "Manual"}
+                      </span>
+                    </div>
+                    <span className="font-mono text-[9px] uppercase tracking-[0.10em] tabular-nums text-[var(--sd-ink-faint)]">
+                      {formatDistanceToNowStrict(new Date(c.createdAt), {
+                        addSuffix: false,
+                      })}
                     </span>
                   </div>
-                  <span className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] tabular-nums">
-                    {formatDistanceToNowStrict(new Date(c.createdAt), {
-                      addSuffix: false,
-                    })}
-                  </span>
-                </div>
-                <p className="font-serif text-[13px] leading-[1.45] text-[var(--ink)] line-clamp-3">
-                  {c.content}
-                </p>
-                {(c.hashtags.length > 0 || c.projects.length > 0) && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    {c.hashtags.slice(0, 2).map((h) => (
-                      <span
-                        key={h.id}
-                        className="inline-flex items-center gap-0.5 font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)]"
-                      >
-                        <Hash size={8} strokeWidth={2} />
-                        {h.displayName}
-                      </span>
-                    ))}
-                    {c.projects.slice(0, 1).map((p) => (
-                      <span
-                        key={p.id}
-                        className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] truncate max-w-[120px]"
-                      >
-                        / {p.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {isJarvis && (
-                  <button
-                    type="button"
-                    onClick={() => setConvertTarget(c)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-[0.85] transition-opacity duration-150 ease-out font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--hud-cyan)] cursor-pointer-always bg-[var(--surface-raised)] px-1.5 py-0.5 rounded"
-                  >
-                    → Task
-                  </button>
-                )}
-              </motion.li>
-            );
-          })}
-        </ul>
-      )}
+                  <p className="line-clamp-3 text-[14px] leading-[1.45] text-[var(--sd-ink)]">
+                    {c.content}
+                  </p>
+                  {(c.hashtags.length > 0 || c.projects.length > 0) && (
+                    <ChipRow>
+                      {c.hashtags.slice(0, 2).map((h) => (
+                        <Chip
+                          key={h.id}
+                          icon={<Hash size={9} strokeWidth={2} className="shrink-0" />}
+                        >
+                          {h.displayName}
+                        </Chip>
+                      ))}
+                      {c.projects.slice(0, 1).map((p) => (
+                        <Chip key={p.id} className="max-w-[130px]">
+                          {p.name}
+                        </Chip>
+                      ))}
+                    </ChipRow>
+                  )}
+                  {isJarvis && (
+                    <button
+                      type="button"
+                      onClick={() => setConvertTarget(c)}
+                      className="absolute right-2 top-2 cursor-pointer-always rounded bg-[var(--sd-box)] px-1.5 py-0.5 text-[0.65rem] font-medium tracking-wide text-[var(--sd-ink-faint)] opacity-0 transition-opacity duration-150 ease-out hover:text-[var(--sd-ink)] group-hover:opacity-100"
+                    >
+                      → Task
+                    </button>
+                  )}
+                </motion.li>
+              );
+            })}
+          </ul>
+        )}
+      </WidgetBody>
+
+      <WidgetFooter>
+        <Chip>{capturesData.length} total</Chip>
+        {jarvisCount > 0 && <Chip>{jarvisCount} via JARVIS</Chip>}
+        {topHashtags.map(([name, count]) => (
+          <Chip key={name} icon={<Hash size={9} strokeWidth={2} className="shrink-0" />}>
+            {name} {count}
+          </Chip>
+        ))}
+        {capturesData.length > recent.length && (
+          <OverflowChip count={capturesData.length - recent.length} />
+        )}
+      </WidgetFooter>
+
       {convertTarget && (
         <ConvertCaptureToTaskDialog
           open={!!convertTarget}
@@ -159,6 +189,6 @@ export function RecentCapturesWidget({
           availableProjects={availableProjects}
         />
       )}
-    </div>
+    </>
   );
 }

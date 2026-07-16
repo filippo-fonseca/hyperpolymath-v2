@@ -29,6 +29,7 @@ import { runComputerUseLoop, type ComputerUseAction } from "@/actions/computer-u
 import { holdSendMessage } from "@/actions/confirm-gate";
 import { bytesToBase64, downscalePngWithInfo } from "@/actions/png";
 import { postScreenshotDescribe } from "@/api/client";
+import { startTask, resolveTask } from "@/hud/background-tasks";
 
 export interface OpenUrlAction {
   kind: "open_url";
@@ -102,9 +103,27 @@ export interface PlayMusicAction {
   query?: string;
 }
 
+/** One item inside an open_workspace list. Same {type,value,label?} shape as
+ *  the startup sequencer's StartupOpenItem, plus an optional fullscreen flag. */
+export interface WorkspaceItem {
+  type: "url" | "app";
+  value: string;
+  label?: string;
+  fullscreen?: boolean;
+}
+
+/** open_workspace: one tool call → a whole set of apps + URLs opened in
+ *  parallel. Items with fullscreen:true get best-effort fullscreen after
+ *  opening; failure of that step never aborts the other opens. */
+export interface OpenWorkspaceAction {
+  kind: "open_workspace";
+  items: WorkspaceItem[];
+}
+
 export type DesktopAction =
   | OpenUrlAction
   | OpenAppAction
+  | OpenWorkspaceAction
   | SendMessageAction
   | SystemControlAction
   | TypeTextAction
@@ -114,6 +133,41 @@ export type DesktopAction =
   | RunShortcutAction
   | PlayMusicAction
   | ComputerUseAction;
+
+/** Where an `open_url` action should be materialized. */
+export type OpenUrlRoute = "widget" | "system";
+
+/**
+ * Decide whether an `open_url` should land in the in-app browser WIDGET or the
+ * SYSTEM default browser. Pure — no side effects — so it can be exhaustively
+ * unit-tested (the desktop's URL-leak fix lives here).
+ *
+ * Rules:
+ *   - Non-http(s) schemes (mailto:, tel:, facetime:, custom app deep links…)
+ *     always go to the system opener — the browser widget can only render web
+ *     pages, and handing it a `mailto:` would just show a blank frame.
+ *   - Malformed / scheme-less URLs also go to the system opener; `openUrl`
+ *     tolerates them (and this preserves the historical behaviour) whereas the
+ *     widget's <webview> would choke.
+ *   - Everything else (a real http/https page) routes to the WIDGET whenever the
+ *     Studio canvas is available. Only when Studio is unavailable do we fall
+ *     back to the system browser. This removes the leak where "is England
+ *     winning" launched the user's default browser instead of the HUD widget.
+ */
+export function routeOpenUrl(
+  url: string,
+  opts: { studioAvailable: boolean },
+): OpenUrlRoute {
+  let scheme: string;
+  try {
+    scheme = new URL(url).protocol;
+  } catch {
+    // Not a parseable absolute URL — let the system opener deal with it.
+    return "system";
+  }
+  if (scheme !== "http:" && scheme !== "https:") return "system";
+  return opts.studioAvailable ? "widget" : "system";
+}
 
 /**
  * Narrow an untrusted SSE payload into a DesktopAction. Returns null when the
@@ -141,6 +195,29 @@ export function parseAction(value: unknown): DesktopAction | null {
       return { kind: "open_app", app, label, url };
     }
     return null;
+  }
+
+  if (kind === "open_workspace") {
+    const raw = obj["items"];
+    if (!Array.isArray(raw)) return null;
+    // Filter — silently dropping malformed rows lets one bad entry not kill
+    // the whole block. If NOTHING survives, safe-default to null.
+    const items: WorkspaceItem[] = [];
+    for (const entry of raw) {
+      if (!entry || typeof entry !== "object") continue;
+      const e = entry as Record<string, unknown>;
+      const t = e["type"];
+      const v = e["value"];
+      if ((t !== "url" && t !== "app") || typeof v !== "string" || v.length === 0) continue;
+      const item: WorkspaceItem = { type: t, value: v };
+      if (typeof e["label"] === "string" && (e["label"] as string).length > 0) {
+        item.label = e["label"] as string;
+      }
+      if (e["fullscreen"] === true) item.fullscreen = true;
+      items.push(item);
+    }
+    if (items.length === 0) return null;
+    return { kind: "open_workspace", items };
   }
 
   if (kind === "send_message") {
@@ -258,6 +335,8 @@ export function describeAction(action: DesktopAction): string {
     case "open_url":
     case "open_app":
       return `opening ${action.label || "…"}`;
+    case "open_workspace":
+      return "opening your workspace";
     case "send_message":
       return `${action.app === "whatsapp" ? "WhatsApp" : "iMessage"} to ${action.recipient} — awaiting confirmation`;
     case "system_control":
@@ -328,12 +407,106 @@ async function handleTakeScreenshot(action: TakeScreenshotAction): Promise<boole
     `[action] take_screenshot captured ${bytes.length} bytes — posting ${png.length} bytes for description`,
   );
   // Fire-and-forget with error logging — postScreenshotDescribe logs non-OK
-  // statuses; the spoken description arrives over the normal SSE→TTS path.
-  void postScreenshotDescribe(base64).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.warn("[action] screenshot describe POST failed", err);
-  });
+  // statuses; the spoken description arrives over the normal SSE→TTS path. A
+  // HUD chip tracks the round-trip (the describe endpoint can take a few
+  // seconds) and resolves inside this already-detached promise, so it never
+  // makes the caller wait.
+  const taskId = startTask({ kind: "take_screenshot", label: describeAction(action) });
+  void postScreenshotDescribe(base64)
+    .then(() => resolveTask(taskId, "done"))
+    .catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn("[action] screenshot describe POST failed", err);
+      resolveTask(taskId, "failed");
+    });
   return true;
+}
+
+/**
+ * Fire a flat list of open_url / open_app opens in parallel, fire-and-forget.
+ * Shared between the startup sequencer's `openOnStart` step and the
+ * `open_workspace` branch below so both walk the same code path — no drift.
+ *
+ * A per-item handleAction failure is logged and skipped; nothing is thrown so
+ * one bad app name never aborts the rest of the list.
+ */
+export function fireOpenItems(
+  items: ReadonlyArray<{ type: "url" | "app"; value: string; label?: string }>,
+): void {
+  for (const item of items) {
+    const action: DesktopAction =
+      item.type === "url"
+        ? { kind: "open_url", url: item.value, label: item.label ?? item.value }
+        : { kind: "open_app", app: item.value, label: item.label ?? item.value };
+    void handleAction(action).then((ok) => {
+      if (!ok) {
+        // eslint-disable-next-line no-console
+        console.warn(`[action] fireOpenItems: failed to open ${item.type} "${item.value}"`);
+      }
+    });
+  }
+}
+
+// Wait for a freshly-opened app to settle before we send it the fullscreen
+// keystroke. 1200ms is a guess that covers warm launches (Arc, WhatsApp);
+// cold launches may still miss and land the keystroke on the wrong app. That
+// is the best-effort contract of this block — a miss logs a warn, never
+// aborts subsequent items.
+const FULLSCREEN_SETTLE_MS = 1200;
+
+function escapeAppleScriptString(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+/**
+ * Open one item and then best-effort fullscreen it. Sequential — see the
+ * caller for why. Each step is try/caught; a fullscreen failure only warns.
+ */
+async function openAndFullscreenOne(item: WorkspaceItem): Promise<void> {
+  fireOpenItems([{ type: item.type, value: item.value, label: item.label }]);
+  await new Promise((resolve) => setTimeout(resolve, FULLSCREEN_SETTLE_MS));
+
+  // App items: explicitly `activate` the target so a parallel open that stole
+  // frontmost between the open and this step gets re-fronted before the
+  // keystroke. URL items rely on the default browser already being frontmost
+  // (the opener call above activates it).
+  //
+  // key code 3 = "f" on the US layout; ctrl+cmd+F is the macOS "toggle
+  // fullscreen" keystroke and works across every app that has a Window menu.
+  const activate =
+    item.type === "app"
+      ? `tell application "${escapeAppleScriptString(item.value)}" to activate\n`
+      : "";
+  const script =
+    activate +
+    `delay 0.4\n` +
+    `tell application "System Events" to key code 3 using {control down, command down}`;
+
+  try {
+    await runAppleScript(script, `fullscreen ${item.value}`);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(`[action] open_workspace: fullscreen failed for "${item.value}"`, err);
+  }
+}
+
+/**
+ * Sequential fullscreen chain. Parallel fullscreens race for the frontmost
+ * keystroke, so we open+fullscreen each item one at a time. Runs detached
+ * from handleAction (which returned true immediately) so the SSE stream and
+ * the parallel plain opens are never blocked on this.
+ */
+async function openFullscreenItems(items: ReadonlyArray<WorkspaceItem>): Promise<void> {
+  for (const item of items) {
+    try {
+      await openAndFullscreenOne(item);
+    } catch (err) {
+      // openAndFullscreenOne already catches — this belt is for the map/await
+      // itself. Still: never abort the loop on one bad item.
+      // eslint-disable-next-line no-console
+      console.warn(`[action] open_workspace: item failed "${item.value}"`, err);
+    }
+  }
 }
 
 /**
@@ -352,6 +525,29 @@ export async function handleAction(action: DesktopAction): Promise<boolean> {
       await openUrl(action.url);
       // eslint-disable-next-line no-console
       console.log(`[action] open_url → ${action.url}`);
+      return true;
+    }
+
+    if (action.kind === "open_workspace") {
+      // Split the list: plain opens fire in parallel immediately; fullscreen
+      // items go through a detached sequential chain so their frontmost
+      // keystrokes don't race each other.
+      const plain = action.items.filter((i) => !i.fullscreen);
+      const fs = action.items.filter((i) => i.fullscreen === true);
+      fireOpenItems(plain);
+      if (fs.length > 0) {
+        // The fullscreen chain is a slow detached sequence (per-item settle +
+        // keystroke). Surface it as a HUD chip; it resolves inside the detached
+        // promise, so nothing awaits it here. openFullscreenItems never throws.
+        const wsTaskId = startTask({ kind: "open_workspace", label: describeAction(action) });
+        void openFullscreenItems(fs)
+          .then(() => resolveTask(wsTaskId, "done"))
+          .catch(() => resolveTask(wsTaskId, "failed"));
+      }
+      // eslint-disable-next-line no-console
+      console.log(
+        `[action] open_workspace → ${action.items.length} item(s), ${fs.length} fullscreen`,
+      );
       return true;
     }
 
@@ -424,8 +620,13 @@ export async function handleAction(action: DesktopAction): Promise<boolean> {
       // Long-running (up to 15 model round-trips) — fire-and-forget so the
       // SSE handler isn't blocked. runComputerUseLoop never throws; it logs
       // everything and the SERVER narrates progress over SSE. Focus rule
-      // applies here too: the loop never set_focus()es the HUD.
-      void runComputerUseLoop(action);
+      // applies here too: the loop never set_focus()es the HUD. A HUD chip
+      // tracks the loop for its duration and resolves inside this detached
+      // promise, so nothing awaits it here.
+      const cuTaskId = startTask({ kind: "computer_use", label: describeAction(action) });
+      void runComputerUseLoop(action)
+        .then(() => resolveTask(cuTaskId, "done"))
+        .catch(() => resolveTask(cuTaskId, "failed"));
       // eslint-disable-next-line no-console
       console.log(`[action] computer_use session ${action.session_id} started: "${action.task}"`);
       return true;

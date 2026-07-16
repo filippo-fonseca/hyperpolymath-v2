@@ -194,7 +194,7 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
         type="button"
         onClick={() => setOpen(true)}
         disabled={types.length === 0}
-        className="flex w-full items-center gap-1 rounded px-1.5 py-1 text-left font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center gap-1 rounded-[6px] px-1.5 py-1 text-left font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] transition-colors duration-150 hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <Plus size={11} strokeWidth={1.5} />
         Add activity
@@ -211,7 +211,7 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
           setOpen(false);
         }
       }}
-      className="flex flex-col gap-1.5 rounded border border-[var(--edge)] bg-[var(--bg)] p-1.5"
+      className="flex flex-col gap-1.5 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-1.5"
     >
       <Select value={typeId} onValueChange={setTypeId}>
         <SelectTrigger className="h-7 text-xs">
@@ -276,7 +276,7 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
         className="h-7 text-xs"
       />
 
-      <label className="flex cursor-pointer items-center gap-1.5 px-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+      <label className="flex cursor-pointer items-center gap-1.5 px-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
         <Checkbox
           checked={logDone}
           onCheckedChange={(v) => setLogDone(v === true)}

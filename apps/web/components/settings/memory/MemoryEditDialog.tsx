@@ -65,7 +65,7 @@ export function MemoryEditDialog({ fact, onClose }: Props) {
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="font-serif">{fact.key}</DialogTitle>
+          <DialogTitle className="">{fact.key}</DialogTitle>
         </DialogHeader>
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground font-mono uppercase tracking-wide">
@@ -75,7 +75,7 @@ export function MemoryEditDialog({ fact, onClose }: Props) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             rows={4}
-            className="font-serif text-sm"
+            className="text-sm"
             placeholder="Enter the fact value..."
           />
         </div>
@@ -90,7 +90,7 @@ export function MemoryEditDialog({ fact, onClose }: Props) {
                 Saving…
               </>
             ) : (
-              "Save"
+ "Save"
             )}
           </Button>
         </DialogFooter>

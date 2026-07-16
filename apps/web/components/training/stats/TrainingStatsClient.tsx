@@ -14,6 +14,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { listAllActivities } from "@/app/actions/training";
 import { Button } from "@/components/ui/button";
+import { TrainingIcon } from "@/components/ui/icons";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import type {
@@ -36,12 +37,8 @@ interface Props {
   distanceUnit: DistanceUnit;
 }
 
-// Glassy pill tile — mirrors /settings PROFILE pill (translucent surface,
-// backdrop blur, inset cyan glow, thin cyan-tinged border, soft outer halo).
-const TILE =
-  "rounded-xl p-4 overflow-x-auto " +
-  "glass-tile " +
-  "";
+// sd plate — shipped .sd-panel primitive (UI-CONTRACT §0). No glass/blur/glow.
+const TILE = "sd-panel overflow-x-auto p-4";
 
 /**
  * /training/stats orchestrator (TRN-09 / TRN-10 / TRN-11).
@@ -130,9 +127,9 @@ export function TrainingStatsClient({
 
   return (
     <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col gap-5 px-4 py-4">
-      {/* Top bar */}
+      {/* Title row — dimensional training icon + mono eyebrow (§7/§8). */}
       <div className="flex items-center justify-between gap-4 px-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Button
             asChild
             type="button"
@@ -140,14 +137,21 @@ export function TrainingStatsClient({
             size="sm"
             className="h-7 gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
           >
-            <Link href="/training"aria-label="Back to planner">
+            <Link href="/training" aria-label="Back to planner">
               <ArrowLeft size={13} strokeWidth={1.5} />
               Planner
             </Link>
           </Button>
-          <h1 className="font-serif text-lg text-[var(--ink)]">
-            Training stats
-          </h1>
+          <span aria-hidden className="h-5 w-px bg-[var(--sd-line)]" />
+          <TrainingIcon size={28} />
+          <div className="flex flex-col gap-0.5">
+            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+              Training
+            </span>
+            <h1 className="text-[20px] font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]">
+              Stats
+            </h1>
+          </div>
         </div>
         <TimeWindowToggle value={window} onChange={setWindow} />
       </div>
@@ -161,10 +165,10 @@ export function TrainingStatsClient({
       {/* The headline visual — 12 months regardless of window toggle */}
       <div className={TILE}>
         <div className="flex items-baseline justify-between pb-3">
-          <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
             Last 12 months · blended day colors
           </h3>
-          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
             hover · click for breakdown
           </span>
         </div>

@@ -1,0 +1,58 @@
+{
+ "agent_id": "unit-jarvis",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-jarvis",
+ "branch": "sd3/unit-jarvis",
+ "unit_id": "unit-jarvis",
+ "phase": "awaiting_review",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-15T18:10:00.000Z",
+ "sealed_plan": {
+  "mission": "Bring the JARVIS console + routines/editors to the sd (Spacedrive) register — the most space-console surface: cyan-on-dark precision, mono readouts, KiwiIcon brand presence, NO backdrop-blur/glass/glow.",
+  "groups_done": [
+   "G1 chat console: JarvisScrollback, JarvisReceipt, JarvisClarification, GlobalJarvisDialog, JarvisInput, SlashCommandPopover, LiteJarvisComposer, ThinkingWord, JarvisUnreadBadge, JarvisConsole strip",
+   "G2 /jarvis shell: JarvisClient rail, page.tsx",
+   "G3 editors: PersonalityEditor, StartupEditor",
+   "G4 routines: RoutinesClient, RoutineEditor, BlockEditor, BlockList, BlockCard, TriggerBuilder"
+  ]
+ },
+ "verification": {
+  "typecheck": "green (pnpm --filter web typecheck)",
+  "build": "green, exit 0 (pnpm --filter web build); /jarvis + /today compiled",
+  "compiled_css_scan_gap": "confirmed emitted: duration-[140ms] -> .14s, var(--sd-hover/input/accent), sd-menu-surface, sd-btn-solid/outline; risky color-mix values authored as inline styles",
+  "headless": "port 3832, 1440x900, BOTH themes, 0 console errors; frames under .planning/evidence/ (console dark/light + full-page dark/light showing routines list, routine editor w/ TriggerBuilder+BlockCards, Personality editor)",
+  "evidence_dir": ".planning/evidence/",
+  "verification_note": ".planning/sd3-jarvis-verification.md",
+  "tree": "clean — throwaway preview route (app/sd3jarvispreview) + playwright debris deleted; git status shows only .planning additions",
+  "register_conformance": "grep-clean of glass-tile/glass-button/backdrop-blur/bg-gradient/glow/font-serif in fence; single cyan accent; functional --ink-coral only; sanctioned hud-* streaming indicators retained; globals.css additive-only (.receipt-* sd overrides)"
+ },
+ "commits": [
+  "9b6d7178 sd3(jarvis): /jarvis shell + rail to the sd register",
+  "e5f647a6 sd3(jarvis): Personality + Startup editors to the sd register",
+  "6aa23cf4 sd3(jarvis): routines editors to the sd register",
+  "b8f1c2ff sd3(jarvis): console chrome (clarification, dialog, popovers, composer) to sd",
+  "2bfb7a40 sd3(jarvis): scrollback turns + receipt cards to the sd space-console",
+  "340bc1e5 sd3(jarvis): console composer (input + strip) to the sd register",
+  "c376a309 sd3(jarvis): unread badge to the sd register",
+  "220bd6fb docs(sd3/jarvis): verification note + both-theme evidence frames"
+ ],
+ "assumptions": [
+  "bgsd-unit.json in worktree is a stale inherited artifact (references sesh-sd2-overhaul); seed = .planning/fable-plan-jarvis.md per steering. No advisor_path present, so no live advisor channel this run.",
+  "The chat-console host is JarvisConsole/JarvisScrollback (rendered on /today via the (app) shell); JarvisClient is the /jarvis management shell. Both treated as in-fence and converted.",
+  "Decorative multi-color intent inks (amber/sage/blue) on receipts and routine chips were collapsed to a single cyan accent (coral kept for delete/error) per UI-CONTRACT §0 single-accent law — a deliberate register change, not a like-for-like port.",
+  "The `.receipt-*` classes were retuned via an ADDITIVE override block appended to globals.css (they are consumed only by JarvisReceipt, in-fence) rather than editing the existing Phase-6.1 glass definitions."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "JARVIS home surface; brand-critical space-console register"
+ },
+ "notes": [
+  "17 source files + globals.css converted across 8 atomic commits. Sanctioned cyan streaming indicators (caret, thinking ring, scan-reveal, submit-ignite) intentionally retained per seed. Ready for Conductor pixel-review on :3000 post-merge (authed surfaces)."
+ ],
+ "steering": "Initial directive: your seed is .planning/fable-plan-jarvis.md (ignore any inherited fable-plan-sd3.md). Read it + UI-CONTRACT-SD3.md incl §3 (kill only tcp:3832). Seal plan in this control file, then proceed. Headless browser under global lock only. Atomic commits, explicit pathspecs."
+}

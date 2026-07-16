@@ -62,23 +62,22 @@ export default async function GraphPage() {
 
   if (!row || !payload) {
     return (
-      <main className="grid min-h-full place-items-center bg-[var(--canvas)] px-6 text-center text-[var(--ink)]">
+      <main className="grid min-h-full place-items-center bg-[var(--sd-app)] px-6 text-center text-[var(--sd-ink)]">
         <div
           className={
-            "max-w-md rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] p-8 " +
-            "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
-            "hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
-            "transition-[border-color,box-shadow] duration-200 ease-out"
+            "max-w-md rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-8 " +
+            "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset] " +
+            "transition-colors duration-150 ease-out hover:border-[var(--sd-accent)]"
           }
         >
-          <h1 className="font-serif text-3xl font-semibold">Knowledge graph</h1>
-          <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink-muted)]">
+          <h1 className="text-3xl font-semibold tracking-[-0.01em]">Knowledge graph</h1>
+          <p className="mt-3 text-[15px] leading-[1.55] text-[var(--sd-ink-dull)]">
             No snapshot has been built yet. The nightly job assembles your graph
             at 00:00 ET — or build one now from settings, then come back.
           </p>
           <Link
             href="/settings/context"
-            className="mt-6 inline-flex rounded-md bg-[var(--ink)] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--canvas)] hover:opacity-90"
+            className="sd-btn-primary mt-6 inline-flex rounded-full px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em]"
           >
             Go build a snapshot
           </Link>

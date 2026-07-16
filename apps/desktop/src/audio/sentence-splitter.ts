@@ -14,18 +14,23 @@ export interface SplitResult {
 }
 
 /**
- * Match a sentence terminator: `. `, `! `, `? `, or one-or-more `\n\n`.
+ * Match a sentence terminator: `. `, `! `, `? `, `.`/`!`/`?` immediately before
+ * an uppercase letter or quote, or one-or-more `\n\n`.
  *
- * Per D-02 (10-CONTEXT.md):
+ * Per D-02 (10-CONTEXT.md) + Unit 3 hardening:
  *   - `[.!?] ` catches three single-character sentence-enders followed by
  *     exactly one space (trailing space is part of the terminator).
+ *   - `[.!?](?=[A-Z"'])` breaks a sentence-ender immediately followed (NO
+ *     space) by an uppercase letter or opening quote — fixes run-on glue like
+ *     `"…send one.Just Tita"` (defect 3a). The lookahead doesn't consume the
+ *     next char, and digits are excluded so "1.5 hours" never splits.
  *   - `\n\n+` catches paragraph breaks (one or more blank lines collapsed
  *     into one terminator).
  *
  * The capture group keeps the terminator string available so it can be
  * re-attached to the preceding sentence for natural prosody.
  */
-const TERMINATOR = /([.!?] |\n\n+)/g;
+const TERMINATOR = /([.!?] |[.!?](?=[A-Z"'])|\n\n+)/g;
 
 /**
  * Pure sentence splitter for streaming Anthropic text deltas.

@@ -6,17 +6,12 @@ import { Popover as PopoverPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 /**
- * Phase 6.1 Plan 06.1-05 (UI-SPEC §5f + §9c):
+ * sd register (sesh-sd3, unit-primitives) — Popover.
  *
- * Diplomatic-tier popover chrome. Background --surface-raised, 1px --edge
- * border, hard-coded box-shadow per UI-SPEC §9c. NO backdrop (popovers
- * don't dim the page — only modals do per UI-SPEC §9c). Motion: scale
- * 0.95→1 + fade-in over 200ms enter; 150ms exit. Corner L-brackets are
- * optional and applied at the consumer level (popover content sizes vary
- * widely; baking crops in would over-decorate small color-picker style
- * popovers).
- *
- * Neumorphic shadow tokens retired (UI-SPEC §14a).
+ * Solid sd menu plate (`.sd-menu-surface`: `--sd-box` fill, 1px `--sd-line`
+ * hairline, theme-aware shadow), 12px radius. No backdrop (popovers don't
+ * dim the page — only modals do). Motion: fade + 4px translate on enter
+ * (~150ms), opacity-only exit; compositor-only per §14.
  */
 function Popover({
   ...props
@@ -43,11 +38,10 @@ function PopoverContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          "relative z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-4 text-[var(--ink)] outline-hidden",
-          "shadow-[0_12px_32px_rgba(0,0,0,0.3)]",
-          "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-150",
-          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:duration-200",
+          "sd-menu-surface relative z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-[12px] p-4 text-[var(--sd-ink)] outline-hidden",
+          "data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1",
+          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-100",
+          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-150",
           className
         )}
         {...props}
@@ -66,7 +60,7 @@ function PopoverHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="popover-header"
-      className={cn("flex flex-col gap-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]", className)}
+      className={cn("flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]", className)}
       {...props}
     />
   )
@@ -76,7 +70,7 @@ function PopoverTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return (
     <div
       data-slot="popover-title"
-      className={cn("font-medium text-[var(--ink)]", className)}
+      className={cn("font-medium text-[var(--sd-ink)]", className)}
       {...props}
     />
   )
@@ -89,7 +83,7 @@ function PopoverDescription({
   return (
     <p
       data-slot="popover-description"
-      className={cn("font-serif text-[var(--ink-muted)]", className)}
+      className={cn("text-[var(--sd-ink-dull)]", className)}
       {...props}
     />
   )

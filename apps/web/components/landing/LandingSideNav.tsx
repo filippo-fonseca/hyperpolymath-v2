@@ -160,7 +160,7 @@ export function LandingSideNav() {
                 height: isActive ? 2 : 6,
                 backgroundColor: isActive
                   ? "var(--hud-cyan)"
-                  : "var(--ink-muted)",
+                  : "var(--sd-ink-faint)",
                 opacity: isActive ? 1 : hovered ? 0.85 : 0.45,
               }}
               transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
@@ -173,7 +173,7 @@ export function LandingSideNav() {
                 x: hovered || isActive ? 0 : -6,
                 color: isActive
                   ? "var(--hud-cyan-light)"
-                  : "var(--ink-muted)",
+                  : "var(--sd-ink-faint)",
               }}
               transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
             >

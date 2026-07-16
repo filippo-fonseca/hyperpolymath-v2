@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AmbientGlow } from "@/components/ui/ambient";
 import { Sidebar } from "./Sidebar";
 import { TopTabBar } from "./TopTabBar";
 import { DailyAutoOpen } from "./DailyAutoOpen";
@@ -63,10 +64,18 @@ export function AppShell({
   const onJarvis =
     pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
   const onOnboarding = pathname.startsWith("/onboarding");
+  const onWikiHome = pathname === "/wiki";
   const showPanel = splitOn && !onJarvis && !onOnboarding;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]">
+    <div className="isolate flex h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]">
+      {/* Whisper-level ambient glow behind every route. `isolate` on the root
+          scopes this fixed, negative-z layer so it paints above the canvas fill
+          and below the sidebar/main content. Static (no drift) at whisper, and
+          halved again here: with the Life OS hero plate gone this is the only
+          glow left in the app, and it must stay barely-there (UI-CONTRACT §0). */}
+      <AmbientGlow intensity="whisper" className="opacity-50" />
+
       {/* Product tour — mounts once globally; runs only when hp_tour_pending
           is set in localStorage (written by onboarding-flow before redirect)
           and hp_tour_v1_done is NOT set. Client-side only. */}
@@ -109,8 +118,15 @@ export function AppShell({
       <main className="flex flex-1 flex-col overflow-hidden">
         <DailyAutoOpen userId={userId} />
         <TopTabBar userId={userId} />
-        <div className="flex flex-1 overflow-hidden">
-          <div className="@container/main flex-1 overflow-auto">{children}</div>
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <div
+            className={cn(
+              "@container/main min-h-0 flex-1",
+              onWikiHome ? "h-full overflow-hidden" : "overflow-auto"
+            )}
+          >
+            {children}
+          </div>
           {showPanel && (
             <aside
               aria-label="JARVIS side panel"

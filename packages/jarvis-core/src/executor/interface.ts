@@ -25,8 +25,10 @@ import type {
   ReadGmailAction,
   OpenAppAction,
   OpenUrlAction,
+  OpenWorkspaceAction,
   PlayMusicAction,
   PressKeyAction,
+  ReadImessageAction,
   ReadWhatsappAction,
   RememberFactAction,
   RunApplescriptAction,
@@ -131,6 +133,7 @@ export interface ActionExecutor {
   // for the desktop client to execute on the Mac. No DB writes, no gcal calls.
   openUrl(input: OpenUrlAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   openApp(input: OpenAppAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  openWorkspace(input: OpenWorkspaceAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   webSearch(input: WebSearchAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 
   // Clicky slice — desktop action tools. Each validates input server-side and
@@ -153,6 +156,9 @@ export interface ActionExecutor {
   // WhatsApp read — fully server-side (queries synced whatsapp_messages);
   // returns a grouped receipt for the agent to narrate. No DesktopAction.
   readWhatsapp(input: ReadWhatsappAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  // iMessage read — fully server-side (queries synced imessage_messages);
+  // returns a grouped receipt for the agent to narrate. No DesktopAction.
+  readImessage(input: ReadImessageAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 
   // Computer Use fallback — mints a session_id and returns the computer_use
   // DesktopAction; the desktop drives the step loop against

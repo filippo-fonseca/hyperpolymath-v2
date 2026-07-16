@@ -46,6 +46,7 @@ import {
   tasks,
   tasksProjects,
   whatsappMessages,
+  imessageMessages,
 } from "@/lib/db/schema";
 import { upsertHashtag } from "@/app/actions/hashtags";
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
@@ -94,8 +95,10 @@ import type {
   ReadGmailAction,
   OpenAppAction,
   OpenUrlAction,
+  OpenWorkspaceAction,
   PlayMusicAction,
   PressKeyAction,
+  ReadImessageAction,
   ReadWhatsappAction,
   RememberFactAction,
   RunApplescriptAction,
@@ -110,6 +113,57 @@ import type {
   WebSearchAction,
 } from "@hyperpolymath/jarvis-core";
 import { validateCalendarId, validateProjectIds } from "./validate-references";
+import type { StudioCloseWidgetInput, StudioOpenWidgetInput } from "./studio-widget-tools";
+import { emitStudioAction } from "@/lib/voice/physical-extension/bus";
+
+// MAJOR-6 — tag every studio-action emit with the invoking user's id so
+// SSE subscribers can filter (see lib/voice/physical-extension/bus.ts and
+// app/api/jarvis/physical/events/route.ts). userId is optional in the type
+// for backward compat with any legacy caller, but ALL current call sites
+// (run-turn.ts) thread ctx.userId explicitly.
+export async function executeStudioOpenWidget(
+  input: StudioOpenWidgetInput,
+  userId?: string
+): Promise<ExecutorResult> {
+  const ts = Date.now();
+  emitStudioAction({
+    action: "open",
+    kind: input.kind,
+    ...(input.url ? { props: { url: input.url } } : {}),
+    ...(userId ? { userId } : {}),
+  });
+  return {
+    ok: true,
+    id: `studio_open_widget:${input.kind}:${ts}`,
+    receipt: {
+      kind: input.kind,
+      ...(input.url ? { url: input.url } : {}),
+      message: `Sent a request to open the ${input.kind} widget.`,
+    },
+  };
+}
+
+export async function executeStudioCloseWidget(
+  input: StudioCloseWidgetInput,
+  userId?: string
+): Promise<ExecutorResult> {
+  const ts = Date.now();
+  emitStudioAction({
+    action: "close",
+    kind: input.all ? "all" : (input.kind ?? "all"),
+    target: "kind",
+    ...(userId ? { userId } : {}),
+  });
+  return {
+    ok: true,
+    id: `studio_close_widget:${input.all ? "all" : input.kind}:${ts}`,
+    receipt: {
+      ...(input.kind ? { kind: input.kind } : {}),
+      all: input.all === true,
+      message: "Sent a request to close the Studio widget view.",
+    },
+  };
+}
 
 /**
  * Phase 5.1 D-P2 #3 / JARVIS-21 — check if all model-emitted project_ids
@@ -158,6 +212,170 @@ function describeWeatherCode(code: number): string {
   if (code === 95) return "thunderstorms";
   if (code === 96 || code === 99) return "thunderstorms with hail";
   return "unsettled";
+}
+
+type WebSearchResult = {
+  title: string;
+  url: string;
+  snippet?: string;
+  content?: string;
+};
+
+function googleSearchUrl(query: string): string {
+  return "https://www.google.com/search?q=" + encodeURIComponent(query);
+}
+
+function googleMapsSearchUrl(query: string): string {
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query);
+}
+
+function textField(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function normalizeWebSearchResults(payload: unknown): WebSearchResult[] {
+  const body = payload as {
+    results?: unknown;
+    data?: unknown;
+    organic?: unknown;
+  };
+  const candidates = Array.isArray(body.results)
+    ? body.results
+    : Array.isArray(body.data)
+      ? body.data
+      : Array.isArray(body.organic)
+        ? body.organic
+        : [];
+
+  return candidates
+    .map((item) => {
+      const row = item as Record<string, unknown>;
+      const title = textField(row.title) ?? textField(row.name);
+      const url = textField(row.url) ?? textField(row.link);
+      const snippet =
+        textField(row.snippet) ??
+        textField(row.description) ??
+        textField(row.text) ??
+        textField(row.content);
+      if (!title || !url) return null;
+      return { title, url, ...(snippet ? { snippet } : {}) };
+    })
+    .filter((item): item is WebSearchResult => item !== null)
+    .slice(0, 5);
+}
+
+function isFetchableWebUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function compactFetchedContent(content: unknown): string | undefined {
+  if (typeof content !== "string") return undefined;
+  const compact = content
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return compact ? compact.slice(0, 6_000) : undefined;
+}
+
+async function browserbaseFetchPage(url: string, apiKey: string): Promise<string | undefined> {
+  if (!isFetchableWebUrl(url)) return undefined;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch("https://api.browserbase.com/v1/fetch", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-bb-api-key": apiKey,
+      },
+      body: JSON.stringify({ url, allowRedirects: true, format: "markdown" }),
+      signal: controller.signal,
+    });
+    if (!res.ok) return undefined;
+    const payload = (await res.json()) as { content?: unknown };
+    return compactFetchedContent(payload.content);
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function enrichSparseWebSearchResults(
+  results: WebSearchResult[],
+  apiKey: string
+): Promise<WebSearchResult[]> {
+  if (results.length === 0 || results.some((result) => result.snippet)) {
+    return results;
+  }
+
+  const enrichable = results.slice(0, 2);
+  const contents = await Promise.all(
+    enrichable.map((result) => browserbaseFetchPage(result.url, apiKey))
+  );
+  return results.map((result, index) => {
+    const content = contents[index];
+    return content ? { ...result, content } : result;
+  });
+}
+
+// U1 jarvis-web-brain — pick the single best URL (first fetchable http(s)
+// result) and a short excerpt of any enriched page body, so the webSearch
+// receipt carries BOTH an answer source and a concrete URL for the browser
+// widget. Never returns a search-engine landing page — those are not results.
+function pickTopResult(results: WebSearchResult[]): {
+  top_url?: string;
+  content_excerpt?: string;
+} {
+  const top = results.find((r) => isFetchableWebUrl(r.url));
+  if (!top) return {};
+  const excerptSource = top.content ?? top.snippet;
+  const content_excerpt =
+    typeof excerptSource === "string" && excerptSource.trim()
+      ? excerptSource.trim().slice(0, 500)
+      : undefined;
+  return {
+    top_url: top.url,
+    ...(content_excerpt ? { content_excerpt } : {}),
+  };
+}
+
+async function browserbaseWebSearch(query: string): Promise<WebSearchResult[]> {
+  const apiKey = process.env.BROWSERBASE_API_KEY;
+  if (!apiKey) return [];
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch("https://api.browserbase.com/v1/search", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-bb-api-key": apiKey,
+      },
+      body: JSON.stringify({ query, numResults: 5 }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.warn(`[jarvis] web_search: Browserbase returned ${res.status}`);
+      return [];
+    }
+    const results = normalizeWebSearchResults(await res.json());
+    return enrichSparseWebSearchResults(results, apiKey);
+  } catch (err) {
+    console.warn("[jarvis] web_search: Browserbase lookup failed", err);
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function createServerExecutor(): ActionExecutor {
@@ -528,7 +746,7 @@ export function createServerExecutor(): ActionExecutor {
           const newNotes = set.notes !== undefined ? set.notes : prev.notes;
           const derivedUrl = deriveSingleUrl(
             [newTitle, newNotes].filter(Boolean).join("\n"),
-            prev.url,
+            prev.url
           );
           if (derivedUrl !== prev.url) {
             set.url = derivedUrl;
@@ -946,7 +1164,8 @@ export function createServerExecutor(): ActionExecutor {
     // Result contract (parallel agent builds desktop client against this):
     //   open_url  → { ok: true, action: { kind: "open_url", url, label } }
     //   open_app  → { ok: true, action: { kind: "open_app", app, label } }
-    //   web_search → { ok: true, action: { kind: "open_url", url, label } }
+    //   web_search → maps: open_url action; web: server-side search receipt
+    //                when Browserbase is configured, Google URL fallback when not.
     // -------------------------------------------------------------------------
 
     async openUrl(input: OpenUrlAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
@@ -969,23 +1188,87 @@ export function createServerExecutor(): ActionExecutor {
       };
     },
 
+    async openWorkspace(
+      input: OpenWorkspaceAction,
+      _ctx: ExecutionContext
+    ): Promise<ExecutorResult> {
+      // Pure echo — server-side Zod validation ran in run-turn.ts. The
+      // desktop dispatcher fans the list out into parallel opens and the
+      // best-effort fullscreen chain.
+      return {
+        ok: true,
+        id: `open_workspace:${input.items.length}`,
+        receipt: { items: input.items, count: input.items.length },
+        action: { kind: "open_workspace", items: input.items },
+      };
+    },
+
     async webSearch(input: WebSearchAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
       const engine = input.engine ?? "google";
-      let url: string;
       if (engine === "maps") {
-        url =
-          "https://www.google.com/maps/search/?api=1&query=" +
-          encodeURIComponent(input.query);
-      } else {
-        url =
-          "https://www.google.com/search?q=" + encodeURIComponent(input.query);
+        const url = googleMapsSearchUrl(input.query);
+        return {
+          ok: true,
+          id: `web_search:${input.query}`,
+          receipt: { query: input.query, engine, url, label: "Google Maps" },
+          action: { kind: "open_url", url, label: "Google Maps" },
+        };
       }
-      const label = engine === "maps" ? "Google Maps" : "the web";
+
+      const results = await browserbaseWebSearch(input.query);
+      if (results.length > 0) {
+        // U1 — expose the single best URL + a content excerpt so the model has
+        // BOTH an answer source and a concrete URL to hand studio_open_widget.
+        const { top_url, content_excerpt } = pickTopResult(results);
+        return {
+          ok: true,
+          id: `web_search:${input.query}`,
+          receipt: {
+            query: input.query,
+            engine,
+            provider: "browserbase",
+            results,
+            ...(top_url ? { top_url } : {}),
+            ...(content_excerpt ? { content_excerpt } : {}),
+            answer_hint:
+              "Answer the user directly from these search results. Mention uncertainty when the snippets do not fully answer the question. To show your work, also open the browser widget on top_url via studio_open_widget{kind:\"browser\"}; never open a search-engine page as a substitute for answering.",
+          },
+        };
+      }
+
+      // No results. If Browserbase is unconfigured, degrade gracefully: the
+      // model still gets a turn (no crash), just a hint that live search is
+      // unavailable so it can say so plainly instead of dead-ending.
+      if (!process.env.BROWSERBASE_API_KEY) {
+        console.warn("[jarvis] web_search: BROWSERBASE_API_KEY missing — search unavailable");
+        return {
+          ok: true,
+          id: `web_search:${input.query}`,
+          receipt: {
+            query: input.query,
+            engine,
+            provider: "unavailable",
+            search_unavailable: true,
+            answer_hint:
+              "Live web search is unavailable right now (no search provider configured). Tell the user plainly you cannot look that up at the moment; do not fabricate a live answer.",
+          },
+        };
+      }
+
+      const url = googleSearchUrl(input.query);
       return {
         ok: true,
         id: `web_search:${input.query}`,
-        receipt: { query: input.query, engine, url, label },
-        action: { kind: "open_url", url, label },
+        receipt: {
+          query: input.query,
+          engine,
+          provider: "google_url_fallback",
+          url,
+          label: "the web",
+          answer_hint:
+            "No server-side search provider returned results, so the desktop should open the Google results page.",
+        },
+        action: { kind: "open_url", url, label: "the web" },
       };
     },
 
@@ -999,6 +1282,13 @@ export function createServerExecutor(): ActionExecutor {
     // (Open-Meteo fetch) and returns data in the receipt with no action.
     // -------------------------------------------------------------------------
 
+    // INVARIANT: this executor is intentionally synchronous — no network I/O,
+    // no awaits, no long-running work. The actual send (AppleScript for
+    // iMessage, HTTP POST to the local bridge for WhatsApp) happens on the
+    // desktop side inside the confirm gate (apps/desktop/src/actions/confirm-gate.ts).
+    // Do NOT reach out to an external service from here, or the agent turn can
+    // hang on a wedged transport and the "send_message tool call always
+    // terminates" guarantee breaks silently.
     async sendMessage(input: SendMessageAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
       const recipient = input.recipient.trim();
       const text = input.text.trim();
@@ -1023,8 +1313,11 @@ export function createServerExecutor(): ActionExecutor {
       };
     },
 
-    async systemControl(input: SystemControlAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
-      if ((input.action === "volume" || input.action === "brightness")) {
+    async systemControl(
+      input: SystemControlAction,
+      _ctx: ExecutionContext
+    ): Promise<ExecutorResult> {
+      if (input.action === "volume" || input.action === "brightness") {
         const v = typeof input.value === "string" ? Number(input.value) : input.value;
         if (typeof v !== "number" || Number.isNaN(v) || v < 0 || v > 100) {
           return {
@@ -1044,7 +1337,10 @@ export function createServerExecutor(): ActionExecutor {
       return {
         ok: true,
         id: `system_control:${input.action}`,
-        receipt: { action: input.action, ...(input.value !== undefined ? { value: input.value } : {}) },
+        receipt: {
+          action: input.action,
+          ...(input.value !== undefined ? { value: input.value } : {}),
+        },
         action: {
           kind: "system_control",
           action: input.action,
@@ -1072,7 +1368,10 @@ export function createServerExecutor(): ActionExecutor {
       };
     },
 
-    async takeScreenshot(input: TakeScreenshotAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+    async takeScreenshot(
+      input: TakeScreenshotAction,
+      _ctx: ExecutionContext
+    ): Promise<ExecutorResult> {
       const describe = input.describe ?? true;
       return {
         ok: true,
@@ -1082,11 +1381,18 @@ export function createServerExecutor(): ActionExecutor {
       };
     },
 
-    async runApplescript(input: RunApplescriptAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+    async runApplescript(
+      input: RunApplescriptAction,
+      _ctx: ExecutionContext
+    ): Promise<ExecutorResult> {
       const label = input.label.trim();
       const script = input.script.trim();
       if (!label || !script) {
-        return { ok: false, kind: "validation", error: "run_applescript requires label and script" };
+        return {
+          ok: false,
+          kind: "validation",
+          error: "run_applescript requires label and script",
+        };
       }
       return {
         ok: true,
@@ -1143,26 +1449,35 @@ export function createServerExecutor(): ActionExecutor {
 
     async getWeather(input: GetWeatherAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
       // Fully server-side: Open-Meteo geocoding + forecast (free, keyless).
-      const location =
-        input.location?.trim() || process.env.JARVIS_DEFAULT_LOCATION || "Boston";
+      const location = input.location?.trim() || process.env.JARVIS_DEFAULT_LOCATION || "Boston";
       try {
         const geoRes = await fetch(
           "https://geocoding-api.open-meteo.com/v1/search?count=1&name=" +
-            encodeURIComponent(location),
+            encodeURIComponent(location)
         );
         if (!geoRes.ok) {
           return { ok: false, kind: "network", error: `Geocoding failed (${geoRes.status})` };
         }
         const geo = (await geoRes.json()) as {
-          results?: { latitude: number; longitude: number; name: string; admin1?: string; country?: string }[];
+          results?: {
+            latitude: number;
+            longitude: number;
+            name: string;
+            admin1?: string;
+            country?: string;
+          }[];
         };
         const place = geo.results?.[0];
         if (!place) {
-          return { ok: false, kind: "not_found", error: `No location found matching "${location}"` };
+          return {
+            ok: false,
+            kind: "not_found",
+            error: `No location found matching "${location}"`,
+          };
         }
         const fcRes = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}` +
-            "&current=temperature_2m,weather_code,wind_speed_10m",
+            "&current=temperature_2m,weather_code,wind_speed_10m"
         );
         if (!fcRes.ok) {
           return { ok: false, kind: "network", error: `Forecast fetch failed (${fcRes.status})` };
@@ -1261,8 +1576,8 @@ export function createServerExecutor(): ActionExecutor {
                 metadataHeaders: ["From", "Subject", "Date"],
               })
               .then((r) => r.data)
-              .catch(() => null),
-          ),
+              .catch(() => null)
+          )
         );
 
         const messages = details
@@ -1270,9 +1585,7 @@ export function createServerExecutor(): ActionExecutor {
           .map((d) => {
             const headers = d.payload?.headers ?? [];
             const getHeader = (name: string): string | undefined => {
-              const h = headers.find(
-                (x) => (x.name ?? "").toLowerCase() === name.toLowerCase(),
-              );
+              const h = headers.find((x) => (x.name ?? "").toLowerCase() === name.toLowerCase());
               return h?.value ?? undefined;
             };
             return {
@@ -1298,7 +1611,7 @@ export function createServerExecutor(): ActionExecutor {
         const message = err instanceof Error ? err.message : String(err);
         const looksLikeScope =
           /insufficientPermissions|insufficient authentication scopes|Insufficient Permission/i.test(
-            message,
+            message
           );
         if (looksLikeScope) {
           return {
@@ -1340,9 +1653,7 @@ export function createServerExecutor(): ActionExecutor {
       if (topic) params.set("q", topic);
 
       try {
-        const res = await fetch(
-          `https://content.guardianapis.com/search?${params.toString()}`,
-        );
+        const res = await fetch(`https://content.guardianapis.com/search?${params.toString()}`);
         if (!res.ok) {
           return {
             ok: false,
@@ -1404,7 +1715,7 @@ export function createServerExecutor(): ActionExecutor {
           const pattern = `%${input.chat.trim()}%`;
           const chatFilter = or(
             ilike(whatsappMessages.chatName, pattern),
-            ilike(whatsappMessages.senderName, pattern),
+            ilike(whatsappMessages.senderName, pattern)
           );
           if (chatFilter) filters.push(chatFilter);
         }
@@ -1431,8 +1742,7 @@ export function createServerExecutor(): ActionExecutor {
               chats: [],
               totalCount: 0,
               windowHours,
-              note:
-                "No synced WhatsApp messages yet — is the bridge + sync worker running? See tools/whatsapp-sync/README.md.",
+              note: "No synced WhatsApp messages yet — is the bridge + sync worker running? See tools/whatsapp-sync/README.md.",
             },
           };
         }
@@ -1442,7 +1752,12 @@ export function createServerExecutor(): ActionExecutor {
           string,
           {
             chatName: string;
-            messages: Array<{ senderName: string | null; fromMe: boolean; body: string | null; sentAt: string }>;
+            messages: Array<{
+              senderName: string | null;
+              fromMe: boolean;
+              body: string | null;
+              sentAt: string;
+            }>;
           }
         >();
         for (const r of rows) {
@@ -1475,6 +1790,109 @@ export function createServerExecutor(): ActionExecutor {
         return {
           ok: true,
           id: `read_whatsapp:${totalCount}`,
+          receipt: { chats, totalCount, windowHours },
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "internal",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+
+    async readImessage(input: ReadImessageAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Server-side read from imessage_messages (populated by the local chat.db
+      // sync worker). Empty table → friendly hint receipt; the agent narrates
+      // it rather than guessing.
+      const windowHours = Math.min(input.since_hours ?? 24, 168);
+      const cap = Math.min(input.maxResults ?? 30, 100);
+      const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+      try {
+        const filters = [
+          eq(imessageMessages.userId, ctx.userId),
+          gte(imessageMessages.sentAt, since),
+        ];
+        if (input.chat && input.chat.trim()) {
+          const pattern = `%${input.chat.trim()}%`;
+          const chatFilter = or(
+            ilike(imessageMessages.chatName, pattern),
+            ilike(imessageMessages.senderName, pattern)
+          );
+          if (chatFilter) filters.push(chatFilter);
+        }
+
+        const rows = await db
+          .select({
+            chatJid: imessageMessages.chatJid,
+            chatName: imessageMessages.chatName,
+            senderName: imessageMessages.senderName,
+            fromMe: imessageMessages.fromMe,
+            body: imessageMessages.body,
+            sentAt: imessageMessages.sentAt,
+          })
+          .from(imessageMessages)
+          .where(and(...filters))
+          .orderBy(desc(imessageMessages.sentAt))
+          .limit(cap);
+
+        if (rows.length === 0) {
+          return {
+            ok: true,
+            id: "read_imessage:empty",
+            receipt: {
+              chats: [],
+              totalCount: 0,
+              windowHours,
+              note: "No synced iMessages yet — is the local iMessage sync worker running? (It syncs Messages' chat.db into Postgres; see tools/ for the sync workers.)",
+            },
+          };
+        }
+
+        // Group by chat, preserving newest-first order.
+        const chatMap = new Map<
+          string,
+          {
+            chatName: string;
+            messages: Array<{
+              senderName: string | null;
+              fromMe: boolean;
+              body: string | null;
+              sentAt: string;
+            }>;
+          }
+        >();
+        for (const r of rows) {
+          const key = r.chatJid;
+          const bucket = chatMap.get(key);
+          const entry = {
+            senderName: r.senderName,
+            fromMe: r.fromMe,
+            body: r.body,
+            sentAt: r.sentAt instanceof Date ? r.sentAt.toISOString() : String(r.sentAt),
+          };
+          if (bucket) {
+            bucket.messages.push(entry);
+          } else {
+            chatMap.set(key, {
+              chatName: r.chatName ?? r.senderName ?? r.chatJid,
+              messages: [entry],
+            });
+          }
+        }
+
+        let chats = Array.from(chatMap.values());
+        if (input.unrepliedOnly === true) {
+          // "Unreplied" = the most recent message in the chat is NOT from the user.
+          // Rows are ordered newest-first, so the first message in each group is the latest.
+          chats = chats.filter((c) => c.messages.length > 0 && !c.messages[0]!.fromMe);
+        }
+
+        const totalCount = chats.reduce((n, c) => n + c.messages.length, 0);
+        return {
+          ok: true,
+          id: `read_imessage:${totalCount}`,
           receipt: { chats, totalCount, windowHours },
         };
       } catch (err) {

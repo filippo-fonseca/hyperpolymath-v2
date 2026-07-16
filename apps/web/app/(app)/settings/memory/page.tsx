@@ -33,7 +33,7 @@ export default async function MemoryPage() {
   const facts = await getJarvisFactsForUser(user.id);
 
   return (
-    <div className="agent-mode-scope relative min-h-screen bg-[var(--canvas)] px-6 py-12">
+    <div className="agent-mode-scope relative min-h-screen bg-[var(--sd-app)] px-6 py-12">
       <HudCornerCrops
         size={12}
         className="fixed inset-0 pointer-events-none z-0"
@@ -41,19 +41,19 @@ export default async function MemoryPage() {
       <main className="relative z-10 max-w-2xl mx-auto space-y-6">
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-2 flex-1">
-            <h1 className="font-serif text-4xl font-semibold text-[var(--ink)]">
+            <h1 className="text-4xl font-semibold text-[var(--sd-ink)]">
               Memory
             </h1>
-            <p className="font-serif text-base text-[var(--ink-muted)]">
+            <p className="text-base text-[var(--sd-ink-dull)]">
               What JARVIS remembers about you, your preferences, and your
               workflow.
             </p>
           </div>
           <Link
-            href="/settings"
-            className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out shrink-0 mt-2"
+            href="/jarvis"
+            className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-100 ease-out shrink-0 mt-2"
           >
-            ← settings
+            ← jarvis
           </Link>
         </header>
 
@@ -68,19 +68,19 @@ export default async function MemoryPage() {
                 (1px --edge left edge only + ambient --hud-cyan-glow-soft)
                 so the page itself reads as a fact-card register. */}
             <aside
-              className="bg-[var(--surface)] px-4 py-3 flex items-center gap-3"
+              className="bg-[var(--sd-box)] px-4 py-3 flex items-center gap-3"
               style={{
-                borderLeft: "1px solid var(--edge)",
+                borderLeft: "1px solid var(--sd-line)",
                 boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
               }}
             >
-              <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+              <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
                 FACT · ledger
               </span>
-              <span aria-hidden="true" className="text-[var(--ink-muted)]">
+              <span aria-hidden="true" className="text-[var(--sd-ink-dull)]">
                 ·
               </span>
-              <span className="font-mono text-[11px] text-[var(--ink)]">
+              <span className="font-mono text-[11px] text-[var(--sd-ink)]">
                 {facts.length} remembered
               </span>
             </aside>

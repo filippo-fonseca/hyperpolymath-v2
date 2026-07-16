@@ -1,0 +1,173 @@
+#studio-root {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#studio-widget-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.studio-shell {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--studio-text);
+  /* Base navy + raised top glow. The dotted grid moves to ::before so it can
+     be painted OVER the ambient constellation canvas as a foreground scrim. */
+  background-color: var(--studio-canvas);
+  background-image: radial-gradient(ellipse at 50% 8%, var(--studio-canvas-raised) 0%, transparent 62%);
+  background-position: center;
+  background-size: 100% 100%;
+}
+
+/* Dotted grid scrim — layered above the constellation (z 0) and below the
+   rulers (z 1). Pointer-transparent atmosphere. */
+.studio-shell::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+  background-image: radial-gradient(circle at center, var(--studio-grid) 0 1px, transparent 1.25px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.studio-shell::after {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  content: "";
+  background: radial-gradient(circle at center, transparent 40%, rgba(0, 0, 0, 0.48) 100%);
+  pointer-events: none;
+}
+
+/* Ambient graph background — above the base navy, below the dotted-grid scrim
+   and rulers. Atmosphere only: never captures pointer events. */
+.studio-constellation {
+  z-index: 0;
+}
+
+.studio-rulers {
+  position: absolute;
+  z-index: 3;
+  inset: 8px;
+  opacity: 0.72;
+  background:
+    repeating-linear-gradient(90deg, var(--studio-rule) 0 1px, transparent 1px 24px) top / 100% 7px no-repeat,
+    repeating-linear-gradient(90deg, var(--studio-rule) 0 1px, transparent 1px 24px) bottom / 100% 7px no-repeat,
+    repeating-linear-gradient(0deg, var(--studio-rule) 0 1px, transparent 1px 24px) left / 7px 100% no-repeat,
+    repeating-linear-gradient(0deg, var(--studio-rule) 0 1px, transparent 1px 24px) right / 7px 100% no-repeat;
+}
+
+.studio-widget-stage {
+  position: absolute;
+  z-index: 2;
+  inset: 24px;
+}
+
+.studio-state-chip {
+  position: absolute;
+  z-index: 4;
+  left: 24px;
+  bottom: 20px;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--studio-accent) 30%, transparent);
+  border-radius: 3px;
+  color: var(--studio-accent-high);
+  background: color-mix(in srgb, var(--studio-canvas-raised) 88%, transparent);
+  font: 10px/1.1 var(--mono, ui-monospace, monospace);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--studio-accent) 8%, transparent);
+}
+
+/* Chrome buttons (widget header pin/stow/close, drawer tiles): soft hover rung
+   from the surface ladder + a 1px inset accent focus ring. Cheap, on-brand,
+   keyboard-accessible. */
+.studio-chrome-btn {
+  transition:
+    background-color 120ms cubic-bezier(0.25, 1, 0.5, 1),
+    color 120ms cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 120ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.studio-chrome-btn:hover {
+  color: var(--studio-accent-high, #3bd6ff);
+  background: color-mix(in srgb, var(--studio-surface-hover, #141a2c) 70%, transparent);
+}
+
+.studio-chrome-btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--studio-accent, #2fa8ff) 70%, transparent);
+}
+
+/* Drawer tiles (catalog + stowed chips): hover lifts one ladder rung with a faint
+   inset top highlight; focus gets the same inset accent ring. */
+.studio-drawer-tile {
+  transition:
+    background-color 140ms cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 140ms cubic-bezier(0.25, 1, 0.5, 1),
+    transform 140ms cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 140ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.studio-drawer-tile:hover {
+  background: var(--studio-surface-hover, #141a2c);
+  border-color: var(--studio-line-strong, rgba(47, 168, 255, 0.4));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.studio-drawer-tile:focus-visible {
+  outline: none;
+  border-color: var(--studio-line-strong, rgba(47, 168, 255, 0.4));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--studio-accent, #2fa8ff) 70%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-drawer-tile:hover {
+    transform: none;
+  }
+}
+
+/* Thin, cyan-tinted scrollbar for the widget-picker card list — matches the
+   HUD register (hairline track, accent-muted thumb) instead of the default OS
+   bar. */
+.studio-custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--studio-accent, #2fa8ff) 34%, transparent) transparent;
+}
+
+.studio-custom-scroll::-webkit-scrollbar {
+  width: 7px;
+}
+
+.studio-custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.studio-custom-scroll::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--studio-accent, #2fa8ff) 30%, transparent);
+}
+
+.studio-custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--studio-accent, #2fa8ff) 48%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-shell *,
+  .studio-shell *::before,
+  .studio-shell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

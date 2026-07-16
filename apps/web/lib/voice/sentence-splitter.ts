@@ -40,12 +40,19 @@ export interface SplitResult {
 }
 
 /**
- * Match a sentence terminator: `. `, `! `, `? `, or one-or-more `\n\n`.
+ * Match a sentence terminator: `. `, `! `, `? `, `.`/`!`/`?` immediately before
+ * an uppercase letter or quote, or one-or-more `\n\n`.
  *
- * Per D-02 (REQUIREMENTS literal):
+ * Per D-02 (REQUIREMENTS literal) + Unit 3 hardening:
  *   - the `[.!?] ` half catches the three single-character sentence-enders
  *     followed by exactly one space (the trailing space is part of the
  *     terminator so the emitted sentence keeps its natural cadence).
+ *   - the `[.!?](?=[A-Z"'])` half breaks a sentence-ender immediately followed
+ *     (NO space) by an uppercase letter or an opening quote. This fixes the
+ *     run-on glue where two utterances concatenate as `"…send one.Just Tita"`
+ *     (defect 3a) — the lookahead does NOT consume the next char, so "Just"
+ *     stays with the following sentence. Digits are excluded, so decimals like
+ *     "1.5 hours" never split.
  *   - the `\n\n+` half catches paragraph breaks (one or more blank lines
  *     collapsed into one terminator).
  *
@@ -53,7 +60,7 @@ export interface SplitResult {
  * so it can be re-attached to the preceding sentence — playback wants the
  * trailing punctuation/space for prosody.
  */
-const TERMINATOR = /([.!?] |\n\n+)/g;
+const TERMINATOR = /([.!?] |[.!?](?=[A-Z"'])|\n\n+)/g;
 
 /**
  * Pure sentence splitter for streaming Anthropic text deltas.

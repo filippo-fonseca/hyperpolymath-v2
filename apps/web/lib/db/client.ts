@@ -13,9 +13,30 @@ import * as schema from "./schema";
 //   PostgresError: remaining connection slots are reserved for roles with
 //   the SUPERUSER attribute
 //
-// `max: 1` is intentional: serverless / per-request handlers should multiplex
-// through Supavisor (in prod) or share a tiny pool (in dev). Drizzle queries
-// inside a single request are serialized by `postgres-js` automatically.
+// Pool `max` is ENVIRONMENT-AWARE:
+//   - On Vercel serverless (`process.env.VERCEL` is set on Vercel builds +
+//     runtime) we KEEP `max: 1`. Each invocation is isolated, so a larger
+//     per-invocation pool would multiply concurrent connections and exhaust
+//     the shared Supavisor pooler. This preserves prod behavior exactly.
+//   - On a long-lived process (local dev / self-hosted — NOT Vercel) we use a
+//     SMALL pool (`max: 5`). A single connection serializes ALL DB access in
+//     the process, so when JARVIS switches MCP tools mid-conversation
+//     (e.g. read_imessage → read_whatsapp → send_message) each tool's fresh
+//     Postgres read queues behind the turn's other queries (recent-history,
+//     user-key, config loads, fact extraction, turn persistence) on one
+//     connection. A tiny pool lets those run concurrently and kills the stall.
+//
+// Timeouts guard against the ~30s intermittent stall from a recycled pooled
+// connection: Supavisor drops an idle pooled connection, and the next query
+// discovers a dead socket, paying postgres-js's default 30s `connect_timeout`
+// to reconnect.
+//   - `connect_timeout: 10` fails fast on a dead/unreachable connection so a
+//     retry happens in ~10s instead of hanging ~30s.
+//   - `idle_timeout: 20` + `max_lifetime: 60 * 30` recycle connections
+//     proactively (before Supavisor kills them), so we don't discover a dead
+//     socket at query time.
+
+const isVercel = Boolean(process.env.VERCEL);
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -30,7 +51,10 @@ const client =
   globalForDb.__pgClient ??
   postgres(connectionString, {
     prepare: false,
-    max: 1,
+    max: isVercel ? 1 : 5,
+    connect_timeout: 10,
+    idle_timeout: 20,
+    max_lifetime: 60 * 30,
   });
 
 if (process.env.NODE_ENV !== "production") {

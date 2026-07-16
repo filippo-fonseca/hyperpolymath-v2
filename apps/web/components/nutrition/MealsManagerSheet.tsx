@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { createMealAction, listMealsAction, logMealAction } from "@/app/actions/nutrition";
 import type { MealSlot } from "./MealSlotPillBar";
 
@@ -146,19 +147,16 @@ export function MealsManagerSheet({
   }
 
   const labelClass =
-    "font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)]";
+    "font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full max-w-sm overflow-y-auto bg-[var(--surface-raised)] px-4 pb-8 pt-6"
+        className="w-full max-w-sm overflow-y-auto px-4 pb-8 pt-6"
       >
         <SheetHeader className="mb-4">
-          <SheetTitle
-            className="text-[20px] leading-[1.2] text-[var(--ink)]"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
+          <SheetTitle className="text-[18px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
             Saved meals
           </SheetTitle>
         </SheetHeader>
@@ -166,28 +164,27 @@ export function MealsManagerSheet({
         {mode === "list" && (
           <div className="flex flex-col gap-4">
             {/* Create new button */}
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant="outline"
               onClick={() => setMode("create")}
-              className="glass-button flex items-center gap-2 self-start rounded-md px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-doc)]"
+              className="self-start font-mono text-[11px] uppercase tracking-[0.06em]"
             >
               <Plus className="h-3.5 w-3.5" />
               New meal
-            </button>
+            </Button>
 
             {/* Meal list */}
             {isLoading ? (
               <div className="space-y-2">
-                <div className="h-16 rounded-md bg-[var(--surface)] animate-pulse" />
-                <div className="h-16 rounded-md bg-[var(--surface)] animate-pulse" />
+                <div className="h-16 rounded-md bg-[var(--sd-hover)] animate-pulse" />
+                <div className="h-16 rounded-md bg-[var(--sd-hover)] animate-pulse" />
               </div>
             ) : savedMeals.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-12 text-center">
-                <UtensilsCrossed className="h-8 w-8 text-[var(--ink-muted)]" />
-                <p
-                  className="text-[16px] leading-[1.5] text-[var(--ink-muted)]"
-                  style={{ fontFamily: "var(--font-serif)" }}
-                >
+                <UtensilsCrossed className="h-8 w-8 text-[var(--sd-ink-faint)]" />
+                <p className="text-[13px] leading-relaxed text-[var(--sd-ink-dull)]">
                   No saved meals yet.
                 </p>
               </div>
@@ -196,14 +193,11 @@ export function MealsManagerSheet({
                 {savedMeals.map((meal) => (
                   <div
                     key={meal.id}
-                    className="flex flex-col gap-2 rounded-md border border-[var(--edge)] bg-[var(--surface)] p-3"
+                    className="flex flex-col gap-2 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-3 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p
-                          className="text-[16px] leading-[1.5] text-[var(--ink)]"
-                          style={{ fontFamily: "var(--font-serif)" }}
-                        >
+                        <p className="text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
                           {meal.name}
                         </p>
                         <p className={`${labelClass} mt-0.5`}>
@@ -219,7 +213,7 @@ export function MealsManagerSheet({
                         value={targetSlot}
                         onValueChange={(v) => setTargetSlot(v as MealSlot)}
                       >
-                        <SelectTrigger className="h-7 flex-1 text-xs focus:ring-[var(--ring-doc)]">
+                        <SelectTrigger className="h-7 flex-1 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -230,13 +224,14 @@ export function MealsManagerSheet({
                           ))}
                         </SelectContent>
                       </Select>
-                      <button
+                      <Button
                         type="button"
+                        size="sm"
                         onClick={() => handleLogMeal(meal.id, targetSlot)}
-                        className="glass-button rounded-md px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-doc)]"
+                        className="h-7 font-mono text-[11px] uppercase tracking-[0.06em]"
                       >
                         Log
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -250,15 +245,12 @@ export function MealsManagerSheet({
             <button
               type="button"
               onClick={resetCreate}
-              className={`${labelClass} hover:text-[var(--ink)] transition-colors duration-150 focus:outline-none`}
+              className={`${labelClass} self-start transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)] focus:outline-none`}
             >
               ← Back
             </button>
 
-            <h3
-              className="text-[20px] leading-[1.2] text-[var(--ink)]"
-              style={{ fontFamily: "var(--font-serif)" }}
-            >
+            <h3 className="text-[18px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
               New saved meal
             </h3>
 
@@ -283,10 +275,7 @@ export function MealsManagerSheet({
             {/* Items — simplified for MVP */}
             <div className="flex flex-col gap-2">
               <label className={labelClass}>Items</label>
-              <p
-                className="text-[14px] leading-[1.5] text-[var(--ink-muted)]"
-                style={{ fontFamily: "var(--font-serif)" }}
-              >
+              <p className="text-[13px] leading-relaxed text-[var(--sd-ink-dull)]">
                 Log the individual foods from the day view, then save them as a
                 meal. Full item editing coming soon.
               </p>
@@ -320,7 +309,7 @@ export function MealsManagerSheet({
                       type="button"
                       onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
                       aria-label="Remove item"
-                      className="text-[var(--ink-muted)] hover:text-[var(--ink-coral)] transition-colors duration-150 focus:outline-none"
+                      className="text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:text-[var(--ink-coral)] focus:outline-none"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -332,7 +321,7 @@ export function MealsManagerSheet({
                 onClick={() =>
                   setItems((prev) => [...prev, { foodName: "", quantity: "1" }])
                 }
-                className="flex items-center gap-1.5 self-start font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 focus:outline-none"
+                className="flex items-center gap-1.5 self-start font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)] focus:outline-none"
               >
                 <Plus className="h-3 w-3" />
                 Add item
@@ -340,21 +329,24 @@ export function MealsManagerSheet({
             </div>
 
             <div className="flex items-center gap-2 pt-1">
-              <button
+              <Button
                 type="button"
+                size="sm"
                 onClick={handleCreateMeal}
                 disabled={isCreating}
-                className="glass-button rounded-md px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink)] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-doc)]"
+                className="font-mono text-[11px] uppercase tracking-[0.06em]"
               >
                 {isCreating ? "Saving…" : "Save meal"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={resetCreate}
-                className="px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 focus:outline-none"
+                className="font-mono text-[11px] uppercase tracking-[0.06em]"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}

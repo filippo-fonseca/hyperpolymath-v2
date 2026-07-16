@@ -85,10 +85,10 @@ describe("zAskClarification — schema validation (D-A1 / JARVIS-19)", () => {
   });
 });
 
-describe("buildToolDefinitions — 33 tools after read_gmail + get_news + read_whatsapp", () => {
-  it("returns 33 tools with the 5 originals first and ask_clarification 5th", () => {
+describe("buildToolDefinitions — 34 tools after read_gmail + get_news + read_whatsapp + read_imessage", () => {
+  it("returns 34 tools with the 5 originals first and ask_clarification 5th", () => {
     const tools = buildToolDefinitions();
-    expect(tools).toHaveLength(33);
+    expect(tools).toHaveLength(34);
     expect(tools[0]?.name).toBe("create_task");
     expect(tools[1]?.name).toBe("create_capture");
     expect(tools[2]?.name).toBe("create_event");

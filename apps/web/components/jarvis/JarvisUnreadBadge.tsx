@@ -32,9 +32,8 @@ export function JarvisUnreadBadge() {
       aria-label={`${count} unread JARVIS ${count === 1 ? "message" : "messages"}`}
       className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[9px] font-medium leading-none tracking-[0.02em] tabular-nums"
       style={{
-        color: "var(--canvas)",
-        backgroundColor: "var(--hud-cyan)",
-        boxShadow: "0 0 6px color-mix(in oklch, var(--hud-cyan) 60%, transparent)",
+        color: "hsl(235 45% 9%)",
+        backgroundColor: "var(--sd-accent)",
       }}
     >
       {label}

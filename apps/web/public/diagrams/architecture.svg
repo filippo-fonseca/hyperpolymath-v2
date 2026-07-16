@@ -1,121 +1,103 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1240" width="1200" height="1240" role="img" aria-label="Hyperpolymath architecture — how a sentence becomes an action, end to end">
-  <defs>
-    <linearGradient id="paperA" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f7f3ea"/>
-      <stop offset="100%" stop-color="#efe9db"/>
-    </linearGradient>
-    <linearGradient id="cardA" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fbf8f0"/>
-      <stop offset="100%" stop-color="#f2ecdc"/>
-    </linearGradient>
-    <linearGradient id="cardDark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1f1f1f"/>
-      <stop offset="100%" stop-color="#0e0e0e"/>
-    </linearGradient>
-    <filter id="neuShadow3" x="-10%" y="-10%" width="120%" height="120%">
-      <feGaussianBlur stdDeviation="6"/>
-    </filter>
-  </defs>
+  <!-- Page (near-black indigo ground) -->
+  <rect x="0" y="0" width="1200" height="1240" rx="24" fill="hsl(235 16% 9%)"/>
 
-  <!-- Page (with rounded image corners) -->
-  <rect x="0" y="0" width="1200" height="1240" rx="24" fill="#efe9db"/>
-
-  <!-- Neumorphic frame -->
-  <rect x="36" y="36" width="1128" height="1168" rx="20" fill="#d6cdb9" filter="url(#neuShadow3)" opacity="0.55"/>
-  <rect x="24" y="24" width="1128" height="1168" rx="20" fill="#ffffff" filter="url(#neuShadow3)" opacity="0.7"/>
-  <rect x="30" y="30" width="1140" height="1180" rx="18" fill="url(#paperA)"/>
-  <rect x="30.5" y="30.5" width="1139" height="1179" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
+  <!-- Frame: single sd-line hairline (no neu/blur/glow) -->
+  <rect x="30.5" y="30.5" width="1139" height="1179" rx="17.5" fill="hsl(235 16% 10%)" stroke="hsl(235 15% 23%)"/>
+  <rect x="31" y="31" width="1138" height="1178" rx="17" fill="none" stroke="hsl(235 15% 34%)" stroke-opacity="0.35"/>
 
   <!-- Top crest meta -->
-  <g transform="translate(80 76)" fill="#1a1a1a" opacity="0.45">
+  <g transform="translate(80 76)" fill="#22D3EE">
     <circle cx="0" cy="0" r="2.2"/>
     <circle cx="12" cy="0" r="2.2"/>
     <circle cx="24" cy="0" r="2.2"/>
   </g>
-  <text x="116" y="80" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">THE ARCHITECTURE · REQUEST LIFECYCLE</text>
-  <text x="1120" y="80" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">FIG. 02  ·  ONE SENTENCE, END TO END</text>
+  <text x="116" y="80" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="hsl(235 10% 55%)">THE ARCHITECTURE · REQUEST LIFECYCLE</text>
+  <text x="1120" y="80" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="hsl(235 10% 55%)">FIG. 02  ·  ONE SENTENCE, END TO END</text>
 
   <!-- Title -->
-  <text x="600" y="146" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="48" font-weight="600" letter-spacing="-0.5" fill="#1a1a1a">How a sentence becomes an action:</text>
-  <text x="600" y="180" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="20" fill="#1a1a1a" fill-opacity="0.65">The contract every JARVIS turn follows, from typed input to live data.</text>
+  <text x="600" y="146" text-anchor="middle" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="46" font-weight="700" letter-spacing="-0.5" fill="hsl(235 35% 92%)">How a sentence becomes an action:</text>
+  <text x="600" y="180" text-anchor="middle" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="19" fill="hsl(235 10% 70%)">The contract every JARVIS turn follows, from typed input to live data.</text>
 
-  <!-- ─────────── USER SENTENCE PILL ─────────── -->
+  <!-- ─────────── USER SENTENCE PILL (cyan accent) ─────────── -->
   <g>
-    <rect x="370" y="226" width="460" height="50" rx="25" fill="#1a1a1a"/>
-    <text x="600" y="258" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#f7f3ea">$  coffee w/ sam 3pm friday. submit chem pset thu p1</text>
+    <rect x="370" y="226" width="460" height="50" rx="25" fill="#22D3EE"/>
+    <text x="600" y="258" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="hsl(235 16% 9%)">$  coffee w/ sam 3pm friday. submit chem pset thu p1</text>
   </g>
-  <line x1="600" y1="280" x2="600" y2="318" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.4"/>
-  <polygon points="600,324 593,314 607,314" fill="#1a1a1a" fill-opacity="0.8"/>
+  <line x1="600" y1="280" x2="600" y2="318" stroke="hsl(235 10% 55%)" stroke-width="1.4"/>
+  <polygon points="600,324 593,314 607,314" fill="hsl(235 10% 60%)"/>
 
   <!-- ─────────── 01 · NEXT.JS LAYER ─────────── -->
   <g>
-    <rect x="200" y="338" width="800" height="146" rx="14" fill="url(#cardA)" stroke="#1a1a1a" stroke-opacity="0.14"/>
-    <text x="240" y="376" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#1a1a1a" fill-opacity="0.6">01  ·  CLIENT + SERVER</text>
-    <text x="240" y="416" font-family="'EB Garamond', Georgia, serif" font-size="26" font-weight="600" fill="#1a1a1a">Next.js 16  ·  App Router</text>
-    <text x="240" y="446" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#1a1a1a" fill-opacity="0.65">RSC composer · Server Action · Zod validation</text>
-    <text x="960" y="450" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.55">Tailwind 4  ·  shadcn  ·  Motion</text>
+    <rect x="200" y="338" width="800" height="146" rx="14" fill="hsl(235 15% 15%)" stroke="hsl(235 15% 23%)"/>
+    <rect x="200.5" y="338.5" width="799" height="18" rx="13.5" fill="none" stroke="hsl(235 15% 34%)" stroke-opacity="0.3"/>
+    <text x="240" y="376" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="hsl(235 10% 55%)">01  ·  CLIENT + SERVER</text>
+    <text x="240" y="416" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="26" font-weight="600" fill="hsl(235 35% 92%)">Next.js 16  ·  App Router</text>
+    <text x="240" y="446" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="16" fill="hsl(235 10% 70%)">RSC composer · Server Action · Zod validation</text>
+    <text x="960" y="450" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.4" fill="hsl(235 10% 55%)">Tailwind 4  ·  shadcn  ·  Motion</text>
   </g>
 
   <!-- arrow ↓ -->
-  <line x1="600" y1="484" x2="600" y2="522" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.4"/>
-  <polygon points="600,528 593,518 607,518" fill="#1a1a1a" fill-opacity="0.8"/>
+  <line x1="600" y1="484" x2="600" y2="522" stroke="hsl(235 10% 55%)" stroke-width="1.4"/>
+  <polygon points="600,528 593,518 607,518" fill="hsl(235 10% 60%)"/>
 
-  <!-- ─────────── 02 · JARVIS LAYER (dark slab) ─────────── -->
+  <!-- ─────────── 02 · JARVIS LAYER (cyan-edged agent slab) ─────────── -->
   <g>
-    <rect x="200" y="542" width="800" height="140" rx="14" fill="url(#cardDark)"/>
-    <text x="240" y="580" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#f7f3ea" fill-opacity="0.6">02  ·  THE AGENT</text>
-    <text x="240" y="624" font-family="'EB Garamond', Georgia, serif" font-size="30" font-weight="600" fill="#f7f3ea">
-      <tspan font-style="italic" font-weight="800">JARVIS</tspan>  ·  Claude Sonnet 4.6
+    <rect x="200" y="542" width="800" height="140" rx="14" fill="hsl(235 16% 11%)" stroke="#22D3EE" stroke-opacity="0.55"/>
+    <rect x="200" y="542" width="800" height="1.5" rx="0.75" fill="#22D3EE" fill-opacity="0.7"/>
+    <text x="240" y="580" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#22D3EE" fill-opacity="0.85">02  ·  THE AGENT</text>
+    <text x="240" y="624" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="30" font-weight="600" fill="hsl(235 35% 92%)">
+      <tspan font-weight="800" fill="#22D3EE">JARVIS</tspan>  ·  Claude Sonnet 4.6
     </text>
-    <text x="240" y="654" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#f7f3ea" fill-opacity="0.7">Streaming · Strict Tool Use · structured JSON contract · multi-tool turns</text>
+    <text x="240" y="654" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="16" fill="hsl(235 10% 70%)">Streaming · Strict Tool Use · structured JSON contract · multi-tool turns</text>
   </g>
 
   <!-- arrow ↓ -->
-  <line x1="600" y1="682" x2="600" y2="760" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.4"/>
-  <polygon points="600,766 593,756 607,756" fill="#1a1a1a" fill-opacity="0.8"/>
+  <line x1="600" y1="682" x2="600" y2="760" stroke="hsl(235 10% 55%)" stroke-width="1.4"/>
+  <polygon points="600,766 593,756 607,756" fill="hsl(235 10% 60%)"/>
 
   <!-- ─────────── 03 · EXECUTOR ─────────── -->
   <g>
-    <rect x="200" y="780" width="800" height="146" rx="14" fill="url(#cardA)" stroke="#1a1a1a" stroke-opacity="0.14"/>
-    <text x="240" y="818" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#1a1a1a" fill-opacity="0.6">03  ·  EXECUTOR</text>
-    <text x="240" y="858" font-family="'EB Garamond', Georgia, serif" font-size="26" font-weight="600" fill="#1a1a1a">Multi-tool dispatch</text>
-    <text x="240" y="888" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#1a1a1a" fill-opacity="0.65">create_task · create_capture · create_event · update_* · delete_*</text>
-    <text x="960" y="892" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.55">N actions per turn</text>
+    <rect x="200" y="780" width="800" height="146" rx="14" fill="hsl(235 15% 15%)" stroke="hsl(235 15% 23%)"/>
+    <rect x="200.5" y="780.5" width="799" height="18" rx="13.5" fill="none" stroke="hsl(235 15% 34%)" stroke-opacity="0.3"/>
+    <text x="240" y="818" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="hsl(235 10% 55%)">03  ·  EXECUTOR</text>
+    <text x="240" y="858" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="26" font-weight="600" fill="hsl(235 35% 92%)">Multi-tool dispatch</text>
+    <text x="240" y="888" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="16" fill="hsl(235 10% 70%)">create_task · create_capture · create_event · update_* · delete_*</text>
+    <text x="960" y="892" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.4" fill="hsl(235 10% 55%)">N actions per turn</text>
   </g>
 
   <!-- branch into 2 stores -->
-  <path d="M 600 926 L 600 950 L 380 950 L 380 974" fill="none" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.4"/>
-  <path d="M 600 950 L 820 950 L 820 974" fill="none" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.4"/>
-  <polygon points="380,980 373,970 387,970" fill="#1a1a1a" fill-opacity="0.8"/>
-  <polygon points="820,980 813,970 827,970" fill="#1a1a1a" fill-opacity="0.8"/>
+  <path d="M 600 926 L 600 950 L 380 950 L 380 974" fill="none" stroke="hsl(235 10% 55%)" stroke-width="1.4"/>
+  <path d="M 600 950 L 820 950 L 820 974" fill="none" stroke="hsl(235 10% 55%)" stroke-width="1.4"/>
+  <polygon points="380,980 373,970 387,970" fill="hsl(235 10% 60%)"/>
+  <polygon points="820,980 813,970 827,970" fill="hsl(235 10% 60%)"/>
 
   <!-- ─────────── 04a · POSTGRES + DRIZZLE ─────────── -->
   <g>
-    <rect x="200" y="988" width="360" height="146" rx="14" fill="url(#cardA)" stroke="#1a1a1a" stroke-opacity="0.14"/>
-    <text x="240" y="1024" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#1a1a1a" fill-opacity="0.6">04a  ·  DATA</text>
-    <text x="240" y="1064" font-family="'EB Garamond', Georgia, serif" font-size="22" font-weight="600" fill="#1a1a1a">Supabase Postgres</text>
-    <text x="240" y="1094" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="14" fill="#1a1a1a" fill-opacity="0.65">Drizzle ORM · postgres-js · RLS on userId</text>
+    <rect x="200" y="988" width="360" height="146" rx="14" fill="hsl(235 15% 15%)" stroke="hsl(235 15% 23%)"/>
+    <rect x="200.5" y="988.5" width="359" height="18" rx="13.5" fill="none" stroke="hsl(235 15% 34%)" stroke-opacity="0.3"/>
+    <text x="240" y="1024" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="hsl(235 10% 55%)">04a  ·  DATA</text>
+    <text x="240" y="1064" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="22" font-weight="600" fill="hsl(235 35% 92%)">Supabase Postgres</text>
+    <text x="240" y="1094" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="14" fill="hsl(235 10% 70%)">Drizzle ORM · postgres-js · RLS on userId</text>
   </g>
 
   <!-- ─────────── 04b · GOOGLE CALENDAR ─────────── -->
   <g>
-    <rect x="640" y="988" width="360" height="146" rx="14" fill="url(#cardA)" stroke="#1a1a1a" stroke-opacity="0.14"/>
-    <text x="680" y="1024" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#1a1a1a" fill-opacity="0.6">04b  ·  TIME</text>
-    <text x="680" y="1064" font-family="'EB Garamond', Georgia, serif" font-size="22" font-weight="600" fill="#1a1a1a">Google Calendar</text>
-    <text x="680" y="1094" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="14" fill="#1a1a1a" fill-opacity="0.65">source of truth · never persisted locally</text>
+    <rect x="640" y="988" width="360" height="146" rx="14" fill="hsl(235 15% 15%)" stroke="hsl(235 15% 23%)"/>
+    <rect x="640.5" y="988.5" width="359" height="18" rx="13.5" fill="none" stroke="hsl(235 15% 34%)" stroke-opacity="0.3"/>
+    <text x="680" y="1024" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="hsl(235 10% 55%)">04b  ·  TIME</text>
+    <text x="680" y="1064" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="22" font-weight="600" fill="hsl(235 35% 92%)">Google Calendar</text>
+    <text x="680" y="1094" font-family="system-ui, 'Space Grotesk', 'Segoe UI', sans-serif" font-size="14" fill="hsl(235 10% 70%)">source of truth · never persisted locally</text>
   </g>
 
-  <!-- ─────────── Realtime feedback loop (LEFT rail, so it doesn't cross
-       the GCal card) ─────────── -->
-  <!-- Leaves Postgres on its left edge, runs up the left rail, and
-       re-enters Card 01 (Next.js) at its left edge. -->
-  <path d="M 200 1060 L 130 1060 L 130 410 L 200 410" fill="none" stroke="#1a1a1a" stroke-opacity="0.45" stroke-width="1.2" stroke-dasharray="4 5"/>
-  <polygon points="200,410 190,405 190,415" fill="#1a1a1a" fill-opacity="0.7"/>
+  <!-- ─────────── Realtime feedback loop (LEFT rail) ─────────── -->
+  <path d="M 200 1060 L 130 1060 L 130 410 L 200 410" fill="none" stroke="#22D3EE" stroke-opacity="0.55" stroke-width="1.2" stroke-dasharray="4 5"/>
+  <polygon points="200,410 190,405 190,415" fill="#22D3EE" fill-opacity="0.75"/>
   <g transform="translate(108 730) rotate(-90)">
-    <text x="0" y="0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="2.6" fill="#1a1a1a" fill-opacity="0.6">SUPABASE REALTIME  ·  TANSTACK QUERY INVALIDATES  ·  UI REFETCHES</text>
+    <text x="0" y="0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="2.6" fill="hsl(235 10% 60%)">SUPABASE REALTIME  ·  TANSTACK QUERY INVALIDATES  ·  UI REFETCHES</text>
   </g>
 
   <!-- Footer -->
-  <text x="80" y="1222" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2" fill="#1a1a1a" fill-opacity="0.5">❦  HYPERPOLYMATH ARCHITECTURE · FIG. 02</text>
+  <text x="80" y="1222" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2" fill="hsl(235 10% 50%)">❦  HYPERPOLYMATH ARCHITECTURE · FIG. 02</text>
 </svg>

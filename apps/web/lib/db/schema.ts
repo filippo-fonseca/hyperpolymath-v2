@@ -456,6 +456,11 @@ export const pages = pgTable(
     // The partial unique index below enforces exactly one Daily Page per user per
     // day, leaving normal pages (daily_date IS NULL) unconstrained.
     dailyDate: date("daily_date"),
+    // Wiki Renaissance (migration 0048) — base-62 fractional index for manual
+    // drag-to-reorder in the Explorer (see lib/pages/position.ts). NULL = never
+    // manually ordered; sort is (position_key NULLS LAST, name), so NULL rows
+    // trail and fall back to name order until the first reorder seeds keys.
+    positionKey: text("position_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -467,6 +472,11 @@ export const pages = pgTable(
     uniqueIndex("pages_user_daily_date_uniq")
       .on(t.userId, t.dailyDate)
       .where(sql`daily_date IS NOT NULL`),
+    // Per-folder ordered sibling scan for reorder/seed (migration 0048). Partial:
+    // only rows that already carry a key participate.
+    index("pages_user_folder_position_idx")
+      .on(t.userId, t.folderId, t.positionKey)
+      .where(sql`position_key IS NOT NULL`),
   ],
 );
 
@@ -489,11 +499,21 @@ export const pageFolders = pgTable("page_folders", {
   }),
   name: text("name").notNull(),
   orderIndex: integer("order_index").notNull().default(0),
+  // Wiki Renaissance (migration 0048) — base-62 fractional index for manual
+  // drag-to-reorder in the Explorer (see lib/pages/position.ts). NULL = never
+  // manually ordered; sort is (position_key NULLS LAST, name). Standardizes
+  // ordering on this key; order_index above is left unused (not dropped).
+  positionKey: text("position_key"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("page_folders_parent_idx").on(t.parentId),
   index("page_folders_user_idx").on(t.userId),
+  // Per-parent ordered sibling scan for reorder/seed (migration 0048). Partial:
+  // only rows that already carry a key participate.
+  index("page_folders_user_parent_position_idx")
+    .on(t.userId, t.parentId, t.positionKey)
+    .where(sql`position_key IS NOT NULL`),
 ]);
 
 // folder_projects (migration 0034) — M:N folder->project links. user_id is
@@ -1526,6 +1546,45 @@ export const whatsappMessages = pgTable(
   ],
 );
 
+// imessage_messages — messages synced from the local macOS Messages chat.db
+// by a small local sync worker (separate unit `imessage-sync`) that reads
+// new rows out of ~/Library/Messages/chat.db and POSTs them to
+// /api/imessage/ingest, which upserts them here. The server-side
+// `read_imessage` JARVIS tool then queries this table so briefings + agent
+// turns can see iMessage with zero mid-turn desktop round-trip.
+//
+// externalId is the Messages row's stable id (guid). chatJid is the chat
+// guid; sender is the raw handle (phone/email); senderName is the resolved
+// contact display name (the sync worker resolves it via Contacts). The
+// unique (userId, chatJid, externalId) key gives the ingest route a safe
+// upsert target — replays never duplicate.
+export const imessageMessages = pgTable(
+  "imessage_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    chatJid: text("chat_jid").notNull(),
+    chatName: text("chat_name"),
+    sender: text("sender"),
+    senderName: text("sender_name"),
+    fromMe: boolean("from_me").notNull().default(false),
+    body: text("body"),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("imessage_messages_user_chat_external_uniq").on(
+      t.userId,
+      t.chatJid,
+      t.externalId,
+    ),
+    index("imessage_messages_user_sent_at_idx").on(t.userId, t.sentAt.desc()),
+  ],
+);
+
 // routines — natural-language JARVIS routines (one row = triggers → ordered
 // agentic blocks). The freeform payload lives in the typed `spec` jsonb column;
 // scheduler-relevant fields are denormalized into first-class columns
@@ -1556,6 +1615,75 @@ export const routines = pgTable(
     index("routines_next_run_idx").on(t.enabled, t.nextRunAt),
     index("routines_trigger_types_gin").using("gin", t.triggerTypes),
   ],
+);
+
+// jarvis_personality_config — one row per user (UNIQUE user_id). Tunes JARVIS's
+// SPOKEN VOICE (persona preset + formality/verbosity/wit dials + freeform custom
+// instructions) via a short directive block injected into the cached system
+// prefix (see @hyperpolymath/jarvis-core buildPersonalityTuningBlock). Migration
+// 0025 (RLS + unique index). CRITICAL: the column DEFAULTS reproduce TODAY's
+// canon voice exactly (canon/formal/concise/dry, no custom text), so an absent
+// or all-default row changes nothing about how JARVIS sounds.
+export const jarvisPersonalityConfig = pgTable(
+  "jarvis_personality_config",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // canon | minimal | storyteller
+    preset: text("preset").notNull().default("canon"),
+    // formal | balanced | casual
+    formality: text("formality").notNull().default("formal"),
+    // concise | balanced | expansive
+    verbosity: text("verbosity").notNull().default("concise"),
+    // dry | moderate | playful
+    wit: text("wit").notNull().default("dry"),
+    customInstructions: text("custom_instructions"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("jarvis_personality_config_user_idx").on(t.userId)],
+);
+
+// jarvis_startup_config — one row per user (UNIQUE user_id). Mirrors the desktop
+// startup config shape (apps/desktop/src/settings.ts): whether the morning
+// briefing runs on launch, plus the URLs/apps to open and Shortcuts to run at
+// startup. Web is the source of truth; the desktop reads this via the bearer-auth
+// GET route. Migration 0025 (RLS + unique index). DEFAULTS (briefing on, empty
+// lists) reproduce today's behavior.
+export const jarvisStartupConfig = pgTable(
+  "jarvis_startup_config",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+    briefingEnabled: boolean("briefing_enabled").notNull().default(true),
+    // Array<{ type: "url" | "app"; value: string }>
+    openOnStart: jsonb("open_on_start")
+      .$type<Array<{ type: "url" | "app"; value: string }>>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // string[] — macOS Shortcuts to run at startup.
+    startupShortcuts: jsonb("startup_shortcuts")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("jarvis_startup_config_user_idx").on(t.userId)],
 );
 
 // briefing_editions — one curated daily digest per user per day. The curator

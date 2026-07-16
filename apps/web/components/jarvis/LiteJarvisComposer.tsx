@@ -110,12 +110,11 @@ export function LiteJarvisComposer({
   return (
     <div
       className={cn(
-        "agent-mode-scope group/composer rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)]",
+        "agent-mode-scope group/composer rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-input)]",
         "px-4 py-3",
-        "transition-[border-color,box-shadow,background-color] duration-150 ease-out",
-        "hover:border-[var(--edge-hud)]",
-        "focus-within:border-[var(--hud-cyan)]",
-        "focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--hud-cyan)_10%,transparent)]",
+        "transition-[border-color,box-shadow] duration-[140ms] ease-out",
+        "focus-within:border-[var(--sd-accent)]",
+        "focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--sd-accent)_10%,transparent)]",
         className
       )}
     >
@@ -129,12 +128,12 @@ export function LiteJarvisComposer({
         spellCheck
         className={cn(
           "block w-full resize-none bg-transparent outline-none",
-          "font-serif text-[15px] leading-[1.5] text-[var(--ink)]",
-          "placeholder:text-[var(--ink-muted)] placeholder:italic"
+          "text-[15px] leading-[1.5] text-[var(--sd-ink)]",
+          "placeholder:text-[var(--sd-ink-faint)]"
         )}
       />
       <div className="mt-2 flex items-center justify-end">
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
           ⌘⏎ to send · ⎋ to cancel
         </span>
       </div>

@@ -16,8 +16,23 @@
 @custom-variant pointer-fine (@media (pointer: fine));
 
 @theme {
-  --font-serif: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Space Grotesk is the app-wide sans (UI contract R2). It is the default for
+     body and every surface.
+
+     `--font-serif` deliberately ALSO resolves to Space Grotesk. The codebase
+     carries ~560 legacy `font-serif` utility usages, several baked into the
+     shadcn primitives (button, card, dialog, input) that every page renders,
+     so remapping the token is what makes the sans uniform app-wide rather than
+     chasing the class through ~180 files. The utility survives as a no-op
+     alias; treat it as dead and drop it on sight.
+
+     EB Garamond is now reachable through exactly one token, `--font-logotype`,
+     whose only consumer is components/ui/Logotype.tsx (the wordmark). */
+  --font-sans: var(--font-space-grotesk), system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --font-serif: var(--font-space-grotesk), system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --font-logotype: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 
   /* =====================================================================
@@ -74,7 +89,7 @@
      existing consumer (buttons, links, role=button, tabindex, inputs) inherits
      the same cyan treatment. Apply the .focus-ring utility to opt new elements
      in without touching globals again. */
-  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan), 0 0 10px var(--hud-cyan-glow);
+  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan);
   --ring-doc: var(--ring-focus);
   --ring-hud: var(--ring-focus);
 
@@ -147,6 +162,29 @@
 }
 .animate-collapsible-up {
   animation: collapsible-up 180ms ease-out;
+}
+
+/* sd-fade-in — real entrance for conditionally-mounted micro-feedback (e.g. the
+   page "Saved" chip). Replaces the tailwindcss-animate `animate-in`/`fade-in-0`
+   utilities, which are inert here since that plugin is not installed. Opacity +
+   a 3px lift, 140ms, reduced-motion collapses to an instant appearance. */
+@keyframes sd-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.sd-fade-in {
+  animation: sd-fade-in 140ms var(--ease-out-quart, ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sd-fade-in {
+    animation: none;
+  }
 }
 
 /* =====================================================================
@@ -560,202 +598,78 @@ html::-webkit-scrollbar-thumb:hover,
 }
 
 /* =====================================================================
-   Glass surface system — single source of truth for the neumorphic-glassy
-   register (user-locked, June 2026).
-
-     .glass-tile    — card/panel tier. Translucent surface + backdrop blur +
-                      specular top edge + recessed bottom edge + faint inset
-                      cyan glow + soft drop shadow. Hover deepens toward
-                      --hud-cyan.
-     .glass-button  — control tier. Same family with tighter shadows and a
-                      pressed (:active) inset state.
-
-   Strengths are driven by the --glass-* knobs so dark mode runs a QUIETER
-   highlight (bright white smears on dark canvas were explicitly rejected)
-   and deeper blacks. Tune the knobs here — never restate shadow stacks at
-   call sites. Border-radius is the caller's job (rounded-xl tiles,
-   rounded-md/full controls).
-
-   Per-callsite accent override (e.g. amber focus, kanban column rims):
-   set --glass-border and/or --glass-glow-color via arbitrary property,
-   e.g. className="glass-tile [--glass-glow-color:var(--ink-amber)]".
-   ===================================================================== */
+   --glass-* depth primitives — soft-UI shadow tokens (originally the glass
+   register's engine). The glass-tile/glass-button/sidebar-pill/lifeos-glass
+   CLASSES were excised in sd3 (unit-closeout); these tokens survive because
+   live sd surfaces still compose them directly as inset hairlines + soft
+   raise/drop shadows (landing side nav, areas tree, project autocomplete,
+   page-property inputs, receipt cards). Only the still-consumed knobs remain
+   — the glow/button/small-shadow knobs were dropped with the classes (grep
+   proof in .planning/sd3-VERIFICATION.md). Dark mode keeps the highlight
+   nearly off (bright white smears on dark canvas were rejected). */
 :root {
-  /* Soft-UI pairing (Dribbble reference, June 2026): card and canvas sit in
-     the same family; depth comes from a raised highlight (top-left) paired
-     with a soft shade (bottom-right). Borders are whisper-thin. */
   --glass-raise: -6px -6px 16px oklch(100% 0 0 / 0.75);
   --glass-drop: 7px 7px 18px oklch(45% 0.02 260 / 0.16);
   --glass-hi: oklch(100% 0 0 / 0.6);
   --glass-lo: oklch(30% 0.01 75 / 0.05);
-  --glass-glow-color: var(--hud-cyan);
-  --glass-glow: 3%;
-  --glass-glow-hover: 8%;
   --glass-border: color-mix(in oklch, var(--edge) 45%, transparent);
   --glass-bg: color-mix(in oklch, var(--surface) 92%, transparent);
-  --glass-bg-button: color-mix(in oklch, var(--surface) 85%, transparent);
-  --glass-raise-sm: -3px -3px 8px oklch(100% 0 0 / 0.7);
-  --glass-drop-sm: 3px 3px 9px oklch(45% 0.02 260 / 0.16);
 }
 .dark {
-  /* Dark mode: highlight nearly off (bright white smears rejected); depth
-     reads through deeper blacks and a slightly stronger cyan breath. */
   --glass-raise: -4px -4px 12px oklch(100% 0 0 / 0.025);
   --glass-drop: 8px 8px 22px oklch(0% 0 0 / 0.55);
   --glass-hi: oklch(100% 0 0 / 0.05);
   --glass-lo: oklch(0% 0 0 / 0.35);
-  --glass-glow: 5%;
-  --glass-glow-hover: 11%;
-  --glass-raise-sm: -2px -2px 6px oklch(100% 0 0 / 0.03);
-  --glass-drop-sm: 3px 3px 10px oklch(0% 0 0 / 0.5);
 }
 
-.glass-tile {
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
-  backdrop-filter: blur(var(--glass-blur, 12px));
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
-    var(--glass-lo), inset 0 0 24px
-    color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent);
-  transition: border-color 200ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 200ms
-    cubic-bezier(0.25, 1, 0.5, 1), background-color 200ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-.glass-tile:hover {
-  border-color: color-mix(in oklch, var(--hud-cyan) 30%, var(--glass-border));
-  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
-    var(--glass-lo), inset 0 0 32px
-    color-mix(in oklch, var(--glass-glow-color) var(--glass-glow-hover), transparent);
+@keyframes explorer-drop-denied {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  35% {
+    transform: translateX(-5px);
+  }
+  70% {
+    transform: translateX(5px);
+  }
 }
 
-.glass-button {
-  background: var(--glass-bg-button);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi);
-  transition: border-color 150ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 150ms
-    cubic-bezier(0.25, 1, 0.5, 1), background-color 150ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-.glass-button:hover {
-  border-color: color-mix(in oklch, var(--hud-cyan) 35%, var(--glass-border));
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0 0
-    14px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow-hover), transparent);
-}
-.glass-button:active,
-.glass-pressed {
-  background: color-mix(in oklch, var(--surface) 96%, var(--ink));
-  box-shadow: inset 2px 2px 6px var(--glass-lo), inset -2px -2px 5px var(--glass-hi);
+@keyframes explorer-folder-swallow {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }
 
-/* =====================================================================
-   Sidebar soft pills (June 2026 redesign) — glassy, pill-based rows for the
-   AREAS / projects tree. Idle rows are bare; hover and active lift into a soft
-   raised glass pill so the tree reads like the neumorphic sidebar reference
-   (Dribbble, user-locked) instead of the flat hairline list it was. All depth
-   reuses the glass-* tokens so dark mode stays quiet automatically.
-   ===================================================================== */
-.sidebar-row {
-  position: relative;
-  border-radius: 0.7rem;
-  transition: background-color 140ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 140ms
-    cubic-bezier(0.25, 1, 0.5, 1), color 120ms ease-out;
-}
-.sidebar-row:hover {
-  background: color-mix(in oklch, var(--surface-raised) 55%, transparent);
-  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px
-    color-mix(in oklch, var(--ink) 7%, transparent);
-}
-.sidebar-row-active,
-.sidebar-row-active:hover {
-  background: color-mix(in oklch, var(--surface-raised) 82%, transparent);
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0
-    0 0 1px color-mix(in oklch, var(--edge) 55%, transparent);
-}
-/* Area whose detail page is open — same soft pill with a whisper of cyan. */
-.sidebar-row-active-area,
-.sidebar-row-active-area:hover {
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0
-    0 0 1px color-mix(in oklch, var(--hud-cyan) 26%, transparent), inset 0 0 18px
-    color-mix(in oklch, var(--hud-cyan) 5%, transparent);
+@media (prefers-reduced-motion: reduce) {
+  .wiki-explorer * {
+    scroll-behavior: auto !important;
+  }
 }
 
-/* Emoji / icon chip — soft rounded tile so area glyphs read as buttons. */
-.sidebar-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 0.55rem;
-  background: color-mix(in oklch, var(--surface-raised) 72%, transparent);
-  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px
-    color-mix(in oklch, var(--ink) 6%, transparent);
-}
+/* .glass-tile / .glass-button / .glass-pressed excised in sd3 (unit-closeout):
+   zero consumers once the Pages surface + sonner toast moved to the sd register.
+   The --glass-* depth tokens above are deliberately retained — they still back
+   sd shadow primitives (landing side nav, areas tree, project autocomplete,
+   page-property inputs, receipt cards). Only the classes were dead. */
 
-/* Tiny ghost control (the + and ⋯ affordances) — appear on row hover. */
-.sidebar-ghost-btn {
-  border-radius: 0.45rem;
-  transition: background-color 120ms ease-out, color 120ms ease-out;
-}
-.sidebar-ghost-btn:hover {
-  background: color-mix(in oklch, var(--ink) 8%, transparent);
-}
+/* .sidebar-* soft pills + .lifeos-glass excised in sd3 (unit-closeout): the
+   sidebar was rebuilt on the sd hairline rail (SidebarTree.tsx) and the LifeOS
+   canvas moved to the sd widget grid, leaving every class here consumer-free.
+   Grep proof recorded in .planning/sd3-VERIFICATION.md. */
 
-/* Tree connector for nested project rows — a hairline vertical guide with a
-   short tick branching to each row, echoing the reference's tree sidebar.
-   Layout (indent + left padding) stays in JSX; this owns only the lines. */
-.sidebar-tree {
-  position: relative;
-}
-.sidebar-tree::before {
-  content: "";
-  position: absolute;
-  left: 0.25rem;
-  top: -0.15rem;
-  bottom: 0.9rem;
-  width: 1px;
-  background: color-mix(in oklch, var(--edge) 78%, transparent);
-}
-.sidebar-branch::before {
-  content: "";
-  position: absolute;
-  left: -0.6rem;
-  top: 50%;
-  width: 0.6rem;
-  height: 1px;
-  background: color-mix(in oklch, var(--edge) 78%, transparent);
-}
-
-/* LifeOS glassier register — scoped knob override so the homepage tiles read
-   as frosted glass over the canvas (more translucent + deeper blur) WITHOUT
-   touching the calmer glass tier used on settings, kanban, detail panels, etc.
-   Any .glass-tile / .glass-button nested under .lifeos-glass inherits these. */
-.lifeos-glass {
-  --glass-bg: color-mix(in oklch, var(--surface) 70%, transparent);
-  --glass-bg-button: color-mix(in oklch, var(--surface) 62%, transparent);
-  --glass-blur: 22px;
-}
-.dark .lifeos-glass {
-  /* Dark canvas: keep tiles readable — slightly less see-through than light. */
-  --glass-bg: color-mix(in oklch, var(--surface) 64%, transparent);
-  --glass-bg-button: color-mix(in oklch, var(--surface) 56%, transparent);
-  --glass-blur: 24px;
-}
-
-/* Glassy sonner toasts — frosted translucent surface + backdrop blur, matching
-   the app's glass tier. !important overrides sonner's injected --normal-bg
-   surface styles. Applied via <Toaster toastOptions={{ className }} />. */
-.glass-toast {
-  background: color-mix(in oklch, var(--surface) 72%, transparent) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  backdrop-filter: blur(16px) !important;
-  border: 1px solid var(--glass-border) !important;
-  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi) !important;
-  color: var(--ink) !important;
-}
-.dark .glass-toast {
-  background: color-mix(in oklch, var(--surface) 60%, transparent) !important;
+/* sd toasts — solid --sd-box surface, hairline --sd-line, no backdrop-blur
+   (the sd register bans blur). !important overrides sonner's injected
+   --normal-bg surface styles. Applied via <Toaster toastOptions={{ className }} />. */
+.sd-toast {
+  background: var(--sd-box) !important;
+  border: 1px solid var(--sd-line) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  color: var(--sd-ink) !important;
 }
 
 /* =====================================================================
@@ -781,34 +695,21 @@ html::-webkit-scrollbar-thumb:hover,
   backdrop-filter: blur(14px);
   border: 1px solid color-mix(in oklch, var(--edge) 65%, transparent);
   border-radius: 14px;
-  box-shadow:
-    var(--glass-raise),
-    var(--glass-drop),
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 -1px 0 var(--glass-lo);
-  transition:
-    border-color 220ms var(--ease-out-quart),
-    box-shadow 220ms var(--ease-out-quart),
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
+    var(--glass-lo);
+  transition: border-color 220ms var(--ease-out-quart), box-shadow 220ms var(--ease-out-quart),
     background-color 220ms var(--ease-out-quart);
 }
 .receipt-card:hover {
   border-color: color-mix(in oklch, var(--hud-cyan) 30%, var(--edge));
-  box-shadow:
-    var(--glass-raise),
-    var(--glass-drop),
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 -1px 0 var(--glass-lo),
-    0 0 22px var(--hud-cyan-glow-soft);
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
+    var(--glass-lo), 0 0 22px var(--hud-cyan-glow-soft);
 }
 .receipt-card:focus-visible {
   outline: none;
   border-color: color-mix(in oklch, var(--hud-cyan) 55%, var(--edge));
-  box-shadow:
-    var(--glass-raise),
-    var(--glass-drop),
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 -1px 0 var(--glass-lo),
-    0 0 0 3px var(--hud-cyan-glow);
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
+    var(--glass-lo), 0 0 0 3px var(--hud-cyan-glow);
 }
 
 .receipt-card[data-status="queued"] {
@@ -859,16 +760,14 @@ html::-webkit-scrollbar-thumb:hover,
   text-transform: uppercase;
   color: color-mix(in oklch, var(--chip-ink) 88%, var(--ink));
   background: color-mix(in oklch, var(--chip-ink) 12%, transparent);
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklch, white 30%, transparent),
-    inset 0 0 0 1px color-mix(in oklch, var(--chip-ink) 28%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 30%, transparent), inset 0 0 0 1px
+    color-mix(in oklch, var(--chip-ink) 28%, transparent);
 }
 .dark .receipt-chip {
   color: color-mix(in oklch, var(--chip-ink) 92%, var(--ink));
   background: color-mix(in oklch, var(--chip-ink) 16%, transparent);
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklch, white 6%, transparent),
-    inset 0 0 0 1px color-mix(in oklch, var(--chip-ink) 34%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 6%, transparent), inset 0 0 0 1px
+    color-mix(in oklch, var(--chip-ink) 34%, transparent);
 }
 .receipt-chip svg {
   width: 12px;
@@ -895,9 +794,7 @@ html::-webkit-scrollbar-thumb:hover,
   color: var(--hud-cyan);
   background: color-mix(in oklch, var(--hud-cyan) 8%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 24%, transparent);
-  transition:
-    background-color 160ms var(--ease-out-quart),
-    color 160ms var(--ease-out-quart),
+  transition: background-color 160ms var(--ease-out-quart), color 160ms var(--ease-out-quart),
     opacity 220ms var(--ease-out-quart);
 }
 .receipt-undo-pill:hover {
@@ -992,9 +889,15 @@ html::-webkit-scrollbar-thumb:hover,
 }
 
 body {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   background: var(--color-background);
   color: var(--color-foreground);
+}
+
+/* Space Grotesk runs loose at display sizes. Greetings and stat values pull it
+   back in (UI contract §8). */
+.tracking-display {
+  letter-spacing: -0.01em;
 }
 
 /* Phase 6 Plan 06-01 — D-09: universal cursor pointer on clickable elements.
@@ -1032,8 +935,10 @@ select,
   --ink-coral: oklch(68% 0.15 25);
   --ink-violet: oklch(68% 0.12 295);
   --ink-blue: oklch(67% 0.12 255);
-  /* Issue #140 — cyan focus identity (dark). See light block for rationale. */
-  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan), 0 0 12px var(--hud-cyan-glow);
+  /* Issue #140 — cyan focus identity (dark). See light block for rationale.
+     sd3 closeout / Tester-r5 D1: the third layer (0 0 12px --hud-cyan-glow) was
+     a banned glow blur; stripped. The crisp cyan ring (canvas gap + accent) stays. */
+  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan);
   --ring-doc: var(--ring-focus);
   --ring-hud: var(--ring-focus);
 }
@@ -1295,6 +1200,72 @@ select:focus-visible,
   animation: jarvis-pulse 1.1s ease-in-out infinite;
 }
 
+/* ── unit-orb-sfx: HUD pill brand-mark + state-indicator micro-motion ──
+   All transform/opacity only, short, reduced-motion guarded (below). */
+
+/* Pill enter/exit: fade + 4px slide, 150ms. */
+@keyframes orb-sfx-pill-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes orb-sfx-pill-leave {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(4px); }
+}
+.orb-sfx-pill-enter { animation: orb-sfx-pill-enter 150ms ease-out both; }
+.orb-sfx-pill-leave { animation: orb-sfx-pill-leave 150ms ease-in both; }
+
+/* Brand mark: a single 2deg tilt-settle on each state change. */
+@keyframes orb-sfx-bird-tilt {
+  0% { transform: rotate(0deg); }
+  45% { transform: rotate(2deg); }
+  100% { transform: rotate(0deg); }
+}
+.orb-sfx-bird {
+  display: inline-flex;
+  transform-origin: 50% 65%;
+  animation: orb-sfx-bird-tilt 240ms ease-out;
+}
+
+/* Thinking dots — three staggered bounces in the pill's currentColor. */
+@keyframes orb-sfx-dot {
+  0%, 100% { opacity: 0.3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-2px); }
+}
+.orb-sfx-dot {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: orb-sfx-dot 900ms ease-in-out infinite;
+}
+
+/* Recording/speaking mini equalizer — transform-only scaleY on 11px bars. */
+@keyframes orb-sfx-bar {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.55; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+.orb-sfx-bar {
+  display: inline-block;
+  width: 2px;
+  height: 11px;
+  border-radius: 1px;
+  background: currentColor;
+  transform-origin: bottom;
+  animation: orb-sfx-bar 700ms ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-sfx-pill-enter,
+  .orb-sfx-pill-leave,
+  .orb-sfx-bird,
+  .orb-sfx-dot,
+  .orb-sfx-bar {
+    animation: none !important;
+  }
+}
+
 /* HudCoreBubble — dramatic wake burst when JARVIS first hears the user
    addressing it, plus an ongoing pulsate while mic is active. The bubble
    takes over as the focal point (scale + bright glow); the parent
@@ -1356,4 +1327,634 @@ select:focus-visible,
   border-radius: 3px;
   padding: 0 2px;
   text-decoration: none;
+}
+
+/* Explorer (Spacedrive) tokens */
+:root {
+  --sd-app: hsl(235 15% 87%);
+  --sd-box: hsl(235 15% 82%);
+  --sd-dark-box: hsl(235 15% 85%);
+  --sd-darker-box: hsl(235 16% 89%);
+  --sd-input: hsl(235 15% 80%);
+  --sd-line: hsl(235 15% 77%);
+  --sd-divider: hsl(235 15% 95%);
+  --sd-hover: hsl(235 15% 81%);
+  --sd-selected: hsl(235 15% 76%);
+  --sd-active: hsl(235 15% 70%);
+  --sd-menu: hsl(235 15% 90%);
+  --sd-menu-hover: hsl(235 15% 70%);
+  --sd-icon-shadow: hsl(235 15% 0%);
+  --sd-icon-shadow-opacity: 0.18;
+}
+
+.dark {
+  --sd-app: hsl(235 15% 13%);
+  --sd-box: hsl(235 15% 18%);
+  --sd-dark-box: hsl(235 15% 15%);
+  --sd-darker-box: hsl(235 16% 11%);
+  --sd-input: hsl(235 15% 20%);
+  --sd-line: hsl(235 15% 23%);
+  --sd-divider: hsl(235 15% 5%);
+  --sd-sidebar-divider: hsl(235 15% 17%);
+  --sd-hover: hsl(235 15% 19%);
+  --sd-selected: hsl(235 15% 24%);
+  --sd-active: hsl(235 15% 30%);
+  --sd-menu: hsl(235 15% 10%);
+  --sd-menu-hover: hsl(235 15% 30%);
+  --sd-icon-shadow-opacity: 0.28;
+}
+
+/* Authentic Spacedrive v1 palette, intentionally scoped so the editorial
+   Journal rail and the rest of the application retain their own register. */
+.wiki-explorer {
+  color-scheme: dark;
+  /* D1b (sanctioned accent retint) — JARVIS cyan supersedes #2599ff. The
+     wiki is always a dark surface (color-scheme: dark) so it takes the
+     dark cyan family; --hud-cyan is theme-invariant, so the wiki reads
+     cyan in both app themes. */
+  --sd-accent: var(--hud-cyan);
+  --sd-accent-faint: var(--hud-cyan-bright);
+  --sd-accent-deep: var(--hud-cyan-dim);
+  --sd-ink: hsl(235 35% 92%);
+  --sd-ink-dull: hsl(235 10% 70%);
+  --sd-ink-faint: hsl(235 10% 55%);
+  --sd-app: hsl(235 15% 13%);
+  --sd-box: hsl(235 15% 18%);
+  --sd-dark-box: hsl(235 15% 15%);
+  --sd-darker-box: hsl(235 16% 11%);
+  --sd-input: hsl(235 15% 20%);
+  --sd-line: hsl(235 15% 23%);
+  --sd-divider: hsl(235 15% 5%);
+  --sd-hover: hsl(235 15% 25%);
+  --sd-selected: hsl(235 15% 26%);
+  --sd-selected-item: hsl(235 15% 18%);
+  --sd-active: hsl(235 15% 30%);
+  --sd-frame: hsl(235 15% 25%);
+  --sd-menu: hsl(235 15% 10%);
+  --sd-menu-line: hsl(235 15% 14%);
+  --sd-menu-hover: hsl(235 15% 30%);
+  --sd-icon-shadow: hsl(235 15% 0%);
+  --sd-icon-shadow-opacity: 0.28;
+  --ink: var(--sd-ink);
+  --ink-muted: var(--sd-ink-dull);
+  scrollbar-color: hsl(235 20% 25%) transparent;
+}
+
+/* =====================================================================
+   sd-campaign — Spacedrive x Raycast restyle shared foundations
+   Design Constitution: sesh-1783963573841 (Kiwi, Conductor/Designer).
+
+   ADD-ONLY block. Everything Wave 1+ (Life OS, sidebar, tasks) consumes
+   lands here so the restyle speaks one chrome dialect. The single
+   sanctioned edit to an EXISTING value lives further up in .wiki-explorer
+   (the D1b accent retint); everything below is net-new.
+
+   No `transition`/`animation` is declared in this block: consumers own
+   their motion and must guard it with `prefers-reduced-motion`. That
+   keeps foundations free of transition-on-first-paint flashes (D1d).
+   ===================================================================== */
+
+/* --- Tokens: accent trio + ink ladder + campaign easings ------------- */
+/* D1b — one hue owns the app and it is JARVIS cyan. The trio references
+   the shipped --hud-cyan* family instead of duplicating literals. Light
+   theme uses the dampened --hud-cyan-light base with faint/deep derived
+   in-family (hue 210). The wiki retints automatically via --sd-accent.
+   The --sd-ink* ladder is promoted to global scope (previously only
+   defined inside .wiki-explorer) so the whole --sd-* register — and the
+   utilities below — resolve app-wide in both themes (D1c). */
+:root {
+  --sd-accent: var(--hud-cyan-light);
+  --sd-accent-faint: oklch(54% 0.14 210);
+  --sd-accent-deep: oklch(40% 0.11 210);
+
+  --sd-ink: hsl(235 20% 16%);
+  --sd-ink-dull: hsl(235 12% 40%);
+  --sd-ink-faint: hsl(235 10% 52%);
+
+  /* Campaign easings. --ease-out-back already exists in @theme (identical
+     value) so it is intentionally not re-declared; use it directly. */
+  --ease-soft-landing: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-collapse: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.dark {
+  --sd-accent: var(--hud-cyan);
+  --sd-accent-faint: var(--hud-cyan-bright);
+  --sd-accent-deep: var(--hud-cyan-dim);
+
+  --sd-ink: hsl(235 35% 92%);
+  --sd-ink-dull: hsl(235 10% 70%);
+  --sd-ink-faint: hsl(235 10% 55%);
+}
+
+/* --- D11 (Conductor amendment, sesh-1783963573841) ------------------ */
+/* Promote the --sd-* surface / line / state + sidebar family to global
+   scope so the panel grammar resolves app-wide (Life OS, shell), not just
+   inside .wiki-explorer. ADD-ONLY: this remaps only the surface-ladder
+   mapping; accent + ink ladders were already promoted above.
+
+   Light scope: the app's light theme is warm parchment, not the cool
+   hsl(235 ...) neutral the wiki ships. Remap the sd surfaces onto the
+   existing --canvas / --surface / --surface-raised / --edge parchment
+   family so entity cards sit in-register on /lifeos in light mode. The
+   .wiki-explorer block below redeclares the full ladder locally, so the
+   wiki keeps its cool dark palette untouched (D3).
+
+   Dark scope: the cool hsl(235 ...) sd ladder already reads correctly;
+   we only fill in the sidebar / state members the global .dark block was
+   missing so consumers resolve them outside .wiki-explorer. */
+:root {
+  --sd-app: var(--canvas);
+  --sd-box: var(--surface-raised);
+  --sd-dark-box: var(--surface);
+  --sd-darker-box: color-mix(in oklch, var(--ink) 6%, var(--surface));
+  /* The sidebar column's own surface (UI-CONTRACT §1) — the darkest member of
+     the family. An alias rather than a new colour: both themes already ship a
+     correct darkest surface, and custom properties resolve lazily, so this
+     picks up whichever --sd-darker-box is in scope at the consuming element. */
+  --sd-sidebar: var(--sd-darker-box);
+  --sd-input: var(--surface);
+  --sd-line: var(--edge);
+  --sd-divider: var(--edge);
+  --sd-hover: color-mix(in oklch, var(--ink) 5%, var(--surface));
+  --sd-selected: color-mix(in oklch, var(--ink) 9%, var(--surface));
+  --sd-selected-item: var(--surface);
+  --sd-active: color-mix(in oklch, var(--ink) 13%, var(--surface));
+  --sd-frame: var(--edge);
+  --sd-menu: var(--surface-raised);
+  --sd-menu-line: var(--edge);
+  --sd-menu-hover: var(--surface);
+}
+
+.dark {
+  --sd-selected-item: hsl(235 15% 18%);
+  --sd-frame: hsl(235 15% 25%);
+  --sd-menu-line: hsl(235 15% 14%);
+}
+
+/* --- 1. Panel grammar ----------------------------------------------- */
+/* Hairline chrome + 0.5-1px white inset top hairline, radius 12px. No
+   heavy shadow (elevation via the grey ladder, D7). */
+.sd-panel {
+  background: var(--sd-box);
+  border: 1px solid var(--sd-line);
+  border-radius: 12px;
+  box-shadow: rgba(255, 255, 255, 0.15) 0 1px 0 inset;
+}
+
+/* Raycast universal overlay/menu fill (intentionally dark, theme-agnostic
+   command-palette surface). */
+.sd-panel-gradient {
+  background: linear-gradient(137deg, rgba(17, 18, 20, 0.75), rgba(12, 13, 15, 0.9));
+  border: 1px solid var(--sd-line);
+  border-radius: 12px;
+  box-shadow: rgba(255, 255, 255, 0.15) 0 1px 0 inset;
+}
+
+/* --- 2. Status pill + dots + tinted chips --------------------------- */
+.sd-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  background: var(--sd-box);
+  border: 1px solid var(--sd-line);
+  padding: 3px 8px;
+  font-size: 10.4px; /* text-tiny */
+  line-height: 1;
+  color: var(--sd-ink-dull);
+}
+
+/* 6px functional dots. Functional hues (D6) reuse the academic intent
+   inks so no new hex enters the ladder. */
+.sd-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex: none;
+}
+.sd-dot-active {
+  background: var(--ink-sage);
+} /* green = active/LAN */
+.sd-dot-synced {
+  background: var(--sd-accent);
+} /* accent = synced/relay */
+.sd-dot-idle {
+  background: var(--sd-ink-faint);
+} /* faint = idle/offline */
+.sd-dot-warn {
+  background: var(--ink-amber);
+} /* amber = warn */
+
+/* 15%-alpha tinted chip variants (functional hue over the box surface,
+   30% border). Compose on .sd-status-pill; declared after it so the
+   border-color wins. */
+.sd-tint-active {
+  background: color-mix(in srgb, var(--ink-sage) 15%, var(--sd-box));
+  border-color: color-mix(in srgb, var(--ink-sage) 30%, var(--sd-line));
+}
+.sd-tint-synced {
+  background: color-mix(in srgb, var(--sd-accent) 15%, var(--sd-box));
+  border-color: color-mix(in srgb, var(--sd-accent) 30%, var(--sd-line));
+}
+.sd-tint-idle {
+  background: color-mix(in srgb, var(--sd-ink-faint) 15%, var(--sd-box));
+  border-color: color-mix(in srgb, var(--sd-ink-faint) 30%, var(--sd-line));
+}
+.sd-tint-warn {
+  background: color-mix(in srgb, var(--ink-amber) 15%, var(--sd-box));
+  border-color: color-mix(in srgb, var(--ink-amber) 30%, var(--sd-line));
+}
+
+/* --- 3. Progress bar ------------------------------------------------ */
+.sd-progress {
+  height: 6px; /* h-1.5 */
+  border-radius: 9999px;
+  background: var(--sd-input);
+  overflow: hidden;
+}
+.sd-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--sd-accent);
+}
+/* Projected/secondary segment: 45deg accent hatch at ~35%. */
+.sd-progress-hatched {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--sd-accent) 35%, transparent) 0 4px,
+    transparent 4px 8px
+  );
+}
+
+/* --- 4. Ambient glow ------------------------------------------------ */
+/* The spacedrive.com technique: flat low-alpha accent divs + giant blur,
+   de-banded with SVG noise (D5). Static here by default; the drift loops
+   and focal orb ship in the ambient/Life OS unit and must be disabled
+   under prefers-reduced-motion. Light theme runs a dampened alpha (D1c). */
+.sd-glow-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.sd-glow-wide {
+  border-radius: 9999px;
+  background: var(--sd-accent);
+  opacity: 0.12;
+  filter: blur(150px);
+}
+.sd-glow-core {
+  border-radius: 9999px;
+  background: var(--sd-accent);
+  opacity: 0.1;
+  filter: blur(80px);
+}
+.dark .sd-glow-wide {
+  opacity: 0.2;
+}
+.dark .sd-glow-core {
+  opacity: 0.15;
+}
+/* feTurbulence fractalNoise de-band overlay (constitution Scout B). */
+.sd-noise-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='sdNoise'><feTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='5' stitchTiles='stitch'/></filter><rect width='120' height='120' filter='url(%23sdNoise)'/></svg>");
+}
+
+/* --- 5. Selective-mono stat label ----------------------------------- */
+.sd-stat-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sd-ink-faint);
+}
+
+/* --- 5b. Sidebar chrome primitives (UI-CONTRACT §1, §11) ------------- */
+
+/* The chip/pill type step from the Spacedrive source. Sits below text-xs and
+   is the size the count badges, SOON chips, and footer chips all speak. */
+.text-tiny {
+  font-size: 0.65rem;
+  line-height: 1rem;
+}
+
+/* Sidebar column surface (UI-CONTRACT §1). A real class rather than the
+   `bg-[var(--sd-sidebar)]` arbitrary utility: that utility appeared ONLY in
+   Sidebar.tsx and was dropped by the Tailwind scan gap, so the panel rendered
+   transparent over whatever scrolled beneath it. Resolving --sd-sidebar here
+   guarantees the darkest sd surface in both themes (the var is aliased per
+   theme in :root / .dark). */
+.sd-sidebar-surface {
+  background: var(--sd-sidebar);
+}
+
+/* Rows dissolve into the footer instead of hard-clipping at the scroll edge
+   (§1.8). Static — nothing animates, so it needs no reduced-motion guard. */
+.mask-fade-out {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - 40px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+}
+
+/* Scrollbar stays invisible until the pointer is actually in the column
+   (§1.8). The gutter is reserved at all times so revealing the thumb never
+   reflows the rows. Class specificity beats the global `*::-webkit-scrollbar`
+   rule further up this file. */
+.sd-scroll-hover {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sd-scroll-hover::-webkit-scrollbar {
+  width: 6px;
+}
+.sd-scroll-hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sd-scroll-hover::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+.sd-scroll-hover:hover {
+  scrollbar-color: var(--sd-selected) transparent;
+}
+.sd-scroll-hover:hover::-webkit-scrollbar-thumb {
+  background: var(--sd-selected);
+}
+
+/* Collapsed-rail hover wordmark (sd3 unit-fix-people-sidebar). When the 56px
+   rail is hovered, its top logo zone reveals the full EB Garamond wordmark as
+   a floating plate anchored at the rail's top-left. Opacity + 4px translate
+   only, never a width/layout change — the plate is absolutely positioned and
+   the aside width stays tied to the real collapsed state, so nothing reflows.
+   The reveal is gated to a fine pointer so a touch tap can never strand the
+   plate open; reduced-motion collapses the transition to an instant cut. */
+.sidebar-logo-flyout {
+  display: flex;
+  align-items: center;
+  height: 2.25rem;
+  padding: 0 0.625rem;
+  border-radius: 8px;
+  border: 1px solid var(--sd-line);
+  background: var(--sd-box);
+  font-size: 16px;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 6px 0 20px color-mix(in oklch, var(--ink) 14%, transparent);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity 140ms ease-out,
+    transform 140ms ease-out;
+  pointer-events: none;
+  z-index: 60;
+}
+/* The collapsed "H" monogram cross-fades out under the revealed wordmark so
+   the hover state reads as a single mark, not an "H" beside the plate. */
+.sidebar-logo-mono {
+  transition: opacity 140ms ease-out;
+}
+@media (pointer: fine) {
+  .group\/sidebar:hover .sidebar-logo-flyout {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .group\/sidebar:hover .sidebar-logo-mono {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-logo-flyout,
+  .sidebar-logo-mono {
+    transition: none;
+  }
+}
+
+/* --- 6. Lit-from-above buttons -------------------------------------- */
+/* Accent fill + ambient glow tied to --sd-accent (cyan per D1b/D6, not
+   the constitution's pre-cyan blue literal) + white top bevel + inset
+   floor. Dark cool text stays legible on the bright accent in both
+   themes. */
+.sd-btn-primary {
+  background: var(--sd-accent);
+  border-radius: 9999px;
+  color: hsl(235 45% 9%);
+  box-shadow:
+    color-mix(in srgb, var(--sd-accent) 30%, transparent) 0 4px 20px,
+    rgba(255, 255, 255, 0.2) 0 2px 0 inset,
+    rgba(0, 0, 0, 0.1) 0 -2px 0 inset;
+}
+.sd-btn-ghost {
+  background: rgb(255 255 255 / 0.1);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 9999px;
+  color: var(--sd-ink);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: rgba(255, 255, 255, 0.15) 0 1px 0 inset; /* white top bevel */
+}
+
+/* --- 7. Spacedrive translucency (D1 addendum) ----------------------- */
+/* Toolbar chrome. The sidebar surface (sidebar unit) runs at ~65%
+   opacity in the same spirit. */
+.sd-topbar-blur {
+  -webkit-backdrop-filter: saturate(120%) blur(18px);
+  backdrop-filter: saturate(120%) blur(18px);
+  background: color-mix(in srgb, var(--sd-app) 90%, transparent);
+  border-bottom: 1px solid var(--sd-divider);
+}
+.sd-pill-blur {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid color-mix(in srgb, var(--sd-line) 50%, transparent);
+  background: color-mix(in srgb, var(--sd-box) 60%, transparent);
+}
+
+/* --- 8. Shared shadcn primitive surfaces (unit-primitives, sesh-sd3) --- */
+/* ADD-ONLY. Converts the app-wide shadcn primitives (button / dialog /
+   menus / fields) to the sd register without touching a single consumer:
+   the primitives keep their exported names, variants, and props and simply
+   consume these classes. Kept as real CSS (not one-off arbitrary Tailwind
+   utilities) so on-accent ink and the dark-only inset hairline resolve
+   reliably in BOTH themes and sidestep the Tailwind scan gap (§0). Zero
+   theatrics: flat fills, hairlines, one accent. No glow, no blur, no bevel.
+   The retired .glass-* / .sd-btn-primary utilities are intentionally left
+   intact for surfaces the feature waves have not landed yet. */
+
+/* Primary button — flat accent fill, dark on-accent ink. No glow, no pill. */
+.sd-btn-solid {
+  background: var(--sd-accent);
+  color: hsl(235 45% 9%);
+}
+.sd-btn-solid:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--sd-accent) 90%, black);
+}
+.sd-btn-solid:active:not(:disabled) {
+  background: color-mix(in oklch, var(--sd-accent) 80%, black);
+}
+
+/* Outline / secondary button — recessed field surface + hairline, no blur. */
+.sd-btn-outline {
+  background: var(--sd-input);
+  border: 1px solid var(--sd-line);
+  color: var(--sd-ink-dull);
+}
+.sd-btn-outline:hover:not(:disabled) {
+  background: var(--sd-hover);
+  color: var(--sd-ink);
+}
+.sd-btn-outline:active:not(:disabled) {
+  background: var(--sd-selected);
+}
+
+/* Floating menu surface — dropdown / select / popover / command / tooltip. */
+.sd-menu-surface {
+  background: var(--sd-box);
+  border: 1px solid var(--sd-line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+.dark .sd-menu-surface {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Modal / sheet surface — solid box fill, hairline, dark-only inset top
+   hairline (card v2 grammar, §9). Light mode lifts off the parchment ladder
+   alone. */
+.sd-modal-surface {
+  background: var(--sd-box);
+  border: 1px solid var(--sd-line);
+}
+.dark .sd-modal-surface {
+  box-shadow:
+    rgba(255, 255, 255, 0.09) 0 1px 0 inset,
+    0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* =====================================================================
+   sesh-sd3 unit-jarvis — JARVIS receipt cards to the Spacedrive register.
+   ADD-ONLY override: the .receipt-* classes are consumed ONLY by
+   components/jarvis/JarvisReceipt.tsx (this unit's fence). These rules sit
+   after the Phase-6.1 glass definitions above and win the cascade, retiring
+   the backdrop-blur + glass bevels + cyan glow halo for a solid --sd-box
+   plate with a hairline. Single cyan accent; the intent chip drops its white
+   bevel for a flat sd inset. The undo pill/hairline/shimmer already speak
+   --hud-cyan (=== --sd-accent) so they carry over unchanged.
+   ===================================================================== */
+.receipt-card {
+  background: var(--sd-box);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 1px solid var(--sd-line);
+  border-radius: 12px;
+  box-shadow: none;
+  transition:
+    border-color 140ms var(--ease-out-quart),
+    background-color 140ms var(--ease-out-quart);
+}
+.dark .receipt-card {
+  box-shadow: rgba(255, 255, 255, 0.06) 0 1px 0 inset;
+}
+.receipt-card:hover {
+  border-color: color-mix(in oklch, var(--sd-accent) 40%, var(--sd-line));
+  box-shadow: none;
+}
+.dark .receipt-card:hover {
+  border-color: color-mix(in oklch, var(--sd-accent) 40%, var(--sd-line));
+  box-shadow: rgba(255, 255, 255, 0.06) 0 1px 0 inset;
+}
+.receipt-card:focus-visible {
+  outline: none;
+  border-color: color-mix(in oklch, var(--sd-accent) 55%, var(--sd-line));
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--sd-accent) 30%, transparent);
+}
+.receipt-card[data-status="error"] {
+  border-left: 2px solid color-mix(in oklch, var(--ink-coral) 80%, transparent);
+}
+
+/* Intent chip — flat sd inset pill. Drops the white top bevel; keeps the
+   per-intent --chip-ink for the glyph tint (constrained by the JSX to cyan
+   for actions, coral for deletes, faint ink for passive finds). */
+.receipt-chip {
+  --chip-ink: var(--sd-ink-dull);
+  padding: 3px 8px 3px 6px;
+  color: var(--sd-ink-dull);
+  background: var(--sd-input);
+  box-shadow: inset 0 0 0 1px var(--sd-line);
+}
+.dark .receipt-chip {
+  color: var(--sd-ink-dull);
+  background: var(--sd-input);
+  box-shadow: inset 0 0 0 1px var(--sd-line);
+}
+.receipt-chip svg {
+  color: var(--chip-ink);
+}
+
+/* --- LifeOS widget resize (UI-CONTRACT-SD3 §2) ----------------------- */
+/* Bottom-right drag handle: a ghost sd affordance that only reveals on a
+   fine pointer, on cell hover / focus. Snaps the widget between grid spans;
+   never a glow, never a scale. Hidden below @3xl where the deck is a single
+   column and resize is meaningless. */
+.lifeos-resize-handle {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 20;
+  display: none;
+  width: 18px;
+  height: 18px;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 2px 1px 0;
+  border-radius: 5px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--sd-ink-faint);
+  background: transparent;
+  opacity: 0;
+  cursor: nwse-resize;
+  touch-action: none;
+  transition:
+    opacity 140ms ease,
+    color 140ms ease;
+}
+@media (pointer: fine) {
+  @container main (min-width: 48rem) {
+    .lifeos-resize-handle {
+      display: flex;
+    }
+  }
+}
+.group\/cell:hover .lifeos-resize-handle,
+.lifeos-resize-handle:focus-visible {
+  opacity: 1;
+}
+.lifeos-resize-handle:hover,
+.lifeos-resize-handle:focus-visible {
+  color: var(--sd-ink);
+}
+.lifeos-resize-handle:focus-visible {
+  outline: 1px solid var(--sd-accent);
+  outline-offset: 1px;
+}
+
+/* Live drag projection: a 1px cyan dashed outline over the span the pointer
+   currently maps to. Extends past the cell into the cells it would claim.
+   No fill wash, no blur — just the dashed edge. */
+.lifeos-resize-projection {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  pointer-events: none;
+  border: 1px dashed var(--sd-accent);
+  border-radius: 14px;
 }

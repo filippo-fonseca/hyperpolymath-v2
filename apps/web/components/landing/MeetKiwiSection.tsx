@@ -3,6 +3,7 @@
 import { SectionEyebrow } from "./SectionEyebrow";
 import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
 import { JarvisDemoButton } from "./JarvisDemoButton";
+import { Reveal } from "./Reveal";
 
 /**
  * §03 — MEET KIWI. Parallel to §02 WHO (Filippo's bio); this section is
@@ -22,27 +23,17 @@ import { JarvisDemoButton } from "./JarvisDemoButton";
 export function MeetKiwiSection() {
   return (
     <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
-      <SectionEyebrow label="§ 03 · MEET KIWI" />
-      <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
-        And here&rsquo;s the bird.
-      </h2>
+      <Reveal>
+        <SectionEyebrow label="§ 03 · MEET KIWI" />
+        <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+          And here&rsquo;s the bird.
+        </h2>
+      </Reveal>
 
       {/* Identity card — bubble visual on left, name + role + tagline on right. */}
-      <div className="mt-8 flex flex-col md:flex-row md:items-start md:gap-8">
+      <Reveal i={1} className="mt-8 flex flex-col md:flex-row md:items-start md:gap-8">
         <div className="flex-shrink-0 mx-auto md:mx-0 agent-mode-scope">
-          <div
-            style={{
-              width: 180,
-              height: 180,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "16px",
-              border: "1px solid var(--edge-hud)",
-              background: "var(--surface-raised)",
-              boxShadow: "var(--glow-hud-subtle)",
-            }}
-          >
+          <div className="flex h-[180px] w-[180px] items-center justify-center rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)]">
             <div
               style={{ transform: "scale(0.62)", transformOrigin: "center" }}
             >
@@ -52,41 +43,35 @@ export function MeetKiwiSection() {
         </div>
 
         <div className="mt-6 md:mt-0 flex-1 text-center md:text-left">
-          <p
-            className="font-serif text-[28px] font-semibold leading-[1.2]"
-            style={{ color: "var(--ink)" }}
-          >
+          <p className="text-[28px] font-semibold leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
             Kiwi
-            <span
-              className="ml-3 font-mono text-[14px] font-medium uppercase tracking-[0.14em] align-middle"
-              style={{ color: "var(--hud-cyan-light)" }}
-            >
+            <span className="ml-3 align-middle font-mono text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--sd-accent)]">
               a.k.a. JARVIS
             </span>
           </p>
-          <p className="mt-2 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
+          <p className="mt-2 italic text-[18px] leading-[1.5] text-[var(--sd-ink-dull)]">
             A friendly, all-knowing orchestrator native to your life-OS.
           </p>
-          <p className="mt-2 font-mono text-[14px] text-[var(--ink-muted)] tracking-[0.04em]">
+          <p className="mt-2 font-mono text-[12px] text-[var(--sd-ink-faint)] tracking-[0.06em]">
             Role: orchestrator · Native to: Hyperpolymath
           </p>
           <div className="mt-4">
             <JarvisDemoButton />
           </div>
         </div>
-      </div>
+      </Reveal>
 
       {/* Prose flows below the identity card at a 720px measure. First
           person, in JARVIS's voice — the section IS the agent speaking. */}
-      <div className="mt-10 max-w-[720px] mx-auto md:mx-0 space-y-4">
-        <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+      <Reveal i={2} as="div" className="mt-10 max-w-[720px] mx-auto md:mx-0 space-y-4">
+        <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
           I am the agent at the heart of Hyperpolymath. Friendly,
           patient, and disarmingly literal. I am also (technically){" "}
           <a
             href="https://en.wikipedia.org/wiki/J.A.R.V.I.S."
             target="_blank"
             rel="noopener noreferrer"
-            className="underline decoration-[var(--ink-muted)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--hud-cyan)] hover:decoration-[var(--hud-cyan)]"
+            className="underline decoration-[var(--sd-ink-faint)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--sd-accent)] hover:decoration-[var(--sd-accent)]"
           >
             JARVIS
           </a>
@@ -94,7 +79,7 @@ export function MeetKiwiSection() {
           Same bird, fancier name. (Yes, the Tony Stark one.)
         </p>
 
-        <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+        <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
           My one and only job is to be an{" "}
           <span className="font-semibold">orchestrator</span>. You type at
           the prompt, or hold ⌘+J and speak. Either modality is
@@ -105,7 +90,7 @@ export function MeetKiwiSection() {
           improvisation, no opinions about your goals.
         </p>
 
-        <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+        <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
           &ldquo;All-knowing&rdquo; is literal, but bounded. I know
           everything inside your Hyperpolymath: which areas you have,
           what projects sit under them, what&rsquo;s in your calendar,
@@ -115,7 +100,7 @@ export function MeetKiwiSection() {
           than guess.
         </p>
 
-        <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+        <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
           Under the hood I am Claude Sonnet 4.6 wrapped in a strict Zod
           schema with the Strict Tool Use beta enabled. The schema is my
           contract. The model is constrained to it at generation time,
@@ -123,7 +108,7 @@ export function MeetKiwiSection() {
           never emit a malformed action. The Engine section below walks
           through exactly what that looks like.
         </p>
-      </div>
+      </Reveal>
     </section>
   );
 }

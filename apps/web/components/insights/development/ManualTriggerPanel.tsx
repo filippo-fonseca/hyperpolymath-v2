@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
-
-const LABEL_CLASS = "font-mono text-[11px] uppercase tracking-[0.06em]";
+import { DevPanel, DevPanelHeader, StatePill } from "./dev-chrome";
 
 type TriggerState = "idle" | "pending" | "ok" | "error";
 
@@ -15,7 +14,8 @@ interface TriggerResult {
 async function callTrigger(endpoint: string): Promise<TriggerResult> {
   const res = await fetch(endpoint, { method: "POST" });
   const body: unknown = await res.json().catch(() => null);
-  const bodyObj = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const bodyObj =
+    body && typeof body === "object" ? (body as Record<string, unknown>) : {};
 
   if (res.ok) {
     if (endpoint.includes("captures-to-issues")) {
@@ -30,7 +30,8 @@ async function callTrigger(endpoint: string): Promise<TriggerResult> {
     return { message: "Sentinel written.", detail: note || undefined };
   }
 
-  const errMsg = typeof bodyObj.error === "string" ? bodyObj.error : `HTTP ${res.status}`;
+  const errMsg =
+    typeof bodyObj.error === "string" ? bodyObj.error : `HTTP ${res.status}`;
   const detail = typeof bodyObj.detail === "string" ? bodyObj.detail : undefined;
 
   if (res.status === 501 && errMsg === "local_only") {
@@ -86,9 +87,9 @@ function TriggerButton({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="font-serif text-sm text-[var(--ink)]">{label}</p>
-          <p className="font-serif text-xs text-[var(--ink-muted)] leading-relaxed">
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-medium text-[var(--sd-ink)]">{label}</p>
+          <p className="text-[12px] leading-relaxed text-[var(--sd-ink-dull)]">
             {description}
           </p>
         </div>
@@ -97,43 +98,28 @@ function TriggerButton({
           onClick={fire}
           disabled={state === "pending"}
           className={cn(
-            "shrink-0 cursor-pointer-always rounded px-3 py-1",
-            LABEL_CLASS,
-            "border transition-colors duration-150",
+            "shrink-0 rounded-md border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors duration-150",
             state === "pending"
-              ? "border-[var(--edge)] text-[var(--ink-muted)] opacity-50"
-              : "border-[var(--edge)] text-[var(--ink-muted)] hover:border-[var(--hud-cyan)] hover:text-[var(--hud-cyan)]",
+              ? "cursor-default border-[var(--sd-line)] text-[var(--sd-ink-faint)] opacity-50"
+              : "cursor-pointer border-[var(--sd-line)] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-accent)]",
           )}
         >
-          {state === "pending" ? "Running..." : "Run now"}
+          {state === "pending" ? "Running…" : "Run now"}
         </button>
       </div>
       {isOkOrError && result ? (
-        <div
-          className={cn(
-            "rounded-sm px-3 py-2 font-serif text-xs leading-relaxed",
-            state === "ok"
-              ? "bg-[var(--surface-raised)] text-[var(--ink-muted)]"
-              : "bg-[var(--surface-raised)] text-[var(--ink)]",
-          )}
-        >
-          <span
-            className={cn(
-              LABEL_CLASS,
-              "mr-2",
-              state === "ok"
-                ? "text-[var(--hud-cyan)]"
-                : "text-[var(--ink)]",
-            )}
-          >
+        <div className="flex items-start gap-2 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-app)] px-3 py-2">
+          <StatePill tone={state === "ok" ? "accent" : "coral"}>
             {state === "ok" ? "ok" : "err"}
-          </span>
-          {result.message}
-          {result.detail ? (
-            <span className="block mt-1 text-[var(--ink-muted)]">
-              {result.detail}
-            </span>
-          ) : null}
+          </StatePill>
+          <div className="min-w-0 flex-1 text-[12px] leading-relaxed text-[var(--sd-ink-dull)]">
+            <span className="text-[var(--sd-ink)]">{result.message}</span>
+            {result.detail ? (
+              <span className="mt-1 block text-[var(--sd-ink-faint)]">
+                {result.detail}
+              </span>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>
@@ -147,11 +133,9 @@ function TriggerButton({
  */
 export function ManualTriggerPanel() {
   return (
-    <div className="rounded-md border border-[var(--edge)] bg-[var(--surface)] p-4">
-      <h3 className={cn(LABEL_CLASS, "text-[var(--ink-muted)] mb-4")}>
-        Manual triggers
-      </h3>
-      <div className="flex flex-col gap-5 divide-y divide-[var(--edge)]">
+    <DevPanel>
+      <DevPanelHeader eyebrow="Manual triggers" />
+      <div className="mt-4 flex flex-col gap-5 divide-y divide-[var(--sd-line)]">
         <TriggerButton
           label="Captures to issues"
           description="Extract actionable captures tagged #hyperpolymath and file them as GitHub issues. Skips the once-per-day cron lock."
@@ -165,6 +149,6 @@ export function ManualTriggerPanel() {
           />
         </div>
       </div>
-    </div>
+    </DevPanel>
   );
 }

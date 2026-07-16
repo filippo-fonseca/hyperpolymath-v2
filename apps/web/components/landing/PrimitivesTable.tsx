@@ -1,5 +1,13 @@
-import { ArrowUpRight } from "lucide-react";
+import type { ReactNode } from "react";
+import { ArrowUpRight, Calendar } from "lucide-react";
 import { SectionEyebrow } from "./SectionEyebrow";
+import { Reveal } from "./Reveal";
+import {
+  AreaIcon,
+  FolderIcon,
+  WidgetIcon,
+  JarvisIcon,
+} from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -38,6 +46,8 @@ type Primitive = {
   name: string;
   role: string;
   anchor: string | null;
+  /** Dimensional icon for the noun (or a lucide glyph for the external one). */
+  icon: (size: number) => ReactNode;
 };
 
 const PRIMITIVES: ReadonlyArray<Primitive> = [
@@ -45,39 +55,47 @@ const PRIMITIVES: ReadonlyArray<Primitive> = [
     name: "Areas",
     role: "Top-level life domains (Health, School, Work, …)",
     anchor: "areas",
+    icon: (s) => <AreaIcon size={s} />,
   },
   {
     name: "Projects",
     role: "Bounded efforts inside an Area (incl. Classes)",
     anchor: "projects",
+    icon: (s) => <FolderIcon size={s} />,
   },
   {
     name: "Building Blocks",
     role: "The atoms inside Projects: Tasks, Captures, and Wiki Pages",
     anchor: null, // FRAMEWORK.md anchor for this category to be added in a follow-up
+    icon: (s) => <WidgetIcon size={s} />,
   },
   {
     name: "Calendar",
     role: "Google Calendar (external). JARVIS reads it for time context.",
     anchor: "calendar",
+    // External surface — a quiet lucide glyph, not a dimensional noun icon.
+    icon: (s) => (
+      <Calendar size={Math.round(s * 0.62)} strokeWidth={1.75} />
+    ),
   },
   {
     name: "JARVIS",
     role: "The orchestrator. Routes across the hierarchy, holds full context.",
     anchor: "jarvis",
+    icon: (s) => <JarvisIcon size={s} />,
   },
 ] as const;
 
 export function PrimitivesTable() {
   return (
-    <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
+    <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 05 · THE PRIMITIVES" />
 
-      <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
+      <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
         A small hierarchy. One agent.
       </h2>
 
-      <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
         Most productivity apps give you ten kinds of object and call that
         flexibility. To me it&rsquo;s closer to a furniture store. What I
         actually wanted was the opposite: the smallest set of primitives that
@@ -85,7 +103,7 @@ export function PrimitivesTable() {
         me to specialize.
       </p>
 
-      <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
         Hyperpolymath is structured as a small hierarchy. Areas at the top,
         your life domains. Projects inside Areas, the bounded efforts (your
         classes live here too). Inside Projects sit the Building Blocks:
@@ -112,16 +130,20 @@ export function PrimitivesTable() {
         </div>
       </div>
 
+      {/* Spec table — icon-led rows. Each primitive leads with its dimensional
+          icon (the register's nouns-as-objects motif); the external Calendar
+          gets a quiet lucide glyph instead. Hairline-only rows, no zebra. */}
       <div className="mt-8">
         {/* Column header row */}
-        <div className="grid grid-cols-[160px_1fr_60px] items-center border-b border-[var(--edge)] pb-3">
-          <span className="font-mono text-[14px] font-medium uppercase tracking-[0.04em] text-[var(--ink-muted)]">
+        <div className="grid grid-cols-[44px_140px_1fr_40px] items-center gap-x-3 border-b border-[var(--sd-line)] pb-3">
+          <span aria-hidden="true" />
+          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
             PRIMITIVE
           </span>
-          <span className="font-mono text-[14px] font-medium uppercase tracking-[0.04em] text-[var(--ink-muted)]">
+          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
             ROLE
           </span>
-          <span className="font-mono text-[14px] font-medium uppercase tracking-[0.04em] text-[var(--ink-muted)] text-right hidden md:inline">
+          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] text-right hidden md:inline">
             SPEC
           </span>
         </div>
@@ -130,12 +152,18 @@ export function PrimitivesTable() {
         {PRIMITIVES.map((p) => (
           <div
             key={p.name}
-            className="grid grid-cols-[160px_1fr_60px] items-center min-h-[56px] border-b border-[var(--edge)]"
+            className="grid grid-cols-[44px_140px_1fr_40px] items-center gap-x-3 min-h-[60px] border-b border-[var(--sd-line)]"
           >
-            <span className="font-mono text-[14px] font-medium tracking-[0.04em] text-[var(--ink)]">
+            <span
+              className="inline-flex size-9 items-center justify-center text-[var(--sd-ink-faint)]"
+              aria-hidden="true"
+            >
+              {p.icon(30)}
+            </span>
+            <span className="font-mono text-[14px] font-medium tracking-[0.02em] text-[var(--sd-ink)]">
               {p.name}
             </span>
-            <span className="font-serif text-[18px] leading-[1.4] text-[var(--ink)]">
+            <span className="text-[16px] leading-[1.4] text-[var(--sd-ink-dull)]">
               {p.role}
             </span>
             {p.anchor ? (
@@ -144,7 +172,7 @@ export function PrimitivesTable() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`Read the ${p.name} spec in FRAMEWORK.md on GitHub`}
-                className="justify-self-end text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
+                className="justify-self-end text-[var(--sd-ink-faint)] hover:text-[var(--sd-accent)] transition-colors"
               >
                 <ArrowUpRight size={16} aria-hidden="true" />
               </a>
@@ -154,43 +182,44 @@ export function PrimitivesTable() {
           </div>
         ))}
       </div>
-    </section>
+    </Reveal>
   );
 }
 
 /**
  * Styled hierarchy tree for §04. JARVIS is NOT a branch — it's the
- * envelope. The outer container has a cyan --edge-hud border + soft
- * --glow-hud-subtle shadow, with a JARVIS label at top, signaling that
- * the agent permeates every data primitive inside it. The data
- * primitives (Areas → Projects, Captures, Calendar) sit inside the
- * envelope as the actual tree.
+ * envelope. The outer container is a card-v2 plate with a cyan-tinted
+ * hairline edge (the single accent, no glow) and a JARVIS label at top,
+ * signaling that the agent permeates every data primitive inside it. The
+ * data primitives (Areas → Projects, Building Blocks, Calendar) sit inside
+ * the envelope as the actual tree, connected by static sd-line strokes.
  */
 function PrimitiveTree() {
   return (
     <div
-      className="font-serif text-[18px] leading-[1.4] text-[var(--ink)] relative p-6 md:p-7 rounded bg-[var(--surface-raised)]"
+      className="text-[18px] leading-[1.4] text-[var(--sd-ink)] relative p-6 md:p-7 rounded-[14px] bg-[var(--sd-box)]"
       style={{
-        border: "1px solid var(--edge-hud)",
-        boxShadow: "var(--glow-hud-subtle)",
+        // The one accent surface in this section: a cyan-tinted edge, no glow.
+        border:
+          "1px solid color-mix(in oklch, var(--sd-accent) 30%, var(--sd-line))",
       }}
     >
       {/* JARVIS envelope header — declares "everything inside is touched
           by the agent" */}
-      <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3 pb-5 mb-5 border-b border-[var(--edge-hud)]">
+      <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3 pb-5 mb-5 border-b border-[var(--sd-line)]">
         <span
           className="inline-flex items-center whitespace-nowrap font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
           style={{
-            color: "var(--hud-cyan-light)",
-            border: "1px solid var(--edge-hud)",
-            background: "var(--surface)",
-            boxShadow: "var(--glow-hud-subtle)",
+            color: "var(--sd-accent)",
+            border: "1px solid var(--sd-line)",
+            background: "var(--sd-input)",
+            boxShadow: "none",
           }}
         >
           <span className="mr-1.5">⚜</span>
           JARVIS
         </span>
-        <span className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] sm:translate-y-[1px]">
+        <span className="italic text-[18px] leading-[1.5] text-[var(--sd-ink-faint)] sm:translate-y-[1px]">
           A friendly, all-knowing orchestrator across every primitive below,
           with one eye on your Google Calendar.
         </span>
@@ -246,25 +275,25 @@ function PrimitiveTree() {
           way Calendar does. Paired with the "+ more" slot under Building
           Blocks above, this makes the modular shape of the system
           legible without claiming any of it ships today. */}
-      <div className="mt-6 pt-5 border-t border-[var(--edge)] space-y-3">
+      <div className="mt-6 pt-5 border-t border-[var(--sd-line)] space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
           <span
             className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
             style={{
-              color: "var(--ink-muted)",
-              border: "1px solid var(--edge)",
-              background: "var(--surface)",
+              color: "var(--sd-ink-faint)",
+              border: "1px solid var(--sd-line)",
+              background: "var(--sd-input)",
             }}
           >
             Calendar
             <span
               className="ml-2 text-[12px] uppercase tracking-[0.08em]"
-              style={{ color: "var(--ink-muted)" }}
+              style={{ color: "var(--sd-ink-faint)" }}
             >
               external
             </span>
           </span>
-          <span className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] sm:translate-y-[1px]">
+          <span className="italic text-[18px] leading-[1.5] text-[var(--sd-ink-faint)] sm:translate-y-[1px]">
             Google Calendar lives outside the hierarchy. JARVIS reads it
             for time context; events are never duplicated here.
           </span>
@@ -276,21 +305,21 @@ function PrimitiveTree() {
           <span
             className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
             style={{
-              color: "var(--hud-cyan-light)",
-              border: "1px dashed var(--edge-hud)",
+              color: "var(--sd-accent)",
+              border: "1px dashed var(--sd-line)",
               background:
-                "color-mix(in oklch, var(--hud-cyan) 6%, var(--surface-raised))",
+                "color-mix(in oklch, var(--sd-accent) 6%, var(--sd-box))",
             }}
           >
             +&nbsp; more
             <span
               className="ml-2 text-[12px] uppercase tracking-[0.08em]"
-              style={{ color: "var(--hud-cyan-light)" }}
+              style={{ color: "var(--sd-accent)" }}
             >
               external
             </span>
           </span>
-          <span className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] sm:translate-y-[1px]">
+          <span className="italic text-[18px] leading-[1.5] text-[var(--sd-ink-faint)] sm:translate-y-[1px]">
             Gmail, Drive, Strava, Notion. Anything JARVIS can read.
             External systems plug in the same way Calendar does.
           </span>
@@ -316,8 +345,8 @@ function PrimitiveTree() {
           left: 0;
           width: 1rem;
           height: 1.25rem;
-          border-bottom: 1px solid var(--edge);
-          border-left: 1px solid var(--edge);
+          border-bottom: 1px solid var(--sd-line);
+          border-left: 1px solid var(--sd-line);
           border-bottom-left-radius: 4px;
         }
         .tree-branch > li:not(.is-last)::after {
@@ -326,7 +355,7 @@ function PrimitiveTree() {
           top: 1.25rem;
           left: 0;
           bottom: 0;
-          border-left: 1px solid var(--edge);
+          border-left: 1px solid var(--sd-line);
         }
       `}</style>
     </div>
@@ -335,7 +364,7 @@ function PrimitiveTree() {
 
 function RootPill({ label }: { label: string }) {
   return (
-    <div className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] text-[var(--ink)] px-3 py-1 border border-[var(--edge)] bg-[var(--surface-raised)] rounded">
+    <div className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] text-[var(--sd-ink)] px-3 py-1 border border-[var(--sd-line)] bg-[var(--sd-box)] rounded">
       {label}
     </div>
   );
@@ -372,24 +401,24 @@ function Branch({
           style={
             cyan
               ? {
-                  color: "var(--hud-cyan-light)",
-                  border: "1px solid var(--edge-hud)",
-                  background: "var(--surface-raised)",
-                  boxShadow: "var(--glow-hud-subtle)",
+                  color: "var(--sd-accent)",
+                  border: "1px solid var(--sd-line)",
+                  background: "var(--sd-box)",
+                  boxShadow: "none",
                 }
               : slot
                 ? {
-                    color: "var(--hud-cyan-light)",
-                    border: "1px dashed var(--edge-hud)",
+                    color: "var(--sd-accent)",
+                    border: "1px dashed var(--sd-line)",
                     background:
-                      "color-mix(in oklch, var(--hud-cyan) 6%, var(--surface-raised))",
+                      "color-mix(in oklch, var(--sd-accent) 6%, var(--sd-box))",
                   }
                 : {
-                    color: "var(--ink)",
+                    color: "var(--sd-ink)",
                     border: muted
-                      ? "1px dashed var(--edge)"
-                      : "1px solid var(--edge)",
-                    background: "var(--surface-raised)",
+                      ? "1px dashed var(--sd-line)"
+                      : "1px solid var(--sd-line)",
+                    background: "var(--sd-box)",
                   }
           }
         >
@@ -398,8 +427,8 @@ function Branch({
         </span>
         <span
           className={cn(
-            "font-serif text-[18px] leading-[1.5] sm:translate-y-[1px]",
-            slot ? "italic text-[var(--ink-muted)]" : "text-[var(--ink-muted)]",
+            "text-[18px] leading-[1.5] sm:translate-y-[1px]",
+            slot ? "italic text-[var(--sd-ink-faint)]" : "text-[var(--sd-ink-faint)]",
           )}
         >
           {role}

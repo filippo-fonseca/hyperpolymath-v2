@@ -1,30 +1,23 @@
 /**
- * Shared tile chrome for /insights surfaces, riding the global glass surface
- * system (`.glass-tile` in globals.css). Strength knobs live in the
- * --glass-* CSS variables — tune there, not here.
+ * Shared tile chrome for /insights surfaces, in the sd register (sesh-sd3).
  *
- * `NEUMORPHIC_TILE` is name-preserved for callsite stability.
+ * `NEUMORPHIC_TILE` is name-preserved for call-site stability: every insights
+ * consumer restyles for free. It is now the WidgetCard v2 plate — a solid
+ * `--sd-box` fill, 1px `--sd-line` hairline, 14px radius. No glass, no blur,
+ * no glow.
  *
- * For panels that want a brand halo on top (life/* panels with
- * `--panel-accent`), use `glassyTileShadow({ withPanelAccentHalo: true })`
- * via inline `style={{ boxShadow: ... }}`. It restates the glass stack from
- * the same knob vars (inline shadows clobber class shadows, so the stack
- * must be self-contained) and appends the accent-tinted bloom.
+ * `glassyTileShadow` is kept for API stability but the glow/neumorphic stack
+ * is retired: it returns `none` so no consumer paints a bloom. The plate's
+ * elevation comes from the grey ladder + hairline alone (DESIGN-SYSTEM §9).
  */
-export const NEUMORPHIC_TILE = "rounded-xl glass-tile";
+export const NEUMORPHIC_TILE =
+  "rounded-[14px] bg-[var(--sd-box)] border border-[var(--sd-line)]";
 
 export const NEUMORPHIC_TILE_PADDED = `p-6 space-y-4 ${NEUMORPHIC_TILE}`;
 
 export function glassyTileShadow(
-  opts: { withPanelAccentHalo?: boolean } = {},
+  _opts: { withPanelAccentHalo?: boolean } = {},
 ): string {
-  const glass =
-    "var(--glass-raise), var(--glass-drop), " +
-    "inset 0 1px 0 var(--glass-hi), " +
-    "inset 0 -1px 0 var(--glass-lo), " +
-    "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)";
-
-  if (!opts.withPanelAccentHalo) return glass;
-
-  return `${glass}, 0 0 32px color-mix(in oklch, var(--panel-accent) 6%, transparent)`;
+  // Glow/halo retired (§16 banned). Flat sd plate: elevation via border + bg.
+  return "none";
 }

@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "integration_branch": "next",
+  "base_branch": null,
+  "git": {
+    "sync_integration_from_base": true,
+    "integration_to_main": "manual"
+  },
+  "env": {
+    "propagate": true,
+    "files": [
+      ".env",
+      ".env.local",
+      ".env.*.local"
+    ]
+  },
+  "github": {
+    "issues": true,
+    "require_remote": true
+  },
+  "harness": {
+    "active": "auto",
+    "models": {
+      "claude": {
+        "opus": "claude-opus-4-8",
+        "sonnet": "sonnet",
+        "haiku": "haiku",
+        "fable": "claude-fable-5"
+      },
+      "codex": {
+        "opus": "gpt-5-codex",
+        "sonnet": "gpt-5",
+        "haiku": "gpt-5-mini",
+        "fable": "gpt-5-codex"
+      }
+    }
+  },
+  "model_posture": {
+    "conductor": {
+      "model": "session"
+    },
+    "thresholds": {
+      "fable": 0.5,
+      "sonnet": 0.2
+    },
+    "executor": {
+      "default": {
+        "model": "opus",
+        "effort": "xhigh"
+      },
+      "easiest": {
+        "model": "sonnet",
+        "effort": "xhigh"
+      }
+    },
+    "planner": {
+      "model": "opus",
+      "effort": "high"
+    },
+    "fable_plan": {
+      "model": "fable",
+      "effort": "high",
+      "default": false
+    },
+    "decompose": {
+      "model": "session",
+      "effort": "high"
+    },
+    "oracle": {
+      "model": "session",
+      "effort": "high"
+    },
+    "scout": {
+      "model": "opus",
+      "effort": "high",
+      "trivial": {
+        "model": "opus",
+        "effort": "medium"
+      }
+    },
+    "reviewer": {
+      "model": "opus",
+      "effort": "high"
+    },
+    "verifier": {
+      "model": "opus",
+      "effort": "medium"
+    },
+    "tester": {
+      "model": "opus",
+      "effort": "medium"
+    },
+    "conflict": {
+      "model": "opus",
+      "effort": "high"
+    },
+    "loop2_fix": {
+      "model": "opus",
+      "effort": "medium"
+    }
+  },
+  "verification": {
+    "usage_testing": true,
+    "headless": false
+  },
+  "gui": {
+    "auto": true
+  },
+  "notifications": {
+    "os": true
+  },
+  "remote": {
+    "enabled": false,
+    "host": "loopback",
+    "port": 0
+  },
+  "modes": {
+    "pipeline": "adaptive",
+    "verifier": "adaptive"
+  },
+  "conductor": {
+    "name": "Kiwi",
+    "emoji": "🥝",
+    "persona": "kiwi",
+    "narrate": true,
+    "suggest_gate_commands": true,
+    "fable_advisor": "auto",
+    "self_compact_at": 0.9
+  },
+  "context": {
+    "max_window_tokens": 1000000,
+    "compact_at": 0.7,
+    "relaunch_at": 0.9
+  }
+}

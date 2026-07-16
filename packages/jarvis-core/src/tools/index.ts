@@ -75,6 +75,7 @@ import { findPeopleTool } from "./find-people";
 import { linkPeopleTool } from "./link-people";
 import { openUrlTool } from "./open-url";
 import { openAppTool } from "./open-app";
+import { openWorkspaceTool } from "./open-workspace";
 import { webSearchTool } from "./web-search";
 import { sendMessageTool } from "./send-message";
 import { systemControlTool } from "./system-control";
@@ -88,6 +89,7 @@ import { getWeatherTool } from "./get-weather";
 import { readGmailTool } from "./read-gmail";
 import { getNewsTool } from "./get-news";
 import { readWhatsappTool } from "./read-whatsapp";
+import { readImessageTool } from "./read-imessage";
 import { computerUseTool } from "./computer-use";
 
 export { zCreateTask } from "./create-task";
@@ -117,6 +119,7 @@ export interface JarvisToolDefinition {
     | "link_people"
     | "open_url"
     | "open_app"
+    | "open_workspace"
     | "web_search"
     | "send_message"
     | "system_control"
@@ -130,6 +133,7 @@ export interface JarvisToolDefinition {
     | "read_gmail"
     | "get_news"
     | "read_whatsapp"
+    | "read_imessage"
     | "computer_use";
   description: string;
   input_schema: Record<string, unknown>;
@@ -225,6 +229,10 @@ export function buildToolDefinitions(
     // desktop client; no DB writes, no gcal calls.
     { ...openUrlTool, strict: false as const },
     { ...openAppTool, strict: false as const },
+    // Workspace-launch: list-taking sibling of open_app / open_url. One tool
+    // call opens N apps + URLs in parallel on the desktop with an optional
+    // fullscreen toggle per item.
+    { ...openWorkspaceTool, strict: false as const },
     // web_search loses cache_control — clicky-slice tools follow it.
     { ...webSearchTool, strict: false as const },
     // Clicky slice — desktop action tools + server-side weather.
@@ -250,6 +258,10 @@ export function buildToolDefinitions(
     // worker; the executor gracefully returns a friendly setup hint if the
     // table is empty (bridge not running / worker not paired).
     { ...readWhatsappTool, strict: false as const },
+    // iMessage — server-side read tool. Data comes from the local chat.db
+    // sync worker; the executor gracefully returns a friendly setup hint if
+    // the table is empty (worker not running / not yet synced).
+    { ...readImessageTool, strict: false as const },
     {
       // Computer Use fallback — the catch-all when no named tool fits.
       // NON-strict (grammar budget): server-side Zod validation covers this.
@@ -286,6 +298,7 @@ export { LinkPeopleInputSchema } from "./link-people";
 // Computer-control: re-export input schemas for run-turn.ts validation.
 export { OpenUrlInputSchema } from "./open-url";
 export { OpenAppInputSchema } from "./open-app";
+export { OpenWorkspaceInputSchema, OpenWorkspaceItemSchema } from "./open-workspace";
 export { WebSearchInputSchema } from "./web-search";
 // Clicky slice: re-export input schemas for run-turn.ts validation.
 export { SendMessageInputSchema } from "./send-message";
@@ -302,6 +315,8 @@ export { ReadGmailInputSchema } from "./read-gmail";
 export { GetNewsInputSchema } from "./get-news";
 // WhatsApp: re-export input schema for run-turn.ts validation.
 export { ReadWhatsappInputSchema } from "./read-whatsapp";
+// iMessage: re-export input schema for run-turn.ts validation.
+export { ReadImessageInputSchema } from "./read-imessage";
 // Computer Use fallback: re-export input schema for run-turn.ts validation.
 export { ComputerUseInputSchema } from "./computer-use";
 

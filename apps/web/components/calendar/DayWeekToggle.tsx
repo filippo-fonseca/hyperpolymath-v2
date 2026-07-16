@@ -30,12 +30,11 @@ interface Props {
   onDateChange: (date: Date) => void;
 }
 
-// Phase 6.1 Plan 06.1-05 (UI-SPEC §5g + §9 chip register):
-// Segmented control + nav buttons render diplomatic chrome. Mono uppercase
-// register on the day/week segment + Today button (calendar metadata
-// register); the date label keeps serif because it's content (the page is
-// reading a date, not labeling chrome). Inactive segments at --ink-muted
-// dim to --ink on 100ms hover; active state gets 1px inset --edge ring.
+// sd3 register: segmented control + nav buttons render diplomatic chrome on
+// the --sd-* surface family. Mono uppercase on the day/week segment + Today
+// button; the date label is mono metadata too (sd3 seed drops serif — single
+// Space Grotesk / mono register). Inactive segments at --sd-ink-dull dim to
+// --sd-ink on hover; the active segment gets a 1px inset --sd-line ring.
 const SEGMENTS: { value: CalendarView; label: string }[] = [
   { value: "day", label: "Day" },
   { value: "3day", label: "3 Day" },
@@ -46,18 +45,18 @@ export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
   const step = view === "day" ? 1 : view === "3day" ? 3 : 7;
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-sm p-0.5 bg-[var(--surface)]">
+      <div className="flex items-center gap-0.5 border border-[var(--sd-line)] rounded-[6px] p-0.5 bg-[var(--sd-input)]">
         {SEGMENTS.map((seg) => (
           <button
             key={seg.value}
             type="button"
             onClick={() => onChange(seg.value)}
             className={cn(
-              "px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
+              "px-2 py-0.5 rounded-[5px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
               "transition-colors duration-150 ease-out",
               view === seg.value
-                ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-                : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+                ? "bg-[var(--sd-selected)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]"
+                : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
             )}
             aria-pressed={view === seg.value}
           >
@@ -98,8 +97,8 @@ export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
         </Button>
       </div>
 
-      {/* Date label remains serif (content register) — see UI-SPEC §5g */}
-      <span className="font-serif text-sm text-[var(--ink-muted)] ml-2">
+      {/* Date label — mono metadata register (sd3 seed: mono date labels). */}
+      <span className="font-mono text-[12px] tabular-nums tracking-[0.02em] text-[var(--sd-ink-dull)] ml-2">
         {view === "day"
           ? format(date, "EEEE, MMMM d, yyyy")
           : view === "3day"

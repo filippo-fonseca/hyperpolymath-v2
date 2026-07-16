@@ -8,7 +8,7 @@ import {
   useTransition,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import {
   Plus,
@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarIcon,
+  Flame,
 } from "lucide-react";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
@@ -46,6 +47,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Chip, EmptyState, ProgressRow } from "@/components/lifeos/entity-card";
+import { HabitIcon } from "@/components/ui/icons";
+import { sfx } from "@/lib/ui/sfx";
 import { HabitDialog, type AreaOption } from "./HabitDialog";
 import { HabitFrequencyBadges } from "./HabitFrequencySelector";
 import { MiniCalendar } from "./MiniCalendar";
@@ -67,13 +71,18 @@ interface Props {
 
 type Tab = "today" | "manage" | "archive";
 
-// Glassy pill tile — matches the PROFILE pill in SettingsSectionNav.
-// Translucent surface + backdrop-blur + inset cyan glow + soft outer halo
-// + thin cyan-tinged border. Hover lifts the halo and warms the cyan inset.
-const TILE_NEUMORPHIC =
-  "rounded-xl " +
-  "glass-tile " +
-  "";
+/**
+ * sd row plate — the WidgetCard chrome distilled to a list row: `--sd-box`
+ * fill raised off `--sd-app`, 14px radius, hairline border, and (dark only) a
+ * white inset top hairline that catches the light. No glass, no blur, no glow.
+ */
+const ROW_PLATE =
+  "rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] " +
+  "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]";
+
+const ROW_PLATE_HOVER =
+  "transition-colors duration-150 " +
+  "hover:border-[color-mix(in_srgb,var(--sd-ink)_18%,var(--sd-line))] dark:hover:border-white/10";
 
 const FULL_DAY_NAMES = [
   "Sunday",
@@ -105,6 +114,39 @@ function formatDateLabel(iso: string, today: string): string {
   if (iso === addDaysISO(today, 1)) return "Tomorrow";
   const d = parseISODate(iso);
   return `${FULL_DAY_NAMES[d.getDay()]}, ${MONTH_SHORT[d.getMonth()]} ${d.getDate()}`;
+}
+
+/**
+ * Consecutive scheduled-and-completed days ending at `refISO`, counted back
+ * through the loaded completion window. A pending *today* (scheduled but not
+ * yet checked) doesn't zero the streak — it's simply skipped so an unchecked
+ * morning doesn't erase yesterday's run. Non-scheduled days are transparent.
+ */
+function computeStreak(
+  habit: HabitWithAreas,
+  isCompleted: (habitId: string, date: string) => boolean,
+  refISO: string,
+  todayIso: string,
+): number {
+  let streak = 0;
+  let cursor = refISO;
+  const createdISO = toISODate(habit.createdAt);
+  // 14 = the loaded completion window; streaks preview, they don't audit.
+  for (let i = 0; i < 14; i++) {
+    if (cursor < createdISO) break;
+    const dow = parseISODate(cursor).getDay();
+    if (habit.daysOfWeek[dow]) {
+      if (isCompleted(habit.id, cursor)) {
+        streak++;
+      } else if (cursor === todayIso && i === 0) {
+        // today still open — don't break the chain, just don't count it
+      } else {
+        break;
+      }
+    }
+    cursor = addDaysISO(cursor, -1);
+  }
+  return streak;
 }
 
 /**
@@ -208,6 +250,10 @@ export function HabitsClient({
     const currentlyDone = completionSet.has(key);
     const next = !currentlyDone;
 
+    // Space-console cue on completion only — never on un-check. No-op when
+    // muted or while the shared AudioContext is still gesture-locked.
+    if (next) sfx.play("habitCheck");
+
     startTransition(async () => {
       const action: OptimisticAction<Completion> = next
         ? {
@@ -290,12 +336,12 @@ export function HabitsClient({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Tab strip + primary action */}
+      {/* Segmented tab strip + primary action */}
       <div className="flex items-center justify-between gap-4">
         <div
           role="tablist"
           aria-label="Habits view"
-          className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)] w-fit"
+          className="flex w-fit items-center gap-0.5 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-box)] p-0.5"
         >
           <TabButton active={tab === "today"} onClick={() => setTab("today")}>
             Today
@@ -304,22 +350,22 @@ export function HabitsClient({
             active={tab === "manage"}
             onClick={() => setTab("manage")}
           >
-            Manage{" "}
-            <span className="tabular-nums text-[var(--ink-muted)] ml-1">
-              ({habits.length})
+            Manage
+            <span className="ml-1 tabular-nums text-[var(--sd-ink-faint)]">
+              {habits.length}
             </span>
           </TabButton>
           <TabButton
             active={tab === "archive"}
             onClick={() => setTab("archive")}
           >
-            Archive{" "}
-            <span className="tabular-nums text-[var(--ink-muted)] ml-1">
-              ({archived.length})
+            Archive
+            <span className="ml-1 tabular-nums text-[var(--sd-ink-faint)]">
+              {archived.length}
             </span>
           </TabButton>
         </div>
-        <Button size="sm"onClick={() => setCreateOpen(true)}>
+        <Button size="sm" onClick={() => setCreateOpen(true)}>
           <Plus size={14} /> New habit
         </Button>
       </div>
@@ -386,7 +432,7 @@ function TodayTab({
   const [selectedDate, setSelectedDate] = useState(today);
   const [calOpen, setCalOpen] = useState(false);
 
-  // Auto-snap to "today"if the day rolls over while we were on yesterday.
+  // Auto-snap to "today" if the day rolls over while we were on yesterday.
   // (No-op for any other selection — only when today's value changed AND
   // we were anchored to the previous today.)
   useEffect(() => {
@@ -416,8 +462,8 @@ function TodayTab({
 
   return (
     <section className="flex flex-col gap-4">
-      {/* Day navigator — prev / label+calendar / next, with a "Today"reset
-          on the right when off-today. */}
+      {/* Day navigator — prev / label+calendar / next, with a "jump to today"
+          reset on the right when off-today. */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1">
           <Button
@@ -433,17 +479,17 @@ function TodayTab({
               <Button
                 variant="ghost"
                 size="sm"
-                className="font-serif font-semibold text-[18px] leading-none px-2"
+                className="px-2 text-[15px] font-semibold leading-none tracking-[-0.01em]"
               >
                 <CalendarIcon
                   size={13}
-                  className="opacity-70 mr-1.5"
+                  className="mr-1.5 opacity-60"
                   aria-hidden="true"
                 />
                 {formatDateLabel(selectedDate, today)}
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="start"className="w-auto p-3">
+            <PopoverContent align="start" className="w-auto p-3">
               <MiniCalendar
                 value={selectedDate}
                 onChange={(iso) => {
@@ -472,33 +518,47 @@ function TodayTab({
             </Button>
           ) : null}
         </div>
-        <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)]">
+        <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-faint)]">
           {completedCount} / {dayHabits.length}
         </span>
       </div>
 
-      {/* Past / future hint band. Future = warning (can't check off yet);
-          past = neutral muted (can backfill). */}
+      {/* Progress plate — hatched accent bar, mirrors TodayHabitsWidget. */}
+      {dayHabits.length > 0 ? (
+        <div className={cn("px-4 py-3.5", ROW_PLATE)}>
+          <ProgressRow
+            label={
+              completedCount === dayHabits.length
+                ? "All done"
+                : "Completed"
+            }
+            value={`${completedCount}/${dayHabits.length}`}
+            ratio={dayHabits.length ? completedCount / dayHabits.length : 0}
+          />
+        </div>
+      ) : null}
+
+      {/* Past / future hint band. Future = can't affect today; past = backfill. */}
       {isFuture ? (
-        <div className="rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2 font-serif italic text-[12px] text-[var(--ink-muted)]">
+        <div className={cn("px-3.5 py-2.5 text-[12px] text-[var(--sd-ink-dull)]", ROW_PLATE)}>
           Viewing a future day — check-off is enabled but won't change today's
           counts.
         </div>
       ) : null}
 
       {dayHabits.length === 0 ? (
-        <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-10 text-center">
-          <p className="font-serif italic text-[15px] text-[var(--ink-muted)]">
+        <div className="rounded-[14px] border border-dashed border-[var(--sd-line)] px-6 py-10">
+          <EmptyState icon={<HabitIcon size={40} />}>
             {habits.length === 0
               ? "No habits yet — add one to begin."
               : isPast
                 ? "Nothing was scheduled this day, or all your habits were created later."
                 : "Nothing scheduled for this day."}
-          </p>
+          </EmptyState>
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
-          <AnimatePresence mode="popLayout"initial={false}>
+          <AnimatePresence mode="popLayout" initial={false}>
             {dayHabits.map((h) => (
               <motion.li
                 key={h.id}
@@ -510,6 +570,7 @@ function TodayTab({
                 <DayHabitRow
                   habit={h}
                   completed={isCompleted(h.id, selectedISO)}
+                  streak={computeStreak(h, isCompleted, selectedISO, today)}
                   onToggle={() => onToggle(h.id, selectedISO)}
                 />
               </motion.li>
@@ -524,42 +585,48 @@ function TodayTab({
 function DayHabitRow({
   habit,
   completed,
+  streak,
   onToggle,
 }: {
   habit: HabitWithAreas;
   completed: boolean;
+  streak: number;
   onToggle: () => void;
 }) {
   return (
-    <div
-      className={cn(
-        "flex items-center gap-3 px-4 py-3",
-        completed
-          ? "rounded-xl glass-tile border-[color-mix(in_oklch,var(--ink-amber)_45%,var(--edge))] bg-[color-mix(in_oklch,var(--ink-amber)_8%,var(--surface))] [--glass-glow-color:var(--ink-amber)] [--glass-glow:8%]"
-          : TILE_NEUMORPHIC,
-      )}
-    >
+    <div className={cn("flex items-center gap-3 px-4 py-3", ROW_PLATE, ROW_PLATE_HOVER)}>
       <CheckCircle completed={completed} onClick={onToggle} />
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "font-serif text-[16px] truncate",
+            "truncate text-[15px]",
             completed
-              ? "text-[var(--ink-muted)] line-through"
-              : "text-[var(--ink)]",
+              ? "text-[var(--sd-ink-faint)] line-through"
+              : "text-[var(--sd-ink)]",
           )}
         >
           {habit.name}
         </p>
         {habit.areas.length > 0 ? (
-          <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] mt-0.5 truncate">
+          <p className="mt-0.5 truncate text-[11px] text-[var(--sd-ink-faint)]">
             {habit.areas
               .map((a) => `${a.emoji ?? ""} ${a.name}`.trim())
               .join(" · ")}
           </p>
         ) : null}
       </div>
+      <StreakChip streak={streak} />
     </div>
+  );
+}
+
+/** Functional-amber streak accent — the only non-cyan hue on this surface. */
+function StreakChip({ streak }: { streak: number }) {
+  if (streak < 2) return null;
+  return (
+    <Chip icon={<Flame size={11} />} tone="var(--ink-amber)">
+      <span className="tabular-nums">{streak}</span>
+    </Chip>
   );
 }
 
@@ -586,11 +653,11 @@ function ManageTab({
 }) {
   if (habits.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-12 text-center">
-        <p className="font-serif italic text-base text-[var(--ink-muted)]">
+      <div className="rounded-[14px] border border-dashed border-[var(--sd-line)] px-6 py-12 text-center">
+        <p className="text-[14px] text-[var(--sd-ink-dull)]">
           Habits you build here repeat on the days you pick.
         </p>
-        <Button className="mt-4"size="sm"onClick={onCreate}>
+        <Button className="mt-4" size="sm" onClick={onCreate}>
           <Plus size={14} /> Add your first habit
         </Button>
       </div>
@@ -632,7 +699,7 @@ function ManageHabitRow({
   const createdISO = toISODate(habit.createdAt);
 
   // 7-day strip ending today. Clamp by createdAt — earlier days render as
-  // "didn't exist" (no border, faint) to make the "habit is new"honest.
+  // "didn't exist" (faint, borderless) to keep the "habit is new" honest.
   const strip = useMemo(() => {
     const out: {
       iso: string;
@@ -654,25 +721,30 @@ function ManageHabitRow({
     return out;
   }, [habit, today, createdISO, isCompleted]);
 
+  const streak = computeStreak(habit, isCompleted, today, today);
+
   return (
     <div
-      className={cn("flex items-center gap-3 px-4 py-3", TILE_NEUMORPHIC)}
+      className={cn("flex items-center gap-3 px-4 py-3", ROW_PLATE, ROW_PLATE_HOVER)}
     >
       <button
         type="button"
         onClick={onEdit}
-        className="flex flex-col min-w-0 flex-1 text-left"
+        className="flex min-w-0 flex-1 flex-col text-left cursor-pointer-always"
       >
-        <p className="font-serif text-[15px] text-[var(--ink)] truncate">
-          {habit.name}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-[15px] text-[var(--sd-ink)]">
+            {habit.name}
+          </p>
+          {streak >= 2 ? <StreakChip streak={streak} /> : null}
+        </div>
         {habit.description ? (
-          <p className="font-serif text-[12px] text-[var(--ink-muted)] truncate mt-0.5">
+          <p className="mt-0.5 truncate text-[12px] text-[var(--sd-ink-dull)]">
             {habit.description}
           </p>
         ) : null}
         {habit.areas.length > 0 ? (
-          <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] mt-1 truncate">
+          <p className="mt-1 truncate text-[11px] text-[var(--sd-ink-faint)]">
             {habit.areas
               .map((a) => `${a.emoji ?? ""} ${a.name}`.trim())
               .join(" · ")}
@@ -682,7 +754,7 @@ function ManageHabitRow({
 
       <HabitFrequencyBadges value={habit.daysOfWeek} />
 
-      <div className="flex items-center gap-0.5 ml-3">
+      <div className="ml-3 flex items-center gap-1">
         {strip.map((d) => (
           <span
             key={d.iso}
@@ -691,16 +763,17 @@ function ManageHabitRow({
                 ? `${d.iso} · before creation`
                 : `${d.iso}${d.scheduled ? "" : " · not scheduled"}${d.done ? " · done" : ""}`
             }
-            className={cn(
-              "inline-block w-2 h-2 rounded-full",
+            aria-hidden="true"
+            className="inline-block size-2 rounded-full"
+            style={
               d.preCreation
-                ? "bg-transparent border border-[var(--edge)]/30"
+                ? { border: "1px solid color-mix(in srgb, var(--sd-line) 50%, transparent)" }
                 : d.done
-                  ? "bg-[var(--ink-amber)]"
+                  ? { background: "var(--sd-accent)" }
                   : d.scheduled
-                    ? "bg-transparent border border-[var(--ink-muted)]/40"
-                    : "bg-transparent border border-[var(--edge)]/60",
-            )}
+                    ? { border: "1px solid var(--sd-ink-faint)" }
+                    : { border: "1px solid var(--sd-line)" }
+            }
           />
         ))}
       </div>
@@ -729,8 +802,8 @@ function ArchiveTab({
 }) {
   if (archived.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-12 text-center">
-        <p className="font-serif italic text-base text-[var(--ink-muted)]">
+      <div className="rounded-[14px] border border-dashed border-[var(--sd-line)] px-6 py-12 text-center">
+        <p className="text-[14px] text-[var(--sd-ink-dull)]">
           Nothing archived. Archive a habit from Manage to stash it here.
         </p>
       </div>
@@ -741,20 +814,20 @@ function ArchiveTab({
       {archived.map((h) => (
         <li
           key={h.id}
-          className={cn("flex items-center gap-3 px-4 py-3", TILE_NEUMORPHIC)}
+          className={cn("flex items-center gap-3 px-4 py-3", ROW_PLATE)}
         >
-          <div className="flex flex-col min-w-0 flex-1">
-            <p className="font-serif text-[15px] text-[var(--ink-muted)] truncate">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <p className="truncate text-[15px] text-[var(--sd-ink-dull)]">
               {h.name}
             </p>
-            <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] mt-1">
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
               Created {prettyDate(h.createdAt)}
               {h.archivedAt
                 ? `  ·  Archived ${prettyDate(h.archivedAt)}`
                 : null}
             </p>
             {h.areas.length > 0 ? (
-              <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]/80 mt-0.5 truncate">
+              <p className="mt-0.5 truncate text-[11px] text-[var(--sd-ink-faint)]">
                 {h.areas
                   .map((a) => `${a.emoji ?? ""} ${a.name}`.trim())
                   .join(" · ")}
@@ -797,6 +870,7 @@ function CheckCircle({
   completed: boolean;
   onClick: () => void;
 }) {
+  const reduced = useReducedMotion();
   return (
     <button
       type="button"
@@ -804,30 +878,39 @@ function CheckCircle({
       aria-pressed={completed}
       aria-label={completed ? "Mark not done" : "Mark done"}
       className={cn(
-        "shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full border-2",
-        "transition-colors duration-150 ease-out cursor-pointer-always",
+        "inline-flex size-7 shrink-0 items-center justify-center rounded-full border-2",
+        "cursor-pointer-always transition-colors duration-150 ease-out",
         completed
-          ? "border-[var(--ink-amber)] bg-[var(--ink-amber)] text-[var(--canvas)]"
-          : "border-[var(--edge)] bg-transparent hover:border-[var(--ink-amber)]",
+          ? "border-[var(--sd-accent)] bg-[var(--sd-accent)] text-[var(--sd-app)]"
+          : "border-[var(--sd-line)] bg-transparent hover:border-[var(--sd-accent)]",
       )}
     >
-      {completed ? (
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M3 7.5L6 10.5L11 4.5"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      ) : null}
+      <motion.span
+        initial={false}
+        animate={
+          reduced ? undefined : completed ? { scale: [1, 1.22, 1] } : { scale: 1 }
+        }
+        transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
+        className="inline-flex"
+      >
+        {completed ? (
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M3 7.5L6 10.5L11 4.5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : null}
+      </motion.span>
     </button>
   );
 }
@@ -849,7 +932,7 @@ function HabitRowMenu({
         <button
           type="button"
           aria-label="Habit options"
-          className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors cursor-pointer-always"
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-[var(--sd-ink-faint)] transition-colors hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] cursor-pointer-always"
         >
           <MoreHorizontal size={14} />
         </button>
@@ -871,7 +954,7 @@ function HabitRowMenu({
             <DropdownMenuSeparator />
           </>
         )}
-        <DropdownMenuItem variant="destructive"onClick={onDelete}>
+        <DropdownMenuItem variant="destructive" onClick={onDelete}>
           <Trash2 size={14} /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -895,11 +978,11 @@ function TabButton({
       aria-pressed={active}
       role="tab"
       className={cn(
-        "inline-flex items-center px-3 py-1 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
+        "inline-flex items-center gap-0.5 rounded-md px-3 py-1 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
         "transition-colors duration-150 ease-out",
         active
-          ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+          ? "bg-[var(--sd-input)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]"
+          : "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]",
       )}
     >
       {children}

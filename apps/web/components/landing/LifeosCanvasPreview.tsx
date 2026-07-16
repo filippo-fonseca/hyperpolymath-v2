@@ -34,21 +34,21 @@ export function LifeosCanvasPreview() {
     <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* ── Areas Tree ─────────────────────────────────────────────── */}
       <figure
-        className="rounded-lg bg-[var(--surface)] border border-[var(--edge)] overflow-hidden flex flex-col"
+        className="rounded-[14px] bg-[var(--sd-box)] border border-[var(--sd-line)] overflow-hidden flex flex-col"
         style={{
           boxShadow:
-            "0 1px 0 color-mix(in oklch, white 70%, transparent) inset, 0 10px 28px -18px color-mix(in oklch, black 30%, transparent)",
+            "0 1px 0 rgba(255,255,255,0.06) inset",
         }}
       >
-        <header className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--edge)] bg-[var(--surface-raised)]">
-          <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-[var(--ink-muted)]">
+        <header className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--sd-line)] bg-[var(--sd-input)]">
+          <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-[var(--sd-ink-faint)]">
             Areas
           </span>
-          <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-[var(--ink-muted)] opacity-60">
+          <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-[var(--sd-ink-faint)] opacity-60">
             tree · live
           </span>
         </header>
-        <div className="p-4 font-mono text-[13px] leading-[1.9] text-[var(--ink)] flex-1">
+        <div className="p-4 font-mono text-[13px] leading-[1.9] text-[var(--sd-ink)] flex-1">
           {TREE.map((node, i) => (
             <div
               key={i}
@@ -57,15 +57,15 @@ export function LifeosCanvasPreview() {
             >
               <span
                 className="inline-block w-3 text-[10px]"
-                style={{ color: "var(--ink-muted)" }}
+                style={{ color: "var(--sd-ink-faint)" }}
               >
                 {node.icon ?? "·"}
               </span>
               <span
                 style={{
                   color: node.muted
-                    ? "var(--ink-muted)"
-                    : "var(--ink)",
+                    ? "var(--sd-ink-faint)"
+                    : "var(--sd-ink)",
                   fontStyle: node.muted ? "italic" : "normal",
                 }}
               >
@@ -74,24 +74,24 @@ export function LifeosCanvasPreview() {
             </div>
           ))}
         </div>
-        <figcaption className="px-4 py-2.5 border-t border-[var(--edge)] font-serif text-[13px] italic text-[var(--ink-muted)]">
+        <figcaption className="px-4 py-2.5 border-t border-[var(--sd-line)] text-[13px] italic text-[var(--sd-ink-faint)]">
           Every page in the app lives somewhere on this tree.
         </figcaption>
       </figure>
 
       {/* ── Knowledge Graph ────────────────────────────────────────── */}
       <figure
-        className="rounded-lg bg-[var(--surface)] border border-[var(--edge)] overflow-hidden flex flex-col"
+        className="rounded-[14px] bg-[var(--sd-box)] border border-[var(--sd-line)] overflow-hidden flex flex-col"
         style={{
           boxShadow:
-            "0 1px 0 color-mix(in oklch, white 70%, transparent) inset, 0 10px 28px -18px color-mix(in oklch, black 30%, transparent)",
+            "0 1px 0 rgba(255,255,255,0.06) inset",
         }}
       >
-        <header className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--edge)] bg-[var(--surface-raised)]">
-          <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-[var(--ink-muted)]">
+        <header className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--sd-line)] bg-[var(--sd-input)]">
+          <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-[var(--sd-ink-faint)]">
             Knowledge Graph
           </span>
-          <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-[var(--ink-muted)] opacity-60">
+          <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-[var(--sd-ink-faint)] opacity-60">
             force-directed
           </span>
         </header>
@@ -104,7 +104,7 @@ export function LifeosCanvasPreview() {
           >
             {/* edges — drawn first so nodes sit on top */}
             <g
-              stroke="var(--ink)"
+              stroke="var(--sd-ink)"
               strokeOpacity="0.22"
               strokeWidth="1"
               fill="none"
@@ -141,28 +141,28 @@ export function LifeosCanvasPreview() {
             {/* nodes */}
             {/* Academics — area hub */}
             <g>
-              <circle cx="140" cy="90" r="14" fill="var(--ink)" />
+              <circle cx="140" cy="90" r="14" fill="var(--sd-ink)" />
               <text
                 x="140"
                 y="74"
                 textAnchor="middle"
                 fontFamily="ui-monospace, Menlo, monospace"
                 fontSize="10"
-                fill="var(--ink)"
+                fill="var(--sd-ink)"
               >
                 Academics
               </text>
             </g>
             {/* Running — area hub */}
             <g>
-              <circle cx="300" cy="200" r="14" fill="var(--ink)" />
+              <circle cx="300" cy="200" r="14" fill="var(--sd-ink)" />
               <text
                 x="300"
                 y="184"
                 textAnchor="middle"
                 fontFamily="ui-monospace, Menlo, monospace"
                 fontSize="10"
-                fill="var(--ink)"
+                fill="var(--sd-ink)"
               >
                 Running
               </text>
@@ -185,12 +185,12 @@ export function LifeosCanvasPreview() {
                   r={n.kind === "project" ? 9 : 6}
                   fill={
                     n.kind === "project"
-                      ? "var(--surface)"
+                      ? "var(--sd-box)"
                       : n.kind === "capture"
-                      ? "var(--surface-raised)"
-                      : "var(--ink-muted)"
+                      ? "var(--sd-input)"
+                      : "var(--sd-ink-faint)"
                   }
-                  stroke="var(--ink)"
+                  stroke="var(--sd-ink)"
                   strokeOpacity={n.kind === "task" ? 0 : 0.7}
                   strokeWidth="1"
                 />
@@ -200,7 +200,7 @@ export function LifeosCanvasPreview() {
                   textAnchor="middle"
                   fontFamily="ui-monospace, Menlo, monospace"
                   fontSize="9"
-                  fill="var(--ink-muted)"
+                  fill="var(--sd-ink-faint)"
                 >
                   {n.label}
                 </text>
@@ -208,7 +208,7 @@ export function LifeosCanvasPreview() {
             ))}
           </svg>
         </div>
-        <figcaption className="px-4 py-2.5 border-t border-[var(--edge)] font-serif text-[13px] italic text-[var(--ink-muted)]">
+        <figcaption className="px-4 py-2.5 border-t border-[var(--sd-line)] text-[13px] italic text-[var(--sd-ink-faint)]">
           Areas, projects, tasks, captures, and the lines between them.
         </figcaption>
       </figure>

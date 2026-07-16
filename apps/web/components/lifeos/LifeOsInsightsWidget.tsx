@@ -1,9 +1,8 @@
 "use client";
 
-interface Stat {
-  label: string;
-  value: string;
-}
+import { HabitIcon, InsightIcon, TrainingIcon } from "@/components/ui/icons";
+import { ActionLink, Chip, EntityCardHeader, StatusPill } from "./entity-card";
+import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
 interface Props {
   jarvisTurns: number;
@@ -14,9 +13,13 @@ interface Props {
 }
 
 /**
- * LifeOsInsightsWidget — a slim gateway tile that summarizes the week and
- * links into the Insights "Life" tab. Rendered inside a WidgetCard whose
- * margin-click overlay routes to /insights?tab=life.
+ * LifeOsInsightsWidget — the compact gateway cell (SD3 §2) that folds into the
+ * widget deck and links into the Insights "Life" tab.
+ *
+ * As a compact 3-col cell it can't afford the old three-stat strip, so it leads
+ * with a single headline metric (JARVIS turns, the register's pulse) plus a
+ * one-line week summary; the habits/training splits live in the §11 footer chip
+ * strip. Headline metrics + chip strip, one screen.
  */
 export function LifeOsInsightsWidget({
   jarvisTurns,
@@ -25,28 +28,61 @@ export function LifeOsInsightsWidget({
   trainingDone,
   trainingPlanned,
 }: Props) {
-  const stats: Stat[] = [
-    { label: "JARVIS turns · 7d", value: String(jarvisTurns) },
-    { label: "Habits today", value: `${habitsDone}/${habitsTotal}` },
-    { label: "Training today", value: `${trainingDone}/${trainingPlanned}` },
-  ];
-
   return (
-    <div className="flex h-full flex-col">
-      <header className="mb-4 flex items-center justify-between">
-        <h3 className="font-serif text-base font-semibold text-[var(--ink)]">Insights</h3>
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-          Open →
-        </span>
-      </header>
-      <dl className="grid grid-cols-3 gap-4">
-        {stats.map((s) => (
-          <div key={s.label} className="flex flex-col gap-1">
-            <dd className="font-mono text-2xl tabular-nums text-[var(--ink)]">{s.value}</dd>
-            <dt className="font-serif text-[12px] text-[var(--ink-muted)]">{s.label}</dt>
+    <>
+      <WidgetBody>
+        <EntityCardHeader
+          icon={<InsightIcon size={36} />}
+          title="Insights"
+          subtitle="This week"
+          pill={
+            jarvisTurns > 0 ? (
+              <StatusPill tone="progress" label="7d" />
+            ) : (
+              <StatusPill tone="idle" label="quiet" />
+            )
+          }
+          action={<ActionLink>Open →</ActionLink>}
+        />
+        <div className="mt-3 flex min-h-0 flex-1 flex-col justify-center">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[34px] font-black leading-none tracking-[-0.02em] tabular-nums text-[var(--sd-ink)]">
+              {jarvisTurns}
+            </span>
+            <span className="text-[13px] font-medium text-[var(--sd-ink-dull)]">
+              JARVIS turns · 7d
+            </span>
           </div>
-        ))}
-      </dl>
-    </div>
+          <p className="mt-2 flex items-center gap-2 text-[12px] text-[var(--sd-ink-dull)]">
+            <HabitIcon size={16} aria-hidden />
+            <span className="tabular-nums">
+              {habitsDone}/{habitsTotal} habits
+            </span>
+            <span aria-hidden className="text-[var(--sd-ink-faint)]">
+              ·
+            </span>
+            <TrainingIcon size={16} aria-hidden />
+            <span className="tabular-nums">
+              {trainingDone}/{trainingPlanned} training
+            </span>
+          </p>
+        </div>
+      </WidgetBody>
+
+      <WidgetFooter>
+        <Chip>Trailing 7 days</Chip>
+        {jarvisTurns > 0 && <Chip>{jarvisTurns} turns</Chip>}
+        {habitsTotal > 0 && (
+          <Chip>
+            {habitsDone}/{habitsTotal} habits
+          </Chip>
+        )}
+        {trainingPlanned > 0 && (
+          <Chip>
+            {trainingDone}/{trainingPlanned} sessions
+          </Chip>
+        )}
+      </WidgetFooter>
+    </>
   );
 }

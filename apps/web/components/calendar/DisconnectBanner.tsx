@@ -44,7 +44,7 @@ export function DisconnectBanner({ variant }: Props) {
       : "Google Calendar isn't connected.";
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 bg-[var(--surface)] border-b border-[var(--edge)]"
+      className="flex items-center gap-3 px-4 py-3 bg-[var(--sd-box)] border-b border-[var(--sd-line)]"
       style={{ borderLeft: "3px solid var(--ink-coral)" }}
       role="alert"
     >
@@ -54,14 +54,14 @@ export function DisconnectBanner({ variant }: Props) {
         className="shrink-0 text-[var(--ink-coral)]"
         aria-hidden="true"
       />
-      <span className="font-serif text-base flex-1 text-[var(--ink)]">
+      <span className="text-[13px] flex-1 text-[var(--sd-ink)]">
         {copy}
       </span>
       {/* UI-SPEC §12f — "Connect Google Calendar" CTA. Mono chrome register
           per UI-SPEC §5l toast Undo-button precedent (banner is diplomatic). */}
       <a
         href="/api/gcal/auth"
-        className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)] border border-[var(--edge)] rounded-sm px-2 py-1 hover:bg-[var(--surface-raised)] transition-colors duration-150 ease-out cursor-pointer-always"
+        className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink)] border border-[var(--sd-line)] rounded-[6px] px-2 py-1 hover:bg-[var(--sd-hover)] transition-colors duration-150 ease-out cursor-pointer-always"
       >
         Connect Google Calendar
       </a>

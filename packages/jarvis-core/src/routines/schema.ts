@@ -53,6 +53,10 @@ export const zRoutineBlock = z.object({
   tool: z.string().min(1),
   params: z.record(z.string(), z.unknown()).default({}),
   nlDirective: z.string().max(2000).optional(),
+  // Free-text INSTRUCTIONS for the spoken "loading" filler line played while
+  // this block gathers. Interpreted by the runner (small prose-only Anthropic
+  // call), not spoken verbatim. Optional — existing specs parse unchanged.
+  loadingInstruction: z.string().max(2000).optional(),
 });
 
 // --- Spec schema ----------------------------------------------------------
@@ -61,6 +65,18 @@ export const zRoutineSpec = z.object({
   version: z.literal(ROUTINE_SPEC_VERSION),
   triggers: z.array(zRoutineTrigger).min(1), // a routine needs ≥1 trigger
   blocks: z.array(zRoutineBlock).min(1), //     …and ≥1 block
+  // Briefing cohesion (Option C): gather blocks silently, then speak ONE
+  // synthesized butler brief. Optional + off by default — existing specs
+  // parse unchanged.
+  synthesize: z.boolean().optional(),
+  // Parallel gather (synthesize-only): run gather blocks concurrently in a
+  // bounded pool. Optional + off by default — existing specs parse unchanged;
+  // only honored when synthesize is true.
+  parallel: z.boolean().optional(),
+  // Routine-level loading instruction: interpreted into a fresh spoken opener
+  // line that REPLACES the default hardcoded opener when set. Optional + off by
+  // default — existing specs parse unchanged.
+  loadingInstruction: z.string().max(2000).optional(),
 });
 
 /** Loose input type (pre-defaults) accepted by `zRoutineSpec.parse`. */

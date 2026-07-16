@@ -54,6 +54,14 @@ export async function probeBufferTail(samples: Float32Array): Promise<string | n
     samples.length > PROBE_TAIL_SAMPLES
       ? samples.subarray(samples.length - PROBE_TAIL_SAMPLES)
       : samples;
+  // Energy gate: skip the STT request entirely when the tail is basically
+  // silence. This wake PROBE ran every ~2.2s with no gate, transcribing pure
+  // silence ~1,600×/hr and draining the daily Groq quota in ~1h — which is
+  // what caused the 429/retry-after latency. Returning null matches the
+  // "no speech" contract (the wake path is fail-open on null). Only the wake
+  // probe flows through here; real command capture (finishTurn) POSTs directly
+  // and is unaffected, so real utterances are never dropped.
+  if (computeRms(tail) < VAD_DEFAULTS.rmsThreshold) return null;
   try {
     const wav = encodeWav(tail, 16_000);
     return await probeTranscript(wav);
@@ -141,7 +149,12 @@ export type CaptureState = "idle" | "recording" | "uploading";
 // the right butler line ("Didn't catch that" vs "transcription failed").
 export type NoSpeechReason = "empty" | "stt-failed";
 type StateListener = (state: CaptureState) => void;
-type TranscriptListener = (text: string) => void;
+// The optional sttDoneAt is the server's STT-completion stamp — a per-utterance
+// identity the HUD echo-dedupe keys on. Present when the server returns it (the
+// SSE `transcript` event always does; the normal-turn POST response currently
+// omits it). Listeners that only want the text (e.g. the FSM end-phrase check)
+// simply ignore the second argument.
+type TranscriptListener = (text: string, sttDoneAt?: number) => void;
 type NoSpeechListener = (reason: NoSpeechReason) => void;
 type ExtendedListener = (active: boolean) => void;
 
@@ -253,7 +266,15 @@ export async function startCaptureTurn(): Promise<void> {
   emitExtended(extended);
   activeTurnFinished = false;
 
-  await postClaim();
+  // Fire-and-forget: postClaim is "belt-and-braces" (see its own docstring —
+  // non-fatal, a failed claim just means the browser may start its own mic for
+  // this turn) and must NEVER gate mic arm. Previously this was `await`ed
+  // BEFORE the audio-chunk listener + `start_capture`, so the FSM's orb-fly
+  // (jarvisState → "listening", which fires synchronously in the caller) ran a
+  // beat ahead of the mic actually opening — the user would start talking into
+  // a not-yet-recording turn and have to invoke a second time. Firing this in
+  // parallel means the very same click that flies the orb also arms the mic.
+  void postClaim();
 
   activeVad = new VadSilenceDetector({ ...VAD_DEFAULTS, silenceEndMs: vadSilenceMs });
   activeVad.start();
@@ -410,7 +431,13 @@ async function finishTurn(vad: VadSilenceDetector): Promise<void> {
     console.log(
       `[capture] transcript received (sttDoneAt=${result.sttDoneAt}): ${result.transcript.slice(0, 80)}`,
     );
-    for (const fn of transcriptListeners) fn(result.transcript);
+    // Forward the STT identity when present so the HUD echo-dedupe can match the
+    // SSE and POST echoes of this utterance by id (not just by text).
+    const sttDoneAt =
+      typeof result.sttDoneAt === "number" && Number.isFinite(result.sttDoneAt)
+        ? result.sttDoneAt
+        : undefined;
+    for (const fn of transcriptListeners) fn(result.transcript, sttDoneAt);
   }
 
   activeVad = null;

@@ -1,0 +1,48 @@
+{
+ "agent_id": "sd3-unit-devtab",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-devtab",
+ "branch": "sd3/unit-devtab",
+ "unit_id": "unit-devtab",
+ "phase": "verified",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-15T17:55:50.6NZ",
+ "verification": {
+   "typecheck": "pass (exit 0, 0 TS errors)",
+   "build": "pass (Compiled successfully, 38/38 static pages, /insights present)",
+   "themes": "both verified 1440-wide (light parchment + dark indigo)",
+   "evidence": [
+     ".planning/evidence/sd3-devtab-light.png",
+     ".planning/evidence/sd3-devtab-dark.png",
+     ".planning/evidence/sd3-devtab-ledger-crop-dark.png",
+     ".planning/sd3-devtab-verification.md"
+   ],
+   "method": "§1 fallback: sanctioned throwaway preview route (app/devtab-preview) with seed data, headless on :3834, deleted after; tree clean. DEV tab is owner-gated so authed pixel-verify on :3000 deferred to Conductor post-merge."
+ },
+ "commits": [
+   "10e45207 sd3(devtab): console chrome primitives",
+   "84d97874 sd3(devtab): rebuild DEV tab as a console — header stat strip + mono pipeline ledger",
+   "61d53760 sd3(devtab): replate spend + trigger panels on the console register",
+   "e4d255db sd3(devtab): drop unused Eyebrow import",
+   "ba74272f sd3(devtab): verification note + both-theme evidence + seed plan"
+ ],
+ "assumptions": [
+   "tile-style.ts already flat sd plate (pre-done in sd2); Scout A report is pre-sd2. Left untouched (shared).",
+   "life/ClaudeCodePanel.tsx is DEV-exclusive now (LifeTabPanel dropped it) so it is inside the functional DEV fence though under life/.",
+   "Pipeline = mono ledger table (time-ordered per-issue outcome log, not live WIP flow).",
+   "Charts use var(--sd-*) tokens (both-theme correct, per nutrition exemplar), retiring light-only hex.",
+   "Anthropic admin-key panel intentionally inert; calm empty state, not removed."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": "claude-opus-4-8",
+ "notes": [
+   "Fence: components/insights/DevelopmentTabPanel.tsx + development/** (incl. new dev-chrome.tsx) + life/ClaudeCodePanel.tsx. globals.css untouched. No ui/ edits.",
+   "env.propagate: copied apps/web/.env + .env.local from sd-restyle root into worktree (gitignored, never staged) so build could collect page data.",
+   "Reclaimed a >15min-stale browser lock (owner PID 56010 dead) for capture; released immediately after."
+ ],
+ "steering": [],
+ "port": 3834
+}

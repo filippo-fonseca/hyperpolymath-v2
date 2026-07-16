@@ -1,0 +1,49 @@
+{
+ "agent_id": "unit-training",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-training",
+ "branch": "sd3/unit-training",
+ "unit_id": "unit-training",
+ "phase": "done",
+ "status": "done",
+ "heartbeat_at": "2026-07-15T03:20:00.000Z",
+ "verification": {
+  "typecheck": "GREEN \u2014 pnpm --filter web typecheck (tsc --noEmit), 0 errors (ran pnpm install first; worktree shipped without node_modules)",
+  "build": "GREEN \u2014 pnpm --filter web build exit 0; /training + /training/stats both in the route manifest",
+  "token_audit": "PASS \u2014 0 banned classes, 0 legacy tokens across the full fence; every var(--) is --sd-* or a sanctioned functional ink",
+  "compiled_css_proof": "PASS \u2014 grepped apps/web/.next/static/chunks/*.css: .sd-panel/.sd-progress*/ all novel arbitrary utilities (color-mix 70/60/18%, box-shadow outlines) + token utilities all EMITTED",
+  "browser": "AUTH-BLOCKED (documented fallback) \u2014 /training + /training/stats are requireOnboarded()-gated, no dev-auth bypass; env has no Supabase session. Clean-serve smoke: both routes 307 -> /sign-in, no 500. Global browser lock held by another live unit throughout (not acquired/reclaimed). Conductor pixel-verifies authed surfaces in both themes on :3000 per \u00a71.",
+  "evidence": ".planning/sd3-training-VERIFY.md",
+  "conductor_review": "APPROVED 2026-07-15 \u2014 gates green, token audit + compiled proof clean, all assumptions RATIFIED (token map, hover-scale->outline, transform-only progress). Authed pixel check -> tester pass 2 on :3000."
+ },
+ "commits": [
+  "3d33c764 sd3(training): stats surfaces to the sd register",
+  "b05fc3c9 sd3(training): planner surfaces to the sd register",
+  "46f05f30 sd3(training): dialog + editor content to the sd register",
+  "c202f792 sd3(training): verification evidence + sealed seed plan"
+ ],
+ "assumptions": [
+  "Stale .planning/bgsd-unit.json (references sesh-sd2-overhaul / unit-sidebar-overhaul) is IGNORED per steering; no advisor dir exists for this run, so I steer from the seed + control file only.",
+  "Legacy->sd token map: --ink-muted->--sd-ink-dull, --ink->--sd-ink, --edge->--sd-line, --edge-hud->--sd-accent (hover-emphasis border), --surface-raised->--sd-box, --surface-2->--sd-input, --surface(fill)->--sd-input, --surface(hover)->--sd-hover, --bg(card fill)->--sd-box, --canvas->--sd-app, --hud-cyan->--sd-accent, --danger->--ink-coral.",
+  "font-serif is dead per DESIGN-SYSTEM section 3 -> dropped on sight (resolves to Space Grotesk); stat values get font-black tabular-nums tracking-[-0.01em].",
+  "Stats plates use the shipped .sd-panel primitive (12px) instead of glass-tile.",
+  "Heatmap cell hover-scale (banned section 16) replaced with an instant box-shadow outline (no transform, no transition) + focus-visible accent ring.",
+  "width-animated progress (AdherenceCard) and height-animated bars (DurationTrendChart) replaced with scaleX/static-height per zero-jank section 14."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "user-named feature surface; ~4900-line dir, chart-heavy; design-critical"
+ },
+ "notes": [
+  "Fence: apps/web/components/training/** + apps/web/app/(app)/training/**. globals.css additive-only (expected: none needed). ui/ primitives consumed, never edited.",
+  "Plan sealed 2026-07-15. Execution grouped into atomic commits: (1) stats surfaces, (2) planner surfaces, (3) dialogs/editors, (4) evidence.",
+  "Verification: pnpm --filter web typecheck + build green; token-audit (0 banned classes / 0 legacy tokens in changed files) + compiled-CSS proof; headless (global lock, one browser, port 3827) /training + /training/stats dark+light + one dialog; evidence under .planning/ sd3- prefix; then status=awaiting_review and WAIT."
+ ],
+ "steering": "Initial directive: your seed is .planning/fable-plan-training.md (ignore any inherited fable-plan-sd3.md). Read it + UI-CONTRACT-SD3.md fully, seal your plan in this control file, then proceed. Browser: headless, global lock, one at a time. Atomic commits, explicit pathspecs. APPENDED DIRECTIVE (Conductor): when stopping your dev/prod server, kill ONLY your own PID or port (kill $(lsof -ti tcp:<your-port>)). NEVER pkill broad patterns like 'next'/'pnpm dev' \u2014 you have twice killed the Conductor's :3000 review server.",
+ "conductor_acceptance": "Accepted by Conductor (Kiwi): 4 atomic commits, evidence-backed."
+}

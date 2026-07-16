@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
-import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 
 /**
  * Slash-command popover (D-07).
@@ -15,11 +14,9 @@ import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
  * `/help` is local-only — JarvisInput intercepts and renders the command
  * list without submitting.
  *
- * Phase 6.1 Plan 02 (UI-SPEC §9c diplomatic-surface treatment):
- *   - --surface-raised bg + 1px --edge border
- *   - 10px corner L-brackets (static, smaller than the 12px console crops)
- *   - 'commands' header in mono 11px uppercase tracking-[0.08em]
- *   - Option rows in mono 12px --ink-muted with hover state surfacing --ink
+ * sd (Spacedrive) register: a solid `sd-menu-surface` popover — no corner
+ * brackets, no blur. A mono 'commands' header, option rows in mono
+ * --sd-ink-dull, and the highlighted row surfacing the single cyan accent.
  */
 
 const COMMANDS = [
@@ -53,29 +50,13 @@ export function SlashCommandPopover({ query, selectedIndex, onSelect }: Props) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 2 }}
         transition={{ duration: 0.12, ease: [0.25, 1, 0.5, 1] }}
-        className="absolute bottom-full left-0 mb-2 min-w-[18rem] rounded-md font-mono z-50"
-        style={{
-          backgroundColor: "var(--surface-raised)",
-          border: "1px solid var(--edge)",
-          boxShadow: "0 12px 32px rgba(0, 0, 0, 0.3)",
-        }}
+        className="sd-menu-surface absolute bottom-full left-0 mb-2 min-w-[18rem] rounded-[10px] font-mono z-50"
+        style={{ boxShadow: "0 12px 32px rgba(0, 0, 0, 0.3)" }}
         role="listbox"
         aria-label="Slash commands"
       >
-        {/* Phase 6.1 Plan 02 (UI-SPEC §9c): 10px corner L-brackets, static
-            (no breathing on diplomatic surfaces — the popover is transient). */}
-        <HudCornerCrops
-          size={10}
-          className="absolute inset-0 pointer-events-none"
-          breathing={false}
-        />
-
-        {/* Phase 6.1 Plan 02 (UI-SPEC §12c): 'commands' header in mono 11px
-            uppercase tracking-wide --ink-muted */}
-        <div
-          className="relative px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]"
-          style={{ borderBottom: "1px solid var(--edge)" }}
-        >
+        {/* 'commands' header — mono cyan readout marking JARVIS chrome. */}
+        <div className="relative px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] border-b border-[var(--sd-line)]">
           commands
         </div>
 
@@ -95,21 +76,21 @@ export function SlashCommandPopover({ query, selectedIndex, onSelect }: Props) {
                   onSelect(cmd.key);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between gap-3 rounded px-2 py-1 text-left font-mono text-xs transition-colors duration-100 ease-out",
+                  "flex w-full items-center justify-between gap-3 rounded-[6px] px-2 py-1 text-left font-mono text-xs transition-colors duration-[140ms] ease-out",
                   isHighlighted
-                    ? "text-[var(--ink)]"
-                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+                    ? "text-[var(--sd-accent)]"
+                    : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
                 )}
                 style={
                   isHighlighted
-                    ? { backgroundColor: "var(--surface)" }
+                    ? { backgroundColor: "var(--sd-selected)" }
                     : undefined
                 }
                 role="option"
                 aria-selected={isHighlighted}
               >
                 <span>{cmd.label}</span>
-                <span className="text-[11px] text-[var(--ink-muted)]">
+                <span className="text-[11px] text-[var(--sd-ink-faint)]">
                   {cmd.description}
                 </span>
               </button>

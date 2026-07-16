@@ -3,22 +3,18 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /**
- * Phase 06.1 Plan 04 (UI-SPEC §9b) — Document-tier Card.
+ * sd register (sesh-sd3, unit-primitives) — Card.
  *
- * bg --surface + 1px --edge border + NO shadow. Phase 6's retired neumorphic
- * surface boxShadow token (purged in Plan 06.1-01) is intentionally absent.
- *
- * Agent-tier surfaces (JARVIS receipts, /insights chart panels) layer their
- * own ambient cyan glow inline at the consumption site:
- *   style={{ boxShadow: '0 0 24px var(--hud-cyan-glow-soft)' }}
- * The shared Card does NOT bake that in — keeps document surfaces pristine.
+ * Widget-card v2 grammar: `--sd-box` fill, 1px `--sd-line` hairline, 14px
+ * radius, no shadow, no glow. Consumers that want ambient treatment layer it
+ * at the call site; the shared Card stays a pristine sd plate.
  */
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "flex flex-col gap-6 rounded-md border border-[var(--edge)] bg-[var(--surface)] py-6 text-[var(--ink)]",
+        "flex flex-col gap-6 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] py-6 text-[var(--sd-ink)]",
         className
       )}
       {...props}
@@ -43,7 +39,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-title"
-      className={cn("font-serif text-2xl font-semibold leading-tight text-[var(--ink)]", className)}
+      className={cn("text-2xl font-semibold leading-tight text-[var(--sd-ink)]", className)}
       {...props}
     />
   )
@@ -53,7 +49,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("font-serif text-base text-[var(--ink-muted)]", className)}
+      className={cn("text-base text-[var(--sd-ink-dull)]", className)}
       {...props}
     />
   )
