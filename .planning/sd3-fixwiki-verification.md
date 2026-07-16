@@ -4,15 +4,20 @@ Branch `sd3/unit-fix-wiki` off `2ca2f158`. Two user-ordered items, each its own
 atomic commit.
 
 ## Verdict
-Both items implemented; `typecheck` + `build` green. Authed pixel-verify of the
-two surfaces is deferred to the Conductor on :3000 (§1) — this fresh worktree has
-no `.env.local`, so there is no real Supabase session/DB to drive the authed
-surfaces headlessly. Status → `awaiting_review`.
+Both items implemented; `typecheck` + `build` green. Item 2 was **re-done per the
+Conductor's steer** (channel-driven, not the `refetchOnMount:"always"` shim) — see
+that section below. Authed pixel-verify of the two surfaces is deferred to the
+Conductor on :3000 (§1) — this fresh worktree has no `.env.local`, so there is no
+real Supabase session/DB to drive the authed surfaces headlessly. Status →
+`awaiting_review`.
 
 ## Commits
-- `713d9320` — item 2 (realtime): `apps/web/components/pages/PagesListClient.tsx`
+- `a79c68fc` — item 2 **re-done** (channel-driven realtime): `PagesListClient.tsx`
+  (`refetchOnMount:true`) + `PageDetailClient.tsx` (explicit `invalidateQueries`
+  in `save()`) + this note.
+- `713d9320` — item 2 first cut (`refetchOnMount:"always"`, superseded by `a79c68fc`).
 - `f7ca466e` — item 1 (tasks rail): `apps/web/components/tasks/InboxColumn.tsx`,
-  `apps/web/components/tasks/TasksClient.tsx`
+  `apps/web/components/tasks/TasksClient.tsx` (Conductor ACCEPTED).
 
 ## Gate results
 - `pnpm --filter web typecheck` → **PASS** (`tsc --noEmit`, exit 0).
@@ -60,23 +65,66 @@ tasks-fenced unit, revert `f7ca466e` — item 2 stands alone.
   `draggedTaskId`/`onDragStart`/`onDragEnd` wiring is unchanged. Overdue cards remain
   draggable to day targets. The existing "Hide inbox" control still gates rendering.
 
-## Item 2 — realtime page rename/create/delete on the wiki home
-- Root cause: the wiki-home entity queries in `PagesListClient` inherit the global
-  `QueryProvider` defaults (`refetchOnMount:false`, `staleTime:30_000`). A rename
-  done inside a page view happens while `/wiki` is unmounted; the pages Realtime
-  channel only refetches **active** observers, so the inactive wiki-home query is
-  merely marked stale, and on same-tab return `refetchOnMount:false` serves the
-  cached (old-title) list until a manual refresh.
-- Fix: set `refetchOnMount:"always"` on the four wiki-home data queries (`pages`,
-  `page_folders`, `folder_projects`, `daily-pages`). Navigate-back now always
-  re-fetches, so create/rename/delete propagate live across cards, list, and the
-  journal rail. The existing `useTableSubscription("pages", …)` continues to cover
-  the concurrent-tab case (active observer → live refetch). Invalidate-and-refetch
-  only; no hand-merged payloads (CLAUDE.md Critical Pattern 3).
-- Why not `router.refresh()` alone: it busts the RSC router cache but the cached
-  stale TanStack entry still wins under `refetchOnMount:false`, so the title stays
-  stale. Forcing the mount-time refetch is the reliable lever and stays entirely in
-  the wiki-pages data layer (primary fence).
+## Item 2 — realtime page rename/create/delete on the wiki home (RE-DONE per Conductor steer)
+
+**Conductor rejected the first cut** (`refetchOnMount:"always"`, commit `713d9320`)
+as a navigation shim rather than the canonical realtime channel pattern, and required
+the `useTableSubscription` channel to be the driver. This is the re-done item 2.
+
+### Audit — the canonical channel pattern was already fully wired
+The `pages` table IS in the `supabase_realtime` publication
+(`supabase/migrations/0031_pages.sql:104` → `ALTER PUBLICATION supabase_realtime ADD
+TABLE public.pages`), and three `useTableSubscription("pages", userId)` consumers
+already invalidate `["pages", userId]` on every INSERT/UPDATE/DELETE:
+- app-shell `components/search/SearchProvider.tsx:52` (mounted in `app/(app)/layout.tsx`,
+  never unmounts) — the always-on channel;
+- `components/pages/PagesListClient.tsx:54` (wiki home);
+- `components/pages/PageDetailClient.tsx:111` (page view).
+
+The other wiki-home surfaces are **prop-fed** from PagesListClient's single `["pages"]`
+query — `JournalRail` (`allPages` prop) and `WikiExplorer` (`pages` prop) issue no
+independent query, so no extra subscription is warranted (audited, not omitted).
+
+So the subscription was never the missing piece. The reported symptom is specifically
+the **same-tab navigate-back** case: the rename happens in the page view while `/wiki`
+is unmounted, so its `["pages"]` observer is inactive. A realtime channel can only
+*refetch* active observers — an unmounted one cannot be refetched, only marked stale.
+With the global `QueryProvider` default `refetchOnMount:false`, that stale flag was
+ignored on remount → old title until a hard refresh.
+
+### Fix — make the realtime invalidation drive the navigate-back refetch
+Two changes, one atomic commit, entirely invalidate-and-refetch (no payload merge,
+CLAUDE.md Critical Pattern 3):
+1. `PagesListClient` — the four wiki-home queries (`pages`, `page_folders`,
+   `folder_projects`, `daily-pages`) now use `refetchOnMount:true` (was `"always"`).
+   `true` refetches on remount **iff the query is stale**, i.e. iff a subscription /
+   mutation invalidated it. Unchanged + fresh (<30s `staleTime`) → no refetch, so it
+   "costs nothing extra" (the Conductor's condition), while a real rename reliably
+   refetches on navigate-back. The realtime stale flag is now the driver, not a blind
+   every-mount fetch.
+2. `PageDetailClient.save()` — after `updatePage`, explicitly
+   `queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) })`. This
+   mirrors the postgres_changes echo locally and synchronously, so the fix does not
+   depend on a live realtime round-trip (which is absent in dev/headless and can drop
+   under reconnect). Any co-mounted wiki surface updates instantly; the unmounted wiki
+   home is marked stale and refetches on navigate-back via (1).
+
+### Asserted invalidation call path (rename in page view → wiki home live)
+```
+title edit → handleTitleChange → scheduleAutosave({title})
+  → save() → updatePage({id,title})                       [DB write, bumps pages.updated_at]
+      ├─ queryClient.invalidateQueries(["pages", userId])  [LOCAL, synchronous — PageDetailClient.save]
+      └─ postgres_changes UPDATE on public.pages
+           → SearchProvider useTableSubscription("pages")  [app-shell, always mounted]
+           → queryClient.invalidateQueries(["pages", userId])
+  ⇒ ["pages", userId] marked STALE (via either arm)
+  navigate back to /wiki → PagesListClient remounts
+    → useQuery(["pages"]) refetchOnMount:true sees isStale → refetch → fresh title
+```
+Both arms converge on the same `invalidateQueries(["pages", userId])` key; the local
+arm is what makes it verifiable without a live realtime server, the channel arm is the
+canonical driver for the concurrent / cross-tab case. Create + delete ride the same key
+(useExplorerMutations `invalidatePages`, the `pages` channel), so all three propagate.
 
 ## Authed verification handoff (Conductor, :3000)
 1. Wiki realtime: open `/wiki`, open a page, rename it, hit back → the card/list/rail
