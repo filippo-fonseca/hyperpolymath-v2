@@ -46,7 +46,7 @@ const TREND_SERIES = [
 ];
 
 export const metadata: Metadata = {
-  title: "Design System · Hyperpolymath",
+  title: "Design System",
   description:
     "The living reference for Hyperpolymath's --sd-* register: tokens, typography, sidebar and card grammar, motion law, and icons, rendered from the shipped implementation.",
 };

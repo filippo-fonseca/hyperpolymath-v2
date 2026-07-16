@@ -14,7 +14,7 @@ import Link from "next/link";
 import { SectionEyebrow } from "@/components/landing/SectionEyebrow";
 
 export const metadata: Metadata = {
-  title: "Manifesto · Hyperpolymath",
+  title: "Manifesto",
   description:
  "Why Hyperpolymath exists, what it refuses to do, and the contract between the agent and the schema underneath.",
 };

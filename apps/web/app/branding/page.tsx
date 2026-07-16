@@ -18,7 +18,7 @@ import { type AssetId, type ThemeKey } from "@/lib/branding/svg";
 import { AssetTile } from "./AssetTile";
 
 export const metadata: Metadata = {
-  title: "Brand · Hyperpolymath",
+  title: "Brand",
   description:
  "Canonical marks, lockups, and color treatments for Hyperpolymath, Kiwi, and JARVIS.",
 };
