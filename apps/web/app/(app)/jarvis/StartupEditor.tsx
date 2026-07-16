@@ -9,8 +9,8 @@
  *   - startupShortcuts: a list of freeform shortcut strings (add/remove).
  *
  * Save calls updateStartupConfig; the fetched config seeds the form. The Save
- * button reflects pending + dirty state. Visual vocabulary matches the routines
- * page + PersonalityEditor: .glass-tile cards, mono labels, cyan accent.
+ * button reflects pending + dirty state. sd form grammar: WidgetCard-v2 section
+ * plates, mono uppercase headers, --sd-input fields, single cyan accent.
  */
 
 import { useState } from "react";
@@ -114,13 +114,13 @@ export function StartupEditor({ initial }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Spoken briefing toggle */}
-      <section className="glass-tile rounded-xl p-6">
+      <SectionCard>
         <div className="flex items-start justify-between gap-6">
           <div className="min-w-0">
             <SectionLabel>Spoken briefing</SectionLabel>
-            <p className="mt-1 font-serif text-[14px] leading-[1.5] text-[var(--ink-muted)]">
+            <p className="mt-1 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
               When enabled, JARVIS delivers a short spoken briefing the first
               time you wake it each session.
             </p>
@@ -131,12 +131,12 @@ export function StartupEditor({ initial }: Props) {
             label="Spoken briefing on first invoke"
           />
         </div>
-      </section>
+      </SectionCard>
 
       {/* Open on start */}
-      <section className="glass-tile rounded-xl p-6">
+      <SectionCard>
         <SectionLabel>Open on start</SectionLabel>
-        <p className="mt-1 mb-4 font-serif text-[14px] leading-[1.5] text-[var(--ink-muted)]">
+        <p className="mt-1 mb-4 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
           URLs and apps JARVIS opens the moment it launches. Add as many as you
           like.
         </p>
@@ -150,11 +150,12 @@ export function StartupEditor({ initial }: Props) {
                   updateOpen(i, { type: e.target.value as StartupOpenTarget["type"] })
                 }
                 aria-label={`Target type for row ${i + 1}`}
+                style={{ background: "var(--sd-input)" }}
                 className={cn(
-                  "h-9 shrink-0 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-2.5",
-                  "font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]",
-                  "focus:outline-none focus:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)]",
-                  "transition-colors duration-150 ease-out cursor-pointer-always"
+                  "h-9 shrink-0 rounded-[9px] border border-[var(--sd-line)] px-2.5",
+                  "font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink)]",
+                  "focus:outline-none focus:border-[var(--sd-accent)]",
+                  "transition-colors duration-[140ms] ease-out cursor-pointer-always",
                 )}
               >
                 <option value="url">URL</option>
@@ -167,11 +168,12 @@ export function StartupEditor({ initial }: Props) {
                 maxLength={2000}
                 placeholder={row.type === "url" ? "https://example.com" : "Safari"}
                 aria-label={`Value for row ${i + 1}`}
+                style={{ background: "var(--sd-input)" }}
                 className={cn(
-                  "h-9 min-w-0 flex-1 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3",
-                  "font-serif text-[14px] text-[var(--ink)] placeholder:text-[var(--ink-muted)]",
-                  "focus:outline-none focus:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)]",
-                  "transition-colors duration-150 ease-out"
+                  "h-9 min-w-0 flex-1 rounded-[9px] border border-[var(--sd-line)] px-3",
+                  "text-[14px] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)]",
+                  "focus:outline-none focus:border-[var(--sd-accent)]",
+                  "transition-colors duration-[140ms] ease-out",
                 )}
               />
               <RemoveButton
@@ -181,19 +183,19 @@ export function StartupEditor({ initial }: Props) {
             </div>
           ))}
           {config.openOnStart.length === 0 && (
-            <p className="font-serif text-[13px] italic text-[var(--ink-muted)]">
+            <p className="text-[13px] italic text-[var(--sd-ink-faint)]">
               Nothing opens on start yet.
             </p>
           )}
         </div>
 
         <AddButton onClick={addOpen} label="Add target" />
-      </section>
+      </SectionCard>
 
       {/* Startup shortcuts */}
-      <section className="glass-tile rounded-xl p-6">
+      <SectionCard>
         <SectionLabel>Startup shortcuts</SectionLabel>
-        <p className="mt-1 mb-4 font-serif text-[14px] leading-[1.5] text-[var(--ink-muted)]">
+        <p className="mt-1 mb-4 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
           Freeform shortcut phrases JARVIS primes at launch. One per row.
         </p>
 
@@ -207,11 +209,12 @@ export function StartupEditor({ initial }: Props) {
                 maxLength={200}
                 placeholder="e.g. start my morning routine"
                 aria-label={`Shortcut ${i + 1}`}
+                style={{ background: "var(--sd-input)" }}
                 className={cn(
-                  "h-9 min-w-0 flex-1 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3",
-                  "font-serif text-[14px] text-[var(--ink)] placeholder:text-[var(--ink-muted)]",
-                  "focus:outline-none focus:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)]",
-                  "transition-colors duration-150 ease-out"
+                  "h-9 min-w-0 flex-1 rounded-[9px] border border-[var(--sd-line)] px-3",
+                  "text-[14px] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)]",
+                  "focus:outline-none focus:border-[var(--sd-accent)]",
+                  "transition-colors duration-[140ms] ease-out",
                 )}
               />
               <RemoveButton
@@ -221,14 +224,14 @@ export function StartupEditor({ initial }: Props) {
             </div>
           ))}
           {config.startupShortcuts.length === 0 && (
-            <p className="font-serif text-[13px] italic text-[var(--ink-muted)]">
+            <p className="text-[13px] italic text-[var(--sd-ink-faint)]">
               No startup shortcuts yet.
             </p>
           )}
         </div>
 
         <AddButton onClick={addShortcut} label="Add shortcut" />
-      </section>
+      </SectionCard>
 
       {/* Save bar */}
       <div className="flex items-center gap-3">
@@ -237,10 +240,10 @@ export function StartupEditor({ initial }: Props) {
           onClick={handleSave}
           disabled={pending || !dirty}
           className={cn(
-            "inline-flex items-center gap-2 rounded-md bg-[var(--ink)] px-4 py-2",
-            "font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--canvas)]",
+            "sd-btn-solid inline-flex items-center gap-2 rounded-[8px] px-4 py-2",
+            "font-mono text-[12px] uppercase tracking-[0.06em]",
             "transition-opacity duration-100 cursor-pointer-always",
-            "hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            "disabled:opacity-40 disabled:cursor-not-allowed",
           )}
         >
           {pending ? (
@@ -252,7 +255,7 @@ export function StartupEditor({ initial }: Props) {
           )}
         </button>
         {justSaved && !dirty && (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--hud-cyan)]">
+          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-accent)]">
             <Check size={13} /> Saved
           </span>
         )}
@@ -264,9 +267,17 @@ export function StartupEditor({ initial }: Props) {
   );
 }
 
+function SectionCard({ children }: { children: React.ReactNode }) {
+  return (
+    <section className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+      {children}
+    </section>
+  );
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
       {children}
     </p>
   );
@@ -278,9 +289,9 @@ function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
       type="button"
       onClick={onClick}
       className={cn(
-        "mt-3 inline-flex items-center gap-1.5 rounded-md px-3 h-8",
-        "glass-button font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]",
-        "transition-transform duration-100 hover:-translate-y-0.5 cursor-pointer-always"
+        "sd-btn-outline mt-3 inline-flex items-center gap-1.5 rounded-[8px] px-3 h-8",
+        "font-mono text-[11px] uppercase tracking-[0.06em]",
+        "transition-colors duration-[140ms] cursor-pointer-always",
       )}
     >
       <Plus size={13} /> {label}
@@ -295,9 +306,9 @@ function RemoveButton({ onClick, label }: { onClick: () => void; label: string }
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[var(--edge)]",
-        "text-[var(--ink-muted)] hover:text-[var(--ink-coral)] hover:border-[color-mix(in_oklch,var(--ink-coral)_40%,transparent)]",
-        "transition-colors duration-150 ease-out cursor-pointer-always"
+        "grid h-9 w-9 shrink-0 place-items-center rounded-[9px] border border-[var(--sd-line)]",
+        "text-[var(--sd-ink-dull)] hover:text-[var(--ink-coral)] hover:border-[color-mix(in_oklch,var(--ink-coral)_40%,transparent)]",
+        "transition-colors duration-[140ms] ease-out cursor-pointer-always",
       )}
     >
       <X size={14} />
@@ -321,20 +332,18 @@ function Toggle({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
+      style={{ background: checked ? "var(--sd-accent)" : "var(--sd-input)" }}
       className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full",
-        "transition-colors duration-150 ease-out cursor-pointer-always",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]",
-        checked
-          ? "bg-[color-mix(in_oklch,var(--hud-cyan)_75%,transparent)]"
-          : "bg-[color-mix(in_oklch,var(--ink)_18%,transparent)]"
+        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-[var(--sd-line)]",
+        "transition-colors duration-[140ms] ease-out cursor-pointer-always",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
       )}
     >
       <span
         className={cn(
-          "inline-block h-5 w-5 rounded-full bg-[var(--surface-raised)] shadow-sm",
-          "transition-transform duration-150 ease-out",
-          checked ? "translate-x-[22px]" : "translate-x-[2px]"
+          "inline-block h-4 w-4 rounded-full bg-white shadow-sm",
+          "transition-transform duration-[140ms] ease-out",
+          checked ? "translate-x-[23px]" : "translate-x-[3px]",
         )}
       />
     </button>

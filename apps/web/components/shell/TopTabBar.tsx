@@ -8,7 +8,7 @@ import { Columns2, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { playPop } from "@/lib/ui/play-pop";
+import { sfx } from "@/lib/ui/sfx";
 import { JarvisUnreadBadge } from "@/components/jarvis/JarvisUnreadBadge";
 
 const JARVIS_PATH = "/today";
@@ -110,7 +110,7 @@ export function TopTabBar({ userId }: { userId: string }) {
   const prevTabKey = useRef<string | null>(null);
   useEffect(() => {
     if (prevTabKey.current !== null && prevTabKey.current !== tabKey) {
-      playPop();
+      sfx.play("viewToggle");
     }
     prevTabKey.current = tabKey;
   }, [tabKey]);

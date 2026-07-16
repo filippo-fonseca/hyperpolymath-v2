@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import type { ActivityWithType } from "@/lib/db/queries/training";
 
 interface Props {
@@ -8,12 +9,9 @@ interface Props {
   windowLabel: string;
 }
 
-// Glassy pill tile — mirrors /settings PROFILE pill (translucent surface,
-// backdrop blur, inset cyan glow, thin cyan-tinged border, soft outer halo).
-const TILE =
-  "rounded-xl p-4 " +
-  "glass-tile " +
-  "";
+// sd plate — the shipped .sd-panel primitive (12px, --sd-box, --sd-line
+// hairline, inset top hairline). No glass, no blur, no glow (UI-CONTRACT §0).
+const TILE = "sd-panel p-4";
 
 /**
  * Planned-vs-actual adherence (D-14 / TRN-11 / TRN-12).
@@ -26,6 +24,7 @@ const TILE =
  * current week (PlannerHeader.tsx).
  */
 export function AdherenceCard({ activities, windowLabel }: Props) {
+  const reduced = useReducedMotion();
   const stats = useMemo(() => {
     let done = 0;
     let planned = 0;
@@ -45,48 +44,49 @@ export function AdherenceCard({ activities, windowLabel }: Props) {
   return (
     <div className={TILE}>
       <div className="flex items-baseline justify-between">
-        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
           Adherence · {windowLabel}
         </h3>
         {stats.pct !== null && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] tabular-nums text-[var(--sd-ink-dull)]">
             {stats.pct}%
           </span>
         )}
       </div>
 
       <div className="mt-3 flex items-baseline gap-2">
-        <span className="font-serif text-3xl tabular-nums text-[var(--ink)]">
+        <span className="text-3xl font-black tabular-nums tracking-[-0.01em] text-[var(--sd-ink)]">
           {stats.done}
         </span>
-        <span className="font-serif text-xl text-[var(--ink-muted)]">/</span>
-        <span className="font-serif text-2xl tabular-nums text-[var(--ink-muted)]">
+        <span className="text-xl font-medium text-[var(--sd-ink-faint)]">/</span>
+        <span className="text-2xl font-semibold tabular-nums text-[var(--sd-ink-dull)]">
           {stats.denom}
         </span>
-        <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
           done / planned
         </span>
       </div>
 
-      {/* Progress bar */}
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
-        <div
-          className="h-full bg-[var(--hud-cyan)] transition-[width] duration-500"
-          style={{
-            width: stats.pct === null ? "0%" : `${stats.pct}%`,
-          }}
+      {/* Progress bar — scaleX transform only (zero-jank §14), never width. */}
+      <div className="sd-progress mt-3 w-full">
+        <motion.div
+          aria-hidden
+          className="sd-progress-fill origin-left"
+          initial={reduced ? false : { scaleX: 0 }}
+          animate={{ scaleX: stats.pct === null ? 0 : stats.pct / 100 }}
+          transition={reduced ? { duration: 0 } : { duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
         />
       </div>
 
       {(stats.skipped > 0 || stats.cancelled > 0) && (
-        <div className="mt-3 flex gap-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <div className="mt-3 flex gap-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
           {stats.skipped > 0 && <span>{stats.skipped} skipped</span>}
           {stats.cancelled > 0 && <span>{stats.cancelled} cancelled</span>}
         </div>
       )}
 
       {stats.denom === 0 && stats.skipped === 0 && stats.cancelled === 0 && (
-        <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
           Nothing logged in this window yet.
         </div>
       )}

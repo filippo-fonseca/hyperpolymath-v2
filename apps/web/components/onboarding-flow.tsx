@@ -122,12 +122,12 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                       width: 22,
                       height: 22,
                       background: isCurrent
-                        ? "linear-gradient(135deg, var(--ink-violet) 0%, var(--ink-blue) 100%)"
+                        ? "var(--sd-accent)"
                         : isDone
-                          ? "color-mix(in oklch, var(--ink-violet) 22%, transparent)"
-                          : "color-mix(in oklch, var(--ink) 8%, transparent)",
+                          ? "color-mix(in oklch, var(--sd-accent) 22%, transparent)"
+                          : "color-mix(in oklch, var(--sd-ink) 8%, transparent)",
                       boxShadow: isCurrent
-                        ? "0 0 12px color-mix(in oklch, var(--ink-violet) 35%, transparent), inset 0 1px 0 oklch(100% 0 0 / 0.25)"
+                        ? "inset 0 1px 0 oklch(100% 0 0 / 0.25)"
                         : "none",
                     }}
                   >
@@ -139,13 +139,13 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                         color: isCurrent
                           ? "oklch(100% 0 0)"
                           : isDone
-                            ? "var(--ink-violet)"
-                            : "var(--ink-muted)",
+                            ? "var(--sd-accent)"
+                            : "var(--sd-ink-dull)",
                       }}
                     />
                   </span>
                   {isCurrent && (
-                    <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
                       {Meta.label}
                     </span>
                   )}
@@ -154,9 +154,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                   <span
                     className="w-6 h-px transition-colors duration-300"
                     style={{
-                      background: isDone
-                        ? "linear-gradient(90deg, var(--ink-violet), var(--ink-blue))"
-                        : "var(--edge)",
+                      background: isDone ? "var(--sd-accent)" : "var(--sd-line)",
                     }}
                   />
                 )}
@@ -165,7 +163,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
           })}
         </div>
 
-        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-dull)]">
           {String(stepIdx + 1).padStart(2, "0")}&thinsp;/&thinsp;{String(TOTAL_STEPS).padStart(2, "0")}
         </p>
       </div>
@@ -173,37 +171,20 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
       {/* ── Progress bar ── */}
       <div
         className="h-[2px] w-full rounded-full mb-10 relative overflow-hidden"
-        style={{ background: "var(--edge)" }}
+        style={{ background: "var(--sd-line)" }}
         aria-hidden="true"
       >
         <span
           className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
           style={{
             width: `${((stepIdx + 1) / TOTAL_STEPS) * 100}%`,
-            background: "linear-gradient(90deg, var(--ink-violet) 0%, var(--ink-blue) 100%)",
-            boxShadow: "0 0 8px color-mix(in oklch, var(--ink-violet) 40%, transparent)",
+            background: "var(--sd-accent)",
           }}
         />
       </div>
 
       {/* ── Main card ── */}
-      <div
-        className="glass-tile rounded-[20px] relative overflow-hidden"
-        style={{
-          /* Override the default glass-tile glow color toward violet/pink */
-          ["--glass-glow-color" as string]: "var(--ink-violet)",
-        }}
-      >
-        {/* Ambient gradient blobs — pink top-left, blue bottom-right */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(600px circle at 10% 0%, color-mix(in oklch, var(--ink-violet) 6%, transparent), transparent 55%), radial-gradient(500px circle at 90% 100%, color-mix(in oklch, var(--ink-blue) 5%, transparent), transparent 50%)",
-          }}
-        />
-
+      <div className="relative overflow-hidden rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
         <div className="relative px-10 py-10">
           {/* ── Step: Welcome ── */}
           {step === "welcome" && (
@@ -216,36 +197,23 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
               </div>
 
               <div className="space-y-4 text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-2"
-                  style={{
-                    background: "linear-gradient(135deg, color-mix(in oklch, var(--ink-violet) 12%, transparent), color-mix(in oklch, var(--ink-blue) 10%, transparent))",
-                    border: "1px solid color-mix(in oklch, var(--ink-violet) 22%, transparent)",
-                    color: "var(--ink-violet)",
-                  }}
+                <div
+                  className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--sd-accent)]"
                 >
                   <Sparkles size={9} strokeWidth={2} />
                   Your life OS is ready
                 </div>
 
                 <h1
-                  className="font-serif font-semibold leading-[1.05] tracking-[-0.02em] text-[var(--ink)]"
+                  className="font-semibold leading-[1.05] tracking-[-0.02em] text-[var(--sd-ink)]"
                   style={{ fontSize: "clamp(2.25rem, 6vw, 3.5rem)" }}
                 >
                   Welcome to
                   <br />
-                  <span
-                    style={{
-                      background: "linear-gradient(135deg, var(--ink-violet) 0%, var(--ink-blue) 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      backgroundClip: "text",
-                    }}
-                  >
-                    Hyperpolymath.
-                  </span>
+                  <span className="text-[var(--sd-accent)]">Hyperpolymath.</span>
                 </h1>
 
-                <p className="font-serif italic text-[var(--ink-muted)] leading-relaxed mx-auto max-w-md"
+                <p className="text-[var(--sd-ink-dull)] leading-relaxed mx-auto max-w-md"
                   style={{ fontSize: "clamp(1rem, 2.5vw, 1.2rem)" }}
                 >
                   One line in. JARVIS routes it to the right place: a task, a capture, or
@@ -256,9 +224,9 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
               {/* Feature pills */}
               <div className="flex flex-wrap gap-2 justify-center">
                 {[
-                  { label: "Natural language tasks", color: "var(--ink-violet)" },
-                  { label: "AI-powered captures", color: "var(--ink-blue)" },
-                  { label: "Google Calendar sync", color: "var(--hud-cyan)" },
+                  { label: "Natural language tasks", color: "var(--sd-accent)" },
+                  { label: "AI-powered captures", color: "var(--sd-accent)" },
+                  { label: "Google Calendar sync", color: "var(--sd-accent)" },
                 ].map(({ label, color }) => (
                   <span
                     key={label}
@@ -295,21 +263,21 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                 <div
                   className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-1"
                   style={{
-                    background: "color-mix(in oklch, var(--ink-violet) 10%, transparent)",
-                    border: "1px solid color-mix(in oklch, var(--ink-violet) 20%, transparent)",
-                    color: "var(--ink-violet)",
+                    background: "color-mix(in oklch, var(--sd-accent) 10%, transparent)",
+                    border: "1px solid color-mix(in oklch, var(--sd-accent) 20%, transparent)",
+                    color: "var(--sd-accent)",
                   }}
                 >
                   <User size={9} strokeWidth={2} />
                   Step 2 of 4
                 </div>
                 <h2
-                  className="font-serif font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--ink)]"
+                  className="font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--sd-ink)]"
                   style={{ fontSize: "clamp(1.75rem, 5vw, 2.75rem)" }}
                 >
                   About you.
                 </h2>
-                <p className="font-serif italic text-[var(--ink-muted)] text-base leading-relaxed">
+                <p className="text-[var(--sd-ink-dull)] text-base leading-relaxed">
                   How JARVIS should address you and understand your context.
                 </p>
               </div>
@@ -325,20 +293,20 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                     autoFocus
                     required
                     maxLength={60}
-                    className="w-full h-11 px-4 rounded-xl bg-transparent font-serif text-[1rem] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+                    className="w-full h-11 px-4 rounded-xl bg-transparent text-[1rem] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-dull)] focus:outline-none"
                     style={{
-                      background: "color-mix(in oklch, var(--surface) 80%, transparent)",
-                      border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
-                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)",
+                      background: "color-mix(in oklch, var(--sd-input) 80%, transparent)",
+                      border: "1px solid color-mix(in oklch, var(--sd-line) 70%, transparent)",
+                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--sd-ink) 4%, transparent)",
                       transition: "border-color 150ms ease-out, box-shadow 150ms ease-out",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--ink-violet) 45%, transparent)";
-                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent), 0 0 0 2px color-mix(in oklch, var(--ink-violet) 15%, transparent)";
+                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--sd-accent) 45%, transparent)";
+                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--sd-ink) 4%, transparent), 0 0 0 2px color-mix(in oklch, var(--sd-accent) 15%, transparent)";
                     }}
                     onBlur={(e) => {
-                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--edge) 70%, transparent)";
-                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)";
+                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--sd-line) 70%, transparent)";
+                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--sd-ink) 4%, transparent)";
                     }}
                   />
                 </GlassField>
@@ -357,20 +325,20 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                     }
                     placeholder="e.g. 2028"
                     maxLength={4}
-                    className="w-full h-11 px-4 rounded-xl bg-transparent font-serif text-[1rem] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+                    className="w-full h-11 px-4 rounded-xl bg-transparent text-[1rem] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-dull)] focus:outline-none"
                     style={{
-                      background: "color-mix(in oklch, var(--surface) 80%, transparent)",
-                      border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
-                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)",
+                      background: "color-mix(in oklch, var(--sd-input) 80%, transparent)",
+                      border: "1px solid color-mix(in oklch, var(--sd-line) 70%, transparent)",
+                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--sd-ink) 4%, transparent)",
                       transition: "border-color 150ms ease-out, box-shadow 150ms ease-out",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--ink-blue) 45%, transparent)";
-                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent), 0 0 0 2px color-mix(in oklch, var(--ink-blue) 15%, transparent)";
+                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--sd-accent) 45%, transparent)";
+                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--sd-ink) 4%, transparent), 0 0 0 2px color-mix(in oklch, var(--sd-accent) 15%, transparent)";
                     }}
                     onBlur={(e) => {
-                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--edge) 70%, transparent)";
-                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)";
+                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--sd-line) 70%, transparent)";
+                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--sd-ink) 4%, transparent)";
                     }}
                   />
                 </GlassField>
@@ -379,16 +347,16 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                   <div
                     className="flex items-stretch rounded-xl overflow-hidden"
                     style={{
-                      background: "color-mix(in oklch, var(--surface) 80%, transparent)",
-                      border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
-                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)",
+                      background: "color-mix(in oklch, var(--sd-input) 80%, transparent)",
+                      border: "1px solid color-mix(in oklch, var(--sd-line) 70%, transparent)",
+                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--sd-ink) 4%, transparent)",
                     }}
                   >
                     <span
                       className="flex items-center gap-1.5 pl-4 pr-3 shrink-0"
                       style={{
-                        borderRight: "1px solid color-mix(in oklch, var(--edge) 60%, transparent)",
-                        color: "var(--ink-violet)",
+                        borderRight: "1px solid color-mix(in oklch, var(--sd-line) 60%, transparent)",
+                        color: "var(--sd-accent)",
                       }}
                     >
                       <Github className="h-3.5 w-3.5" />
@@ -408,7 +376,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                       autoCapitalize="off"
                       autoCorrect="off"
                       maxLength={39}
-                      className="flex-1 h-11 px-4 bg-transparent font-serif text-base text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+                      className="flex-1 h-11 px-4 bg-transparent text-base text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-dull)] focus:outline-none"
                     />
                   </div>
                 </GlassField>
@@ -417,18 +385,18 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                   <div
                     className="flex h-11 items-center rounded-xl px-4"
                     style={{
-                      background: "color-mix(in oklch, var(--surface) 80%, transparent)",
-                      border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
-                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)",
+                      background: "color-mix(in oklch, var(--sd-input) 80%, transparent)",
+                      border: "1px solid color-mix(in oklch, var(--sd-line) 70%, transparent)",
+                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--sd-ink) 4%, transparent)",
                     }}
                   >
-                    <span className="font-serif text-base text-[var(--ink)]">{timezone}</span>
+                    <span className="text-base text-[var(--sd-ink)]">{timezone}</span>
                     <span
                       className="ml-auto font-mono text-[9px] uppercase tracking-[0.1em] px-2 py-0.5 rounded-full"
                       style={{
-                        color: "var(--ink-blue)",
-                        background: "color-mix(in oklch, var(--ink-blue) 10%, transparent)",
-                        border: "1px solid color-mix(in oklch, var(--ink-blue) 18%, transparent)",
+                        color: "var(--sd-accent)",
+                        background: "color-mix(in oklch, var(--sd-accent) 10%, transparent)",
+                        border: "1px solid color-mix(in oklch, var(--sd-accent) 18%, transparent)",
                       }}
                     >
                       auto-detected
@@ -438,7 +406,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
 
                 <p
                   className="font-mono text-[10px] uppercase tracking-[0.1em] px-1"
-                  style={{ color: "var(--ink-muted)", opacity: 0.7 }}
+                  style={{ color: "var(--sd-ink-dull)", opacity: 0.7 }}
                 >
                   Signed in as {email}
                 </p>
@@ -464,21 +432,21 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                 <div
                   className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-1"
                   style={{
-                    background: "color-mix(in oklch, var(--ink-violet) 10%, transparent)",
-                    border: "1px solid color-mix(in oklch, var(--ink-violet) 20%, transparent)",
-                    color: "var(--ink-violet)",
+                    background: "color-mix(in oklch, var(--sd-accent) 10%, transparent)",
+                    border: "1px solid color-mix(in oklch, var(--sd-accent) 20%, transparent)",
+                    color: "var(--sd-accent)",
                   }}
                 >
                   <KeyRound size={9} strokeWidth={2} />
                   Step 3 of 4
                 </div>
                 <h2
-                  className="font-serif font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--ink)]"
+                  className="font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--sd-ink)]"
                   style={{ fontSize: "clamp(1.75rem, 5vw, 2.75rem)" }}
                 >
                   Bring your keys.
                 </h2>
-                <p className="font-serif italic text-[var(--ink-muted)] text-base leading-relaxed">
+                <p className="text-[var(--sd-ink-dull)] text-base leading-relaxed">
                   JARVIS and the voice features run on your own paid API keys, so
                   your usage is billed to you. Keys are encrypted at rest. You can
                   skip and add them later in Settings.
@@ -508,21 +476,21 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                 <div
                   className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-1"
                   style={{
-                    background: "color-mix(in oklch, var(--ink-blue) 10%, transparent)",
-                    border: "1px solid color-mix(in oklch, var(--ink-blue) 22%, transparent)",
-                    color: "var(--ink-blue)",
+                    background: "color-mix(in oklch, var(--sd-accent) 10%, transparent)",
+                    border: "1px solid color-mix(in oklch, var(--sd-accent) 22%, transparent)",
+                    color: "var(--sd-accent)",
                   }}
                 >
                   <Eye size={9} strokeWidth={2} />
                   Step 4 of 4
                 </div>
                 <h2
-                  className="font-serif font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--ink)]"
+                  className="font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--sd-ink)]"
                   style={{ fontSize: "clamp(1.75rem, 5vw, 2.75rem)" }}
                 >
                   Try it now.
                 </h2>
-                <p className="font-serif italic text-[var(--ink-muted)] text-base leading-relaxed">
+                <p className="text-[var(--sd-ink-dull)] text-base leading-relaxed">
                   A few lines to paste into JARVIS on your first session.
                 </p>
               </div>
@@ -531,21 +499,21 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                 <ShowcaseCard
                   icon={PenLine}
                   label="Capture"
-                  accentColor="var(--ink-violet)"
+                  accentColor="var(--sd-accent)"
                   example={'"i’m tired"'}
                   description="Lands in your capture log, verbatim. JARVIS never paraphrases captures."
                 />
                 <ShowcaseCard
                   icon={ListChecks}
                   label="Plan"
-                  accentColor="var(--ink-blue)"
+                  accentColor="var(--sd-accent)"
                   example='"remind me to send the brief friday"'
                   description="A task in the right area, due Friday, at the right priority."
                 />
                 <ShowcaseCard
                   icon={CalendarDays}
                   label="Schedule"
-                  accentColor="var(--hud-cyan)"
+                  accentColor="var(--sd-accent)"
                   example='"coffee 4pm saturday with brian"'
                   description="Lands on your default Google Calendar."
                 />
@@ -553,7 +521,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
 
               {error && (
                 <p
-                  className="font-serif text-sm px-4 py-3 rounded-xl"
+                  className="text-sm px-4 py-3 rounded-xl"
                   style={{
                     color: "var(--ink-coral)",
                     background: "color-mix(in oklch, var(--ink-coral) 8%, transparent)",
@@ -630,8 +598,7 @@ function GlassAccentButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="glass-button inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-serif text-[0.95rem] font-medium text-[var(--ink)] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-      style={{ ["--glass-glow-color" as string]: "var(--hud-cyan)" }}
+      className="sd-btn-primary inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-[0.95rem] font-medium transition-opacity duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
     >
       {children}
     </button>
@@ -651,12 +618,12 @@ function GhostBackButton({
       onClick={onClick}
       disabled={disabled}
       className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] transition-colors disabled:opacity-40"
-      style={{ color: "var(--ink-muted)" }}
+      style={{ color: "var(--sd-ink-dull)" }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.color = "var(--ink)";
+        e.currentTarget.style.color = "var(--sd-ink)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.color = "var(--ink-muted)";
+        e.currentTarget.style.color = "var(--sd-ink-dull)";
       }}
     >
       <ArrowLeft className="w-3.5 h-3.5" />
@@ -676,7 +643,7 @@ function GlassField({
   accent?: "violet" | "blue";
   children: React.ReactNode;
 }) {
-  const accentColor = accent === "violet" ? "var(--ink-violet)" : "var(--ink-blue)";
+  const accentColor = accent === "violet" ? "var(--sd-accent)" : "var(--sd-accent)";
   return (
     <div className="space-y-1.5">
       <label
@@ -693,7 +660,7 @@ function GlassField({
 
 function OnboardingKeyRow({ provider }: { provider: ByokProvider }) {
   const meta = BYOK_PROVIDERS[provider];
-  const accentColor = meta.required ? "var(--ink-violet)" : "var(--ink-blue)";
+  const accentColor = meta.required ? "var(--sd-accent)" : "var(--sd-accent)";
   const [value, setValue] = useState("");
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -721,13 +688,13 @@ function OnboardingKeyRow({ provider }: { provider: ByokProvider }) {
     <div
       className="space-y-2.5 rounded-2xl p-4"
       style={{
-        background: `color-mix(in oklch, ${accentColor} 5%, var(--surface))`,
+        background: `color-mix(in oklch, ${accentColor} 5%, var(--sd-input))`,
         border: `1px solid color-mix(in oklch, ${accentColor} 18%, transparent)`,
       }}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="font-serif text-base font-semibold text-[var(--ink)]">
+          <span className="text-base font-semibold text-[var(--sd-ink)]">
             {meta.label}
           </span>
           <span
@@ -745,21 +712,21 @@ function OnboardingKeyRow({ provider }: { provider: ByokProvider }) {
           href={meta.consoleUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
+          className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] transition-colors hover:text-[var(--sd-ink)]"
         >
           Get your key
           <ExternalLink className="h-3 w-3" />
         </a>
       </div>
 
-      <p className="font-serif text-sm text-[var(--ink-muted)] leading-relaxed">
+      <p className="text-sm text-[var(--sd-ink-dull)] leading-relaxed">
         {meta.powers}
       </p>
 
       {saved ? (
         <div className="flex items-center gap-2 pt-0.5">
           <Check className="h-3.5 w-3.5" style={{ color: accentColor }} />
-          <span className="font-mono text-sm tabular-nums text-[var(--ink)]">
+          <span className="font-mono text-sm tabular-nums text-[var(--sd-ink)]">
             Saved •••• {saved}
           </span>
         </div>
@@ -777,10 +744,10 @@ function OnboardingKeyRow({ provider }: { provider: ByokProvider }) {
             autoCapitalize="off"
             autoCorrect="off"
             autoComplete="off"
-            className="flex-1 h-10 px-3 rounded-xl bg-transparent font-mono text-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+            className="flex-1 h-10 px-3 rounded-xl bg-transparent font-mono text-sm text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-dull)] focus:outline-none"
             style={{
-              background: "color-mix(in oklch, var(--surface) 80%, transparent)",
-              border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
+              background: "color-mix(in oklch, var(--sd-input) 80%, transparent)",
+              border: "1px solid color-mix(in oklch, var(--sd-line) 70%, transparent)",
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSave();
@@ -790,7 +757,7 @@ function OnboardingKeyRow({ provider }: { provider: ByokProvider }) {
             type="button"
             onClick={handleSave}
             disabled={pending}
-            className="inline-flex items-center justify-center gap-1.5 px-4 rounded-xl font-serif text-sm font-medium transition-all disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-1.5 px-4 rounded-xl text-sm font-medium transition-all disabled:opacity-40"
             style={{
               background: `color-mix(in oklch, ${accentColor} 14%, transparent)`,
               border: `1px solid color-mix(in oklch, ${accentColor} 28%, transparent)`,
@@ -803,7 +770,7 @@ function OnboardingKeyRow({ provider }: { provider: ByokProvider }) {
       )}
 
       {error ? (
-        <p className="font-serif text-xs text-[var(--ink-coral)]">{error}</p>
+        <p className="text-xs text-[var(--ink-coral)]">{error}</p>
       ) : null}
     </div>
   );
@@ -826,9 +793,9 @@ function ShowcaseCard({
     <li
       className="flex items-start gap-4 rounded-2xl p-4 transition-all duration-200"
       style={{
-        background: `color-mix(in oklch, ${accentColor} 5%, var(--surface))`,
+        background: `color-mix(in oklch, ${accentColor} 5%, var(--sd-input))`,
         border: `1px solid color-mix(in oklch, ${accentColor} 18%, transparent)`,
-        boxShadow: `inset 0 1px 0 oklch(100% 0 0 / 0.06), 0 1px 3px color-mix(in oklch, var(--ink) 6%, transparent)`,
+        boxShadow: `inset 0 1px 0 oklch(100% 0 0 / 0.06), 0 1px 3px color-mix(in oklch, var(--sd-ink) 6%, transparent)`,
       }}
     >
       <div
@@ -836,7 +803,6 @@ function ShowcaseCard({
         style={{
           background: `color-mix(in oklch, ${accentColor} 12%, transparent)`,
           border: `1px solid color-mix(in oklch, ${accentColor} 22%, transparent)`,
-          boxShadow: `0 0 12px color-mix(in oklch, ${accentColor} 15%, transparent)`,
           color: accentColor,
         }}
       >
@@ -854,11 +820,11 @@ function ShowcaseCard({
           >
             {label}
           </span>
-          <span className="font-serif italic text-[var(--ink)] text-sm">
+          <span className="text-[var(--sd-ink)] text-sm">
             {example}
           </span>
         </div>
-        <p className="font-serif text-sm text-[var(--ink-muted)] leading-relaxed">
+        <p className="text-sm text-[var(--sd-ink-dull)] leading-relaxed">
           {description}
         </p>
       </div>

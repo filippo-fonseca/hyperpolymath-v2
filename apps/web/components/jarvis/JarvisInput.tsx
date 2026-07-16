@@ -202,7 +202,7 @@ export function JarvisInput({
     editorProps: {
       attributes: {
         class:
-          "jarvis-input-content focus:outline-none min-h-[44px] max-h-[200px] overflow-y-auto px-4 py-3 font-sans text-[15px] leading-relaxed text-[var(--ink)]",
+          "jarvis-input-content focus:outline-none min-h-[44px] max-h-[200px] overflow-y-auto px-4 py-3 font-sans text-[15px] leading-relaxed text-[var(--sd-ink)]",
         // Placeholder reads as JARVIS's prompt — soft serif italic per CSS.
         "data-placeholder": "Tell JARVIS what's on your mind…",
       },
@@ -447,14 +447,14 @@ export function JarvisInput({
           .filter(Boolean)
           .join(" ")}
         style={{
-          backgroundColor: "var(--surface-raised)",
+          backgroundColor: "var(--sd-input)",
           border:
             focusedIdle || focusedActive
-              ? "1px solid color-mix(in oklch, var(--hud-cyan) 70%, transparent)"
-              : "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
+              ? "1px solid color-mix(in oklch, var(--sd-accent) 70%, transparent)"
+              : "1px solid var(--sd-line)",
           boxShadow:
             focusedIdle || focusedActive
-              ? "0 0 0 4px color-mix(in oklch, var(--hud-cyan) 10%, transparent), 0 1px 2px rgba(0,0,0,0.06)"
+              ? "0 0 0 4px color-mix(in oklch, var(--sd-accent) 10%, transparent), 0 1px 2px rgba(0,0,0,0.06)"
               : "0 1px 2px rgba(0,0,0,0.04)",
         }}
       >
@@ -501,7 +501,7 @@ export function JarvisInput({
               exit={{ opacity: 0, scale: 0.5 }}
               transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
               className="absolute top-1 right-12 w-1 h-1 rounded-full pointer-events-none"
-              style={{ backgroundColor: "var(--hud-cyan)" }}
+              style={{ backgroundColor: "var(--sd-accent)" }}
               aria-hidden="true"
             />
           ) : null}
@@ -528,8 +528,8 @@ export function JarvisInput({
           ) : null}
         </AnimatePresence>
 
-        <div className="flex items-center justify-between px-4 pb-2.5 pt-2 border-t border-[color-mix(in_oklch,var(--edge)_60%,transparent)]">
-          <span className="font-sans text-[12px] text-[color-mix(in_oklch,var(--ink-muted)_85%,transparent)]">
+        <div className="flex items-center justify-between px-4 pb-2.5 pt-2 border-t border-[var(--sd-line)]">
+          <span className="font-sans text-[12px] text-[var(--sd-ink-dull)]">
             Enter to send · <span className="font-mono text-[11px]">/</span> commands ·{" "}
             <span className="font-mono text-[11px]">$</span> projects ·{" "}
             <span className="font-mono text-[11px]">#</span> tags ·{" "}
@@ -538,10 +538,10 @@ export function JarvisInput({
           {/* ⌘K hint chip — cleaner pill, sentence-case-style label tucked
               behind the kbd glyph. Hidden below md per UI-SPEC §10c. */}
           <kbd
-            className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-mono text-[var(--ink-muted)] select-none"
+            className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-mono text-[var(--sd-ink-dull)] select-none"
             style={{
-              border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
-              backgroundColor: "color-mix(in oklch, var(--surface) 92%, transparent)",
+              border: "1px solid var(--sd-line)",
+              backgroundColor: "var(--sd-box)",
             }}
             aria-hidden="true"
             title="Focus JARVIS from anywhere"

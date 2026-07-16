@@ -56,8 +56,12 @@ export function WidgetCard({ href, ariaLabel, children, className }: Props) {
         className="absolute inset-0 z-0 rounded-[14px] focus:outline-none"
       />
 
-      {/* Content layer — interactive elements sit above the overlay. */}
-      <div className="pointer-events-none relative z-10 flex h-full flex-col">
+      {/* Content layer — interactive elements sit above the overlay.
+          `min-h-0` closes the flex/grid min-height trap: without it this column
+          (and the WidgetBody it wraps) refuses to shrink below its content, so a
+          tall list can't hand overflow to its own `overflow-y-auto` and the body
+          silently clips instead of scrolling inside the card. */}
+      <div className="pointer-events-none relative z-10 flex h-full min-h-0 flex-col">
         <div className="contents [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_textarea]:pointer-events-auto [&_label]:pointer-events-auto [&_select]:pointer-events-auto [&_[role=button]]:pointer-events-auto">
           {children}
         </div>

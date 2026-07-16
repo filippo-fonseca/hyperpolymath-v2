@@ -67,10 +67,10 @@ export function VoiceInputCard() {
   return (
     <motion.div
       key={idx}
-      className="inline-flex flex-col items-start gap-2 px-5 py-4 rounded bg-[var(--surface-raised)] w-full"
+      className="inline-flex flex-col items-start gap-2 px-5 py-4 rounded bg-[var(--sd-box)] w-full"
       style={{
-        border: "1px solid var(--edge-hud)",
-        boxShadow: "var(--glow-hud-subtle)",
+        border: "1px solid color-mix(in oklch, var(--sd-accent) 30%, var(--sd-line))",
+        boxShadow: "none",
       }}
       // SSR-safe: `initial` is identical on server and first client render;
       // only the transition is branched, so reduced motion settles instantly
@@ -80,24 +80,24 @@ export function VoiceInputCard() {
       transition={{ duration: reducedMotion ? 0 : 0.55, ease: EASE_OUT_QUART }}
     >
       {/* Mode badge */}
-      <div className="flex items-center justify-between w-full pb-1 mb-1 border-b border-[var(--edge-hud)] opacity-80">
+      <div className="flex items-center justify-between w-full pb-1 mb-1 border-b border-[var(--sd-line)] opacity-80">
         <div
           className="inline-flex items-center gap-1.5 font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
-          style={{ color: "var(--hud-cyan-light)" }}
+          style={{ color: "var(--sd-accent)" }}
         >
           <Mic size={12} aria-hidden="true" strokeWidth={2} />
           <span>Spoken</span>
         </div>
         <span
           className="font-mono text-[14px] tracking-[0.14em] opacity-60"
-          style={{ color: "var(--ink-muted)" }}
+          style={{ color: "var(--sd-ink-faint)" }}
         >
           JARVIS
         </span>
       </div>
 
       {/* Utterance line */}
-      <div className="font-mono font-mono-stats text-[14px] leading-[1.55] text-[var(--ink)] whitespace-pre-wrap break-words text-left w-full flex items-start gap-2">
+      <div className="font-mono font-mono-stats text-[14px] leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words text-left w-full flex items-start gap-2">
         <span
           aria-hidden="true"
           className="inline-flex items-end gap-[2px] mt-[3px]"
@@ -106,7 +106,7 @@ export function VoiceInputCard() {
             <motion.span
               key={b}
               className="block w-[2px] rounded-full"
-              style={{ background: "var(--hud-cyan)" }}
+              style={{ background: "var(--sd-accent)" }}
               animate={
                 reducedMotion
                   ? { height: 6 }
@@ -134,11 +134,11 @@ export function VoiceInputCard() {
 
       {/* Receipt */}
       <div className="font-mono font-mono-stats text-[14px] leading-[1.55] text-left w-full">
-        <span style={{ color: "var(--hud-cyan)" }}>❦ </span>
-        <span className="font-medium" style={{ color: "var(--hud-cyan)" }}>
+        <span style={{ color: "var(--sd-accent)" }}>❦ </span>
+        <span className="font-medium" style={{ color: "var(--sd-accent)" }}>
           {example.verb}
         </span>
-        <span className="text-[var(--ink-muted)]">  →  {example.body}</span>
+        <span className="text-[var(--sd-ink-faint)]">  →  {example.body}</span>
       </div>
 
       {/* JARVIS spoken reply — dry British register, sits under the
@@ -147,14 +147,14 @@ export function VoiceInputCard() {
       <div className="mt-1 flex items-start gap-2 w-full text-left">
         <span
           className="flex-shrink-0 mt-[3px]"
-          style={{ color: "var(--hud-cyan-light)" }}
+          style={{ color: "var(--sd-accent)" }}
           aria-hidden="true"
         >
           <Volume2 size={11} strokeWidth={2} />
         </span>
         <p
-          className="font-serif italic text-[13.5px] leading-[1.5]"
-          style={{ color: "var(--ink-muted)" }}
+          className="italic text-[13.5px] leading-[1.5]"
+          style={{ color: "var(--sd-ink-faint)" }}
         >
           &ldquo;{example.reply}&rdquo;
         </p>

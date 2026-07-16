@@ -50,9 +50,9 @@ export function ColorPicker({ value, onChange }: Props) {
                   onClick={() => onChange(entry.oklch)}
                   className={cn(
                     "relative flex h-6 w-6 items-center justify-center rounded-full transition-transform",
-                    "hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface-raised)]",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-ink)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--sd-box)]",
                     isSelected &&
-                      "ring-2 ring-[var(--ink)] ring-offset-1 ring-offset-[var(--surface-raised)]",
+                      "ring-2 ring-[var(--sd-ink)] ring-offset-1 ring-offset-[var(--sd-box)]",
                   )}
                   style={{ backgroundColor: entry.oklch }}
                 >

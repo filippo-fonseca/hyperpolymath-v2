@@ -12,6 +12,7 @@
 
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { upsertFoodAction } from "@/app/actions/nutrition";
 
 type ManualFoodFormValues = {
@@ -122,17 +123,14 @@ export function ManualEntryForm({ initialName, onCreated, onCancel }: Props) {
   }
 
   const labelClass =
-    "block font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] mb-1";
+    "block font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] mb-1";
   const fieldClass = "flex flex-col gap-1";
   const errorClass = "font-mono text-[10.5px] text-[var(--ink-coral)]";
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Heading — exact UI-SPEC copy */}
-      <h3
-        className="text-[20px] leading-[1.2] text-[var(--ink)]"
-        style={{ fontFamily: "var(--font-serif)" }}
-      >
+      {/* Heading */}
+      <h3 className="text-[18px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
         Add a food manually
       </h3>
 
@@ -232,9 +230,9 @@ export function ManualEntryForm({ initialName, onCreated, onCancel }: Props) {
                 type="radio"
                 value="g"
                 {...register("baseUnit")}
-                className="accent-[var(--hud-cyan)]"
+                className="accent-[var(--sd-accent)]"
               />
-              <span className="font-mono text-[10.5px] text-[var(--ink)]">
+              <span className="font-mono text-[10.5px] text-[var(--sd-ink)]">
                 Grams (g)
               </span>
             </label>
@@ -243,9 +241,9 @@ export function ManualEntryForm({ initialName, onCreated, onCancel }: Props) {
                 type="radio"
                 value="ml"
                 {...register("baseUnit")}
-                className="accent-[var(--hud-cyan)]"
+                className="accent-[var(--sd-accent)]"
               />
-              <span className="font-mono text-[10.5px] text-[var(--ink)]">
+              <span className="font-mono text-[10.5px] text-[var(--sd-ink)]">
                 Millilitres (ml)
               </span>
             </label>
@@ -253,7 +251,7 @@ export function ManualEntryForm({ initialName, onCreated, onCancel }: Props) {
         </div>
 
         {/* Serving info (optional) */}
-        <div className="flex flex-col gap-3 border-t border-[var(--edge)] pt-3">
+        <div className="flex flex-col gap-3 border-t border-[var(--sd-line)] pt-3">
           <p className={labelClass}>Serving info (optional)</p>
           <div className="grid grid-cols-2 gap-3">
             <div className={fieldClass}>
@@ -275,20 +273,23 @@ export function ManualEntryForm({ initialName, onCreated, onCancel }: Props) {
 
         {/* Actions */}
         <div className="flex items-center gap-2 pt-1">
-          <button
+          <Button
             type="submit"
+            size="sm"
             disabled={isSubmitting}
-            className="glass-button rounded-md px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink)] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-hud)]"
+            className="font-mono text-[11px] uppercase tracking-[0.06em]"
           >
             {isSubmitting ? "Saving…" : "Save food"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onCancel}
-            className="px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 focus:outline-none"
+            className="font-mono text-[11px] uppercase tracking-[0.06em]"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>

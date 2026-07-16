@@ -93,14 +93,14 @@ function ApiKeyRow({
   }
 
   return (
-    <div className="space-y-2.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-4">
+    <div className="space-y-2.5 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-box)] p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="font-serif text-lg font-semibold text-[var(--ink)]">
+          <span className="text-lg font-semibold text-[var(--sd-ink)]">
             {meta.label}
           </span>
           {meta.required ? (
-            <span className="rounded-full border border-[var(--edge)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+            <span className="rounded-full border border-[var(--sd-line)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--sd-ink-dull)]">
               Required
             </span>
           ) : null}
@@ -115,18 +115,18 @@ function ApiKeyRow({
           href={meta.consoleUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-colors duration-150 ease-out hover:text-[var(--ink)] cursor-pointer-always"
+          className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] transition-colors duration-150 ease-out hover:text-[var(--sd-ink)] cursor-pointer-always"
         >
           Get your key
           <ExternalLink className="h-3 w-3" />
         </a>
       </div>
 
-      <p className="font-serif text-sm text-[var(--ink-muted)]">{meta.powers}</p>
+      <p className="text-sm text-[var(--sd-ink-dull)]">{meta.powers}</p>
 
       {configured ? (
         <div className="flex items-center justify-between gap-3 pt-1">
-          <span className="font-mono text-sm tabular-nums text-[var(--ink)]">
+          <span className="font-mono text-sm tabular-nums text-[var(--sd-ink)]">
             •••• {last4 ?? "••••"}
           </span>
           <Button
@@ -139,7 +139,7 @@ function ApiKeyRow({
             {pending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              "Remove"
+ "Remove"
             )}
           </Button>
         </div>
@@ -173,14 +173,14 @@ function ApiKeyRow({
             {pending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              "Save"
+ "Save"
             )}
           </Button>
         </div>
       )}
 
       {error ? (
-        <p className="font-serif text-xs text-[var(--ink-coral)]">{error}</p>
+        <p className="text-xs text-[var(--ink-coral)]">{error}</p>
       ) : null}
     </div>
   );

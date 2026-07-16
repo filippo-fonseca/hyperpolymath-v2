@@ -7,8 +7,8 @@ import { ExternalLink, Play } from "lucide-react";
 // variants: YouTube (thumbnail + play affordance), X/Twitter (persisted tweet
 // text + author), and generic (favicon + title + description + optional
 // thumbnail). Degrades to a compact favicon+domain chip when metadata is thin or
-// still resolving. Captures surfaces avoid HUD cyan (UI-SPEC §5i), so this stays
-// on the neutral --surface/--edge/--ink register.
+// still resolving. sd register (sesh-sd3): solid --sd-box plates, --sd-line
+// hairlines, no blur/glass, single cyan accent reserved for the app elsewhere.
 import { useState } from "react";
 
 function hostOf(url: string): string {
@@ -71,11 +71,11 @@ export function LinkPreviewCard({
         target="_blank"
         rel="noopener noreferrer"
         onClick={open}
-        className="glass-tile inline-flex max-w-full items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-xs text-[var(--ink)] no-underline"
+        className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-[var(--sd-line)] bg-[var(--sd-box)] px-2.5 py-1 font-mono text-xs text-[var(--sd-ink)] no-underline transition-colors hover:bg-[var(--sd-hover)]"
       >
         <Favicon src={preview?.faviconUrl ?? null} alt="" />
         <span className="truncate">{preview?.title || host}</span>
-        <ExternalLink className="h-3 w-3 text-[var(--ink-muted)] shrink-0" />
+        <ExternalLink className="h-3 w-3 text-[var(--sd-ink-faint)] shrink-0" />
       </a>
     );
   }
@@ -88,25 +88,25 @@ export function LinkPreviewCard({
         target="_blank"
         rel="noopener noreferrer"
         onClick={open}
-        className="glass-tile group block max-w-md overflow-hidden rounded-lg no-underline"
+        className="group block max-w-md overflow-hidden rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)] no-underline transition-colors hover:bg-[var(--sd-hover)]"
       >
         {thumb && (
-          <div className="relative aspect-video w-full bg-[var(--surface)]">
+          <div className="relative aspect-video w-full border-b border-[var(--sd-line)] bg-[var(--sd-input)]">
             <Thumb
               src={thumb}
               alt={preview.title ?? "YouTube video"}
               className="h-full w-full object-cover"
             />
             <span className="absolute inset-0 flex items-center justify-center">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition-transform group-hover:scale-110">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/70">
                 <Play className="h-5 w-5 fill-white text-white" />
               </span>
             </span>
           </div>
         )}
         <div className="flex flex-col gap-0.5 p-2.5">
-          <span className="line-clamp-2 font-serif text-sm text-[var(--ink)]">{preview.title}</span>
-          <span className="flex items-center gap-1.5 font-mono text-xs text-[var(--ink-muted)]">
+          <span className="line-clamp-2 text-sm text-[var(--sd-ink)]">{preview.title}</span>
+          <span className="flex items-center gap-1.5 font-mono text-xs text-[var(--sd-ink-faint)]">
             <Favicon src={preview.faviconUrl} alt="" />
             {preview.providerData?.youtubeChannel || "YouTube"}
           </span>
@@ -123,9 +123,9 @@ export function LinkPreviewCard({
         target="_blank"
         rel="noopener noreferrer"
         onClick={open}
-        className="glass-tile block max-w-md rounded-lg p-3 no-underline"
+        className="block max-w-md rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-3 no-underline transition-colors hover:bg-[var(--sd-hover)]"
       >
-        <span className="mb-1 flex items-center gap-1.5 font-mono text-xs text-[var(--ink-muted)]">
+        <span className="mb-1 flex items-center gap-1.5 font-mono text-xs text-[var(--sd-ink-faint)]">
           <Favicon src={preview.faviconUrl} alt="" />
           {preview.providerData?.tweetAuthor || "X"}
           {preview.providerData?.tweetAuthorHandle && (
@@ -133,7 +133,7 @@ export function LinkPreviewCard({
           )}
         </span>
         {tweet && (
-          <p className="whitespace-pre-wrap font-serif text-sm text-[var(--ink)]">{tweet}</p>
+          <p className="whitespace-pre-wrap text-sm text-[var(--sd-ink)]">{tweet}</p>
         )}
       </a>
     );
@@ -147,24 +147,24 @@ export function LinkPreviewCard({
       rel="noopener noreferrer"
       onClick={open}
       className={cn(
-        "glass-tile flex max-w-md items-stretch overflow-hidden rounded-lg no-underline"
+        "flex max-w-md items-stretch overflow-hidden rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)] no-underline transition-colors hover:bg-[var(--sd-hover)]"
       )}
     >
       {preview.imageUrl && (
-        <div className="w-24 shrink-0 bg-[var(--surface)]">
+        <div className="w-24 shrink-0 border-r border-[var(--sd-line)] bg-[var(--sd-input)]">
           <Thumb src={preview.imageUrl} alt="" className="h-full w-full object-cover" />
         </div>
       )}
       <div className="flex min-w-0 flex-col gap-0.5 p-2.5">
-        <span className="flex items-center gap-1.5 font-mono text-xs text-[var(--ink-muted)]">
+        <span className="flex items-center gap-1.5 font-mono text-xs text-[var(--sd-ink-faint)]">
           <Favicon src={preview.faviconUrl} alt="" />
           <span className="truncate">{preview.siteName || host}</span>
         </span>
-        <span className="line-clamp-2 font-serif text-sm text-[var(--ink)]">
+        <span className="line-clamp-2 text-sm text-[var(--sd-ink)]">
           {preview.title || host}
         </span>
         {preview.description && (
-          <span className="line-clamp-2 font-sans text-xs text-[var(--ink-muted)]">
+          <span className="line-clamp-2 text-xs text-[var(--sd-ink-faint)]">
             {preview.description}
           </span>
         )}

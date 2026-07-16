@@ -65,20 +65,34 @@ export function PagesListClient({
   const foldersKey = tableKey("page_folders", userId);
   const fieldDefsKey = ["page-field-definitions", userId] as const;
 
+  // Realtime-driven wiki-home reads. The useTableSubscription channels above
+  // (pages / page_folders / folder_projects) — plus the app-shell SearchProvider
+  // and PageDetailClient channels — invalidate these keys on every INSERT/UPDATE/
+  // DELETE, and the page-view save() mirrors that invalidation locally. While
+  // /wiki is mounted, an invalidation refetches the active observer live (the
+  // concurrent-tab / rename-in-place case). When /wiki is unmounted (you're in a
+  // page view), the invalidation still marks the cached query STALE; the global
+  // QueryClient runs refetchOnMount:false, so we override to refetchOnMount:true
+  // here — on same-tab navigate-back the query refetches iff it was invalidated,
+  // making the realtime stale flag (not a blind every-mount fetch) drive the
+  // refresh. Unchanged + fresh → no refetch, so this costs nothing extra.
   const { data: allPages = [] } = useQuery({
     queryKey: pagesKey,
     queryFn: () => getPagesForCurrentUser(),
     initialData: initialPages,
+    refetchOnMount: true,
   });
   const { data: folders = [] } = useQuery({
     queryKey: foldersKey,
     queryFn: () => getFoldersForCurrentUser(),
     initialData: initialFolders,
+    refetchOnMount: true,
   });
   const { data: folderProjects = [] } = useQuery({
     queryKey: tableKey("folder_projects", userId),
     queryFn: () => getFolderProjectsForCurrentUser(),
     initialData: initialFolderProjects,
+    refetchOnMount: true,
   });
   // See wave-1 for why projects / fieldDefinitions aren't seeded with []:
   // the global QueryClient runs refetchOnMount:false, so a seed sticks.
@@ -96,6 +110,7 @@ export function PagesListClient({
     queryKey: ["daily-pages", userId],
     queryFn: () => getDailyPagesForCurrentUser(),
     initialData: initialDailyPages,
+    refetchOnMount: true,
   });
 
   // Wave-3: ensure today's Daily Page exists without navigating. Coordinates

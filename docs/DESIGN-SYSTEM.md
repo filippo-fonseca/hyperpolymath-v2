@@ -88,6 +88,8 @@ Anatomy, top to bottom (primitives in `components/ui/entity-card.tsx`):
 
 **Grid**: 12 columns (`@3xl/main:grid-cols-12`, `auto-rows-[minmax(180px,auto)]`, `gap-4`). Tasks spans 8 (2 rows); Habits and Training stack at 4 each; Captures spans 12 with an inner grid of flat sub-cards (`bg-[var(--sd-input)]`, `rounded-[10px]`, **no border-in-border nesting**). Insights is a full-width card sibling below the grid.
 
+**Spread**: the widget card is the shared content-object primitive well beyond LifeOS. It now backs the Today widgets (Upcoming Tasks, Habits, Training, Recent Captures, Insights), the habits page, capture cards, the nutrition stats / macro summary / meal surfaces, the journal entry editor, the JARVIS personality and startup editors, the settings sd-primitives, and the `/design` sample. Consume `components/lifeos/WidgetCard.tsx` and the `entity-card.tsx` anatomy; do not restate the shell.
+
 ## 10. Chips and pills (one grammar, app-wide)
 
 The verbatim Spacedrive chip, from `entity-card.tsx`:
@@ -122,6 +124,8 @@ Dimensional SVG icons only (`components/ui/icons`): gradient-layered bodies (coo
 
 The two registers, restated because it is the most commonly broken rule: **nouns get dimensional icons; verbs get lucide.** Sidebar features 18px, widget card headers 36px, stat strips 40px, empty states 40px at 40% opacity, `/design` samples 24/48px.
 
+**The shared recipe** (`components/ui/icons/shared.tsx`): every dimensional icon is an 80x80 SVG built from ONE recipe — `useIconIds` for collision-free scoped defs, `BodyGradient` for the cool-indigo body material, `ICON_INNER_SHADOW` / `ICON_CREASE` for embossed depth, and a token-driven `feDropShadow` riding `--sd-icon-shadow*` (both themes first-class, no per-theme file). **A new feature icon is a local file composing that recipe, never a fork of it.** Add `XIcon.tsx` that pulls in the shared helpers and draws only its motif, then re-export it from `components/ui/icons/index.ts`. Never restate the material, the shadow, or the id-scoping; never fill the body with accent (accent lives in the `dropTarget` frame only).
+
 ## 14. Motion law
 
 - Entrances: opacity 0→1, y 4→0, 160ms, `ease [0.25, 1, 0.5, 1]`, stagger `min(i,24) * 10ms`.
@@ -149,3 +153,32 @@ Every surface verifies in light AND dark before it ships. Animation QA is a gate
 ## 19. For agents
 
 Read this file before touching UI. Consume the shipped primitives (`components/ui/entity-card`, `components/ui/explorer`, `components/ui/icons`, `components/ui/ambient`, the `SB_*` constants from `components/shell/Sidebar`) instead of re-implementing them, and consume `.sd-*` utilities and tokens instead of literals. The two-tier selection law, the single-hue rule, the noun/verb icon split, and the zero-jank law are non-negotiable. Atomic commits, explicit pathspecs, both-theme verification with evidence.
+
+## 20. JARVIS console grammar
+
+The JARVIS surfaces (`components/jarvis`) speak a **mono, instrument voice** on the sd register. The console (`JarvisConsole.tsx`) and its HUD primitives (`HudStatusPill`, `HudThinkingRing`, corner crops, edge instrumentation) render status and telemetry in `--font-mono` micro-copy; the prose answer itself stays Space Grotesk.
+- **Receipts** (`JarvisReceipt.tsx`): one solid `--sd-box` plate per action, hairline `--sd-line` border, **no blur, no bevel, no glow**. Each receipt leads with a flat inset **intent pill** (`--sd-input` fill) carrying a lucide verb icon and a mono label; undo folds into a cyan pill plus a hairline row.
+- **Functional pill inks**: the single cyan accent (`--sd-accent`) marks actions (create / update / remember / ask); functional red (`--ink-coral`) marks destructive deletes and errors; passive finds stay neutral ink-faint (a lookup is not accent-worthy). This is the one place the functional inks carry semantic weight beyond a status dot, and they do it through the chip grammar of §10, never as chrome.
+
+## 21. Data-series color law
+
+Charts and diagrams are the **one sanctioned exception** to the single-hue rule (§1), and only as *data encoding*, never as chrome.
+- **Cyan (`--sd-accent`) is always the primary series.** The first / primary metric plots cyan.
+- Additional series may use the functional inks as **series (data-source) encoding**: `--ink-amber` then `--ink-coral` for the second and third series. Canonical example: `MacroTrendChart` — protein cyan, carbs amber, fat coral. No new hues, no gradient fills; the grid is 1px `--sd-line` and axis labels are mono (`--font-mono`, ~10.5px).
+- **A mono legend is REQUIRED whenever more than one series is plotted.** Legend chips mirror the plotted series 1:1 — a `h-[3px] w-3.5 rounded-full` swatch in the series color plus a `font-mono text-[10.5px] uppercase tracking-[0.08em]` ink-dull label. A multi-color chart shipped without its legend chips is a defect.
+
+## 22. SFX (the space-console core pack)
+
+`lib/ui/sfx.ts` — eight tiny, pitch-coherent UI cues synthesized at runtime through the shared gesture-unlocked `AudioContext` (`lib/voice/audio-context`). Zero audio assets: each cue is a short envelope over one or two sine/triangle partials derived from a single tonal center (C5), so the whole family reads as one instrument.
+- **The cues** (`CueName`): `sidebarCollapse` / `sidebarExpand` / `viewToggle` / `taskComplete` / `captureSent` / `habitCheck` / `dialogOpen` / `error`. Fire with `sfx.play("taskComplete")`.
+- **Law**: every cue < 180ms, quiet (peak well under the existing chimes), never stacks (per-cue 120ms throttle), and **silent when the AudioContext is locked** (no gesture yet) or muted. Audio never throws and never blocks an interaction.
+- **Mute contract (two keys)**: `hp:sfx-muted` (`lib/ui/sound-prefs`) is the **master mute** — it silences the chimes AND the core pack. `ui:sfx` (default ON) is the independent toggle for just the core pack, exposed as `isSfxEnabled` / `setSfxEnabled` for a settings switch. `sfx.play` short-circuits on either.
+
+## 23. Inline-style token routing (the sanctioned scan-gap escape)
+
+Tailwind's Oxide scan can miss an **arbitrary utility used in only one file** (verified: `bg-[var(--sd-sidebar)]` and `font-logotype` were never emitted). When a token lookup is genuinely one-off, the sanctioned routes, in order:
+1. Reuse a utility already emitted elsewhere (grep the compiled CSS or another call site first).
+2. Add a real class to `globals.css` (§17) and consume it.
+3. **Route the token through an inline `style={{}}`** — e.g. `style={{ backgroundColor: "var(--sd-box)" }}` or `style={{ fontFamily: "var(--font-mono)" }}`. Inline style is not a smell here; it is the escape hatch for the scan gap, and the sd charts and legends use it deliberately (series colors, mono axis fonts).
+
+After introducing any new arbitrary utility, **verify it in the compiled CSS or computed styles before claiming done.** Never assume an arbitrary class emitted.

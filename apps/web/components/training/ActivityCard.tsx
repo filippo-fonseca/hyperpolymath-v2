@@ -106,31 +106,34 @@ export function ActivityCard({ activity, distanceUnit, addOptimistic, onCheckOff
       {...listeners}
       onClick={handleCardClick}
       className={cn(
-        "group relative flex cursor-grab touch-none select-none items-stretch gap-1.5 rounded border border-[var(--edge)] bg-[var(--bg)] pr-1.5 text-xs shadow-sm transition-shadow",
-        "hover:shadow-md",
-        isDragging && "z-10 cursor-grabbing opacity-60 shadow-lg",
+        // Mini entity-card plate (§9/§10): --sd-box fill, hairline border,
+        // dark-only inset top hairline. Hover moves the border, nothing else.
+        "group relative flex cursor-grab touch-none select-none items-stretch gap-1.5 overflow-hidden rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] pr-1.5 text-xs transition-colors duration-150",
+        "dark:[box-shadow:rgba(255,255,255,0.06)_0_1px_0_inset]",
+        "hover:border-[color-mix(in_srgb,var(--sd-ink)_18%,var(--sd-line))]",
+        isDragging && "z-10 cursor-grabbing opacity-60",
         isDone && "opacity-60",
         (isCancelled || isSkipped) && "opacity-50"
       )}
     >
-      {/* 3px color stripe — type accent */}
+      {/* 3px color stripe — functional type color (data, not chrome) */}
       <div
         aria-hidden
-        className="w-[3px] shrink-0 rounded-l"
+        className="w-[3px] shrink-0"
         style={{ backgroundColor: activity.type.color }}
       />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 py-1 pl-0.5">
         <div className="flex items-center gap-1">
           {isDone ? (
-            <Check size={11} strokeWidth={2} className="shrink-0 text-[var(--ink-muted)]" />
+            <Check size={11} strokeWidth={2} className="shrink-0 text-[var(--sd-accent)]" />
           ) : isCancelled ? (
-            <X size={11} strokeWidth={2} className="shrink-0 text-[var(--ink-muted)]" />
+            <X size={11} strokeWidth={2} className="shrink-0 text-[var(--sd-ink-faint)]" />
           ) : isSkipped ? (
-            <MinusCircle size={11} strokeWidth={2} className="shrink-0 text-[var(--ink-muted)]" />
+            <MinusCircle size={11} strokeWidth={2} className="shrink-0 text-[var(--sd-ink-faint)]" />
           ) : null}
           <span
             className={cn(
-              "truncate font-serif text-xs leading-tight",
+              "truncate text-xs leading-tight text-[var(--sd-ink)]",
               isDone && "line-through",
               isCancelled && "line-through",
               isSkipped && "italic"
@@ -139,7 +142,7 @@ export function ActivityCard({ activity, distanceUnit, addOptimistic, onCheckOff
             {activity.title}
           </span>
         </div>
-        <div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.04em] text-[var(--ink-muted)]">
+        <div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.04em] text-[var(--sd-ink-faint)]">
           <span className="truncate">{activity.type.name}</span>
           {durationMin != null ? (
             <>
@@ -164,7 +167,7 @@ export function ActivityCard({ activity, distanceUnit, addOptimistic, onCheckOff
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label="Activity actions"
-            className="m-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--ink-muted)] opacity-0 transition-opacity hover:bg-[var(--surface)] group-hover:opacity-100 focus-visible:opacity-100"
+            className="m-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] text-[var(--sd-ink-faint)] opacity-0 transition-opacity hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] group-hover:opacity-100 focus-visible:opacity-100"
           >
             <MoreHorizontal size={12} strokeWidth={1.5} />
           </button>
@@ -186,7 +189,7 @@ export function ActivityCard({ activity, distanceUnit, addOptimistic, onCheckOff
             Mark skipped
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={handleDelete} className="text-[var(--danger,var(--ink))]">
+          <DropdownMenuItem onSelect={handleDelete} className="text-[var(--ink-coral)]">
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>

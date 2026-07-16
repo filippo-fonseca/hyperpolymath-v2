@@ -54,7 +54,7 @@ export function CaptureSearch({ activeHashtagId, onResults, onQueryChange }: Pro
     <div className="relative">
       <Search
         size={14}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--sd-ink-faint)] pointer-events-none"
       />
       <Input
         value={query}
@@ -67,7 +67,7 @@ export function CaptureSearch({ activeHashtagId, onResults, onQueryChange }: Pro
           type="button"
           aria-label="Clear search"
           onClick={() => setQuery("")}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
         >
           <X size={14} />
         </button>

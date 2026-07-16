@@ -11,11 +11,20 @@ import {
 } from 'recharts';
 import type { Result } from '@/lib/integrations/result';
 import type { DailyUsage } from '@/lib/integrations/claude-code/usage';
-import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
+import {
+  CHART,
+  DevEmpty,
+  DevPanel,
+  DevPanelHeader,
+} from '../development/dev-chrome';
 
-// Recharts cannot resolve var(--*) at render time; literal hex per accent_constants.
-const ACCENT_HEX = '#d97706'; // ~ var(--ink-amber)
-const ACCENT_VAR = 'var(--ink-amber)';
+/**
+ * Daily Claude Code token consumption (owner-only DEVELOPMENT tab). The series
+ * rides the functional amber ink to read as a distinct spend source next to the
+ * cyan Anthropic API panel. Chart tokens are `var(--sd-*)` so it resolves in
+ * BOTH themes (recharts reads them as SVG presentation attributes) — see the
+ * nutrition MacroTrendChart exemplar.
+ */
 
 interface Props {
   result: Result<DailyUsage[]>;
@@ -48,34 +57,18 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
-function PanelChrome({ children }: { children: React.ReactNode }) {
-  return (
-    <section
-      className={`group ${NEUMORPHIC_TILE} p-6`}
-      style={
-        {
-          ['--panel-accent']: ACCENT_VAR,
-          boxShadow: glassyTileShadow({ withPanelAccentHalo: true }),
-        } as React.CSSProperties
-      }
-    >
-      {children}
-    </section>
-  );
-}
-
 export function ClaudeCodePanel({ result }: Props) {
   if (!result.ok) {
     const msg = /not found on this host/i.test(result.error)
       ? "Claude Code session data isn't available here."
       : `Couldn't load Claude Code data — ${result.error}`;
     return (
-      <PanelChrome>
-        <header className="mb-2 flex items-baseline justify-between">
-          <h3 className="font-serif text-lg text-[var(--ink)]">Claude Code</h3>
-        </header>
-        <p className="font-mono text-xs text-[var(--ink-muted)]">{msg}</p>
-      </PanelChrome>
+      <DevPanel>
+        <DevPanelHeader eyebrow="Claude Code · daily tokens" />
+        <p className="mt-3 font-mono text-xs text-[var(--sd-ink-faint)]">
+          {msg}
+        </p>
+      </DevPanel>
     );
   }
 
@@ -83,14 +76,12 @@ export function ClaudeCodePanel({ result }: Props) {
 
   if (data.length === 0) {
     return (
-      <PanelChrome>
-        <header className="mb-2 flex items-baseline justify-between">
-          <h3 className="font-serif text-lg text-[var(--ink)]">Claude Code</h3>
-        </header>
-        <p className="font-serif text-sm text-[var(--ink-muted)]">
-          Seven days of silence.
-        </p>
-      </PanelChrome>
+      <DevPanel>
+        <DevPanelHeader eyebrow="Claude Code · daily tokens" />
+        <div className="mt-3">
+          <DevEmpty heading="Seven days of silence" />
+        </div>
+      </DevPanel>
     );
   }
 
@@ -102,64 +93,80 @@ export function ClaudeCodePanel({ result }: Props) {
   const sessionDays = data.filter((d) => d.totalTokens > 0).length;
 
   return (
-    <PanelChrome>
-      <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="font-serif text-lg text-[var(--ink)]">Claude Code</h3>
-        <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
-          <span>
-            <span className="text-[var(--ink)]">{formatTokens(totalTokens)}</span>{' '}
-            tok
-          </span>
-          {totalCost != null ? (
+    <DevPanel>
+      <DevPanelHeader
+        eyebrow="Claude Code · daily tokens"
+        right={
+          <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
             <span>
-              <span className="text-[var(--ink)]">${totalCost.toFixed(2)}</span>{' '}
-              cost
+              <span className="text-[var(--sd-ink)] tabular-nums">
+                {formatTokens(totalTokens)}
+              </span>{' '}
+              tok
             </span>
-          ) : null}
-          <span>
-            <span className="text-[var(--ink)]">{sessionDays}</span> days
-          </span>
-        </div>
-      </header>
-      <div style={{ height: 200 }}>
+            {totalCost != null ? (
+              <span>
+                <span className="text-[var(--sd-ink)] tabular-nums">
+                  ${totalCost.toFixed(2)}
+                </span>{' '}
+                cost
+              </span>
+            ) : null}
+            <span>
+              <span className="text-[var(--sd-ink)] tabular-nums">
+                {sessionDays}
+              </span>{' '}
+              days
+            </span>
+          </div>
+        }
+      />
+      <div className="mt-4" style={{ height: 200 }}>
         {/* Explicit width/height: recharts 3's ResponsiveContainer can measure
             its parent at 0px on the first paint inside a spanning grid cell
             (this panel sits in @2xl/main:col-span-2), leaving the bar chart
-            blank. Passing 100%/100% matches InsightsCharts / PipelineLatencyPanel
-            and makes the dimensions deterministic. */}
+            blank. Passing 100%/100% makes the dimensions deterministic. */}
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-            <CartesianGrid stroke="#d4cfc4" strokeDasharray="2 4" vertical={false} />
+            <CartesianGrid
+              stroke={CHART.grid}
+              strokeDasharray="2 4"
+              vertical={false}
+            />
             <XAxis
               dataKey="date"
               tickFormatter={formatShortDate}
-              tick={{ fontSize: 10, fill: '#7c7669' }}
+              style={{ fontSize: 10, fontFamily: 'var(--font-mono)' }}
+              tick={{ fill: CHART.axis }}
               axisLine={false}
               tickLine={false}
               minTickGap={20}
             />
             <YAxis
               tickFormatter={formatTokens}
-              tick={{ fontSize: 10, fill: '#7c7669' }}
+              style={{ fontSize: 10, fontFamily: 'var(--font-mono)' }}
+              tick={{ fill: CHART.axis }}
               axisLine={false}
               tickLine={false}
               width={40}
             />
             <Tooltip
-              cursor={{ fill: 'rgba(217, 119, 6, 0.08)' }}
-              contentStyle={{
-                background: 'var(--surface-raised)',
-                border: '1px solid var(--edge)',
-                borderRadius: 8,
-                fontSize: 11,
-              }}
+              cursor={{ fill: 'color-mix(in srgb, var(--ink-amber) 10%, transparent)' }}
+              contentStyle={CHART.tooltip}
               labelFormatter={(v) => formatShortDate(String(v))}
-              formatter={(v) => [formatTokens(Number(v)), 'tokens'] as [string, string]}
+              formatter={(v) =>
+                [formatTokens(Number(v)), 'tokens'] as [string, string]
+              }
             />
-            <Bar dataKey="totalTokens" fill={ACCENT_HEX} radius={[2, 2, 0, 0]} />
+            <Bar
+              dataKey="totalTokens"
+              fill={CHART.amber}
+              radius={[2, 2, 0, 0]}
+              isAnimationActive={false}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </PanelChrome>
+    </DevPanel>
   );
 }

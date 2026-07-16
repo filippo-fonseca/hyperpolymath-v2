@@ -375,12 +375,35 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         fromId: initialPage.id,
         personIds: extractPersonIdsFromBlockNote(savedJson),
       });
+      // Realtime title/create/delete propagation (issue: rename in the page
+      // view must reach the wiki home live). updatePage bumps pages.updated_at,
+      // which the app-shell SearchProvider + PagesListClient useTableSubscription
+      // ("pages") channels invalidate on via postgres_changes. But that echo can
+      // only refetch *active* observers, and it round-trips the realtime server
+      // (absent in dev/headless). Invalidating the ["pages", userId] key here
+      // marks the query stale locally and synchronously, so: any co-mounted wiki
+      // surface updates instantly, and — because /wiki's queries now use
+      // refetchOnMount:true — a same-tab navigate-back to the unmounted wiki home
+      // refetches on remount off this stale flag. Invalidate-only, no payload
+      // merge (CLAUDE.md Critical Pattern 3); the subscription is the driver, this
+      // is the resilient local mirror of the same invalidation call path.
+      queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
       setSavedAt(new Date());
       setShowSaved(true);
       if (savedFadeTimer.current) clearTimeout(savedFadeTimer.current);
       savedFadeTimer.current = setTimeout(() => setShowSaved(false), 2000);
     },
-    [initialPage.id, title, content, contentJson, emoji, url, linkedProjectIds]
+    [
+      initialPage.id,
+      title,
+      content,
+      contentJson,
+      emoji,
+      url,
+      linkedProjectIds,
+      queryClient,
+      userId,
+    ]
   );
 
   const scheduleAutosave = useCallback(
@@ -742,7 +765,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           under it stays hidden. */}
       <div className="sticky top-0 z-10 self-end ml-auto flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-darker-box)] px-2 py-1 shadow-[0_1px_0_hsl(235_15%_0%_/_0.12)]">
         {showSaved && (
-          <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] animate-fade-in mr-0.5">
+          <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] sd-fade-in mr-0.5">
             <Check size={11} strokeWidth={2} />
             Saved
           </span>
@@ -921,7 +944,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           Daily Pages (daily_date IS NOT NULL) surface these. */}
       {isDailyPage && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] glass-tile">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] border border-[var(--sd-line)] bg-[var(--sd-box)]">
             <CalendarDays size={11} strokeWidth={1.75} />
             Daily Page
           </span>
@@ -930,7 +953,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             onClick={handleProcessDailyPage}
             disabled={processing}
             title="Run the whole page through JARVIS to extract tasks, events, and captures"
-            className="glass-button inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {processing ? (
               <Loader2 size={12} strokeWidth={1.75} className="animate-spin" />

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Linkedin, Github, Globe } from "lucide-react";
 import { SectionEyebrow } from "./SectionEyebrow";
+import { Reveal } from "./Reveal";
 
 /**
  * §05 — Bio (LAND-BIO).
@@ -50,44 +51,46 @@ export function BioSection() {
       id="why"
       className="py-16 max-w-[920px] mx-auto px-6 md:px-10 scroll-mt-20"
     >
-      <SectionEyebrow label="§ 02 · WHO" />
-      <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
-        Why I built this.
-      </h2>
+      <Reveal>
+        <SectionEyebrow label="§ 02 · WHO" />
+        <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+          Why I built this.
+        </h2>
+      </Reveal>
 
       {/* Identity card — portrait + name + credentials + social row.
           Sits at the top; the prose flows below at full width. */}
-      <div className="mt-8 flex flex-col md:flex-row md:items-start md:gap-8">
+      <Reveal i={1} className="mt-8 flex flex-col md:flex-row md:items-start md:gap-8">
         <div className="flex-shrink-0 mx-auto md:mx-0">
           <Image
             src="/filippo.png"
             alt="Filippo Fonseca"
             width={180}
             height={180}
-            className="rounded-2xl border border-[var(--edge)]"
+            className="rounded-[14px] border border-[var(--sd-line)]"
             priority={false}
           />
         </div>
 
         <div className="mt-6 md:mt-0 flex-1 text-center md:text-left">
-          <p className="font-serif text-[28px] font-semibold leading-[1.2] text-[var(--ink)]">
+          <p className="text-[28px] font-semibold leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
             Filippo Fonseca
           </p>
-          <p className="mt-2 font-serif text-[14px] leading-[1.55] text-[var(--ink-muted)]">
+          <p className="mt-2 text-[14px] leading-[1.55] text-[var(--sd-ink-dull)]">
             Yale MechE (ABET) + EECS &rsquo;28 · Engineer @ Mass General /
             Harvard Med · President @ Yale Robotics · Entrepreneur ·
             Biomechatronics · Polyglot · Stoic
           </p>
-          <p className="mt-2 font-serif italic text-[14px] leading-[1.5] text-[var(--ink-muted)]">
+          <p className="mt-2 italic text-[14px] leading-[1.5] text-[var(--sd-ink-dull)]">
             I build humanist physical intelligence w/ robotics &amp;
             materials. 🫀🦴
           </p>
-          <p className="mt-2 font-mono text-[14px] text-[var(--ink-muted)] tracking-[0.04em]">
+          <p className="mt-2 font-mono text-[12px] text-[var(--sd-ink-faint)] tracking-[0.06em]">
             New Haven, Connecticut
           </p>
 
-          {/* Social links — icon row. Hover lifts to --hud-cyan (JARVIS signature). */}
-          <ul className="mt-4 flex justify-center md:justify-start gap-3">
+          {/* Social links — sd icon-buttons. Hover lifts ink to the cyan accent. */}
+          <ul className="mt-4 flex justify-center md:justify-start gap-2">
             {SOCIAL_LINKS.map(({ label, href, Icon }) => (
               <li key={href}>
                 <a
@@ -96,20 +99,20 @@ export function BioSection() {
                   rel="noopener noreferrer"
                   aria-label={label}
                   title={label}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--ink-muted)] transition-colors duration-200 hover:text-[var(--hud-cyan)]"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-ink-faint)] transition-colors duration-150 hover:text-[var(--sd-accent)]"
                 >
-                  <Icon size={16} aria-hidden="true" />
+                  <Icon size={15} aria-hidden="true" />
                 </a>
               </li>
             ))}
           </ul>
         </div>
-      </div>
+      </Reveal>
 
       {/* Prose flows below the identity card at full container width.
           Inner max-w cap keeps the measure readable. */}
-      <div className="mt-10 max-w-[720px] mx-auto md:mx-0 space-y-4">
-          <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+      <Reveal i={2} as="div" className="mt-10 max-w-[720px] mx-auto md:mx-0 space-y-4">
+          <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
             I&rsquo;m a student, a runner, a long-time builder, and someone who
             has spent most of the last decade collecting skills that don&rsquo;t
             really belong on the same résumé. Distance running, classical
@@ -121,13 +124,13 @@ export function BioSection() {
             just needs a system around them that stops asking them to choose.
           </p>
 
-          <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+          <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
             I tried to build that system once before. Six years ago I started{" "}
             <a
               href="https://zyndicate.app"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline decoration-[var(--ink-muted)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--hud-cyan)] hover:decoration-[var(--hud-cyan)]"
+              className="underline decoration-[var(--sd-ink-faint)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--sd-accent)] hover:decoration-[var(--sd-accent)]"
             >
               a productivity startup
             </a>{" "}
@@ -146,7 +149,7 @@ export function BioSection() {
             did then.
           </p>
 
-          <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+          <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
             Hyperpolymath is what I want to use, every day. Five primitives
             instead of ten. One agent instead of a dozen integrations. A schema
             you can fork rather than a walled garden you have to live inside.
@@ -155,12 +158,12 @@ export function BioSection() {
             things, learn, build, and yes, get out of the house and run.
           </p>
 
-          <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+          <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
             I wrote extensive docs, so if you don&rsquo;t like my UI or my
             approach, or you fancy a cool build, you can follow my framework
             and make it your own.
           </p>
-        </div>
+      </Reveal>
     </section>
   );
 }

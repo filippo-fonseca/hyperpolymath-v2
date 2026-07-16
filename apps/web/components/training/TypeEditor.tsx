@@ -217,7 +217,7 @@ export function TypeEditor({ batchId, types, allBatches }: Props) {
           type="button"
           onClick={() => void handleCreate()}
           aria-label="Add type"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
         >
           <Plus size={14} strokeWidth={1.5} />
         </button>
@@ -277,7 +277,7 @@ function TypeRow({
       <button
         type="button"
         aria-label="Drag to reorder"
-        className="flex h-6 w-3.5 shrink-0 cursor-grab touch-none items-center justify-center text-[var(--ink-muted)] opacity-0 hover:text-[var(--ink)] group-hover:opacity-100 active:cursor-grabbing"
+        className="flex h-6 w-3.5 shrink-0 cursor-grab touch-none items-center justify-center text-[var(--sd-ink-dull)] opacity-0 hover:text-[var(--sd-ink)] group-hover:opacity-100 active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
@@ -289,7 +289,7 @@ function TypeRow({
           <button
             type="button"
             aria-label="Change color"
-            className="h-4 w-4 shrink-0 rounded-full ring-1 ring-[var(--edge)] transition-transform hover:scale-110"
+            className="h-4 w-4 shrink-0 rounded-full ring-1 ring-[var(--sd-line)]"
             style={{ backgroundColor: type.color }}
           />
         </PopoverTrigger>
@@ -320,20 +320,20 @@ function TypeRow({
             className="h-6 text-xs"
           />
         ) : (
-          <span className="flex-1 truncate font-serif text-sm">{type.name}</span>
+          <span className="flex-1 truncate text-sm">{type.name}</span>
         )}
       </div>
 
       {/* Distance toggle — ad-hoc switch (no shadcn Switch in repo yet). */}
       <label
-        className="flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded px-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:bg-[var(--surface)]"
+        className="flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded px-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)]"
         title="Track distance for this activity"
       >
         <input
           type="checkbox"
           checked={type.hasDistance}
           onChange={(e) => onToggleDistance(e.target.checked)}
-          className="h-3 w-3 accent-[var(--ink)]"
+          className="h-3 w-3 accent-[var(--sd-ink)]"
         />
         km
       </label>
@@ -343,7 +343,7 @@ function TypeRow({
           <button
             type="button"
             aria-label="Type actions"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--ink-muted)] opacity-0 hover:bg-[var(--surface)] group-hover:opacity-100 focus-visible:opacity-100"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--sd-ink-dull)] opacity-0 hover:bg-[var(--sd-hover)] group-hover:opacity-100 focus-visible:opacity-100"
           >
             <MoreHorizontal size={12} strokeWidth={1.5} />
           </button>
@@ -357,7 +357,7 @@ function TypeRow({
                 disabled={currentBatchId === null}
                 onSelect={() => onMoveToBatch(null)}
               >
-                <span className="font-serif italic">Ungrouped</span>
+                <span className="italic">Ungrouped</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {allBatches.map((b) => (

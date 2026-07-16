@@ -132,13 +132,13 @@ export function ProjectSettingsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-serif text-xl font-semibold">Project settings</DialogTitle>
+            <DialogTitle className="font-sans text-xl font-semibold">Project settings</DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-6">
             {/* Run dates */}
             <section className="flex flex-col gap-3">
-              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
                 Run dates
               </h3>
               <div className="flex gap-3">
@@ -185,7 +185,7 @@ export function ProjectSettingsDialog({
 
             {/* Move to area */}
             <section className="flex flex-col gap-3 border-t border-[var(--edge)] pt-5">
-              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
                 Area
               </h3>
               <div className="flex items-end gap-3">
@@ -219,15 +219,15 @@ export function ProjectSettingsDialog({
 
             {/* Lifecycle */}
             <section className="flex flex-col gap-3 border-t border-[var(--edge)] pt-5">
-              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
                 Lifecycle
               </h3>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-col">
-                  <span className="font-serif text-sm text-[var(--ink)]">
+                  <span className="font-sans text-sm text-[var(--sd-ink)]">
                     {isArchived ? "Archived" : "Active"}
                   </span>
-                  <span className="font-sans text-[12px] text-[var(--ink-muted)]">
+                  <span className="font-sans text-[12px] text-[var(--sd-ink-dull)]">
                     {isArchived
                       ? "Hidden from the live area view."
                       : "Archive to move it out of the live view."}
@@ -251,7 +251,7 @@ export function ProjectSettingsDialog({
                 Danger zone
               </h3>
               <div className="flex items-center justify-between gap-3">
-                <span className="font-sans text-[12px] text-[var(--ink-muted)]">
+                <span className="font-sans text-[12px] text-[var(--sd-ink-dull)]">
                   Delete this project. Linked tasks and captures stay in your library.
                 </span>
                 <Button

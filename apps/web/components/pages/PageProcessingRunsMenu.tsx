@@ -54,7 +54,7 @@ export function PageProcessingRunsMenu({
         <button
           type="button"
           title="View past processing runs for this page"
-          className="glass-button inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink-muted)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer"
+          className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink-muted)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer"
         >
           <History size={12} strokeWidth={1.75} />
           <span>History</span>

@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import type { CSSProperties } from "react";
+import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { useTabHidden } from "./useTabHidden";
 
 /**
@@ -45,6 +46,16 @@ export function FocalOrb({ size = 160, className }: Props) {
         <span className="sd-orb__glow" />
         <span className="sd-orb__body" />
         <span className="sd-orb__spec" />
+        {/* Kiwi brand mark, embedded in the glass above the specular layers.
+            Near-white over cyan, a soft dark seat (not a glow) for legibility,
+            scaled to the orb. Decorative: aria-hidden + pointer-events-none. */}
+        <span className="sd-orb__kiwi" aria-hidden>
+          <KiwiIcon
+            size="46%"
+            color="rgba(255, 255, 255, 0.94)"
+            aria-hidden="true"
+          />
+        </span>
       </div>
     </div>
   );
@@ -87,6 +98,17 @@ const ORB_CSS = `
     inset 0 0 0 1px rgba(255, 255, 255, 0.16),
     0 20px 55px rgb(var(--hud-cyan-rgb) / 0.45),
     0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+/* Kiwi brand mark: centered in the sphere, above the specular sheen. The soft
+   dark drop seats it in the glass without adding a glow ring. */
+.sd-orb__kiwi {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.28));
 }
 
 /* Crisp specular hotspot, offset top-left. */

@@ -94,7 +94,9 @@ export function RecentCapturesWidget({
           </EmptyState>
         ) : (
           // Flat sub-cards on --sd-input: no border-in-border double nesting (§6).
-          <ul className="mt-3.5 grid grid-cols-1 gap-3 @lg/main:grid-cols-2 @3xl/main:grid-cols-3">
+          // Compact cell (SD3 §2): a single-column stream that scrolls inside
+          // the tile rather than a page-widening grid.
+          <ul className="sd-scroll-hover -mr-2 mt-3.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-2">
             {recent.map((c, i) => {
               const isJarvis = c.createdVia === "jarvis";
               const SourceIcon = isJarvis ? Sparkles : PenLine;

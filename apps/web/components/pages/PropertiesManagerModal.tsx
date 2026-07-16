@@ -171,7 +171,7 @@ export function PropertiesManagerModal({
               type="button"
               onClick={addProperty}
               disabled={busy || newName.trim() === ""}
-              className="glass-button shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-mono text-[var(--ink)] transition-colors duration-150 cursor-pointer disabled:opacity-40"
+              className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-mono text-[var(--ink)] transition-colors duration-150 cursor-pointer disabled:opacity-40"
             >
               <Plus size={13} strokeWidth={1.75} />
               Add

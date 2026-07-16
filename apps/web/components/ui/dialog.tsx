@@ -4,27 +4,19 @@ import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import type * as React from "react";
 
-import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * Phase 6.1 Plan 06.1-05 (UI-SPEC §5f + §9c + §13 anti-pattern):
+ * sd register (sesh-sd3, unit-primitives) — Dialog.
  *
- * Diplomatic-tier modal chrome. DialogContent is the app-wide modal surface:
- * the shared `.glass-tile` soft-UI panel, 1px glass border, and 10px
- * --edge-hud corner L-brackets (rendered via HudCornerCrops at the diplomatic
- * scale — 10px legs per UI-SPEC §5f, vs the 12px viewport crops on agent
- * surfaces). Backdrop uses plain `backdrop-blur-md` (8px) over rgba(canvas,
- * 0.6) — NOT iOS Liquid Glass refraction (UI-SPEC §13 anti-pattern catalog).
+ * DialogContent is the app-wide modal surface: the solid `.sd-modal-surface`
+ * plate (`--sd-box` fill, 1px `--sd-line` hairline, dark-only inset top
+ * hairline), 14px radius (card v2 grammar). No glass, no backdrop blur, no
+ * HUD corner brackets. The overlay is a plain rgba dim (no blur).
  *
- * Motion: scale 0.95 → 1 + fade-in over 200ms on open (tailwindcss-animate's
- * zoom-in-95 + fade-in-0 — close enough to UI-SPEC §5f's 0.96 → 1 spec for
- * the visual delta to be imperceptible). 150ms opacity-only exit per
- * UI-SPEC §7b.
- *
- * Modal hover is pinned to the resting glow strength so the whole dialog
- * does not brighten just because the pointer crosses the panel.
+ * Motion: opacity + a 4px translate on open (~150ms), opacity-only exit,
+ * reduced-motion collapses. Compositor-only per the zero-jank law (§14).
  */
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -49,11 +41,9 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
-      // UI-SPEC §5f backdrop: rgba(canvas, 0.6) + backdrop-blur(8px). NOT
-      // iOS Liquid Glass refraction. Plain blur over the canvas-colored
-      // scrim is the explicit anti-pattern boundary.
+      // sd register: plain rgba dim, NO blur.
       className={cn(
-        "fixed inset-0 z-50 backdrop-blur-md data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 duration-200",
+        "fixed inset-0 z-50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 duration-150",
         className
       )}
       style={{ backgroundColor: "rgb(0 0 0 / 0.5)" }}
@@ -75,31 +65,22 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
-        // Shared modal glass surface per Issue #213.
-        // Motion: 200ms enter scale 0.95→1 + fade-in; 150ms exit opacity-only.
+        // Solid sd modal plate. Motion: fade + 4px rise on enter (~150ms),
+        // opacity-only exit.
         className={cn(
-          "glass-tile fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-md p-6 outline-none",
-          "[--glass-glow-hover:var(--glass-glow)]",
-          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-150",
-          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:duration-200",
+          "sd-modal-surface fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-[14px] p-6 outline-none",
+          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150",
+          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1 data-[state=open]:duration-150",
           "sm:max-w-lg",
           className
         )}
         {...props}
       >
-        {/* UI-SPEC §5f — 10px corner L-brackets on diplomatic-tier modals.
-            Static (breathing={false}) — only viewport-level agent crops
-            breathe per UI-SPEC §6e. */}
-        <HudCornerCrops
-          size={10}
-          breathing={false}
-          className="absolute inset-0 pointer-events-none"
-        />
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-[var(--canvas)] transition-opacity hover:opacity-100 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-[var(--surface)] data-[state=open]:text-[var(--ink-muted)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="absolute top-4 right-4 rounded-[6px] text-[var(--sd-ink-dull)] opacity-70 transition-opacity hover:opacity-100 hover:text-[var(--sd-ink)] focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon strokeWidth={1.5} />
             <span className="sr-only">Close</span>
@@ -148,10 +129,7 @@ function DialogTitle({ className, ...props }: React.ComponentProps<typeof Dialog
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      // Serif body for content per UI-SPEC §5f ("mono chrome, serif body"
-      // — dialog title sits between the two; we keep semibold serif as the
-      // default per the existing register and let consumers override).
-      className={cn("font-serif text-lg leading-none font-semibold text-[var(--ink)]", className)}
+      className={cn("text-lg leading-none font-semibold text-[var(--sd-ink)]", className)}
       {...props}
     />
   );
@@ -164,7 +142,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("font-serif text-sm text-[var(--ink-muted)]", className)}
+      className={cn("text-sm text-[var(--sd-ink-dull)]", className)}
       {...props}
     />
   );

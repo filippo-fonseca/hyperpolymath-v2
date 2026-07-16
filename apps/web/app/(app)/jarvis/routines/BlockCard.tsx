@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * BlockCard — one sortable row in the ordered block list. Shows the step number,
- * a drag handle, the tool icon+label (from the curated catalog), a truncated NL
- * directive preview, and edit / remove affordances. Uses @dnd-kit useSortable
- * mirroring the tasks TaskListRow pattern.
+ * BlockCard — one sortable row in the ordered block list (Spacedrive register).
+ * A mini entity-card: step number, drag handle, a lucide tool-icon chip (from
+ * the curated catalog), a truncated NL directive preview, and edit / remove
+ * affordances. Uses @dnd-kit useSortable mirroring the tasks TaskListRow pattern.
+ * No hover scale — drag is the only transform.
  */
 
 import { useSortable } from "@dnd-kit/sortable";
@@ -37,11 +38,11 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
     <div
       ref={setNodeRef}
       style={style}
-      className="glass-tile flex items-center gap-3 rounded-lg p-3"
+      className="flex items-center gap-3 rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-3 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]"
     >
       <button
         type="button"
-        className="cursor-grab touch-none text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 active:cursor-grabbing"
+        className="cursor-grab touch-none text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms] active:cursor-grabbing"
         aria-label="Drag to reorder"
         {...attributes}
         {...listeners}
@@ -49,22 +50,25 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
         <GripVertical size={16} />
       </button>
 
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--edge)] font-mono text-[11px] text-[var(--ink-muted)]">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--sd-line)] font-mono text-[11px] text-[var(--sd-ink-dull)]">
         {index + 1}
       </span>
 
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)] shadow-[inset_1px_1px_2px_color-mix(in_oklch,var(--ink)_10%,transparent),inset_-1px_-1px_2px_color-mix(in_oklch,white_70%,transparent)]">
+      <span
+        style={{ background: "var(--sd-input)" }}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-[var(--sd-line)] text-[var(--sd-ink-dull)]"
+      >
         {Icon ? <Icon className="h-4 w-4" /> : null}
       </span>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="font-serif text-[15px] text-[var(--ink)]">
+          <p className="text-[14px] font-medium text-[var(--sd-ink)]">
             {entry?.label ?? block.tool}
           </p>
           {block.loadingInstruction?.trim() ? (
             <span
-              className="inline-flex items-center gap-1 rounded-full border border-[var(--edge)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--sd-line)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
               title="Speaks while loading"
             >
               <MessageSquare size={10} />
@@ -72,7 +76,7 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
             </span>
           ) : null}
         </div>
-        <p className="truncate font-serif text-[13px] text-[var(--ink-muted)]">
+        <p className="truncate text-[13px] text-[var(--sd-ink-dull)]">
           {block.nlDirective?.trim()
             ? block.nlDirective
             : "No directive — plain tool call."}
@@ -83,7 +87,7 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
         <button
           type="button"
           onClick={onEdit}
-          className="rounded-md border border-[var(--edge)] p-1.5 text-[var(--ink-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] transition-colors duration-100"
+          className="rounded-[8px] border border-[var(--sd-line)] p-1.5 text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
           aria-label="Edit block"
         >
           <Pencil size={14} />
@@ -91,7 +95,7 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
         <button
           type="button"
           onClick={onRemove}
-          className="rounded-md border border-[var(--edge)] p-1.5 text-[var(--ink-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink-coral,var(--ink))] transition-colors duration-100"
+          className="rounded-[8px] border border-[var(--sd-line)] p-1.5 text-[var(--sd-ink-dull)] hover:border-[color-mix(in_oklch,var(--ink-coral)_40%,transparent)] hover:text-[var(--ink-coral)] transition-colors duration-[140ms]"
           aria-label="Remove block"
         >
           <Trash2 size={14} />

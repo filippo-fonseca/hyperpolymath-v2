@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * RoutinesClient — the routines list + empty state + editor orchestration.
+ * RoutinesClient — the routines list + empty state + editor orchestration
+ * (Spacedrive register).
  *
  * Full-page-panel model (per plan): when a routine is open for edit (or a new /
  * template draft is started), the editor replaces the list. Reads come from
@@ -10,18 +11,13 @@
  */
 
 import { useState } from "react";
-import {
-  Plus,
-  Play,
-  Pencil,
-  Trash2,
-  Loader2,
-} from "lucide-react";
+import { Plus, Play, Pencil, Trash2, Loader2 } from "lucide-react";
 import {
   ROUTINE_SPEC_VERSION,
   type Routine,
   type RoutineSpec,
 } from "@hyperpolymath/jarvis-core";
+import { cn } from "@/lib/utils";
 import {
   useRoutinesQuery,
   useToggleRoutine,
@@ -42,6 +38,18 @@ const emptySpec = (): RoutineSpec => ({
   triggers: [],
   blocks: [],
 });
+
+function NewRoutineButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="sd-btn-solid inline-flex items-center gap-1.5 rounded-[8px] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] transition-opacity duration-100 cursor-pointer-always"
+    >
+      <Plus size={14} /> New routine
+    </button>
+  );
+}
 
 export function RoutinesClient({ userId, initialRoutines }: Props) {
   const { data: routines = [] } = useRoutinesQuery(userId, initialRoutines);
@@ -77,25 +85,19 @@ export function RoutinesClient({ userId, initialRoutines }: Props) {
   if (routines.length === 0) {
     return (
       <div className="space-y-8">
-        <div className="glass-tile rounded-xl p-8 text-center">
-          <p className="font-serif text-xl text-[var(--ink)]">
-            No routines yet.
-          </p>
-          <p className="mx-auto mt-2 max-w-[440px] font-serif text-[15px] leading-[1.55] text-[var(--ink-muted)]">
+        <div className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-8 text-center dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+          <p className="text-xl font-semibold text-[var(--sd-ink)]">No routines yet.</p>
+          <p className="mx-auto mt-2 max-w-[440px] text-[14px] leading-[1.55] text-[var(--sd-ink-dull)]">
             A routine lets JARVIS do a sequence of smart things on a trigger.
             Start from a template below, or build one from scratch.
           </p>
-          <button
-            type="button"
-            onClick={newBlank}
-            className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-[var(--ink)] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--canvas)] hover:opacity-90 transition-opacity duration-100"
-          >
-            <Plus size={14} /> New routine
-          </button>
+          <div className="mt-5 flex justify-center">
+            <NewRoutineButton onClick={newBlank} />
+          </div>
         </div>
 
         <div>
-          <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+          <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
             Start from a template
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -106,15 +108,18 @@ export function RoutinesClient({ userId, initialRoutines }: Props) {
                   key={tpl.key}
                   type="button"
                   onClick={() => setDraft(instantiateTemplate(tpl))}
-                  className="glass-button flex flex-col items-start gap-2 rounded-xl p-5 text-left transition-transform duration-100 hover:-translate-y-0.5"
+                  className="group flex flex-col items-start gap-2 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-5 text-left transition-colors duration-[140ms] hover:bg-[var(--sd-hover)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]"
                 >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)] shadow-[inset_1px_1px_2px_color-mix(in_oklch,var(--ink)_10%,transparent),inset_-1px_-1px_2px_color-mix(in_oklch,white_70%,transparent)]">
+                  <span
+                    style={{ background: "var(--sd-input)" }}
+                    className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-[var(--sd-line)] text-[var(--sd-ink-dull)] transition-colors duration-[140ms] group-hover:text-[var(--sd-accent)]"
+                  >
                     <Icon className="h-4 w-4" />
                   </span>
-                  <span className="font-serif text-lg font-semibold text-[var(--ink)]">
+                  <span className="text-[15px] font-semibold text-[var(--sd-ink)]">
                     {tpl.name}
                   </span>
-                  <span className="font-serif text-[13px] leading-[1.5] text-[var(--ink-muted)]">
+                  <span className="text-[13px] leading-[1.5] text-[var(--sd-ink-dull)]">
                     {tpl.tagline}
                   </span>
                 </button>
@@ -130,16 +135,10 @@ export function RoutinesClient({ userId, initialRoutines }: Props) {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+        <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
           {routines.length} routine{routines.length === 1 ? "" : "s"}
         </p>
-        <button
-          type="button"
-          onClick={newBlank}
-          className="inline-flex items-center gap-1.5 rounded-md bg-[var(--ink)] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--canvas)] hover:opacity-90 transition-opacity duration-100"
-        >
-          <Plus size={14} /> New routine
-        </button>
+        <NewRoutineButton onClick={newBlank} />
       </div>
 
       <div className="space-y-3">
@@ -150,9 +149,7 @@ export function RoutinesClient({ userId, initialRoutines }: Props) {
             onEdit={() => editRoutine(r)}
             onToggle={(enabled) => toggleMut.mutate({ id: r.id, enabled })}
             onDelete={() => {
-              if (
-                confirm(`Delete “${r.name}”? This can't be undone.`)
-              ) {
+              if (confirm(`Delete “${r.name}”? This can't be undone.`)) {
                 deleteMut.mutate(r.id);
               }
             }}
@@ -180,22 +177,18 @@ function RoutineRow({
   const blockCount = routine.spec.blocks.length;
 
   return (
-    <div className="glass-tile flex flex-col gap-3 rounded-xl p-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-5 sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <p className="font-serif text-lg font-semibold text-[var(--ink)]">
-            {routine.name}
-          </p>
+          <p className="text-[16px] font-semibold text-[var(--sd-ink)]">{routine.name}</p>
           {!routine.enabled ? (
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
               off
             </span>
           ) : null}
         </div>
         {routine.description ? (
-          <p className="mt-0.5 font-serif text-[13px] text-[var(--ink-muted)]">
-            {routine.description}
-          </p>
+          <p className="mt-0.5 text-[13px] text-[var(--sd-ink-dull)]">{routine.description}</p>
         ) : null}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {routine.spec.triggers.map((t, i) => {
@@ -204,16 +197,17 @@ function RoutineRow({
             return (
               <span
                 key={i}
-                className="inline-flex items-center gap-1 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] px-2 py-0.5"
+                style={{ background: "var(--sd-input)" }}
+                className="inline-flex items-center gap-1 rounded-[7px] border border-[var(--sd-line)] px-2 py-0.5"
               >
-                <Icon className="h-3 w-3 text-[var(--ink-amber)]" />
-                <span className="font-mono text-[10.5px] tracking-[0.04em] text-[var(--ink)]">
+                <Icon className="h-3 w-3 text-[var(--sd-accent)]" />
+                <span className="font-mono text-[10.5px] tracking-[0.04em] text-[var(--sd-ink)]">
                   {triggerValue(t)}
                 </span>
               </span>
             );
           })}
-          <span className="font-mono text-[10.5px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
             · {blockCount} block{blockCount === 1 ? "" : "s"}
           </span>
         </div>
@@ -226,17 +220,15 @@ function RoutineRow({
           role="switch"
           aria-checked={routine.enabled}
           onClick={() => onToggle(!routine.enabled)}
-          className={`relative h-6 w-10 rounded-full border transition-colors duration-150 ${
-            routine.enabled
-              ? "border-[var(--hud-cyan)] bg-[var(--hud-cyan)]/30"
-              : "border-[var(--edge)] bg-[var(--surface-raised)]"
-          }`}
+          style={{ background: routine.enabled ? "var(--sd-accent)" : "var(--sd-input)" }}
+          className="relative h-6 w-10 rounded-full border border-[var(--sd-line)] transition-colors duration-[140ms]"
           aria-label={routine.enabled ? "Disable routine" : "Enable routine"}
         >
           <span
-            className={`absolute top-0.5 h-4 w-4 rounded-full bg-[var(--ink)] transition-transform duration-150 ${
-              routine.enabled ? "translate-x-[18px]" : "translate-x-0.5"
-            }`}
+            className={cn(
+              "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform duration-[140ms]",
+              routine.enabled ? "translate-x-[18px]" : "translate-x-0.5",
+            )}
           />
         </button>
 
@@ -244,7 +236,7 @@ function RoutineRow({
           type="button"
           onClick={() => runMut.mutate(routine.id)}
           disabled={runMut.isPending}
-          className="inline-flex items-center gap-1 rounded-md border border-[var(--edge)] px-2 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] disabled:opacity-40 transition-colors duration-100"
+          className="inline-flex items-center gap-1 rounded-[8px] border border-[var(--sd-line)] px-2 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] disabled:opacity-40 transition-colors duration-[140ms]"
           aria-label="Run now"
         >
           {runMut.isPending ? (
@@ -258,7 +250,7 @@ function RoutineRow({
         <button
           type="button"
           onClick={onEdit}
-          className="rounded-md border border-[var(--edge)] p-1.5 text-[var(--ink-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] transition-colors duration-100"
+          className="rounded-[8px] border border-[var(--sd-line)] p-1.5 text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
           aria-label="Edit routine"
         >
           <Pencil size={14} />
@@ -266,7 +258,7 @@ function RoutineRow({
         <button
           type="button"
           onClick={onDelete}
-          className="rounded-md border border-[var(--edge)] p-1.5 text-[var(--ink-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink-coral,var(--ink))] transition-colors duration-100"
+          className="rounded-[8px] border border-[var(--sd-line)] p-1.5 text-[var(--sd-ink-dull)] hover:border-[color-mix(in_oklch,var(--ink-coral)_40%,transparent)] hover:text-[var(--ink-coral)] transition-colors duration-[140ms]"
           aria-label="Delete routine"
         >
           <Trash2 size={14} />

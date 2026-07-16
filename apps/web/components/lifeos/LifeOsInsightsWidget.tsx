@@ -1,16 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { HabitIcon, InsightIcon, TrainingIcon } from "@/components/ui/icons";
 import { ActionLink, Chip, EntityCardHeader, StatusPill } from "./entity-card";
 import { WidgetBody, WidgetFooter } from "./WidgetCard";
-
-interface Stat {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  unit?: string;
-}
 
 interface Props {
   jarvisTurns: number;
@@ -21,12 +13,13 @@ interface Props {
 }
 
 /**
- * LifeOsInsightsWidget — the full-width gateway tile that summarizes the week and
- * links into the Insights "Life" tab.
+ * LifeOsInsightsWidget — the compact gateway cell (SD3 §2) that folds into the
+ * widget deck and links into the Insights "Life" tab.
  *
- * §6 gives this card a stat-strip-style mini row: each stat is the §5 anatomy at
- * reduced scale (dimensional icon left, uppercase micro-label, then a bold
- * tabular value with its suffix riding the same baseline).
+ * As a compact 3-col cell it can't afford the old three-stat strip, so it leads
+ * with a single headline metric (JARVIS turns, the register's pulse) plus a
+ * one-line week summary; the habits/training splits live in the §11 footer chip
+ * strip. Headline metrics + chip strip, one screen.
  */
 export function LifeOsInsightsWidget({
   jarvisTurns,
@@ -35,27 +28,6 @@ export function LifeOsInsightsWidget({
   trainingDone,
   trainingPlanned,
 }: Props) {
-  const stats: Stat[] = [
-    {
-      icon: <InsightIcon size={32} />,
-      label: "JARVIS turns",
-      value: String(jarvisTurns),
-      unit: "7d",
-    },
-    {
-      icon: <HabitIcon size={32} />,
-      label: "Habits today",
-      value: String(habitsDone),
-      unit: `/ ${habitsTotal}`,
-    },
-    {
-      icon: <TrainingIcon size={32} />,
-      label: "Training today",
-      value: String(trainingDone),
-      unit: `/ ${trainingPlanned}`,
-    },
-  ];
-
   return (
     <>
       <WidgetBody>
@@ -72,30 +44,29 @@ export function LifeOsInsightsWidget({
           }
           action={<ActionLink>Open →</ActionLink>}
         />
-        <dl className="mt-4 grid grid-cols-1 gap-5 @lg/main:grid-cols-3">
-          {stats.map((s) => (
-            <div key={s.label} className="flex items-center gap-3">
-              <span aria-hidden className="inline-flex shrink-0">
-                {s.icon}
-              </span>
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <dt className="truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
-                  {s.label}
-                </dt>
-                <dd className="flex items-baseline gap-1">
-                  <span className="text-[22px] font-bold leading-none tracking-[-0.01em] tabular-nums text-[var(--sd-ink)]">
-                    {s.value}
-                  </span>
-                  {s.unit != null && (
-                    <span className="text-[13px] font-medium text-[var(--sd-ink-dull)]">
-                      {s.unit}
-                    </span>
-                  )}
-                </dd>
-              </div>
-            </div>
-          ))}
-        </dl>
+        <div className="mt-3 flex min-h-0 flex-1 flex-col justify-center">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[34px] font-black leading-none tracking-[-0.02em] tabular-nums text-[var(--sd-ink)]">
+              {jarvisTurns}
+            </span>
+            <span className="text-[13px] font-medium text-[var(--sd-ink-dull)]">
+              JARVIS turns · 7d
+            </span>
+          </div>
+          <p className="mt-2 flex items-center gap-2 text-[12px] text-[var(--sd-ink-dull)]">
+            <HabitIcon size={16} aria-hidden />
+            <span className="tabular-nums">
+              {habitsDone}/{habitsTotal} habits
+            </span>
+            <span aria-hidden className="text-[var(--sd-ink-faint)]">
+              ·
+            </span>
+            <TrainingIcon size={16} aria-hidden />
+            <span className="tabular-nums">
+              {trainingDone}/{trainingPlanned} training
+            </span>
+          </p>
+        </div>
       </WidgetBody>
 
       <WidgetFooter>

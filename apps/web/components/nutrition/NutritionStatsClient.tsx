@@ -33,6 +33,14 @@ interface NutritionStatsClientProps {
   bests: PersonalBests;
 }
 
+/** WidgetCard-v2 plate: --sd-box fill, hairline, dark inset top hairline. */
+const PLATE =
+  "rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] " +
+  "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]";
+
+const SECTION_LABEL =
+  "font-mono text-[10.5px] tracking-[0.14em] uppercase text-[var(--sd-ink-faint)]";
+
 export function NutritionStatsClient({
   adherence,
   trend,
@@ -42,29 +50,23 @@ export function NutritionStatsClient({
     <div className="mx-auto max-w-3xl px-4 py-16 space-y-12">
       {/* Section 1: LOGGING HISTORY */}
       <section>
-        <h2 className="font-mono text-[10.5px] tracking-[0.14em] uppercase text-[var(--ink-muted)]">
-          LOGGING HISTORY
-        </h2>
-        <div className="mt-4 rounded-xl border border-[var(--edge)] bg-[var(--surface)] p-6">
+        <h2 className={SECTION_LABEL}>LOGGING HISTORY</h2>
+        <div className={`mt-4 p-6 ${PLATE}`}>
           <NutritionHeatMap data={adherence} />
         </div>
       </section>
 
       {/* Section 2: 7-DAY MACRO TREND */}
       <section>
-        <h2 className="font-mono text-[10.5px] tracking-[0.14em] uppercase text-[var(--ink-muted)]">
-          7-DAY MACRO TREND
-        </h2>
-        <div className="mt-4 rounded-xl border border-[var(--edge)] bg-[var(--surface)] p-6">
+        <h2 className={SECTION_LABEL}>7-DAY MACRO TREND</h2>
+        <div className={`mt-4 p-6 ${PLATE}`}>
           <MacroTrendChart data={trend} />
         </div>
       </section>
 
       {/* Section 3: PERSONAL BESTS */}
       <section>
-        <h2 className="font-mono text-[10.5px] tracking-[0.14em] uppercase text-[var(--ink-muted)]">
-          PERSONAL BESTS
-        </h2>
+        <h2 className={SECTION_LABEL}>PERSONAL BESTS</h2>
         <div className="mt-4">
           <PersonalBestsStrip bests={bests} />
         </div>

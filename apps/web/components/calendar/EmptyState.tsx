@@ -14,31 +14,27 @@
  * as DisconnectBanner.Reconnect).
  */
 
-import { Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CalendarIcon } from "./CalendarIcon";
 
 export function EmptyState() {
   return (
-    <div className="flex h-full items-center justify-center p-8 bg-[var(--canvas)]">
-      <div
-        className={
-          // Glassy pill matching /settings PROFILE pill: translucent surface +
-          // backdrop-blur + inset cyan glow + soft outer halo + thin
-          // cyan-tinged border on hover.
-          "flex flex-col items-center gap-5 max-w-md px-10 py-12 text-center " +
-          "rounded-xl " +
-          "glass-tile " +
-          ""
-        }
-      >
-        <Calendar size={48} className="text-muted-foreground" />
-        <div>
-          <h2 className="font-serif text-lg font-medium">
-            Connect Google Calendar
+    <div className="flex h-full items-center justify-center p-8 bg-[var(--sd-app)]">
+      {/* Calm sd empty grammar (seed): a faint dimensional glyph, an 11px mono
+          eyebrow, a quiet body line, then the Connect CTA. No plate, no glass,
+          no glow — the affordance sits directly on the canvas. */}
+      <div className="flex flex-col items-center gap-5 max-w-md px-10 py-12 text-center">
+        <CalendarIcon size={56} className="opacity-70" aria-hidden />
+        <div className="space-y-1.5">
+          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+            Google Calendar
+          </p>
+          <h2 className="text-lg font-semibold tracking-tight text-[var(--sd-ink)]">
+            Connect your calendar
           </h2>
-          <p className="font-serif text-sm text-muted-foreground mt-1">
+          <p className="text-[13px] text-[var(--sd-ink-dull)] mt-1">
             See your week here. Drag to create. All events live in Google
-            Calendar. Hyperpolymath is the writing desk over it.
+            Calendar; Hyperpolymath is the writing desk over it.
           </p>
         </div>
         <Button asChild>

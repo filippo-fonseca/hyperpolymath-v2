@@ -131,7 +131,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
     <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">
+          <DialogTitle className="text-xl">
             {isEdit ? "Edit person" : "Add person"}
           </DialogTitle>
         </DialogHeader>
@@ -155,7 +155,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                 />
                 <span
                   className={cn(
-                    "absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white transition-opacity duration-150",
+ "absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white transition-opacity duration-150",
                     uploading ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                   )}
                 >
@@ -176,7 +176,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                   if (f) handleAvatarPick(f);
                 }}
               />
-              <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+              <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
                 Click to upload · max 5MB
               </p>
             </div>
@@ -187,7 +187,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Who is this?"
-              className="font-serif"
+              className=""
               autoFocus
             />
           </Field>
@@ -215,13 +215,13 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
               onChange={(e) => setBio(e.target.value)}
               rows={3}
               placeholder="A line or two of context."
-              className="font-serif resize-none"
+              className="resize-none"
             />
           </Field>
 
           {/* Tags */}
           <div className="space-y-2">
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
               Tags
             </span>
             {tags.length > 0 ? (
@@ -229,14 +229,14 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                 {tags.map((t) => (
                   <span
                     key={t}
-                    className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border border-[var(--edge-hud)] px-2 py-0.5 text-[var(--ink)]"
+                    className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border border-[var(--sd-accent)] px-2 py-0.5 text-[var(--sd-ink)]"
                   >
                     {t}
                     <button
                       type="button"
                       onClick={() => removeTag(t)}
                       aria-label={`Remove ${t}`}
-                      className="text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                      className="text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
                     >
                       <X size={10} />
                     </button>
@@ -262,7 +262,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                   key={t}
                   type="button"
                   onClick={() => addTag(t)}
-                  className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border border-[var(--edge)] px-2 py-0.5 text-[var(--ink-muted)] hover:border-[var(--edge-hud)] hover:text-[var(--ink)] transition-colors"
+                  className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border border-[var(--sd-line)] px-2 py-0.5 text-[var(--sd-ink-faint)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)] transition-colors"
                 >
                   <Plus size={9} />
                   {t}
@@ -283,9 +283,9 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                 Saving…
               </>
             ) : isEdit ? (
-              "Save"
+ "Save"
             ) : (
-              "Add person"
+ "Add person"
             )}
           </Button>
         </div>
@@ -303,7 +303,7 @@ function Field({
 }) {
   return (
     <div className="block space-y-2">
-      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
         {label}
       </span>
       {children}

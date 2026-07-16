@@ -128,16 +128,16 @@ export function JarvisDemoButton() {
       style={{
         background:
           state === "speaking"
-            ? "color-mix(in oklch, var(--hud-cyan) 18%, var(--surface-raised))"
-            : "var(--surface-raised)",
+            ? "color-mix(in oklch, var(--sd-accent) 18%, var(--sd-input))"
+            : "var(--sd-input)",
         color:
           state === "speaking" || state === "loading"
-            ? "var(--hud-cyan-light)"
-            : "var(--ink)",
-        border: "1px solid var(--edge-hud)",
+            ? "var(--sd-accent)"
+            : "var(--sd-ink)",
+        border: "1px solid var(--sd-line)",
         boxShadow:
           state === "speaking" || state === "loading"
-            ? "var(--glow-hud-subtle)"
+            ? "none"
             : "none",
       }}
     >

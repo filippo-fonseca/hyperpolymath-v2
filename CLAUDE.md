@@ -316,4 +316,15 @@ as a bgsd session (`/bgsd-sesh "<their request>"`) for the full verified,
 parallel pipeline. If yes, start it. If they decline or want something quick,
 just do it directly as normal Claude Code. Default to asking; never silently
 force a session.
+
+**Never read whole agent transcripts. Ever.** The Conductor (or any
+orchestrating session) audits delegated work through deliverables only: the
+structured report/status file the agent was told to write, its control file,
+commit subjects, and committed evidence (frames, gate results). If a model or
+behavior check is needed, use an aggregate one-liner whose output is a couple
+of lines (e.g. `grep -o '"model":"[^"]*"' <transcript> | sort | uniq -c`), or
+delegate the audit to a cheap headless agent that writes back a compact
+report. Pulling a worker's full transcript or raw output stream into the
+orchestrator's context burns the expensive seat on exactly the tokens
+delegation was meant to save.
 <!-- bgsd:managed -->

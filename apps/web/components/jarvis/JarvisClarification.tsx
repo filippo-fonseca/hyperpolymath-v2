@@ -15,17 +15,16 @@
  * - If user ignores and types a new message, the Console marks answered=true
  *   on all prior clarifications (historical record, no further interaction).
  *
- * Phase 6.1 Plan 02 (UI-SPEC §5a): clarification bridges agent (HUD chrome —
- * corner crops, hud-cyan-glow-soft ambient halo, mono 'clarify' label) and
- * document (serif body for the question text, amber-tinted chip options
- * matching doc-side intent semantics).
+ * sd (Spacedrive) register: a solid recessed --sd-darker-box plate with a
+ * hairline border — NO backdrop-blur, NO glow. A cyan mono 'clarify' readout
+ * marks it as JARVIS chrome; the question reads in Space Grotesk; chip options
+ * and reply field speak the single cyan accent.
  */
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 import type { ScrollbackClarification } from "./jarvis-types";
 
 interface Props {
@@ -47,50 +46,24 @@ export function JarvisClarification({ clarification, onReply }: Props) {
 
   return (
     <div
+      style={{ background: "var(--sd-darker-box)" }}
       className={cn(
-        "relative rounded-lg px-4 py-3 my-1 overflow-hidden transition-[border-color,box-shadow] duration-200 ease-out",
+        "relative rounded-[12px] border border-[var(--sd-line)] px-4 py-3 my-1 overflow-hidden transition-colors duration-[140ms] ease-out",
         disabled && "opacity-60",
       )}
-      style={{
-        // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
-        // Translucent surface + backdrop-blur + inset cyan inner halo + single
-        // downward outer shadow, composed under the JARVIS ambient cyan glow.
-        backgroundColor: "var(--glass-bg)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
-        boxShadow:
-          "var(--glass-raise), var(--glass-drop)," +
-          "inset 0 1px 0 var(--glass-hi)," +
-          "inset 0 -1px 0 var(--glass-lo)," +
-          "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)," +
-          "0 0 24px var(--hud-cyan-glow-soft)",
-      }}
     >
-      {/* Phase 6.1 Plan 02 (UI-SPEC §5a): static 10px corner L-brackets frame
-          the clarification surface as a JARVIS-side artifact. */}
-      <HudCornerCrops
-        size={10}
-        className="absolute inset-0 pointer-events-none"
-        breathing={false}
-      />
-
-      {/* Phase 6.1 Plan 02: 'clarify' chrome label in mono 11px uppercase
-          tracking-wide --ink-muted (replaces the lucide HelpCircle +
-          violet QUESTION label from Phase 5.1). */}
-      <div className="relative font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] mb-2">
+      {/* 'clarify' chrome readout — cyan mono, marks the surface as a JARVIS
+          artifact without any glow or bracket theatrics. */}
+      <div className="relative font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-accent)] mb-2">
         clarify
       </div>
 
-      {/* Question body — serif (content the user reads, not chrome) */}
-      <p
-        className="relative font-serif text-base"
-        style={{ color: "var(--ink)" }}
-      >
+      {/* Question body — Space Grotesk (no serif outside Logotype). */}
+      <p className="relative text-[15px] leading-[1.5] text-[var(--sd-ink)]">
         {clarification.question}
       </p>
 
-      {/* Preset chip options — amber-tinted (doc-side intent register) */}
+      {/* Preset chip options — single cyan accent tint. */}
       {clarification.options.length > 0 && !disabled ? (
         <div className="relative flex flex-wrap gap-2 mt-3">
           {clarification.options.map((opt) => (
@@ -98,11 +71,11 @@ export function JarvisClarification({ clarification, onReply }: Props) {
               key={opt}
               type="button"
               onClick={() => submit(opt)}
-              className="px-2 py-0.5 rounded-sm font-mono text-xs cursor-pointer-always transition-colors duration-100 ease-out hover:opacity-80"
               style={{
-                backgroundColor: "rgb(217 119 6 / 0.16)",
-                color: "var(--ink)",
+                background: "color-mix(in oklch, var(--sd-accent) 14%, transparent)",
+                boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 30%, transparent)",
               }}
+              className="px-2 py-0.5 rounded-[6px] font-mono text-xs text-[var(--sd-accent)] cursor-pointer-always transition-colors duration-[140ms] ease-out hover:bg-[color-mix(in_oklch,var(--sd-accent)_22%,transparent)]"
             >
               {opt}
             </button>
@@ -134,7 +107,7 @@ export function JarvisClarification({ clarification, onReply }: Props) {
           </Button>
         </div>
       ) : (
-        <div className="relative text-xs font-mono italic text-[var(--ink-muted)] mt-2">
+        <div className="relative text-xs font-mono italic text-[var(--sd-ink-faint)] mt-2">
           answered
         </div>
       )}

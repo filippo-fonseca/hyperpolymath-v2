@@ -31,12 +31,12 @@ const NAME_LIMIT = 80;
  * Avatar flow:
  *   1. User picks a file. We size-check (≤5MB) + mime-check on the client.
  *   2. Upload to Supabase Storage bucket `avatars` under
- *      `${userId}/avatar.${ext}` with upsert=true so re-uploads replace the
+ * `${userId}/avatar.${ext}` with upsert=true so re-uploads replace the
  *      previous file. RLS policies (see migration 0014) gate writes to the
  *      signed-in user's own prefix.
  *   3. We append a `?v=${ts}` cache-buster to the public URL so the new image
  *      shows immediately in every <img> on the page, then persist the URL via
- *      `updateAvatarUrl` Server Action.
+ * `updateAvatarUrl` Server Action.
  *
  * Display name + bio: classic dirty-form pattern. Save button is disabled
  * when the form is pristine.
@@ -170,8 +170,8 @@ export function ProfileSection({
             disabled={uploading}
             aria-label="Change avatar"
             className={cn(
-              "relative w-20 h-20 rounded-full overflow-hidden border border-[var(--edge)] bg-[var(--surface)] flex items-center justify-center cursor-pointer group",
-              "transition-colors duration-150 hover:border-[var(--edge-hud)]",
+ "relative w-20 h-20 rounded-full overflow-hidden border border-[var(--sd-line)] bg-[var(--sd-box)] flex items-center justify-center cursor-pointer group",
+ "transition-colors duration-150 hover:border-[var(--sd-accent)]",
             )}
           >
             {effectiveAvatarUrl ? (
@@ -182,13 +182,13 @@ export function ProfileSection({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <span className="font-serif text-2xl text-[var(--ink-muted)]">
+              <span className="text-2xl text-[var(--sd-ink-dull)]">
                 {(displayName || email || "·").charAt(0).toUpperCase()}
               </span>
             )}
             <span
               className={cn(
-                "absolute inset-0 flex items-center justify-center bg-black/40 text-white transition-opacity duration-150",
+ "absolute inset-0 flex items-center justify-center bg-black/40 text-white transition-opacity duration-150",
                 uploading ? "opacity-100" : "opacity-0 group-hover:opacity-100",
               )}
             >
@@ -204,17 +204,17 @@ export function ProfileSection({
               type="button"
               onClick={handleRemoveAvatar}
               aria-label="Remove avatar"
-              className="absolute -top-1 -right-1 w-6 h-6 rounded-full border border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] flex items-center justify-center hover:text-[var(--ink)] hover:border-[var(--edge-hud)] transition-colors duration-150 cursor-pointer"
+              className="absolute -top-1 -right-1 w-6 h-6 rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-ink-dull)] flex items-center justify-center hover:text-[var(--sd-ink)] hover:border-[var(--sd-accent)] transition-colors duration-150 cursor-pointer"
             >
               <X size={12} />
             </button>
           ) : null}
         </div>
         <div className="flex flex-col gap-1">
-          <p className="font-serif text-base text-[var(--ink)]">
+          <p className="text-base text-[var(--sd-ink)]">
             {initialDisplayName?.trim() || "Add a display name below"}
           </p>
-          <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+          <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
             {avatarUrl
               ? "Avatar uploaded"
               : oauthAvatarUrl
@@ -236,7 +236,7 @@ export function ProfileSection({
 
       {/* Display name */}
       <label className="block space-y-2">
-        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
           Display name
         </span>
         <Input
@@ -244,22 +244,22 @@ export function ProfileSection({
           onChange={(e) => setDisplayName(e.target.value)}
           maxLength={NAME_LIMIT}
           placeholder="How you'd like to be addressed"
-          className="font-serif"
+          className=""
         />
       </label>
 
       {/* Bio */}
       <label className="block space-y-2">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
             Bio
           </span>
           <span
             className={cn(
-              "font-mono text-[10px] tabular-nums",
+ "font-mono text-[10px] tabular-nums",
               bio.length > BIO_LIMIT - 20
                 ? "text-[var(--ink-coral)]"
-                : "text-[var(--ink-muted)]",
+                : "text-[var(--sd-ink-dull)]",
             )}
           >
             {bio.length} / {BIO_LIMIT}
@@ -271,17 +271,17 @@ export function ProfileSection({
           maxLength={BIO_LIMIT}
           rows={3}
           placeholder="A sentence or two about you."
-          className="font-serif resize-none"
+          className="resize-none"
         />
       </label>
 
       {/* GitHub username */}
       <label className="block space-y-2">
-        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
           GitHub username
         </span>
-        <div className="flex items-stretch rounded-md border border-[var(--edge)] bg-[var(--surface)] focus-within:border-[var(--hud-cyan)] transition-colors">
-          <span className="flex items-center gap-1.5 pl-3 pr-2 border-r border-[var(--edge)] text-[var(--ink-muted)]">
+        <div className="flex items-stretch rounded-md border border-[var(--sd-line)] bg-[var(--sd-box)] focus-within:border-[var(--sd-accent)] transition-colors">
+          <span className="flex items-center gap-1.5 pl-3 pr-2 border-r border-[var(--sd-line)] text-[var(--sd-ink-dull)]">
             <Github className="h-3.5 w-3.5" />
             <span className="font-mono text-[12px]">@</span>
           </span>
@@ -296,10 +296,10 @@ export function ProfileSection({
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
-            className="flex-1 h-9 px-3 bg-transparent font-serif text-base text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+            className="flex-1 h-9 px-3 bg-transparent text-base text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-dull)] focus:outline-none"
           />
         </div>
-        <p className="font-serif text-xs text-[var(--ink-muted)] italic">
+        <p className="text-xs text-[var(--sd-ink-dull)] italic">
           Powers the GitHub heatmap on the Life tab. Leave blank to hide.
         </p>
       </label>

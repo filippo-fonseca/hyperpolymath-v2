@@ -97,15 +97,15 @@ export const PersonSuggestionList = forwardRef<PersonSuggestionListHandle, Props
               onMouseEnter={() => setSelectedIndex(i)}
               className={cn(
                 "w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors",
-                isHighlighted && "bg-secondary text-foreground",
-                !isHighlighted && "text-foreground hover:bg-secondary/60"
+                isHighlighted && "bg-[var(--sd-hover)] text-[var(--sd-ink)]",
+                !isHighlighted && "text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]"
               )}
               role="option"
               aria-selected={isHighlighted}
             >
               <span className="truncate">
                 @{item.label}
-                {item.isNew && <span className="ml-1 italic text-muted-foreground">(new)</span>}
+                {item.isNew && <span className="ml-1 italic text-[var(--sd-ink-faint)]">(new)</span>}
               </span>
             </button>
           );

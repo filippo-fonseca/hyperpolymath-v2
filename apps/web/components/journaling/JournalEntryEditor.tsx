@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { upsertJournalEntry } from "@/app/actions/journal";
 import type { JournalEntry } from "@/app/actions/journal";
@@ -21,21 +22,26 @@ interface Props {
 }
 
 /**
- * JournalEntryEditor — two-textarea editor for a single journal entry.
+ * JournalEntryEditor — two-textarea editor for a single journal entry (sd register).
  *
  * Fields:
- *   - mainResponse: large EB Garamond serif body, answers the fixed PROMPT.
+ *   - mainResponse: large Space Grotesk body, answers the fixed PROMPT.
  *   - notesSection: smaller textarea for miscellaneous notes.
  *   - noExport: privacy gate for the MCP export. The UI presents this as an
  *     opt-IN toggle labeled "Include in AI export (MCP)"; checked ⇒ !noExport.
  *     Defaults to unchecked (no_export=true) so journal entries stay private
  *     unless the user actively opts in (issue #191).
  *
+ * Chrome: WidgetCard v2 grammar — a `--sd-box` plate on a 14px radius with a
+ * `--sd-line` hairline and the dark-only inset top hairline. No serif (logotype
+ * rule), no glass, no glow. The save indicator is a functional sd status pill.
+ *
  * Autosave: debounced at 800ms. Skips write if both text fields are empty
  * (avoids creating empty rows on first visit). Save indicator cycles:
  *   idle → "Saving…" → "Saved" (reverts to idle after 2s).
  */
 export function JournalEntryEditor({ date, entry }: Props) {
+  const reduced = useReducedMotion();
   const [mainResponse, setMainResponse] = useState(entry?.mainResponse ?? "");
   const [notesSection, setNotesSection] = useState(entry?.notesSection ?? "");
   // Default opts OUT of export (no_export=true) so journal entries are private
@@ -122,36 +128,55 @@ export function JournalEntryEditor({ date, entry }: Props) {
     }, DEBOUNCE_MS);
   }
 
+  // A gentle 140ms opacity fade on day switch (the parent remounts this via
+  // key={date}). Opacity-only, no layout shift; collapses under reduced motion.
+  const fade = reduced
+    ? {}
+    : {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        transition: { duration: 0.14, ease: [0.25, 1, 0.5, 1] as const },
+      };
+
   return (
-    <div className="glass-tile rounded-2xl p-6 flex flex-col gap-5">
-      {/* Fixed prompt */}
+    <motion.div
+      {...fade}
+      className={cn(
+        "flex flex-col gap-5 rounded-[14px] p-6 md:p-7",
+        "border border-[var(--sd-line)] bg-[var(--sd-box)]",
+        "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]",
+      )}
+    >
+      {/* Fixed prompt + save-state pill */}
       <div className="flex items-start justify-between gap-4">
-        <p className="font-serif text-[18px] leading-snug text-[var(--ink)] font-semibold">
+        <p className="text-[18px] font-semibold leading-snug tracking-[-0.01em] text-[var(--sd-ink)]">
           {PROMPT}
         </p>
-        {/* Save indicator — mono micro-text, right-aligned */}
+        {/* Save indicator — functional sd status pill, right-aligned. */}
         <span
           className={cn(
-            "shrink-0 font-mono text-[10.5px] tracking-[0.04em] uppercase transition-opacity duration-200",
-            saveState === "idle" && "opacity-0",
-            saveState === "saving" && "opacity-60 text-[var(--ink-muted)]",
-            saveState === "saved" && "opacity-80 text-[var(--hud-cyan)]",
+            "sd-status-pill shrink-0 font-mono uppercase tracking-[0.05em] transition-opacity duration-200",
+            saveState === "idle" ? "opacity-0" : "opacity-100",
           )}
           aria-live="polite"
           aria-atomic="true"
         >
+          <span
+            className={cn(
+              "sd-dot",
+              saveState === "saved" ? "sd-dot-synced" : "sd-dot-idle",
+            )}
+          />
           {saveState === "saving" ? "Saving…" : "Saved"}
         </span>
       </div>
 
-      {/* Main response textarea — large serif body */}
+      {/* Main response textarea — Space Grotesk body at a comfortable read size. */}
       <textarea
         className={cn(
-          "w-full min-h-[200px] resize-none bg-transparent",
-          "font-serif text-[17px] leading-[1.65] text-[var(--ink)]",
-          "placeholder:text-[var(--ink-muted)] placeholder:italic",
-          "focus:outline-none",
-          "border-none",
+          "w-full min-h-[220px] resize-none border-none bg-transparent",
+          "text-[16px] leading-[1.7] text-[var(--sd-ink)]",
+          "placeholder:text-[var(--sd-ink-faint)] focus:outline-none",
         )}
         placeholder="Write freely…"
         value={mainResponse}
@@ -160,20 +185,18 @@ export function JournalEntryEditor({ date, entry }: Props) {
       />
 
       {/* Divider */}
-      <div className="border-t border-[var(--edge)]" />
+      <div className="border-t border-[var(--sd-line)]" />
 
       {/* Notes / Misc section */}
       <div className="flex flex-col gap-2">
-        <label className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+        <label className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
           Notes / Misc
         </label>
         <textarea
           className={cn(
-            "w-full min-h-[100px] resize-none bg-transparent",
-            "font-serif text-[15px] leading-[1.6] text-[var(--ink)]",
-            "placeholder:text-[var(--ink-muted)] placeholder:italic",
-            "focus:outline-none",
-            "border-none",
+            "w-full min-h-[100px] resize-none border-none bg-transparent",
+            "text-[14.5px] leading-[1.6] text-[var(--sd-ink)]",
+            "placeholder:text-[var(--sd-ink-faint)] focus:outline-none",
           )}
           placeholder="Anything else on your mind…"
           value={notesSection}
@@ -183,7 +206,7 @@ export function JournalEntryEditor({ date, entry }: Props) {
       </div>
 
       {/* Divider */}
-      <div className="border-t border-[var(--edge)]" />
+      <div className="border-t border-[var(--sd-line)]" />
 
       {/* Opt-in AI/MCP export toggle. UI is the inverse of the underlying
           no_export column: checked ⇒ include in export ⇒ noExport=false.
@@ -198,11 +221,11 @@ export function JournalEntryEditor({ date, entry }: Props) {
         />
         <label
           htmlFor={`include-in-export-${date}`}
-          className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] cursor-pointer select-none"
+          className="cursor-pointer select-none font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
         >
           Include in AI export (MCP)
         </label>
       </div>
-    </div>
+    </motion.div>
   );
 }

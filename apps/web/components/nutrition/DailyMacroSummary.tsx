@@ -3,6 +3,16 @@
 import { deriveTargetGrams } from "@/lib/nutrition/macro-math";
 import { MacroProgressBar } from "./MacroProgressBar";
 import type { NutritionTargetPcts } from "@/lib/nutrition/macro-math";
+import { cn } from "@/lib/utils";
+
+/**
+ * WidgetCard-v2 plate: `--sd-box` fill raised off `--sd-app`, 14px radius,
+ * hairline border, and (dark only) a white inset top hairline that catches
+ * the light. No glass, no blur, no glow.
+ */
+const PLATE =
+  "rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] " +
+  "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]";
 
 // The shape returned by listFoodLogsForDay — each row has a `log` with snapshotted macros
 type LogRow = {
@@ -31,13 +41,12 @@ interface Props {
 }
 
 /**
- * DailyMacroSummary — sticky summary bar at the top of the day view.
+ * DailyMacroSummary — the day's macro stat strip, an sd plate that sticks below
+ * the title row while the meal slots scroll.
  *
- * UI-SPEC §"Daily Macro Summary Bar":
- *   - Container: glass-tile rounded-xl px-4 py-4
- *   - Top row: large kcal in font-mono-stats 28px (primary focal point) + /target in ink-muted 16px
- *   - Three MacroProgressBar rows: protein, carbs, fat
- *   - Position: sticky top-0 so it stays visible while scrolling meal slots
+ *   - Focal kcal readout: mono "Calories" eyebrow + font-black tabular-nums
+ *     value / target, with a remaining/over counter (amber when over)
+ *   - Three MacroProgressBar rows: protein, carbs, fat — hatched cyan tracks
  */
 export function DailyMacroSummary({ logs, targets }: Props) {
   // Sum snapshotted macros from all logs
@@ -52,16 +61,32 @@ export function DailyMacroSummary({ logs, targets }: Props) {
   );
 
   const targetGrams = deriveTargetGrams(targets);
+  const kcal = Math.round(consumed.kcal);
+  const remaining = targets.targetKcal - kcal;
+  const over = remaining < 0;
 
   return (
-    <div className="glass-tile rounded-xl px-4 py-4 sticky top-0 z-10">
-      {/* Primary focal point: calorie display */}
-      <div className="flex items-baseline gap-1 mb-4">
-        <span className="font-mono-stats text-[28px] leading-none text-[var(--ink)]">
-          {Math.round(consumed.kcal)}
-        </span>
-        <span className="font-serif text-[16px] text-[var(--ink-muted)]">
-          / {targets.targetKcal} kcal
+    <div className={cn("sticky top-2 z-10 px-5 py-4", PLATE)}>
+      {/* Focal: calorie readout + remaining/over counter */}
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+            Calories
+          </span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[30px] font-black leading-none tabular-nums text-[var(--sd-ink)]">
+              {kcal}
+            </span>
+            <span className="text-[14px] tabular-nums text-[var(--sd-ink-dull)]">
+              / {targets.targetKcal} kcal
+            </span>
+          </div>
+        </div>
+        <span
+          className="font-mono text-[11px] tabular-nums"
+          style={{ color: over ? "var(--ink-amber)" : "var(--sd-ink-faint)" }}
+        >
+          {over ? `${Math.abs(remaining)} over` : `${remaining} left`}
         </span>
       </div>
 

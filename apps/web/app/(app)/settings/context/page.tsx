@@ -103,17 +103,17 @@ export default async function ContextSettingsPage() {
   });
 
   return (
-    <main className="relative min-h-full bg-[var(--canvas)] text-[var(--ink)]">
+    <main className="relative min-h-full bg-[var(--sd-app)] text-[var(--sd-ink)]">
       <div className="mx-auto w-full max-w-[720px] px-6 md:px-10 pt-10 pb-16">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
               JARVIS · Personal Context
             </p>
-            <h1 className="mt-1 font-serif text-3xl font-semibold text-[var(--ink)]">
+            <h1 className="mt-1 text-3xl font-semibold text-[var(--sd-ink)]">
               Personal context
             </h1>
-            <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink-muted)]">
+            <p className="mt-3 text-[16px] leading-[1.55] text-[var(--sd-ink-dull)]">
               What external agents see about you, refreshed nightly. Rebuild
               on demand to fold in changes you made since the last snapshot.
               Rows you flag <span className="font-mono text-[13px]">no-export</span>{" "}
@@ -122,7 +122,7 @@ export default async function ContextSettingsPage() {
           </div>
           <Link
             href="/jarvis"
-            className="shrink-0 mt-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
+            className="shrink-0 mt-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-100 ease-out"
           >
             ← jarvis
           </Link>

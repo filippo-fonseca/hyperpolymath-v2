@@ -98,7 +98,7 @@ export function PageProperties({ pageId, fields, onChanged }: PagePropertiesProp
       </button>
 
       {expanded && (
-        <div className="glass-tile rounded-xl px-2 py-1.5 flex flex-col gap-0.5">
+        <div className="rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] px-2 py-1.5 flex flex-col gap-0.5">
           {visible.map((field) => (
             <FieldRow
               key={field.id}

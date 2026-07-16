@@ -57,41 +57,42 @@ export function MiniCalendar({ value, onChange }: Props) {
   return (
     <div className="w-[252px] select-none">
       {/* Header — month label + nav arrows */}
-      <div className="flex items-center justify-between mb-2 px-1">
+      <div className="mb-2 flex items-center justify-between px-1">
         <button
           type="button"
           onClick={() => shiftMonth(-1)}
           aria-label="Previous month"
-          className="inline-flex w-6 h-6 items-center justify-center rounded-md text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors cursor-pointer-always"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--sd-ink-faint)] transition-colors hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] cursor-pointer-always"
         >
           <ChevronLeft size={14} />
         </button>
-        <span className="font-serif text-[14px] text-[var(--ink)]">
+        <span className="text-[13px] font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">
           {MONTH_NAMES[monthAnchor.getMonth()]} {monthAnchor.getFullYear()}
         </span>
         <button
           type="button"
           onClick={() => shiftMonth(1)}
           aria-label="Next month"
-          className="inline-flex w-6 h-6 items-center justify-center rounded-md text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors cursor-pointer-always"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--sd-ink-faint)] transition-colors hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] cursor-pointer-always"
         >
           <ChevronRight size={14} />
         </button>
       </div>
 
       {/* Weekday labels */}
-      <div className="grid grid-cols-7 gap-0.5 mb-1">
+      <div className="mb-1 grid grid-cols-7 gap-0.5">
         {WEEKDAY_SHORT.map((w, i) => (
           <span
             key={i}
-            className="text-center font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--ink-muted)] py-1"
+            className="py-1 text-center font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]"
           >
             {w}
           </span>
         ))}
       </div>
 
-      {/* Grid */}
+      {/* Grid — `--sd-box` cells on a `--sd-line` hairline gutter; selected +
+          today ride the single cyan accent, both themes through tokens. */}
       <div className="grid grid-cols-7 gap-0.5">
         {cells.map((c) => {
           const isSelected = c.iso === value;
@@ -104,23 +105,25 @@ export function MiniCalendar({ value, onChange }: Props) {
               aria-pressed={isSelected}
               aria-current={isToday ? "date" : undefined}
               className={cn(
-                "relative inline-flex items-center justify-center h-8 rounded-md",
+                "relative inline-flex h-8 items-center justify-center rounded-md border",
                 "font-mono text-[12px] tabular-nums cursor-pointer-always",
                 "transition-colors duration-100 ease-out",
-                !c.inMonth && "text-[var(--ink-muted)]/40",
-                c.inMonth && !isSelected && "text-[var(--ink)]",
-                !isSelected &&
-                  "hover:bg-[color-mix(in_oklch,var(--ink)_6%,transparent)]",
-                isSelected &&
-                  "bg-[var(--ink-amber)] text-[var(--canvas)] font-medium",
+                isSelected
+                  ? "border-transparent font-medium text-[var(--sd-app)]"
+                  : c.inMonth
+                    ? "border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]"
+                    : "border-transparent text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)]",
               )}
+              style={
+                isSelected ? { background: "var(--sd-accent)" } : undefined
+              }
             >
               {c.date}
               {isToday && !isSelected ? (
                 <span
                   aria-hidden="true"
-                  className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
-                  style={{ backgroundColor: "var(--hud-cyan)" }}
+                  className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                  style={{ backgroundColor: "var(--sd-accent)" }}
                 />
               ) : null}
             </button>

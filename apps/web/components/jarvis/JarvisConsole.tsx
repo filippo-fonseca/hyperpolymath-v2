@@ -1240,16 +1240,14 @@ export function JarvisConsole({
           }}
         />
       </div>
-      {/* Phase 33 Plan 02 — glass composer strip. Replaces the flat bg-card +
-          default border-t with a translucent surface + 12px backdrop blur so
-          the strip belongs to the same glass register as the JARVIS bubbles. */}
+      {/* sd composer strip — a solid --sd-darker-box console plate with a
+          hairline top edge. No backdrop blur; the strip reads as the darkest
+          console surface, seating the input like a terminal command line. */}
       <div
         className="relative z-10 border-t px-6 py-3"
         style={{
-          backgroundColor: "var(--glass-bg)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          borderTopColor: "color-mix(in oklch, var(--edge-hud) 60%, transparent)",
+          backgroundColor: "var(--sd-darker-box)",
+          borderTopColor: "var(--sd-line)",
         }}
       >
         <JarvisInput
