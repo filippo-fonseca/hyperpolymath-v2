@@ -69,6 +69,17 @@ import {
   decidePaintEcho,
   type EchoInput,
 } from "@/conversation/echo-dedupe";
+import {
+  createTranscriptState,
+  reduceClear,
+  reduceReplyDelta,
+  reduceReplyStart,
+  reduceUserEcho,
+  type BubbleId,
+  type ReduceResult,
+  type RenderOp,
+  type TranscriptState,
+} from "@/conversation/transcript-order";
 import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
 import { startRoutineLoader } from "@/hud/routine-loader";
 import { startBackgroundTasksMonitor } from "@/hud/background-tasks";
@@ -181,17 +192,19 @@ function autoScroll(el: HTMLElement, wasNearBottom: boolean): void {
 }
 
 // Transcript turn-pairing. The user bubble (from local STT) and the JARVIS
-// reply bubble (from the SSE `response-start`) can arrive in EITHER order: the
-// server often emits response-start before the desktop's own transcript
-// callback fires, which used to render the reply ABOVE the user's message.
-// This 3-state machine guarantees each user↔reply pair renders in order, and
-// always returns to "neutral" after a pair so consecutive turns can't leak
-// mis-ordering into each other.
-type TurnPairState = "neutral" | "user-opened" | "reply-opened";
-let turnPairState: TurnPairState = "neutral";
-// The reply bubble that opened before its user message — the next user bubble
-// is inserted BEFORE this so order is preserved.
-let jarvisTurnAwaitingUser: HTMLElement | null = null;
+// reply bubble (from the SSE `response-start`) can arrive in EITHER order, and
+// TWO turns can be live at once (a partial-utterance turn and the full-question
+// turn, each with its own server turnId). A single-pair machine mis-ordered
+// those overlapping turns; the pure, turnId-keyed reducer in
+// conversation/transcript-order.ts now owns ALL ordering. This region is a dumb
+// executor: it drives the reducer with each event and replays the returned ops
+// (create-user / create-reply / append-delta) against the DOM, mapping each
+// stable BubbleId to its element. Deltas address a bubble by id, so two live
+// reply turns never share a writer (the invariant that was broken before).
+const transcriptState = { current: createTranscriptState() };
+// Stable BubbleId → { turn container, body element }. The turn container is the
+// `.turn` div (positioned in sibling order); the body is the single writer.
+const bubbleEls = new Map<BubbleId, { turn: HTMLElement; body: HTMLElement }>();
 
 /** Local wall-clock stamp for a transcript turn, e.g. "5:42 PM". */
 function nowStamp(): string {
@@ -210,101 +223,57 @@ function whoRow(label: string): HTMLElement {
   return who;
 }
 
-/** Append a completed user-utterance bubble. */
-function appendUserTurn(text: string): void {
-  const el = transcriptEl();
-  if (!el || !text.trim()) return;
-  const near = isNearBottom(el);
-  el.classList.add("has-content");
+/** Create a `.turn` bubble (user or jarvis) and register its body by BubbleId. */
+function makeBubble(id: BubbleId, role: "user" | "jarvis", text: string): HTMLElement {
   const turn = document.createElement("div");
-  turn.className = "turn user";
-  const who = whoRow("you");
+  turn.className = `turn ${role}`;
+  const who = whoRow(role === "user" ? "you" : "jarvis");
   const body = document.createElement("div");
   body.className = "body";
-  body.textContent = text;
+  if (text) body.textContent = text;
   turn.append(who, body);
-  if (turnPairState === "reply-opened" && jarvisTurnAwaitingUser) {
-    // The reply bubble beat us here — slot the user message in above it.
-    el.insertBefore(turn, jarvisTurnAwaitingUser);
-    turnPairState = "neutral";
-    jarvisTurnAwaitingUser = null;
-  } else {
-    el.appendChild(turn);
-    turnPairState = "user-opened";
+  bubbleEls.set(id, { turn, body });
+  return turn;
+}
+
+/** Replay one RenderOp against the transcript DOM. `beforeId` names the existing
+ *  bubble the new one renders ABOVE (null = append at end). */
+function applyRenderOp(el: HTMLElement, op: RenderOp): void {
+  if (op.op === "append-delta") {
+    const target = bubbleEls.get(op.id);
+    if (!target) return;
+    target.body.textContent = appendWithBoundarySpacing(target.body.textContent ?? "", op.delta);
+    return;
   }
+  el.classList.add("has-content");
+  const turn =
+    op.op === "create-user"
+      ? makeBubble(op.id, "user", op.text)
+      : makeBubble(op.id, "jarvis", "");
+  const anchor = op.beforeId ? bubbleEls.get(op.beforeId)?.turn ?? null : null;
+  if (anchor) el.insertBefore(turn, anchor);
+  else el.appendChild(turn);
+}
+
+/** Drive the reducer with an event and paint the resulting ops in order. */
+function dispatchTranscript(reduce: (s: TranscriptState) => ReduceResult): void {
+  const el = transcriptEl();
+  if (!el) return;
+  const near = isNearBottom(el);
+  const { state, ops } = reduce(transcriptState.current);
+  transcriptState.current = state;
+  for (const op of ops) applyRenderOp(el, op);
   autoScroll(el, near);
 }
 
-// Optimistic user bubble: painted the instant the mic finishes (capture state
-// → "uploading") so the user sees their message echoed before STT resolves.
-// paintTranscript reconciles it in place when the real text arrives; a
-// no-speech outcome clears it so no "recognising…" ghost is stranded.
-let optimisticUserTurn: HTMLElement | null = null;
-let optimisticUserBody: HTMLElement | null = null;
-
+// Optimistic user bubble: DISABLED (see the wiring note in boot()). Kept as
+// no-ops so the boot()/no-speech references stay valid without reintroducing a
+// second, ad-hoc ordering path that could strand a "recognising…" ghost.
 function beginOptimisticUserTurn(): void {
-  if (optimisticUserTurn) return;
-  const el = transcriptEl();
-  if (!el) return;
-  const near = isNearBottom(el);
-  el.classList.add("has-content");
-  const turn = document.createElement("div");
-  turn.className = "turn user pending";
-  const who = whoRow("you");
-  const body = document.createElement("div");
-  body.className = "body";
-  body.textContent = "recognising…";
-  turn.append(who, body);
-  if (turnPairState === "reply-opened" && jarvisTurnAwaitingUser) {
-    // Rare: a jarvis reply from a prior turn is still parked. Slot the
-    // optimistic bubble above it, same as appendUserTurn would.
-    el.insertBefore(turn, jarvisTurnAwaitingUser);
-    turnPairState = "neutral";
-    jarvisTurnAwaitingUser = null;
-  } else {
-    el.appendChild(turn);
-    turnPairState = "user-opened";
-  }
-  optimisticUserTurn = turn;
-  optimisticUserBody = body;
-  autoScroll(el, near);
+  /* intentionally disabled */
 }
-
 function clearOptimisticUserTurn(): void {
-  if (!optimisticUserTurn) return;
-  optimisticUserTurn.remove();
-  optimisticUserTurn = null;
-  optimisticUserBody = null;
-  if (turnPairState === "user-opened") turnPairState = "neutral";
-}
-
-// The in-progress JARVIS reply bubble's body element (grows as chunks stream).
-let currentReplyBody: HTMLElement | null = null;
-
-/** Start a fresh JARVIS reply bubble for the streaming turn. */
-function startJarvisTurn(): void {
-  const el = transcriptEl();
-  if (!el) return;
-  el.classList.add("has-content");
-  const turn = document.createElement("div");
-  turn.className = "turn jarvis";
-  const who = whoRow("jarvis");
-  const body = document.createElement("div");
-  body.className = "body";
-  turn.append(who, body);
-  el.appendChild(turn);
-  currentReplyBody = body;
-  if (turnPairState === "user-opened") {
-    // User message already rendered — this reply follows it naturally.
-    turnPairState = "neutral";
-    jarvisTurnAwaitingUser = null;
-  } else {
-    // Reply opened first (SSE beat local STT) — remember it so the next user
-    // bubble is inserted above.
-    turnPairState = "reply-opened";
-    jarvisTurnAwaitingUser = turn;
-  }
-  el.scrollTop = el.scrollHeight;
+  /* intentionally disabled */
 }
 
 /** Append a streamed delta to the in-progress JARVIS reply bubble. */
@@ -315,20 +284,6 @@ function appendWithBoundarySpacing(current: string, delta: string): string {
   if (/\s/.test(last) || /^\s/.test(delta)) return current + delta;
   if (/[.!?]/.test(last) && /[A-Z"']/.test(first)) return `${current} ${delta}`;
   return current + delta;
-}
-
-function appendJarvisDelta(delta: string): void {
-  const el = transcriptEl();
-  if (!el) return;
-  if (!currentReplyBody) startJarvisTurn();
-  const near = isNearBottom(el);
-  if (currentReplyBody) {
-    currentReplyBody.textContent = appendWithBoundarySpacing(
-      currentReplyBody.textContent ?? "",
-      delta,
-    );
-  }
-  autoScroll(el, near);
 }
 
 // Dedupe the user-echo paint across its two sources: the early `transcript`
@@ -350,30 +305,27 @@ const echoDedupeState = createEchoDedupeState();
  * through here; decidePaintEcho drops only a true second echo of the same
  * utterance, never a legitimately new one.
  */
-function paintTranscriptDeduped(input: EchoInput): void {
+function paintTranscriptDeduped(input: EchoInput, turnId?: string): void {
   // The proactive briefing fires by POSTing a synthetic "Daddy's home…" prompt,
   // which the server echoes back as a user transcript turn. Drop that one echo
   // so wake never injects a fake typed user message into the conversation — the
   // spoken briefing and listening still happen; only the phantom bubble is gone.
   if (shouldSuppressBriefingEcho(input.text)) return;
   if (decidePaintEcho(input, echoDedupeState)) {
-    paintTranscript(input.text);
+    // Thread the reply turnId (when the SSE `transcript` event carried one) so
+    // the reducer pairs this user bubble to its reply by identity. The POST
+    // fallback source is turnless → FIFO pairing.
+    paintTranscript(input.text, turnId);
   }
 }
 
-function paintTranscript(text: string): void {
-  // If an optimistic bubble is up, reconcile it in place instead of appending
-  // a second bubble — the user sees their placeholder resolve into real text.
-  if (optimisticUserBody && optimisticUserTurn && text.trim()) {
-    optimisticUserBody.textContent = text;
-    optimisticUserTurn.classList.remove("pending");
-    optimisticUserTurn = null;
-    optimisticUserBody = null;
-    const el = transcriptEl();
-    if (el) autoScroll(el, true);
-  } else {
-    appendUserTurn(text);
-  }
+function paintTranscript(text: string, turnId?: string): void {
+  if (!text.trim()) return;
+  // Route through the pure reducer: a user echo fills the reply-first turn
+  // awaiting a user bubble (identity match when a turnId is present, else the
+  // oldest turnless one; rendering above that reply), else opens a new
+  // user-first turn at the end (recording the turnId so its reply pairs by id).
+  dispatchTranscript((s) => reduceUserEcho(s, text, turnId));
   // Keep the drawer QA row in sync.
   const panel = document.getElementById("transcript-panel");
   const out = document.getElementById("transcript-text");
@@ -383,10 +335,10 @@ function paintTranscript(text: string): void {
   }
 }
 
-function paintResponseStart(): void {
-  // Open a new JARVIS reply bubble in the visible transcript.
-  currentReplyBody = null;
-  startJarvisTurn();
+function paintResponseStart(turnId: string): void {
+  // Open (or bind) this turnId's reply bubble under its own user turn. The
+  // reducer is idempotent for a duplicate response-start on the same turnId.
+  dispatchTranscript((s) => reduceReplyStart(s, turnId));
   // Drawer QA mirror.
   const panel = document.getElementById("response-panel");
   const textEl = document.getElementById("response-text");
@@ -399,8 +351,10 @@ function paintResponseStart(): void {
   }
 }
 
-function paintResponseChunk(delta: string): void {
-  appendJarvisDelta(delta);
+function paintResponseChunk(turnId: string, delta: string): void {
+  // Deltas route to the bubble keyed by THIS turnId — never a global "current"
+  // — so two overlapping reply streams never cross-write.
+  dispatchTranscript((s) => reduceReplyDelta(s, turnId, delta));
   // Drawer QA mirror.
   const textEl = document.getElementById("response-text");
   if (textEl) textEl.textContent = appendWithBoundarySpacing(textEl.textContent ?? "", delta);
@@ -408,9 +362,9 @@ function paintResponseChunk(delta: string): void {
 
 /**
  * Clear the conversation "from scratch". Two halves must both happen:
- *   1. Empty the visible transcript DOM and reset every turn-pairing/optimistic
- *      pointer, so the next utterance starts a clean pair (a dangling pointer
- *      into a removed bubble would mis-order the first new turn).
+ *   1. Empty the visible transcript DOM and reset the pure ordering state +
+ *      bubble map, so the next utterance starts a clean turn (a stale bubble id
+ *      would otherwise route a delta into a removed node).
  *   2. Wipe the server-side memory (jarvis_turns) via clearHistory(), so the
  *      voice agent's recency-windowed context (buildRecentHistory) no longer
  *      inherits stale turns — including test turns fired via curl.
@@ -424,12 +378,10 @@ async function clearConversation(): Promise<void> {
     el.querySelectorAll(".turn").forEach((t) => t.remove());
     el.classList.remove("has-content");
   }
-  // Reset all live turn pointers so a fresh pair can't reference removed nodes.
-  currentReplyBody = null;
-  turnPairState = "neutral";
-  jarvisTurnAwaitingUser = null;
-  optimisticUserTurn = null;
-  optimisticUserBody = null;
+  // Reset the pure ordering state + bubble map so a fresh turn can't reference
+  // removed nodes.
+  transcriptState.current = reduceClear(transcriptState.current).state;
+  bubbleEls.clear();
 
   // Clear the drawer QA mirrors too, so they don't strand a stale exchange.
   const transcriptText = document.getElementById("transcript-text");
@@ -923,7 +875,9 @@ async function boot(): Promise<void> {
   // when the POST response flushes. The POST-driven onTranscriptReceived below
   // stays as a fallback; paintTranscriptDeduped drops whichever fires second so
   // the same utterance never double-paints.
-  onPhysicalTranscript((p) => paintTranscriptDeduped({ text: p.transcript, sttDoneAt: p.sttDoneAt }));
+  onPhysicalTranscript((p) =>
+    paintTranscriptDeduped({ text: p.transcript, sttDoneAt: p.sttDoneAt }, p.turnId),
+  );
   // POST fallback. Threads the response's sttDoneAt through when the server
   // provides it so identity dedupe works from both sources.
   //
@@ -955,8 +909,8 @@ async function boot(): Promise<void> {
     paintVoiceStatus(status);
   });
 
-  onJarvisResponseStart(() => paintResponseStart());
-  onJarvisResponseChunk(({ delta }) => paintResponseChunk(delta));
+  onJarvisResponseStart(({ turnId }) => paintResponseStart(turnId));
+  onJarvisResponseChunk(({ turnId, delta }) => paintResponseChunk(turnId, delta));
   onJarvisToolCall(({ name, result, turnId }) => {
     paintToolCall(name, result);
     // Computer-control tool results carry an `action` on their result. Key

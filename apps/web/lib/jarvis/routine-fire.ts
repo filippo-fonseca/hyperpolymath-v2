@@ -101,6 +101,20 @@ export interface FireRoutineOpts {
    * "Welcome home, sir" opener. Empty/undefined = the default opener.
    */
   loadingInstruction?: string;
+  /**
+   * The turnId minted by the caller BEFORE emitting the user-transcript echo
+   * for this run (voice/transcript utterance interception). When set, the
+   * routine's FIRST reply-start over the bus is remapped to this id so the
+   * desktop transcript reducer pairs the user echo to its reply by identity,
+   * not by arrival order. This closes the row-swap window: the routine fires
+   * fire-and-forget, so its first response-start can land AFTER a concurrent
+   * normal turn's, and a turnId'd echo would otherwise have no matching reply.
+   * Every later event for that same first reply (chunk/end) is remapped too, so
+   * exactly one reply bubble is opened under the echo — no empty anchor. Omitted
+   * = the run's replies keep their native ids (opener/block-derived) and pair by
+   * FIFO as before (backward compatible).
+   */
+  echoTurnId?: string;
 }
 
 /**
@@ -112,6 +126,22 @@ export interface FireRoutineOpts {
  */
 export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts): string {
   const runId = opts.runId ?? crypto.randomUUID();
+
+  // First-reply turnId remap (see FireRoutineOpts.echoTurnId). The routine emits
+  // its reply rows under native ids — the opener (`${runId}:opener`), per-block
+  // ids, the synthesis id — and the FIRST of those to open is the run's first
+  // reply bubble. When the caller minted an `echoTurnId` for the user echo, we
+  // remap the id of that first-opened reply (and ONLY that one, consistently
+  // across its start/chunk/end) to `echoTurnId`, so the desktop reducer pairs
+  // the user bubble to it by identity. `mapId` is a pure rename keyed on the
+  // first source id we ever see; every other reply keeps its own id.
+  const echoTurnId = opts.echoTurnId;
+  let firstReplyId: string | null = null;
+  const mapId = (id: string): string => {
+    if (!echoTurnId) return id;
+    if (firstReplyId === null) firstReplyId = id;
+    return id === firstReplyId ? echoTurnId : id;
+  };
 
   // Per-block loading-chatter serialization. In parallel-gather mode multiple
   // blocks can produce a filler line at once — speaking them concurrently would
@@ -167,20 +197,20 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
     },
     {
       onBlockStart: (blockId) => {
-        emitJarvisResponseStart({ turnId: blockId, at: Date.now() });
+        emitJarvisResponseStart({ turnId: mapId(blockId), at: Date.now() });
       },
       onTextDelta: (blockId, delta) => {
-        emitJarvisResponseChunk({ turnId: blockId, delta, at: Date.now() });
+        emitJarvisResponseChunk({ turnId: mapId(blockId), delta, at: Date.now() });
       },
       onAction: (blockId, toolUseId, name, result) => {
-        emitJarvisToolCall({ turnId: blockId, toolUseId, name, result, at: Date.now() });
+        emitJarvisToolCall({ turnId: mapId(blockId), toolUseId, name, result, at: Date.now() });
       },
       onBlockDone: (result) => {
-        emitJarvisResponseEnd({ turnId: result.blockId, at: Date.now() });
+        emitJarvisResponseEnd({ turnId: mapId(result.blockId), at: Date.now() });
       },
       onError: (blockId, message) => {
         emitJarvisResponseChunk({
-          turnId: blockId,
+          turnId: mapId(blockId),
           delta: `(routine block error: ${message})`,
           at: Date.now(),
         });
@@ -193,7 +223,7 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
       // The opener is its OWN one-shot turnId so it speaks the instant the
       // routine fires, while the blocks gather silently behind it.
       onOpener: (text) => {
-        const openerId = `${runId}:opener`;
+        const openerId = mapId(`${runId}:opener`);
         emitJarvisResponseStart({ turnId: openerId, at: Date.now() });
         emitJarvisResponseChunk({ turnId: openerId, delta: text, at: Date.now() });
         emitJarvisResponseEnd({ turnId: openerId, at: Date.now() });
@@ -205,7 +235,7 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
       // other. Returning the tail Promise makes the runner await it, so a
       // block's own gather waits until its own filler has been emitted.
       onBlockFiller: (blockId, text) => {
-        const fillerId = `${blockId}:filler`;
+        const fillerId = mapId(`${blockId}:filler`);
         const emitOne = () => {
           emitJarvisResponseStart({ turnId: fillerId, at: Date.now() });
           emitJarvisResponseChunk({ turnId: fillerId, delta: text, at: Date.now() });
@@ -229,14 +259,14 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
             at: Date.now(),
           });
         }
-        emitJarvisResponseStart({ turnId, at: Date.now() });
+        emitJarvisResponseStart({ turnId: mapId(turnId), at: Date.now() });
       },
       onSynthesisDelta: (turnId, delta) => {
-        emitJarvisResponseChunk({ turnId, delta, at: Date.now() });
+        emitJarvisResponseChunk({ turnId: mapId(turnId), delta, at: Date.now() });
       },
       onSynthesisDone: (turnId) => {
         // Response end FIRST so `done` is truly terminal for the HUD.
-        emitJarvisResponseEnd({ turnId, at: Date.now() });
+        emitJarvisResponseEnd({ turnId: mapId(turnId), at: Date.now() });
         if (progress) {
           emitJarvisRoutineProgress({
             runId,

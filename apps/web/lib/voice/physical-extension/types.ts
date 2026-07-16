@@ -11,6 +11,17 @@ export interface PhysicalTranscript {
   sttDoneAt: number;
   vadEndAt?: number;
   at: number;
+  /**
+   * The turnId of the reply this user echo belongs to, minted BEFORE the echo
+   * is emitted so the desktop can pair the user bubble to its reply by identity
+   * rather than by arrival order. Optional for backward compatibility: turnless
+   * echoes (older emitters, or call sites with no meaningful turnId) fall back
+   * to FIFO pairing in the desktop reducer. Threading it end-to-end fixes the
+   * row-swap when the server inverts relative order — e.g. a routine-interception
+   * turn whose fire-and-forget response-start lands AFTER a concurrent normal
+   * turn's, producing [transcript_A, transcript_B, start_B, start_A].
+   */
+  turnId?: string;
 }
 
 export interface PhysicalJarvisResponseStart {

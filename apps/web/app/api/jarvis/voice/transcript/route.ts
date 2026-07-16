@@ -181,12 +181,20 @@ export async function POST(req: NextRequest): Promise<Response> {
       console.log(
         `[voice/transcript] utterance matched routine "${matched.name}" (${matched.id}) — firing ${matched.spec.blocks.length} block(s) instead of a normal turn`,
       );
+      // Mint the turn identity BEFORE emitting the user echo, and thread it into
+      // the routine fire as echoTurnId. The routine runs fire-and-forget, so its
+      // first response-start can land at the client AFTER a concurrent normal
+      // turn's; stamping the SAME id on the echo lets the desktop reducer pair
+      // the user bubble to the routine's first reply by identity rather than by
+      // arrival order (which would otherwise swap rows under that interleaving).
+      const routineTurnId = crypto.randomUUID();
       // Show the user's spoken phrase, then stream the routine's spoken blocks.
       emitPhysicalTranscript({
         transcript,
         sttDoneAt,
         vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
         at: sttDoneAt,
+        turnId: routineTurnId,
       });
       const routineKey =
         (await getUserKeyOrNull(userId, "anthropic")) ?? process.env.ANTHROPIC_API_KEY ?? "";
@@ -201,21 +209,31 @@ export async function POST(req: NextRequest): Promise<Response> {
         routineName: matched.name,
         loadingInstruction: matched.spec.loadingInstruction?.trim() || undefined,
         timezone: routineTimezone,
+        echoTurnId: routineTurnId,
       });
-      return Response.json({ transcript, sttDoneAt, routine: matched.id, runId }, { headers: CORS });
+      return Response.json(
+        { transcript, sttDoneAt, routine: matched.id, runId, turnId: routineTurnId },
+        { headers: CORS },
+      );
     }
   } catch (err) {
     console.error("[voice/transcript] utterance routine check failed", err);
   }
 
+  // Mint the reply turnId BEFORE the user-echo emit and stamp it on the echo, so
+  // the desktop reducer pairs the user bubble to THIS turn's reply by identity.
+  // Under overlap with a routine-interception turn (whose response-start fires
+  // late, fire-and-forget), pure arrival-order FIFO could otherwise attach the
+  // wrong reply to this user row.
+  const turnId = crypto.randomUUID();
   emitPhysicalTranscript({
     transcript,
     sttDoneAt,
     vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
     at: sttDoneAt,
+    turnId,
   });
 
-  const turnId = crypto.randomUUID();
   const userTurnId = crypto.randomUUID();
   const userTurnCreatedAt = new Date();
   const assistantTurnCreatedAt = new Date(userTurnCreatedAt.getTime() + 1);

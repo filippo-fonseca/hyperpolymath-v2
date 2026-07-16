@@ -50,6 +50,13 @@ interface PhysicalTranscriptPayload {
   sttDoneAt: number;
   vadEndAt?: number;
   at: number;
+  /**
+   * The turnId of the reply this echo belongs to, minted server-side BEFORE the
+   * echo was emitted (voice/transcript + voice/text). When present the transcript
+   * reducer pairs this user bubble to its reply by identity; absent (older server
+   * or a turnless call site) it falls back to FIFO arrival-order pairing.
+   */
+  turnId?: string;
 }
 
 interface JarvisResponseStartPayload {
@@ -348,7 +355,7 @@ export async function startPhysicalExtenderListener(): Promise<void> {
     const payload = parseJson<PhysicalTranscriptPayload>(messageEvent.data);
     if (!payload) return;
     // eslint-disable-next-line no-console
-    console.log(`[jarvis] transcript sttDoneAt=${payload.sttDoneAt}`);
+    console.log(`[jarvis] transcript sttDoneAt=${payload.sttDoneAt} turnId=${payload.turnId ?? "-"}`);
     for (const fn of physicalTranscriptListeners) fn(payload);
   });
 
