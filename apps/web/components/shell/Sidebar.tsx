@@ -307,14 +307,22 @@ function SidebarHeader({
   if (collapsed) {
     return (
       <TooltipProvider delayDuration={300}>
-        <div className="flex shrink-0 flex-col items-center gap-1.5">
+        <div className="relative flex shrink-0 flex-col items-center gap-1.5">
           {/* Brand monogram — a plain mark, not a control. The expand button
               below owns the toggle so the wordmark is never a collapse trap. */}
           <span
-            className="flex h-9 items-center justify-center text-[18px] leading-none"
+            className="sidebar-logo-mono flex h-9 items-center justify-center text-[18px] leading-none"
             aria-hidden="true"
           >
             <Logotype collapsed />
+          </span>
+          {/* On pointer hover of the rail, a floating plate reveals the full
+              "Hyperpolymath" wordmark anchored at the rail's top-left. It
+              overlays rather than expanding the rail (absolutely positioned;
+              the aside width stays tied to the real collapsed state), so no
+              layout shifts. See .sidebar-logo-flyout in globals.css. */}
+          <span className="sidebar-logo-flyout absolute left-0 top-0" aria-hidden="true">
+            <Logotype className="text-[16px]" />
           </span>
           <Tooltip>
             <TooltipTrigger asChild>
