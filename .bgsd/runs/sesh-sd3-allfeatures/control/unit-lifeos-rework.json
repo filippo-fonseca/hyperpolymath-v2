@@ -1,0 +1,48 @@
+{
+ "agent_id": "unit-lifeos-rework",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-lifeos-rework",
+ "branch": "sd3/unit-lifeos-rework",
+ "unit_id": "unit-lifeos-rework",
+ "phase": "done",
+ "status": "done",
+ "heartbeat_at": "2026-07-14T00:20:00.000Z",
+ "verification": {
+  "typecheck": "PASS (pnpm --filter web typecheck, exit 0)",
+  "build": "PASS (pnpm --filter web build, exit 0, Next 16.2.6)",
+  "boot": "PASS (next start :3823 -> Ready in 149ms; /sign-in 200; /lifeos 307->/sign-in auth-gate intact)",
+  "token_audit": "PASS (changed files: 0 banned classes, 0 legacy chrome tokens, 0 residual shadcn tokens; all surfaces resolve --sd-* in both themes)",
+  "screenshots": "BLOCKED \u2014 authed capture impossible in this headless env (Google-OAuth-only auth; local Supabase 127.0.0.1:54321 DOWN; docker daemon unavailable so it can't be started; global browser lock held by live parallel Playwright-MCP sessions). Per UI-CONTRACT-SD3 \u00a71, Conductor to pixel-verify authed surfaces on :3000. Full rationale + one-viewport math + token audit in .planning/VERIFY-lifeos-rework.md",
+  "conductor_review": "APPROVED 2026-07-15 \u2014 automated gates all green; assumptions ratified (h-full construction over dvh math; lazy-mount areas; renderTrigger; area-badge deferral -> quick-wins unit; header/body seam accepted until projects-detail lands in quick-wins). Authed pixel verify by Conductor on :3000 batched with sidebar merge."
+ },
+ "commits": [
+  "37b0baa4 feat(lifeos): one-screen command deck \u2014 view toggle + fixed 2-row bento",
+  "3d9e58ce feat(lifeos): widgets shrink to fit \u2014 internal scroll caps + compact cells",
+  "bc7b6f70 feat(projects): Notion-style click-to-edit project icon + sd restyle",
+  "4b2a4876 docs(lifeos): verification note"
+ ],
+ "assumptions": [
+  "One-viewport height uses `h-full` against the AppShell scroll container + `overflow-hidden`, NOT a `100dvh - magic-number` calc. Inherently correct for any chrome height; guarantees no page scroll by construction. Intentional deviation from the seed's dvh formula.",
+  "Areas view lazy-mounts on first switch (server-materialized prop rendered on demand); keeps its own internal overflow-y-auto since a full tree cannot fit one screen (seed \u00a73).",
+  "IconPicker gained a backwards-compatible optional `renderTrigger` prop; ProjectCreateDialog's default (bordered) trigger is unchanged.",
+  "Area-badge -> area-move control (seed \u00a74 optional) deferred to keep scope tight; badge stays a link to the area page.",
+  "ProjectHeader chrome fully migrated to sd + \u00a70 (serif->Space Grotesk, legacy tokens->sd, backdrop-blur removed). The rest of the project DETAIL body (ProjectTasksSection etc.) is out of fence and stays legacy until its own wave \u2014 expect a header-vs-body seam mid-session."
+ ],
+ "blockers": [
+  "Authed screenshots (both themes x 1440x900 / 1512x982, areas view, toggle flip, project-icon popover) could not be captured: Google-OAuth-only auth + local Supabase/docker down + shared browser lock held by parallel sessions. Needs Conductor authed pixel-verify on :3000 (contract \u00a71 sanctioned fallback). This is the ONLY open item."
+ ],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "lifeos one-viewport rework + view toggle + project icon edit; design-critical"
+ },
+ "notes": [
+  "COMPLETE, awaiting review. 5 work items delivered across 3 feature commits + 1 doc commit: (1) LifeOsCanvas one-screen deck with sd two-segment Widgets/Areas toggle (persisted lifeos:view, WidgetIcon/AreaIcon 16px, sliding layoutId pill, opacity/2px flip ~140ms); (2) BentoGrid fixed 2-row 12-col grid Tasks(5x2)/Habits(4)/Training(3)/Captures(4)/Insights(3), collapse chevrons removed; (3) widget lists min-h-0 overflow-y-auto sd-scroll-hover, Captures single-column stream, Insights compact headline+chip cell; (4) project icon Notion click-to-edit via IconPicker renderTrigger + optimistic updateProject({icon}) + sd popover restyle; (5) ProjectHeader \u00a70 compliance. Fence respected; ui/ primitives untouched.",
+  "Automated gates all green (typecheck/build/boot/auth-gate/token-audit). Only gap: authed pixel screenshots, blocked by environment, delegated to Conductor per \u00a71. Details in .planning/VERIFY-lifeos-rework.md."
+ ],
+ "steering": "Initial directive: read your seed plan (.planning/fable-plan-sd3.md) and the session contract (UI-CONTRACT-SD3.md) fully before touching code. Seal your plan in the control file, then WAIT for a fresh steering read before implementation per checkpoint protocol. Browser: headless only, global lock. Commit atomically with explicit pathspecs.",
+ "conductor_acceptance": "Accepted by Conductor (Kiwi): 4 atomic commits, gates green, blocker resolved by sanctioned Conductor-side pixel pass."
+}

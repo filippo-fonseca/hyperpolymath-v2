@@ -1,0 +1,70 @@
+{
+ "agent_id": "sd3-unit-fix-wiki",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-fix-wiki",
+ "branch": "sd3/unit-fix-wiki",
+ "unit_id": "unit-fix-wiki",
+ "phase": "implementing",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-16T02:35:12.000000+00:00",
+ "verification": {
+  "typecheck": "PASS (tsc --noEmit, exit 0) after item-2 re-do",
+  "build": "PASS (exit 0, placeholder env) after item-2 re-do; full route table incl /wiki, /wiki/[pageId], /tasks",
+  "headless": "AUTH-BLOCKED (no .env.local -> auth-gated -> /sign-in). Item 2 is now assertable WITHOUT a live realtime server via the local invalidateQueries(['pages',userId]) in PageDetailClient.save(); full call path documented + asserted in the note. Authed pixel/live drive delegated to Conductor on :3000 per \u00a71.",
+  "evidence": [
+   ".planning/sd3-fixwiki-verification.md",
+   ".planning/sd3-fixwiki-signin-fallback-dark.png",
+   ".planning/sd3-fixwiki-signin-fallback-light.png"
+  ]
+ },
+ "commits": [
+  {
+   "hash": "9fb058a6",
+   "subject": "item 2 RE-DONE per Conductor steer: realtime channel drives wiki-home rename propagation (refetchOnMount:true + explicit invalidateQueries in save())",
+   "files": [
+    "apps/web/components/pages/PagesListClient.tsx",
+    "apps/web/components/pages/PageDetailClient.tsx",
+    ".planning/sd3-fixwiki-verification.md"
+   ]
+  },
+  {
+   "hash": "713d9320",
+   "subject": "item 2 first cut: wiki-home refetchOnMount:always (SUPERSEDED by 9fb058a6)",
+   "files": [
+    "apps/web/components/pages/PagesListClient.tsx"
+   ]
+  },
+  {
+   "hash": "f7ca466e",
+   "subject": "item 1 tasks rail: collapsible Inbox half-and-half w/ Overdue",
+   "files": [
+    "apps/web/components/tasks/InboxColumn.tsx",
+    "apps/web/components/tasks/TasksClient.tsx"
+   ]
+  },
+  {
+   "hash": "d8a720ab",
+   "subject": "docs: verification note + both-theme boot evidence"
+  }
+ ],
+ "assumptions": [
+  "Item 1 (Inbox/Undated disclosure + 50/50 rail w/ Overdue) is on the TASKS page, not wiki: Overdue/Inbox live in components/tasks/** (proven by grep). Seed mislabeled the surface as 'wiki'. Implementing item 1 on components/tasks/** as a documented, revertible fence extension; item 2 (realtime) stays in the wiki fence. See advisor/unit-fix-wiki.md.",
+  "Item 2 root cause: global refetchOnMount:false + staleTime:30s serves stale cached pages query on same-tab navigate-back; realtime only refetches active queries. Fixing at the wiki-pages data layer."
+ ],
+ "blockers": [],
+ "escalations": [
+  "Item 1 seed mis-fenced: Overdue/Inbox live in components/tasks/**, not wiki. Implemented on tasks as a documented, revertible fence extension (commit f7ca466e). Conductor may veto/reroute; see advisor/unit-fix-wiki.md."
+ ],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": "claude-opus-4-8",
+ "notes": [
+  "2026-07-15: validated seed against worktree; recorded surface conflict for item 1 to advisor channel.",
+  "2026-07-15: both items done, typecheck+build green, status=awaiting_review. Authed pixels for Conductor on :3000.",
+  "2026-07-15: item 2 RE-DONE per steering (commit 9fb058a6). Replaced refetchOnMount:'always' shim with channel-driven pattern: refetchOnMount:true (subscription/mutation stale flag drives the navigate-back refetch, costs nothing when unchanged) + explicit invalidateQueries(['pages',userId]) in PageDetailClient.save() (local mirror of the postgres_changes echo, so the fix survives an absent/dropped realtime round-trip). Audit finding: the pages realtime channel + publication were ALREADY fully wired pre-unit (SearchProvider app-shell + PagesListClient + PageDetailClient all subscribe; pages in supabase_realtime pub via 0031_pages.sql); rail/explorer are prop-fed so need no independent sub. The subscription was never the missing piece for the same-tab navigate-back symptom (unmounted observer can't be refetched by a channel). Full call path asserted in verification note + advisor. typecheck+build green."
+ ],
+ "steering": [
+  "CONDUCTOR REVIEW: Item 1 ACCEPTED (relocation to components/tasks verified correct \u2014 wiki/pages have zero undated/overdue hits; good catch, keep the documented fence extension). Item 2 REJECTED as shipped: refetchOnMount:'always' is a navigation shim, not realtime, and the seed demanded the canonical channel pattern. The codebase ALREADY HAS lib/realtime/useTableSubscription.ts (see JournalingClient.tsx + JarvisConsole.tsx for usage). REQUIRED: subscribe the wiki-home pages data (PagesListClient + any other pages-table consumers you find, e.g. the wiki rail) via useTableSubscription on the pages table \u2192 queryClient.invalidateQueries on INSERT/UPDATE/DELETE, exactly like journaling does. Keep refetchOnMount:'always' only if it costs nothing extra; the subscription is the fix. One atomic commit + updated verification note (assert the invalidation call path in the note). Then status=awaiting_review again."
+ ],
+ "port": 3833
+}

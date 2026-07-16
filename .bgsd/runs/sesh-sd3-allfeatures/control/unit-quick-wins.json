@@ -1,0 +1,49 @@
+{
+ "agent_id": "sd3-unit-quick-wins",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-quick-wins",
+ "branch": "sd3/unit-quick-wins",
+ "unit_id": "unit-quick-wins",
+ "phase": "verification",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-15T21:46:13.834561+00:00",
+ "verification": {
+  "typecheck": "pass (tsc --noEmit exit 0)",
+  "build": "pass (next build exit 0; page-data needed copied gitignored .env.local)",
+  "boot": "clean (dev Ready 247ms on :3835, GET / 200)",
+  "items": "9/9 PASS \u2014 see .planning/sd3-quickwins-verification.md",
+  "evidence": [
+   ".planning/sd3-quickwins-diagrams-light.png",
+   ".planning/sd3-quickwins-nutrition-legend-dark.png",
+   ".planning/sd3-quickwins-nutrition-legend-light.png",
+   ".planning/sd3-quickwins-authgate-fallback-light.png"
+  ],
+  "auth_fallback": "UI-CONTRACT \u00a71 \u2014 (app) surfaces auth-gated; sign-in fallback + throwaway legend preview (deleted); Conductor pixel-verifies on :3000 post-merge"
+ },
+ "commits": [
+  "5d889ca4 docs verification note + evidence (9/9 PASS)",
+  "e01521b6 animate sd-fade-in",
+  "a55fa078 area badge picker",
+  "7e6bbe11 sfx viewToggle+taskComplete",
+  "43aaba36 nutrition trend legend",
+  "f56b51de wiki journal residue",
+  "c63ea2a8 page-block-editor de-glass",
+  "53db2bb2 tasks de-glass",
+  "2c318b4d projects body sd tokens",
+  "b02f3b3c diagrams dark sd register"
+ ],
+ "assumptions": [
+  "Item7: dialogOpen + error cues left unwired \u2014 their homes (ui/dialog primitive; a shared sonner wrapper) are outside this unit's fence. Noted for unit-primitives / a toast-wrapper owner.",
+  "Item9: animate-in/out entrance classes in components/ui/* Radix primitives are inert (tailwindcss-animate absent) but out of fence; handed to unit-primitives. Only the in-fence pages 'Saved' chip was given a real sd-fade-in."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": "claude-opus-4-8",
+ "notes": [
+  "2026-07-15 resume: install+typecheck+build green; headless evidence captured on :3835 (lock acquired only during capture, released); status=awaiting_review, waiting for Conductor."
+ ],
+ "steering": [],
+ "port": 3835
+}

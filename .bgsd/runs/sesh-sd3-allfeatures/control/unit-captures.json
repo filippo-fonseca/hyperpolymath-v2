@@ -1,0 +1,69 @@
+{
+ "agent_id": "unit-captures",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-captures",
+ "branch": "sd3/unit-captures",
+ "unit_id": "unit-captures",
+ "phase": "awaiting_review",
+ "status": "awaiting_review",
+ "heartbeat_at": "2026-07-15T04:47:00.000Z",
+ "verification": {
+  "typecheck": "green",
+  "build": "green (only env note: EB Garamond next/font/google fetch in layout.tsx — outside fence — needs network; captures fence compiles clean)",
+  "boot": "next start -p 3830 Ready 200; /captures 307 -> /sign-in (authed)",
+  "screenshots": [
+   ".planning/sd3-captures/sd3-captures-signin-fallback-dark.png",
+   ".planning/sd3-captures/sd3-captures-signin-fallback-light.png"
+  ],
+  "authed_fallback": "authed /captures unreachable headless; sign-in fallback captured both themes; Conductor pixel-verifies on :3000",
+  "compiled_css_proof": "14/14 arbitrary --sd-* utilities in captures fence confirmed emitted in .next compiled CSS incl 3 color-mix compounds; no §0 scan-gap miss",
+  "legacy_audit": "fence clean — only functional --ink-amber/--ink-coral + out-of-scope shared HashtagChip/PersonChip sage; glass/glow/blur only in negating comments; no font-serif",
+  "evidence_report": ".planning/sd3-captures/sd3-captures-VERIFY.md"
+ },
+ "commits": [
+  "8d761aeb style(captures): LinkPreviewCard to the sd register",
+  "8d45ef6a style(captures): CaptureCard to the sd register",
+  "6f1b98a0 style(captures): CaptureComposer sd writing surface + captureSent sfx",
+  "d3fd279d style(captures): HashtagSidebar sd sidebar-row grammar",
+  "3e5f1e27 style(captures): ResurfacingSection sd register",
+  "25a99921 style(captures): feed empty-state, search bar + mention popovers to sd tokens",
+  "a525ce0e style(captures): CaptureDetailPanel to the sd inspector grammar",
+  "115cd32d style(captures): drop font-serif from ConvertCaptureToTaskDialog",
+  "1ed4f093 verify(captures): sd3 gates + authed-fallback screenshots + compiled-CSS proof"
+ ],
+ "plan": {
+  "targets": [
+   "CaptureCard.tsx — DONE",
+   "CaptureComposer.tsx — DONE (+ sfx.captureSent on send success, single call site)",
+   "LinkPreviewCard.tsx — DONE",
+   "HashtagSidebar.tsx — DONE",
+   "ResurfacingSection.tsx — DONE",
+   "CaptureDetailPanel.tsx — DONE",
+   "CapturesFeed.tsx + CaptureSearch + suggestion lists — DONE",
+   "ConvertCaptureToTaskDialog.tsx — DONE (font-serif drop)"
+  ],
+  "decisions": [
+   "HashtagChip/PersonChip left as-is: shared with tasks/jarvis units, sage/amber flattening is a cross-unit call, out of scope",
+   "font-serif dropped everywhere in fence (banned outside Logotype) -> Space Grotesk default",
+   "single cyan accent via --sd-accent; functional amber (favorite) / coral (overdue) kept"
+  ]
+ },
+ "assumptions": [
+  "No pre-existing playSend in captures fence — sfx.captureSent additive, single call site, no double-chime",
+  "Build's only failure mode is EB Garamond next/font/google fetch in layout.tsx (outside fence); green with network"
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "high-traffic Wave A surface (GH #286); design-critical"
+ },
+ "notes": [
+  "Shared bgsd Playwright MCP server cwd is another live repo (streetlens); relative screenshot paths landed there — used absolute paths to write into this unit's .planning/sd3-captures/. Global browser lock acquired/released around each capture; own port :3830 killed after.",
+  "AWAITING CONDUCTOR REVIEW — WAIT."
+ ],
+ "steering": "Initial directive: seed .planning/fable-plan-captures.md + UI-CONTRACT-SD3.md. Atomic commits, headless global lock, kill only own port."
+}

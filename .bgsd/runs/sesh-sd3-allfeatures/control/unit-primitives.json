@@ -1,0 +1,69 @@
+{
+ "agent_id": "unit-primitives",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-primitives",
+ "branch": "sd3/unit-primitives",
+ "unit_id": "unit-primitives",
+ "phase": "done",
+ "status": "done",
+ "heartbeat_at": "2026-07-15T03:15:00.000Z",
+ "verification": {
+  "typecheck": "GREEN \u2014 pnpm --filter web typecheck (tsc --noEmit) clean",
+  "build": "GREEN \u2014 pnpm --filter web build (Next 16.2.6) succeeded, all routes emitted",
+  "css_emit_check": "PASS \u2014 grepped compiled .next/static/chunks/*.css: all 4 additive classes (.sd-btn-solid/.sd-btn-outline/.sd-menu-surface/.sd-modal-surface) FOUND; every new arbitrary utility (rounded-[14/12/8/6px], bg/border/text-[var(--sd-*)] incl. hover:/focus:/data-[selected=true]: variants, duration-[120ms], text-[var(--ink-coral)]) emitted. Confirms both-theme resolution (tokens defined in :root + .dark).",
+  "captures": ".planning/sd3-captures/: design-{dark,light}.png (canonical /design register intact after additive globals) + primitives-{dark,light}.png (compiled-CSS proof sheet: buttons, input, menu surface w/ selected-row tint + mono shortcut + coral delete, modal plate \u2014 all resolve through sd tokens in BOTH themes, zero glass/glow). Visually reviewed: on-register.",
+  "note_auth": "\u2318K command menu + all primitive-heavy surfaces live in components/shell/ (authenticated app shell) \u2014 unreachable headless without a session, and .env copy into the worktree was blocked by a secrets guard. Per UI-CONTRACT \u00a71 the Conductor pixel-verifies authed dialog/menu/field surfaces on :3000 post-merge. The compiled-CSS proof sheet is the headless stand-in and it renders correctly in both themes.",
+  "conductor_review": "APPROVED 2026-07-15 \u2014 pixel pass on primitives-dark/light proof sheets. Rulings: (1) default=accent solid RATIFIED; (2) unified cyan focus ring RATIFIED; (3) inert animate-* classes deferred to closeout unit (add real transition pass there). Authed dialog/menu pixel check happens on :3000 post-merge per contract."
+ },
+ "commits": [
+  {
+   "hash": "180f35e5",
+   "subject": "additive sd-primitive surface utilities in globals.css"
+  },
+  {
+   "hash": "b4537fb9",
+   "subject": "button.tsx to the sd register"
+  },
+  {
+   "hash": "f49beafb",
+   "subject": "modal family (dialog, alert-dialog, sheet) to sd register"
+  },
+  {
+   "hash": "a0b11101",
+   "subject": "menu family (dropdown, select, popover, command, tooltip) to sd register"
+  },
+  {
+   "hash": "ddd3ff7f",
+   "subject": "fields, card, insights tile-style to sd register"
+  },
+  {
+   "hash": "8a5691bf",
+   "subject": "both-theme verification frames + seed plan"
+  }
+ ],
+ "assumptions": [
+  "Default Button variant is now accent-cyan solid per seed ('default = accent (cyan) solid') \u2014 app-wide shift from prior solid-ink default; matches DESIGN-SYSTEM \u00a75 (primary = accent). Visible in primitives-*.png. If you want default to stay neutral ink and reserve cyan for an explicit primary, say so and I'll split it.",
+  "Kept the app-wide unified #140 cyan focus ring (globals.css input/textarea/button/select:focus-visible) rather than a per-field 1px no-glow ring. The shared ring is already cyan/on-register; fracturing the single focus identity per-primitive would be inconsistent. Resting state fully sd-tokenized. Steer if you want the tighter 1px ring per the seed's inputs line.",
+  "Motion classes (animate-in/fade-in/zoom/slide-in-from-*) are INERT app-wide: no tailwindcss-animate / tw-animate-css plugin is imported and it is not a dep, so none of these compile to CSS (pre-existing, all non-fence components use them too). My zoom->slide swap is therefore cosmetically neutral. Real transitions on these primitives would need a follow-up unit to add an animate plugin (out of this fence).",
+  "Sheet uses side-aware inner radius (rounded-l/-r/-t/-b-[14px]); sheet overlay changed bg-transparent -> bg-black/40 (plain rgba dim, no blur).",
+  "glassyTileShadow() kept for API stability but returns 'none' (glow/halo retired, \u00a716); NEUMORPHIC_TILE is now a flat sd plate. Exported names preserved so insights consumers restyle for free."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "shared ui primitives to sd register; highest-leverage foundational unit"
+ },
+ "notes": [
+  "COMPLETE \u2014 awaiting Conductor review. 6 atomic commits. globals.css ADDITIVE ONLY (4 new .sd-* classes appended); .glass-* left intact (8 defs verified present) per fence. NO call-site edits; every exported name / variant / prop contract identical, so zero consumers change.",
+  "Converted (13 fence files): button, dialog, alert-dialog, sheet, command, dropdown-menu, select, popover, card, input, textarea, tooltip + insights/tile-style.ts. Removed on sight: glass-tile, glass-button, backdrop-blur (overlays now plain rgba dim), HudCornerCrops (dialog), font-serif (all), italic empty state (command), glow stack (tile-style). Final grep sweep: CLEAN \u2014 no banned/legacy tokens remain in fence.",
+  "Register applied: buttons default=accent solid / outline=recessed field+hairline / ghost=transparent+hover tint / destructive=coral, 120ms color-only; dialog/alert/sheet = solid --sd-box 14px plate + dark-only inset hairline + plain no-blur overlays; menus = solid --sd-box 12px plate (tooltip 8px), 6px rows w/ --sd-hover focus/selected tint, 11px semibold uppercase group headers; inputs = --sd-input + --sd-line + shared cyan ring; card = WidgetCard v2 plate 14px.",
+  "Housekeeping: temp prod server (:3822) stopped; global browser lock released; .playwright-mcp scratch removed; no .env committed (copy was blocked, so none present).",
+  "Steering re-read at all six checkpoints; initial directive unchanged and no advisor file exists for sesh-sd3, so proceeded per protocol. WAITING for Conductor before any merge/PR."
+ ],
+ "steering": "Initial directive: read your seed plan (.planning/fable-plan-sd3.md) and the session contract (UI-CONTRACT-SD3.md) fully before touching code. Seal your plan in the control file, then WAIT for a fresh steering read before implementation per checkpoint protocol. Browser: headless only, global lock. Commit atomically with explicit pathspecs.",
+ "conductor_acceptance": "Accepted by Conductor (Kiwi): 6 atomic commits, typecheck/build green, css emission proof, zero API changes."
+}

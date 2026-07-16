@@ -1,0 +1,67 @@
+{
+ "agent_id": "unit-journaling",
+ "run_id": "sesh-sd3-allfeatures",
+ "worktree": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-sd-restyle/.bgsd/runs/sesh-sd3-allfeatures/worktrees/unit-journaling",
+ "branch": "sd3/unit-journaling",
+ "unit_id": "unit-journaling",
+ "phase": "done",
+ "status": "done",
+ "heartbeat_at": "2026-07-15T02:45:00.000Z",
+ "plan": {
+  "summary": "Full sd-register pass over /journaling: page scaffold, calendar, day-nav, history feed, entry editor. Same features, same data flow.",
+  "fence": "apps/web/components/journaling/** + apps/web/app/(app)/journaling/**. globals.css NOT touched (all needed sd classes/tokens already exist). ui/ consumed not edited.",
+  "tokens": "--sd-app page, --sd-box plate/cells, --sd-line 1px grid/hairlines, --sd-ink/-dull/-faint text ladder, --sd-accent cyan, --sd-hover/-selected/-input. Inline style={{}} used for color-mix tints + today ring to sidestep the Tailwind scan gap (\u00a70); proven-emitted arbitrary utilities reused for the rest.",
+  "icon": "No JournalIcon exists and ui/icons is out of fence; reuse PageIcon kind=daily (the daily-page dimensional icon) as journal identity in the title row.",
+  "components": [
+   "JournalingClient: sd title row (PageIcon daily + mono eyebrow + Space Grotesk title w/ accent period), DayNavigator right-aligned; page bg --sd-app.",
+   "DayNavigator: sd ghost icon-buttons (no glass-button); mono uppercase date label.",
+   "JournalCalendar: sd plate; segmented view control; ghost nav buttons; month/week/year grids on --sd-box cells w/ 1px --sd-line hairlines; entry days = faint cyan fill; today = 1px cyan inset ring; selected = accent fill; mono nav label; no serif/glass.",
+   "JournalHistoryFeed: bordered sd list rows w/ divide-y hairlines; selected = accent tint + left bar; private meta as sd pill; Space Grotesk preview (unused component but in-fence, restyled for consistency).",
+   "JournalEntryEditor: WidgetCard-grammar --sd-box plate, generous padding; Space Grotesk body (NO serif); mono Notes eyebrow; save state as sd-status-pill w/ dot; --sd-line dividers; gentle 140ms opacity fade on day switch (reduced-motion guarded)."
+  ]
+ },
+ "verification": {
+  "typecheck": "green (all app source; only pre-existing tests/** vitest-type errors remain, unrelated)",
+  "build": "green (/journaling in route manifest)",
+  "boot": "clean \u2014 next start :3828 Ready in 81ms, no runtime errors",
+  "authed_capture": "blocked \u2014 /journaling 307\u2192/sign-in (no Supabase session in env). \u00a71 fallback used; port-scoped kill only (tcp:3828), no broad pkill.",
+  "register_audit": "banned tokens removed from fence; sd tokens + all introduced arbitrary utilities proven present in compiled CSS; color-mix tints + today ring via inline style (scan-gap-safe, both themes).",
+  "evidence": [
+   ".planning/sd3-journaling-VERIFY.md",
+   ".planning/sd3-journaling-compiled-css-proof.txt",
+   ".planning/sd3-journaling-signin-dark-1440x900.png (clean-boot proof only)",
+   ".planning/sd3-journaling-signin-light-1440x900.png (clean-boot proof only)"
+  ],
+  "conductor_action": "pixel-verify /journaling authed on :3000 \u2014 dark+light 1440x900, calendar crop both themes, editor focused state.",
+  "conductor_review": "APPROVED 2026-07-15 \u2014 gates green, compiled-CSS proof, assumptions ratified (PageIcon daily as journal icon; HistoryFeed restyled though unwired). Authed pixel check delegated to the sd3 verify tester on :3000."
+ },
+ "commits": [
+  "5c80d427 docs(sd3/journaling): seed plan",
+  "b45fe85c feat(sd3/journaling): DayNavigator to the sd register",
+  "e03340d0 feat(sd3/journaling): JournalEntryEditor to the sd register",
+  "2180c863 feat(sd3/journaling): JournalCalendar to the sd register",
+  "83e798a9 feat(sd3/journaling): JournalHistoryFeed to the sd register",
+  "f90780a1 feat(sd3/journaling): page scaffold to the sd register",
+  "172757a5 docs(sd3/journaling): verification note + compiled-CSS proof + clean-boot frames"
+ ],
+ "assumptions": [
+  "PageIcon kind=daily reused as the journal dimensional icon (no JournalIcon in ui/icons; ui/ is out of fence).",
+  "JournalHistoryFeed is not wired into the live client, but is restyled anyway per the seed's explicit mention and to keep the fence register-consistent."
+ ],
+ "blockers": [],
+ "escalations": [],
+ "restart_count": 0,
+ "model": "claude-opus-4-8",
+ "model_assignment": {
+  "tier": "heavy",
+  "effort": "high",
+  "reason": "user-named feature surface; calendar+editor; design-critical"
+ },
+ "notes": [
+  "Auth-gated surface: authed pixel-verify deferred to Conductor on :3000, consistent with the sibling unit-lifeos-rework fallback.",
+  "globals.css untouched \u2014 all required sd classes/tokens already shipped by unit-primitives.",
+  "Complied with appended steering: server stop was port-scoped (lsof -ti tcp:3828), never a broad pkill."
+ ],
+ "steering": "Initial directive: your seed is .planning/fable-plan-journaling.md (ignore any inherited fable-plan-sd3.md). Read it + UI-CONTRACT-SD3.md fully, seal your plan in this control file, then proceed. Browser: headless, global lock, one at a time. Atomic commits, explicit pathspecs. APPENDED DIRECTIVE (Conductor): when stopping your dev/prod server, kill ONLY your own PID or port (kill $(lsof -ti tcp:<your-port>)). NEVER pkill broad patterns like 'next'/'pnpm dev' \u2014 you have twice killed the Conductor's :3000 review server.",
+ "conductor_acceptance": "Accepted by Conductor (Kiwi): 7 atomic commits, register audit clean."
+}
