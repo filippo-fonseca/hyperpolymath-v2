@@ -375,12 +375,35 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         fromId: initialPage.id,
         personIds: extractPersonIdsFromBlockNote(savedJson),
       });
+      // Realtime title/create/delete propagation (issue: rename in the page
+      // view must reach the wiki home live). updatePage bumps pages.updated_at,
+      // which the app-shell SearchProvider + PagesListClient useTableSubscription
+      // ("pages") channels invalidate on via postgres_changes. But that echo can
+      // only refetch *active* observers, and it round-trips the realtime server
+      // (absent in dev/headless). Invalidating the ["pages", userId] key here
+      // marks the query stale locally and synchronously, so: any co-mounted wiki
+      // surface updates instantly, and — because /wiki's queries now use
+      // refetchOnMount:true — a same-tab navigate-back to the unmounted wiki home
+      // refetches on remount off this stale flag. Invalidate-only, no payload
+      // merge (CLAUDE.md Critical Pattern 3); the subscription is the driver, this
+      // is the resilient local mirror of the same invalidation call path.
+      queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
       setSavedAt(new Date());
       setShowSaved(true);
       if (savedFadeTimer.current) clearTimeout(savedFadeTimer.current);
       savedFadeTimer.current = setTimeout(() => setShowSaved(false), 2000);
     },
-    [initialPage.id, title, content, contentJson, emoji, url, linkedProjectIds]
+    [
+      initialPage.id,
+      title,
+      content,
+      contentJson,
+      emoji,
+      url,
+      linkedProjectIds,
+      queryClient,
+      userId,
+    ]
   );
 
   const scheduleAutosave = useCallback(
