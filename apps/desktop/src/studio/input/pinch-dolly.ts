@@ -36,6 +36,8 @@
  * DOM-free and framework-free, so it is unit-tested with synthetic size streams.
  */
 
+import { clampAbs } from "./clamp";
+
 export type PinchDollyConfig = {
   /** |octaves| of palm-size change must exceed this before the dolly activates. */
   deadzone: number;
@@ -64,8 +66,6 @@ export type PinchDolly = {
   push(tMs: number, size: number, engaged: boolean, releasing: boolean): number;
   reset(): void;
 };
-
-const clampAbs = (v: number, max: number): number => (v < -max ? -max : v > max ? max : v);
 
 /**
  * Creates a pinch-dolly processor. Deterministic and side-effect-free: the same

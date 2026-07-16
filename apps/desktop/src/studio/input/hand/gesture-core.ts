@@ -38,6 +38,7 @@
  * not where their palm happens to sit.
  */
 
+import { clamp01 } from "../clamp";
 import {
   DEFAULT_ONE_EURO,
   OneEuroFilter,
@@ -70,6 +71,7 @@ import {
 } from "../open-hand-resize-recognizer";
 import {
   createOpenPalmHaltRecognizer,
+  DEFAULT_OPEN_PALM_HALT,
   type OpenPalmHaltRecognizer,
 } from "../open-palm-halt-recognizer";
 import {
@@ -98,8 +100,6 @@ import type { StudioIntentInput, StudioPhaseInput } from "../types";
 export type Pt = { x: number; y: number; z: number };
 
 export type HandPose = "open" | "fist" | "point";
-
-const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 /** Image-plane (2D) Euclidean distance. z is deliberately ignored (unreliable). */
 export const dist2d = (a: Pt, b: Pt): number => Math.hypot(a.x - b.x, a.y - b.y);
@@ -283,9 +283,12 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   pinchLostGraceMs: 200,
   grabHoldMs: 350,
   bloomWindowMs: 150,
-  haltHoldMs: 1200,
-  haltMaxDriftNx: 0.06,
-  haltPushRatio: 1.28,
+  // Re-exported from the recognizer's own defaults rather than re-typed: these
+  // were declared verbatim in both files, so a retune here silently disagreed
+  // with the module anyone reads for the live value.
+  haltHoldMs: DEFAULT_OPEN_PALM_HALT.holdMs,
+  haltMaxDriftNx: DEFAULT_OPEN_PALM_HALT.maxDriftNx,
+  haltPushRatio: DEFAULT_OPEN_PALM_HALT.pushRatio,
   dragOneEuro: { ...DEFAULT_ONE_EURO },
   // Heavier smoothing than the cursor: lower minCutoff = calmer at rest, tiny
   // beta = little speed-up on fast opens. Resize should never feel jumpy.
