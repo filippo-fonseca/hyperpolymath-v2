@@ -859,45 +859,51 @@ export function TasksClient({
         />
       ) : (
         <div className="flex flex-1 min-h-0 flex-col">
-          {/* Overdue Tasks Panel (issue #143) — spans the full width above the
-              day-scoped surface. Aggregates every passed-due task grouped by
-              its original due date; cards are draggable (reusing the lifted
-              `draggedTaskId` state) so dropping one on a kanban column / list
-              drop area / overview day reschedules it forward and the optimistic
-              update removes it from the panel. Mass + per-group reschedule reuse
-              `bulkUpdateTaskDueDate` via handleRescheduleOverdue. */}
-          {overdueTasks.length > 0 ? (
-            <OverdueTasksPanel
-              overdueTasks={overdueTasks}
-              onTaskClick={setOpenTaskId}
-              onReschedule={(ids, dueYmd) => void handleRescheduleOverdue(ids, dueYmd)}
-              draggedTaskId={draggedTaskId}
-              onDragStart={(id) => setDraggedTaskId(id)}
-              onDragEnd={() => setDraggedTaskId(null)}
-            />
-          ) : null}
-
-          <div className="flex flex-1 min-h-0 flex-row gap-4">
-          {/* D-01: persistent first-class Inbox — always present across every
-              view (kanban / list / overview) so dateless tasks stay visible
-              regardless of the central day-scoped surface. */}
-          {!inboxHidden && (
-            <InboxColumn
-              inboxTasks={inboxTasks}
-              onTaskClick={setOpenTaskId}
-              draggedTaskId={draggedTaskId}
-              onDragStart={(id) => setDraggedTaskId(id)}
-              onDragEnd={() => setDraggedTaskId(null)}
-              onDrop={() => void handleInboxDrop()}
-              selectedIds={selectedIds}
-              onToggleSelected={(id) => toggleSelected(id)}
-            />
+          {/* Triage rail — Overdue (issue #143) and the undated Inbox (D-01)
+              laid half-and-half, each 50% of the rail width, side by side. Both
+              are independent collapsible disclosures sharing the same chevron
+              toggle grammar, so both can be open at once. When only one is
+              present (no overdue work, or the Inbox hidden) that panel spans the
+              full rail. Cards stay draggable (native HTML5 DnD): dropping an
+              overdue card on a day target reschedules it forward; dropping any
+              card on the Inbox nulls its due date via handleInboxDrop. `min-w-0`
+              on each half lets task titles truncate rather than overflow. */}
+          {(overdueTasks.length > 0 || !inboxHidden) && (
+            <div className="mb-4 flex flex-row items-start gap-3">
+              {overdueTasks.length > 0 ? (
+                <div className="min-w-0 flex-1">
+                  <OverdueTasksPanel
+                    overdueTasks={overdueTasks}
+                    onTaskClick={setOpenTaskId}
+                    onReschedule={(ids, dueYmd) => void handleRescheduleOverdue(ids, dueYmd)}
+                    draggedTaskId={draggedTaskId}
+                    onDragStart={(id) => setDraggedTaskId(id)}
+                    onDragEnd={() => setDraggedTaskId(null)}
+                  />
+                </div>
+              ) : null}
+              {!inboxHidden && (
+                <div className="min-w-0 flex-1">
+                  <InboxColumn
+                    inboxTasks={inboxTasks}
+                    onTaskClick={setOpenTaskId}
+                    draggedTaskId={draggedTaskId}
+                    onDragStart={(id) => setDraggedTaskId(id)}
+                    onDragEnd={() => setDraggedTaskId(null)}
+                    onDrop={() => void handleInboxDrop()}
+                    selectedIds={selectedIds}
+                    onToggleSelected={(id) => toggleSelected(id)}
+                  />
+                </div>
+              )}
+            </div>
           )}
 
-          {/* Central area — the day-scoped surface. The DaySwitcher lives HERE
-              (not page-wide) so it visually governs the central tasks and makes
-              clear it does NOT scope the dateless Inbox. Overview is inherently
-              multi-day, so it owns its own day toggles and hides the switcher. */}
+          {/* Central area — the day-scoped surface, now full width beneath the
+              triage rail. The DaySwitcher lives HERE (not page-wide) so it
+              visually governs the central tasks and makes clear it does NOT
+              scope the dateless Inbox. Overview is inherently multi-day, so it
+              owns its own day toggles and hides the switcher. */}
           <div className="flex flex-1 min-h-0 flex-col">
             {view !== "overview" && (
               <DaySwitcher dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
@@ -960,7 +966,6 @@ export function TasksClient({
                 />
               </div>
             )}
-          </div>
           </div>
         </div>
       )}
