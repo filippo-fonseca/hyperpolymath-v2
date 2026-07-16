@@ -457,8 +457,15 @@ export function computeHandOpenness(landmarks: Pt[]): number {
  * signal the retired index-jab tap-click watched; palm-click (a whole-hand
  * close-then-open) is now the sole `tap` source, because a jab's driving signal
  * rides the SAME index finger that steers the cursor, so jabbing dragged the
- * aim along with it. The helper is KEPT (shared geometry, still exercised by
- * tests) but is no longer wired to any recognizer.
+ * aim along with it.
+ *
+ * DEAD BY DESIGN — RETAINED DELIBERATELY. This helper is wired to no recognizer
+ * and has no caller outside its own tests; it is NOT shared geometry (an earlier
+ * note claimed it was). It is kept as the ready-made index-depth primitive should
+ * a forward-poke signal ever be wanted again, a decision recorded in
+ * `.planning/VERIFY-L4-gesture.md` (jab retirement, item (c)). Its tests pin the
+ * math, not a live behavior. Retiring it is a one-line delete plus its two test
+ * blocks — do that rather than let it rot into something that looks load-bearing.
  *
  * MediaPipe carries a per-landmark `z` (roughly metric depth in the same scale
  * as x, with SMALLER/more-negative = closer to the camera). Diffing the index

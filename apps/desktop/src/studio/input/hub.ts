@@ -26,6 +26,7 @@ import type {
   StudioPhaseInput,
   StudioStageRect,
 } from "./types";
+import { HOVER_PRIORITY } from "./types";
 import { clamp01 } from "./clamp";
 
 export type StudioInputHubOptions = {
@@ -95,7 +96,7 @@ export class StudioInputHub implements StudioInputBus {
    */
   private scrollSuppressed = false;
 
-  /** Built-in rect-based DOM hover provider (priority 0). */
+  /** Built-in rect-based DOM hover provider (HOVER_PRIORITY.domRects — the floor). */
   private readonly domRects = new Map<string, () => DOMRect>();
 
   private hoverScheduled = false;
@@ -183,7 +184,7 @@ export class StudioInputHub implements StudioInputBus {
   private buildDomProvider(): HoverProvider {
     return {
       id: "dom-rects",
-      priority: 0,
+      priority: HOVER_PRIORITY.domRects,
       resolve: (cursor) => {
         if (!cursor.active) return null;
         const rect = this.getStageRect();
