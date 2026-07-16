@@ -28,6 +28,7 @@ import {
 import {
   Calendar,
   type LucideIcon,
+  Newspaper,
   Search,
   Settings,
   Users,
@@ -98,6 +99,9 @@ const MAIN_ITEMS: readonly NavItem[] = [
   },
   { href: "/journaling", label: "Journal", dimensional: PageIcon },
   { href: "/captures", label: "Captures", dimensional: CaptureIcon },
+  // No dimensional briefing icon exists yet, so it stays a lucide glyph until
+  // it earns a mascot (same rule as /nutrition above).
+  { href: "/briefing", label: "Briefing", icon: Newspaper },
   { href: "/people", label: "People", icon: Users },
   { href: "/wiki", label: "Wiki", dimensional: FolderIcon },
   { href: "/calendar", label: "Calendar", icon: Calendar },
