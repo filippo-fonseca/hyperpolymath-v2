@@ -65,20 +65,31 @@ export function PagesListClient({
   const foldersKey = tableKey("page_folders", userId);
   const fieldDefsKey = ["page-field-definitions", userId] as const;
 
+  // Wiki-home entity queries refetch on every mount. The global QueryClient
+  // runs refetchOnMount:false (initialData sticks across remounts), and Realtime
+  // only refetches *active* observers — so a rename/create/delete made inside a
+  // page view (while /wiki is unmounted) leaves the cached list stale, and a
+  // same-tab return to /wiki shows the old title until a hard refresh. Forcing a
+  // mount-time refetch here makes create/rename/delete propagate live across
+  // every wiki surface (cards, list, rail) on navigate-back, complementing the
+  // Realtime subscriptions above which cover the concurrent-tab case.
   const { data: allPages = [] } = useQuery({
     queryKey: pagesKey,
     queryFn: () => getPagesForCurrentUser(),
     initialData: initialPages,
+    refetchOnMount: "always",
   });
   const { data: folders = [] } = useQuery({
     queryKey: foldersKey,
     queryFn: () => getFoldersForCurrentUser(),
     initialData: initialFolders,
+    refetchOnMount: "always",
   });
   const { data: folderProjects = [] } = useQuery({
     queryKey: tableKey("folder_projects", userId),
     queryFn: () => getFolderProjectsForCurrentUser(),
     initialData: initialFolderProjects,
+    refetchOnMount: "always",
   });
   // See wave-1 for why projects / fieldDefinitions aren't seeded with []:
   // the global QueryClient runs refetchOnMount:false, so a seed sticks.
@@ -96,6 +107,7 @@ export function PagesListClient({
     queryKey: ["daily-pages", userId],
     queryFn: () => getDailyPagesForCurrentUser(),
     initialData: initialDailyPages,
+    refetchOnMount: "always",
   });
 
   // Wave-3: ensure today's Daily Page exists without navigating. Coordinates
