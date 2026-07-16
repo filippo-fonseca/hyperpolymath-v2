@@ -14,13 +14,14 @@ import {
   siteNameFrom,
   youtubeVideoId,
 } from "./classify";
+import { assertHostAllowed } from "./ssrf";
 import type { LinkPreviewProviderData, LinkPreviewResult } from "./types";
 
 const FETCH_TIMEOUT_MS = 6000;
 const MAX_HTML_BYTES = 1_500_000; // don't parse enormous pages
 const MAX_REDIRECTS = 3;
 const USER_AGENT =
-  "Mozilla/5.0 (compatible; HyperpolymathLinkPreview/1.0; +https://hyperpolymath.app)";
+  "Mozilla/5.0 (compatible; HyperpolymathLinkPreview/1.0; +https://hyperpolymath.com)";
 
 function truncate(s: string | null | undefined, n = 500): string | null {
   if (!s) return null;
@@ -112,6 +113,7 @@ async function assertSafeHost(url: URL): Promise<void> {
  * private-IP target that was reached via a public 302.
  */
 async function fetchWithTimeout(url: string, accept: string): Promise<Response> {
+  // One controller across all hops so the total time budget still caps at 6s.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -334,6 +336,43 @@ async function fetchTwitter(url: string): Promise<LinkPreviewResult> {
     providerData: provider,
     error: null,
   };
+}
+
+/**
+ * Read a response body as text, capping at MAX_HTML_BYTES via a streamed reader so
+ * a hostile huge response never buffers fully into memory. The download is cancelled
+ * once the byte budget is reached. Decodes only up to MAX_HTML_BYTES (matches the
+ * previous slice-then-decode semantics).
+ */
+async function readCappedText(res: Response): Promise<string> {
+  if (!res.body) {
+    // Bodyless response (rare): keep prior behavior.
+    return (await res.text()).slice(0, MAX_HTML_BYTES);
+  }
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    const remaining = MAX_HTML_BYTES - received;
+    if (value.length >= remaining) {
+      chunks.push(value.subarray(0, remaining));
+      received += remaining;
+      await reader.cancel(); // stop the download once the cap is hit
+      break;
+    }
+    chunks.push(value);
+    received += value.length;
+  }
+  const merged = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return new TextDecoder("utf-8").decode(merged);
 }
 
 async function fetchGeneric(url: string): Promise<LinkPreviewResult> {
