@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { toast } from "sonner";
 import { CaptureComposer } from "./CaptureComposer";
 import { CaptureDetailPanel } from "./CaptureDetailPanel";
+import { CaptureGraphView } from "./CaptureGraphView";
 import { CaptureSearch } from "./CaptureSearch";
 import { CapturesFeed } from "./CapturesFeed";
 import { HashtagSidebar } from "./HashtagSidebar";
@@ -158,6 +159,10 @@ export function CapturesClient({
   // URL-driven (?capture=<id>) so the person profile card can deep-link into a
   // specific capture and open its detail panel.
   const [selectedCaptureId, setSelectedCaptureId] = useQueryState("capture", parseAsString);
+  // List ⇄ graph (S10). URL-driven like the other view state, so the graph is
+  // linkable and survives a reload; anything but "graph" reads as the list.
+  const [viewParam, setViewParam] = useQueryState("view", parseAsString);
+  const isGraphView = viewParam === "graph";
 
   // -- Data plane ---------------------------------------------------------
   // queryFn closes over `activeTagId` so the query refetches when the nuqs
@@ -227,6 +232,15 @@ export function CapturesClient({
   // hashtags subscription — picks up newly-auto-created tags so they appear
   // in the sidebar even before a capture references them via the join.
   useTableSubscription("hashtags", userId);
+
+  // entity_references drives two of the graph's four layers (direct mentions
+  // and shared subjects), and a reference is typically written from a surface
+  // other than this one — @-mention a task inside a capture elsewhere and this
+  // graph has to restructure without a reload. Fans out to the captures key,
+  // which the graph query is nested under.
+  useTableSubscription("entity_references", userId, {
+    alsoInvalidate: [tableKey("captures", userId)],
+  });
 
   // -- Optimistic plane (RT-06 self-reconciling) --------------------------
   // Pending inserts/updates/deletes persist until the canonical feed catches
@@ -420,17 +434,52 @@ export function CapturesClient({
         />
       </aside>
       <div className="flex-1 flex flex-col p-6 gap-4 overflow-hidden min-w-0">
-        {/* Daily resurfacing — pinned to the top; hides itself when empty. */}
-        <ResurfacingSection
-          captures={resurfacing}
-          onSelect={(c) => setSelectedCaptureId(c.id)}
-          onDismiss={handleDismissResurface}
-        />
-        <CaptureSearch
-          activeHashtagId={activeTagId}
-          onResults={handleSearchResults}
-          onQueryChange={handleSearchQueryChange}
-        />
+        {/* Daily resurfacing — pinned to the top; hides itself when empty.
+            The graph is its own reading mode, so the list-view furniture
+            (resurfacing, text search) steps aside for it. */}
+        {!isGraphView && (
+          <ResurfacingSection
+            captures={resurfacing}
+            onSelect={(c) => setSelectedCaptureId(c.id)}
+            onDismiss={handleDismissResurface}
+          />
+        )}
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            {!isGraphView && (
+              <CaptureSearch
+                activeHashtagId={activeTagId}
+                onResults={handleSearchResults}
+                onQueryChange={handleSearchQueryChange}
+              />
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5 rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-0.5">
+            {(
+              [
+                ["list", "List"],
+                ["graph", "Graph"],
+              ] as const
+            ).map(([value, label]) => {
+              const active = (value === "graph") === isGraphView;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setViewParam(value === "graph" ? "graph" : null)}
+                  className={`rounded-[8px] px-2.5 py-1 font-mono text-[11px] transition-colors ${
+                    active
+                      ? "bg-[var(--sd-hover)] text-[var(--sd-ink)]"
+                      : "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="sticky top-0 z-10">
           <CaptureComposer
             userId={userId}
@@ -441,38 +490,44 @@ export function CapturesClient({
             onOptimisticRevert={handleOptimisticRevert}
           />
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {/* Phase 6 Plan 06-02 (RES-03, AES-04, UI-SPEC §9): brand-voice empty
+        {isGraphView ? (
+          <div className="min-h-0 flex-1">
+            <CaptureGraphView userId={userId} onSelectCapture={setSelectedCaptureId} />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            {/* Phase 6 Plan 06-02 (RES-03, AES-04, UI-SPEC §9): brand-voice empty
               state when the inbox is truly empty (no captures, no filter, no
               search). CapturesFeed retains its own filter/search empty states. */}
-          {optimisticCaptures.length === 0 && !activeTagId && searchResultIds === null ? (
-            <EmptyState
-              heading="The inbox is quiet."
-              body="Type anything — a thought, a link, a fragment. JARVIS will sort it out."
-            />
-          ) : (
-            <CapturesFeed
-              captures={filtered}
-              activeHashtagId={activeTagId}
-              isSearchActive={searchResultIds !== null}
-              isFavoritesActive={favoritesOnly}
-              // Issue #139 — only highlight while a search is actually active
-              // (results gated, not just typing). Cleared automatically when
-              // searchResultIds returns to null (empty field / Clear search).
-              searchQuery={searchResultIds !== null ? searchQuery : ""}
-              onClearHashtag={() => setActiveTagId(null)}
-              onClearSearch={() => handleSearchResults(null)}
-              onClearFavorites={() => setFavoriteFilter(null)}
-              onSelectCapture={(c) => setSelectedCaptureId(c.id)}
-              onOptimisticDelete={handleOptimisticDelete}
-              onDeleteCapture={handleDeleteCapture}
-              onToggleFavorite={handleToggleFavorite}
-              userAvatarUrl={userAvatarUrl}
-              userInitials={userInitials}
-              availableProjects={projects}
-            />
-          )}
-        </div>
+            {optimisticCaptures.length === 0 && !activeTagId && searchResultIds === null ? (
+              <EmptyState
+                heading="The inbox is quiet."
+                body="Type anything — a thought, a link, a fragment. JARVIS will sort it out."
+              />
+            ) : (
+              <CapturesFeed
+                captures={filtered}
+                activeHashtagId={activeTagId}
+                isSearchActive={searchResultIds !== null}
+                isFavoritesActive={favoritesOnly}
+                // Issue #139 — only highlight while a search is actually active
+                // (results gated, not just typing). Cleared automatically when
+                // searchResultIds returns to null (empty field / Clear search).
+                searchQuery={searchResultIds !== null ? searchQuery : ""}
+                onClearHashtag={() => setActiveTagId(null)}
+                onClearSearch={() => handleSearchResults(null)}
+                onClearFavorites={() => setFavoriteFilter(null)}
+                onSelectCapture={(c) => setSelectedCaptureId(c.id)}
+                onOptimisticDelete={handleOptimisticDelete}
+                onDeleteCapture={handleDeleteCapture}
+                onToggleFavorite={handleToggleFavorite}
+                userAvatarUrl={userAvatarUrl}
+                userInitials={userInitials}
+                availableProjects={projects}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <CaptureDetailPanel
