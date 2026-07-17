@@ -140,9 +140,7 @@ describeDb("capture graph SQL", () => {
     const projEdges = graph.edges.filter((e) => e.kind === "shared_project");
 
     expect(projEdges).toHaveLength(1);
-    expect([projEdges[0].source, projEdges[0].target].sort()).toEqual(
-      [capA, capC].sort(),
-    );
+    expect([projEdges[0].source, projEdges[0].target].sort()).toEqual([capA, capC].sort());
   });
 
   it("scopes every layer to the owning user", async () => {

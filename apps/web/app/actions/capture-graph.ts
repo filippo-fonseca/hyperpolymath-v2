@@ -1,10 +1,7 @@
 "use server";
 
 import type { CaptureGraph } from "@/lib/captures/graph-edges";
-import {
-  EMPTY_CAPTURE_GRAPH,
-  buildCaptureGraphForUser,
-} from "@/lib/db/queries/capture-graph";
+import { EMPTY_CAPTURE_GRAPH, buildCaptureGraphForUser } from "@/lib/db/queries/capture-graph";
 import { createClient } from "@/lib/supabase/server";
 
 /**

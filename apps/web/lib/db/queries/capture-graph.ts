@@ -105,10 +105,7 @@ export async function buildCaptureGraphForUser(userId: string): Promise<CaptureG
       .from(capturesHashtags)
       .innerJoin(hashtags, eq(hashtags.id, capturesHashtags.hashtagId))
       .where(
-        and(
-          eq(capturesHashtags.userId, userId),
-          inArray(capturesHashtags.captureId, captureIds),
-        ),
+        and(eq(capturesHashtags.userId, userId), inArray(capturesHashtags.captureId, captureIds))
       ),
 
     // Node decoration: project ids per capture.
@@ -116,10 +113,7 @@ export async function buildCaptureGraphForUser(userId: string): Promise<CaptureG
       .select({ captureId: capturesProjects.captureId, value: capturesProjects.projectId })
       .from(capturesProjects)
       .where(
-        and(
-          eq(capturesProjects.userId, userId),
-          inArray(capturesProjects.captureId, captureIds),
-        ),
+        and(eq(capturesProjects.userId, userId), inArray(capturesProjects.captureId, captureIds))
       ),
 
     // shared_hashtag: pair captures on a common tag, weight = tags in common.
@@ -133,15 +127,15 @@ export async function buildCaptureGraphForUser(userId: string): Promise<CaptureG
       .from(ch1)
       .innerJoin(
         ch2,
-        and(eq(ch2.hashtagId, ch1.hashtagId), sql`${ch1.captureId} < ${ch2.captureId}`),
+        and(eq(ch2.hashtagId, ch1.hashtagId), sql`${ch1.captureId} < ${ch2.captureId}`)
       )
       .where(
         and(
           eq(ch1.userId, userId),
           eq(ch2.userId, userId),
           inArray(ch1.captureId, captureIds),
-          inArray(ch2.captureId, captureIds),
-        ),
+          inArray(ch2.captureId, captureIds)
+        )
       )
       .groupBy(ch1.captureId, ch2.captureId),
 
@@ -155,15 +149,15 @@ export async function buildCaptureGraphForUser(userId: string): Promise<CaptureG
       .from(cp1)
       .innerJoin(
         cp2,
-        and(eq(cp2.projectId, cp1.projectId), sql`${cp1.captureId} < ${cp2.captureId}`),
+        and(eq(cp2.projectId, cp1.projectId), sql`${cp1.captureId} < ${cp2.captureId}`)
       )
       .where(
         and(
           eq(cp1.userId, userId),
           eq(cp2.userId, userId),
           inArray(cp1.captureId, captureIds),
-          inArray(cp2.captureId, captureIds),
-        ),
+          inArray(cp2.captureId, captureIds)
+        )
       )
       .groupBy(cp1.captureId, cp2.captureId),
 
@@ -183,8 +177,8 @@ export async function buildCaptureGraphForUser(userId: string): Promise<CaptureG
           eq(entityReferences.sourceType, "capture"),
           eq(entityReferences.targetType, "capture"),
           inArray(entityReferences.sourceId, captureIds),
-          inArray(entityReferences.targetId, captureIds),
-        ),
+          inArray(entityReferences.targetId, captureIds)
+        )
       ),
 
     // co_reference: two captures pointing at the same non-capture target.
@@ -204,8 +198,8 @@ export async function buildCaptureGraphForUser(userId: string): Promise<CaptureG
         and(
           eq(er2.targetType, er1.targetType),
           eq(er2.targetId, er1.targetId),
-          sql`${er1.sourceId} < ${er2.sourceId}`,
-        ),
+          sql`${er1.sourceId} < ${er2.sourceId}`
+        )
       )
       .where(
         and(
@@ -215,8 +209,8 @@ export async function buildCaptureGraphForUser(userId: string): Promise<CaptureG
           eq(er2.sourceType, "capture"),
           ne(er1.targetType, "capture"),
           inArray(er1.sourceId, captureIds),
-          inArray(er2.sourceId, captureIds),
-        ),
+          inArray(er2.sourceId, captureIds)
+        )
       )
       .groupBy(er1.sourceId, er2.sourceId, er1.targetType, er1.targetId),
   ]);
@@ -225,7 +219,7 @@ export async function buildCaptureGraphForUser(userId: string): Promise<CaptureG
 
   const typedCoReferencePairs: RawCoReferencePair[] = coReferencePairs
     .filter((row): row is typeof row & { targetType: CoReferenceTargetType } =>
-      CO_REFERENCE_TARGET_TYPES.includes(row.targetType as CoReferenceTargetType),
+      CO_REFERENCE_TARGET_TYPES.includes(row.targetType as CoReferenceTargetType)
     )
     .map((row) => ({
       a: row.a,
@@ -263,7 +257,7 @@ export async function buildCaptureGraphForUser(userId: string): Promise<CaptureG
  */
 async function resolveTargetLabels(
   userId: string,
-  pairs: RawCoReferencePair[],
+  pairs: RawCoReferencePair[]
 ): Promise<Map<string, string>> {
   const idsByType = new Map<CoReferenceTargetType, Set<string>>();
   for (const pair of pairs) {
@@ -290,7 +284,7 @@ async function resolveTargetLabels(
 async function selectLabels(
   type: CoReferenceTargetType,
   userId: string,
-  ids: string[],
+  ids: string[]
 ): Promise<Array<{ id: string; label: string }>> {
   switch (type) {
     case "task":
