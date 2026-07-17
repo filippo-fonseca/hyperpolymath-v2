@@ -18,6 +18,10 @@ import { ensureEntityPeople, scheduleEntityPeopleDerivation } from "@/lib/people
 import { mergeContentUrls } from "@/lib/url";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import {
+  deleteReferencesForEntity,
+  reconcileEntityReferencesFromText,
+} from "@/lib/references/reconcile";
 import { upsertHashtag } from "./hashtags";
 import { reconcilePersonReferencesForUser, resolveOrCreatePersonForUser } from "./people";
 
@@ -127,6 +131,16 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
         );
       }
     }
+
+    // Index any @[label](ref://type/uuid) tokens the content carries. Inside
+    // the transaction because the tokens and the index have to agree: a rolled
+    // back capture must not leave references to a capture that never existed.
+    await reconcileEntityReferencesFromText(tx, {
+      userId,
+      sourceType: "capture",
+      sourceId: cap.id,
+      text: parsed.data.content,
+    });
 
     return cap.id;
   });
@@ -314,6 +328,20 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
         }
       }
     }
+
+    // Re-index references, but only when the content itself changed: the tokens
+    // live in the content, so a url-, hashtag-, or resurface-only edit leaves
+    // them exactly as they were. Reconciling anyway would be a no-op today and
+    // a silent unlink the moment this action grows a path that updates a
+    // capture without carrying its text.
+    if (parsed.data.content !== undefined) {
+      await reconcileEntityReferencesFromText(tx, {
+        userId,
+        sourceType: "capture",
+        sourceId: parsed.data.id,
+        text: parsed.data.content,
+      });
+    }
   });
 
   // Phase C: reconcile @-mentioned people for this capture. Only when the field
@@ -415,7 +443,15 @@ export async function deleteCapture(id: string): Promise<ActionResult<null>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
   if (!z.string().uuid().safeParse(id).success) return { success: false, error: "Invalid id" };
-  await db.delete(captures).where(and(eq(captures.id, id), eq(captures.userId, userId)));
+  await db.transaction(async (tx) => {
+    // entity_references has no FK to cascade through (both its ends are
+    // polymorphic), so the rows go by hand or they outlive the capture. Both
+    // directions: what this capture referenced, and what referenced it.
+    // Per the sealed delete policy the tokens pointing here are left alone —
+    // they're the author's own words, and they render as tombstones.
+    await deleteReferencesForEntity(tx, { userId, type: "capture", id });
+    await tx.delete(captures).where(and(eq(captures.id, id), eq(captures.userId, userId)));
+  });
   // Phase 3 D-12: no manual cache busting — Realtime + TanStack Query own refresh.
   return { success: true, data: null };
 }

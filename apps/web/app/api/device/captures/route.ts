@@ -8,6 +8,10 @@ import { captures, capturesHashtags } from "@/lib/db/schema";
 import { getCapturesForUser } from "@/lib/db/queries/captures";
 import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
 import { scheduleEntityPeopleDerivation } from "@/lib/people/derive";
+import {
+  deleteReferencesForEntity,
+  reconcileEntityReferencesFromText,
+} from "@/lib/references/reconcile";
 import { mergeContentUrls } from "@/lib/url";
 
 export const runtime = "nodejs";
@@ -86,6 +90,15 @@ export async function POST(req: NextRequest): Promise<Response> {
         .values({ captureId: id, hashtagId: upserted.id, userId })
         .onConflictDoNothing();
     }
+    // Index reference tokens in the body (parity with the web create path):
+    // a capture synced from the desktop app carries the same text, so it has
+    // to land the same rows.
+    await reconcileEntityReferencesFromText(tx, {
+      userId,
+      sourceType: "capture",
+      sourceId: id,
+      text: content,
+    });
   });
   // Issue #221: fetch rich link previews for URLs in the capture. Fail-soft.
   scheduleLinkPreviews(userId, content);
@@ -132,6 +145,14 @@ export async function PATCH(req: NextRequest): Promise<Response> {
           updatedAt: new Date(),
         })
         .where(and(eq(captures.id, body.id as string), eq(captures.userId, userId)));
+      // Re-index against the text actually stored — the truncated nextContent,
+      // not the raw body: a token straddling the 20k cut is no longer a token.
+      await reconcileEntityReferencesFromText(tx, {
+        userId,
+        sourceType: "capture",
+        sourceId: body.id as string,
+        text: nextContent,
+      });
     }
     if (Array.isArray(body.hashtagNames)) {
       await tx
@@ -165,7 +186,12 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   if (!identity) return new Response("Unauthorized", { status: 401, headers: CORS });
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return bad("id required");
-  await db.delete(captures).where(and(eq(captures.id, id), eq(captures.userId, identity.userId)));
+  await db.transaction(async (tx) => {
+    // No FK to cascade through; drop both directions by hand (parity with
+    // deleteCapture).
+    await deleteReferencesForEntity(tx, { userId: identity.userId, type: "capture", id });
+    await tx.delete(captures).where(and(eq(captures.id, id), eq(captures.userId, identity.userId)));
+  });
   return Response.json({ ok: true }, { headers: CORS });
 }
 
