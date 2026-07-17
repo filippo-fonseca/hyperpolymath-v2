@@ -12,8 +12,8 @@
  * and an inline spec rendering in the editor both need this, and neither should
  * have to drag React or the DB layer along to get it.
  *
- * The marks are typographic rather than pictographic, which is what lets them
- * sit inline at 0.82em without fighting the prose around them.
+ * The four original marks are typographic rather than pictographic, which is
+ * what lets them sit inline at 0.82em without fighting the prose around them.
  */
 
 import type { EntityRefType } from "./token";
@@ -26,9 +26,14 @@ import type { EntityRefType } from "./token";
  * referenced in a new one (an `entityReference` node) must read identically, or
  * the migration to the universal node becomes visible to the user as a
  * cosmetic split.
+ *
+ * `capture` breaks the typographic pattern on purpose. The obvious mark for it
+ * is "◇", but `area` is already "◆" — the two would differ by fill alone, which
+ * at this size is not a distinction a reader can rely on. A pencil is
+ * unambiguous at any size and reads as the jotted note a capture is.
  */
 export const ENTITY_KIND_GLYPH: Record<EntityRefType, string> = {
-  capture: "✳",
+  capture: "✎",
   task: "✓",
   page: "¶",
   project: "▸",
