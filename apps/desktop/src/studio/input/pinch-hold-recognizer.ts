@@ -30,8 +30,15 @@ export type PinchHoldConfig = {
   holdMs: number;
 };
 
+/**
+ * The live grab threshold. gesture-core is authoritative and always passes its
+ * own `grabHoldMs` (which pinch-bloom SHARES, giving tap/grab exact mutual
+ * exclusion), so this default is never the value in flight — it is kept in sync
+ * with it so the module doesn't misreport the live threshold to anyone reading
+ * it. Retune `grabHoldMs` in gesture-core, not here.
+ */
 export const DEFAULT_PINCH_HOLD: PinchHoldConfig = {
-  holdMs: 250,
+  holdMs: 350,
 };
 
 export type PinchHoldRecognizer = {

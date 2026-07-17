@@ -30,6 +30,7 @@
  * the page down" feel. Framework/DOM-free; unit-tested with synthetic streams.
  */
 
+import { clamp } from "./clamp";
 import type { StudioPhaseInput } from "./types";
 
 export type FistScrollSample = {
@@ -77,9 +78,6 @@ export type FistScrollRecognizer = {
   /** Current latched interaction for the active fist ("idle" until an axis wins). */
   readonly mode: FistScrollMode;
 };
-
-const clamp = (v: number, lo: number, hi: number): number =>
-  v < lo ? lo : v > hi ? hi : v;
 
 /**
  * Creates a fist-drag scroll recognizer. `onEvent` receives a targetless

@@ -23,6 +23,7 @@
  * `scrollBy` per frame. Framework/DOM-free; unit-tested with synthetic streams.
  */
 
+import { clamp } from "./clamp";
 import type { StudioPhaseInput } from "./types";
 
 export type IndexScrollSample = {
@@ -55,9 +56,6 @@ export type IndexScrollRecognizer = {
   push(sample: IndexScrollSample): void;
   reset(): void;
 };
-
-const clamp = (v: number, lo: number, hi: number): number =>
-  v < lo ? lo : v > hi ? hi : v;
 
 /**
  * Creates an index-scroll recognizer. `onEvent` receives a targetless
