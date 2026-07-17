@@ -1,6 +1,7 @@
 import { GlobalJarvisDialog } from "@/components/jarvis/GlobalJarvisDialog";
 import { GlobalJarvisHandler } from "@/components/jarvis/GlobalJarvisHandler";
 import { JarvisWarmer } from "@/components/jarvis/JarvisWarmer";
+import { CurrentUserProvider } from "@/components/providers/CurrentUserProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AppShell } from "@/components/shell/AppShell";
 import { CommandMenu } from "@/components/shell/CommandMenu";
@@ -59,6 +60,9 @@ export default async function AppLayout({
   return (
     <NuqsAdapter>
       <QueryProvider>
+        {/* Publishes user.id to client leaves (entity pills key their label
+            cache on it) without threading it through every component between. */}
+        <CurrentUserProvider userId={user.id}>
         <SearchProvider userId={user.id} initialSnapshot={searchSnapshot}>
           {/* NavHistoryProvider — in-memory Back/Forward stack. Must wrap both
             AppShell (TopTabBar → NavArrows) and GlobalHotkeys (⌘[ / ⌘]). */}
@@ -119,6 +123,7 @@ export default async function AppLayout({
             WAKE_WORD_DETECTED into the mic FSM. */}
           <PhysicalExtensionListener />
         </SearchProvider>
+        </CurrentUserProvider>
       </QueryProvider>
     </NuqsAdapter>
   );

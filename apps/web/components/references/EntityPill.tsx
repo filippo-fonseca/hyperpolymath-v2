@@ -1,0 +1,170 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { entityHref } from "@/lib/entity-href";
+import type { EntityRef, EntityRefType } from "@/lib/references/token";
+import { cn } from "@/lib/utils";
+import { useResolvedLabel } from "./use-entity-labels";
+
+/**
+ * The rendered form of a reference token (S7).
+ *
+ * One pill, every surface: a capture body, a task title, a JARVIS bubble, a
+ * search result. The token in the text is the same everywhere, so the chip it
+ * becomes should be too.
+ *
+ * Three states, and the distinction between the last two matters:
+ *   - resolved      → the live label, navigable.
+ *   - unresolved    → the snapshot label, still navigable. Nothing has answered
+ *                     yet (no provider above it, or the batch is in flight).
+ *                     Optimistic on purpose: assuming the target exists is
+ *                     right almost always, and it means pills never flicker
+ *                     from tombstone to live as a query settles.
+ *   - exists: false → tombstone. The server looked and the target is gone.
+ *
+ * Never an `<a>`: an anchor would need an href on the tombstone too, and app
+ * navigation here goes through the router like every other chip in the app
+ * (see components/pages/EntityReferenceInline.tsx for the editor's variant,
+ * which *is* an anchor precisely because it must survive a copy-paste out of a
+ * document). No innerHTML anywhere — the label is text, and text is a child.
+ */
+
+/** Per-kind glyph. Extends the wiki chip's map (EntityReferenceInline) with the two new kinds. */
+const KIND_GLYPH: Record<EntityRefType, string> = {
+  area: "◆",
+  project: "▸",
+  task: "✓",
+  page: "¶",
+  capture: "✎",
+  person: "@",
+};
+
+/** Human-facing kind name, for the tooltip's header and the a11y label. */
+const KIND_NAME: Record<EntityRefType, string> = {
+  area: "Area",
+  project: "Project",
+  task: "Task",
+  page: "Page",
+  capture: "Capture",
+  person: "Person",
+};
+
+export function EntityPill({
+  entityRef,
+  className,
+}: {
+  entityRef: EntityRef;
+  className?: string;
+}) {
+  const router = useRouter();
+  const resolved = useResolvedLabel(entityRef.type, entityRef.id);
+
+  // Only an explicit exists:false is a tombstone. Undefined means unanswered.
+  const isTombstone = resolved?.exists === false;
+  const snapshot = entityRef.label.trim();
+  // An entity can be real and still have no name (an untitled page), so fall
+  // through the ladder rather than trusting the live label's mere presence.
+  const label = resolved?.label.trim() || snapshot || "Untitled";
+  const glyph = resolved?.emoji || KIND_GLYPH[entityRef.type];
+  const kindName = KIND_NAME[entityRef.type];
+
+  const body = (
+    <>
+      <span className="entity-pill-glyph" aria-hidden="true">
+        {glyph}
+      </span>
+      <span className="entity-pill-label">{label}</span>
+    </>
+  );
+
+  if (isTombstone) {
+    return (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className={cn("entity-pill entity-pill-tombstone", className)}
+              data-kind={entityRef.type}
+              data-tombstone="true"
+            >
+              {body}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{`${kindName} · deleted`}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className={cn("entity-pill", className)}
+            data-kind={entityRef.type}
+            aria-label={`${kindName}: ${label}`}
+            onClick={(e) => {
+              // Cards and rows are themselves clickable; opening the card
+              // *and* the reference on one click would be a race.
+              e.stopPropagation();
+              router.push(
+                entityHref({ kind: entityRef.type, id: entityRef.id }),
+              );
+            }}
+          >
+            {body}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[280px] normal-case tracking-normal">
+          <EntityPreview
+            kindName={kindName}
+            label={label}
+            sublabel={resolved?.sublabel}
+            context={resolved?.context}
+          />
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+/**
+ * The hover card: what this thing is, what it's called, and a couple of lines
+ * of it. Deliberately thin — it reads from the resolve payload the pills
+ * already fetched, so hovering costs nothing extra.
+ */
+function EntityPreview({
+  kindName,
+  label,
+  sublabel,
+  context,
+}: {
+  kindName: string;
+  label: string;
+  sublabel?: string;
+  context?: string;
+}) {
+  return (
+    <span className="flex flex-col gap-1 py-0.5 text-left">
+      <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+        {sublabel ? `${kindName} · ${sublabel}` : kindName}
+      </span>
+      <span className="text-[13px] leading-[1.35] text-[var(--sd-ink)]">
+        {label}
+      </span>
+      {context ? (
+        <span className="line-clamp-2 text-[12px] leading-[1.4] text-[var(--sd-ink-dull)]">
+          {context}
+        </span>
+      ) : null}
+    </span>
+  );
+}
