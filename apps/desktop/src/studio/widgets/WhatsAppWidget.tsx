@@ -1,8 +1,17 @@
 import * as React from "react";
 import { ChevronLeft } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { WhatsappIcon } from "@hyperpolymath/ui-icons";
 
-import { STUDIO_COLORS, STUDIO_MONO, STUDIOLO } from "../tokens";
+import {
+  SD_ACCENT,
+  SD_DURATION,
+  SD_FONT,
+  SD_FUNCTIONAL,
+  SD_INK,
+  SD_RADIUS,
+  SD_SURFACES,
+} from "../tokens";
 import type { WidgetContentProps } from "../windows/catalog";
 import { fetchStudioWidget } from "./widget-fetch";
 import {
@@ -111,12 +120,77 @@ function useContactName(jid: string): string | null {
   return name;
 }
 
-const uppercaseLabel: React.CSSProperties = {
-  color: STUDIO_COLORS.muted,
-  fontFamily: STUDIO_MONO,
-  fontSize: 9,
-  letterSpacing: "0.08em",
+/* ── The sd register, hand-rolled ──────────────────────────────────────────
+ * apps/desktop has no Tailwind, so the contract's class strings (`text-tiny`,
+ * `rounded-[14px]`, `bg-[var(--sd-box)]`) cannot be emitted here. Inline style is
+ * the sanctioned route (DS §23) and the default mechanism in this app.
+ *
+ * These read the TS mirror in tokens.ts rather than `var(--sd-*)` on purpose:
+ * only the debug harness imports sd-tokens.css today — index.html is unit 3's
+ * fence and is not wired to it yet — so a `var()` lookup would resolve to
+ * nothing in the shipped Tauri app. The constants are the same values as
+ * literals, so they are correct in both. Swap to `var()` once unit 3 lands.
+ */
+
+/** Mono eyebrow (DS §3): the caption face, 11px, uppercase, wide tracking. */
+const monoEyebrow: React.CSSProperties = {
+  color: SD_INK.faint,
+  fontFamily: SD_FONT.mono,
+  fontSize: 11,
+  fontWeight: 500,
+  letterSpacing: "0.1em",
   textTransform: "uppercase",
+};
+
+/** Mono micro-caption for timestamps — the eyebrow face one step down. */
+const monoCaption: React.CSSProperties = {
+  color: SD_INK.faint,
+  fontFamily: SD_FONT.mono,
+  fontSize: 10,
+  fontVariantNumeric: "tabular-nums",
+};
+
+/** The verbatim chip (DS §10) in its cyan tone: text in the hue, border a 30%
+ *  mix into the line, fill a 15% mix into the box. Never an accent-filled pill. */
+const cyanChip: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  flexShrink: 0,
+  padding: "1px 6px",
+  borderRadius: SD_RADIUS.chip,
+  border: `1px solid color-mix(in srgb, ${SD_ACCENT} 30%, ${SD_SURFACES.line})`,
+  color: SD_ACCENT,
+  background: `color-mix(in srgb, ${SD_ACCENT} 15%, ${SD_SURFACES.box})`,
+  fontSize: 10.4 /* text-tiny, 0.65rem */,
+  fontWeight: 500,
+  letterSpacing: "0.02em",
+};
+
+const hairline = `1px solid ${SD_SURFACES.line}`;
+
+/** Inner content goes SOLID (sealed D1): glass is for chrome, and this is
+ *  inside the chrome. Space Grotesk is set here because index.html still hands
+ *  down -apple-system until unit 3 rewires it. */
+const contentRoot: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  height: "100%",
+  minHeight: 0,
+  color: SD_INK.base,
+  background: SD_SURFACES.box,
+  fontFamily: SD_FONT.sans,
+};
+
+/** A 6px status dot — the one shape the accent is allowed to take on a row
+ *  (DS §2), paired with the neutral backplate of the two-tier law (DS §4). */
+const unreadDot: React.CSSProperties = {
+  display: "block",
+  width: 6,
+  height: 6,
+  flexShrink: 0,
+  borderRadius: "50%",
+  background: SD_ACCENT,
 };
 
 // ── Chat list view ──────────────────────────────────────────────────────────
@@ -136,13 +210,15 @@ function ChatList({
   });
 
   if (isLoading) {
-    return <div style={{ height: "100%", background: STUDIO_COLORS.surface }} />;
+    return <div style={{ height: "100%", background: SD_SURFACES.box }} />;
   }
   if (error) {
     return (
-      <p style={{ padding: 16, color: STUDIO_COLORS.danger, fontSize: 12 }}>
-        {error.message}
-      </p>
+      <div style={contentRoot}>
+        <p style={{ padding: 16, margin: 0, color: SD_FUNCTIONAL.coral, fontSize: 12 }}>
+          {error.message}
+        </p>
+      </div>
     );
   }
 
@@ -150,39 +226,60 @@ function ChatList({
   const attentionCount = chats.filter((c) => c.attention).length;
 
   return (
-    <div style={{ height: "100%", overflowY: "auto", padding: 12 }}>
+    <div style={contentRoot}>
+      {/* Header: the feature's dimensional icon (DS §13 — nouns get dimensional
+          icons) + a mono eyebrow + the unreplied count as a tinted chip. */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 8,
-          ...uppercaseLabel,
+          gap: 8,
+          flexShrink: 0,
+          padding: "9px 10px",
+          borderBottom: hairline,
         }}
       >
-        Recent chats
+        {/* 24px: the size DS §13 says the dimensional family reads cleanly at.
+            At the 18px floor this motif silts up into a blob on --sd-box. */}
+        <WhatsappIcon size={24} />
+        <span style={{ ...monoEyebrow, minWidth: 0, flex: 1 }}>Recent chats</span>
         {attentionCount > 0 ? (
-          <span
-            style={{
-              padding: "2px 8px",
-              borderRadius: 999,
-              color: STUDIO_COLORS.background,
-              background: STUDIO_COLORS.accent,
-            }}
-          >
-            {attentionCount} unreplied
-          </span>
+          <span style={cyanChip}>{attentionCount} unreplied</span>
         ) : null}
       </div>
-      {chats.length === 0 ? (
-        <p style={{ color: STUDIO_COLORS.muted, fontSize: 12 }}>
-          {data?.note ?? "No recent messages."}
-        </p>
-      ) : null}
-      <div style={{ display: "grid", gap: 6 }}>
-        {chats.map((chat) => (
-          <ChatRow key={chat.chatJid} chat={chat} onOpenChat={onOpenChat} />
-        ))}
+
+      <div style={{ minHeight: 0, flex: 1, overflowY: "auto" }}>
+        {chats.length === 0 ? (
+          /* Empty state (DS §9): plain ink-faint copy over a 40px dimensional
+             icon at 40% opacity. No italic serif. */
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              padding: "32px 16px",
+              textAlign: "center",
+            }}
+          >
+            <span style={{ opacity: 0.4, lineHeight: 0 }}>
+              <WhatsappIcon size={40} />
+            </span>
+            <p style={{ margin: 0, color: SD_INK.faint, fontSize: 13 }}>
+              {data?.note ?? "No recent messages."}
+            </p>
+          </div>
+        ) : (
+          chats.map((chat, index) => (
+            <ChatRow
+              key={chat.chatJid}
+              chat={chat}
+              divided={index > 0}
+              onOpenChat={onOpenChat}
+            />
+          ))
+        )}
       </div>
     </div>
   );
@@ -193,69 +290,89 @@ function ChatList({
  *  asynchronously as the lookup lands — the row renders immediately regardless. */
 function ChatRow({
   chat,
+  divided,
   onOpenChat,
 }: {
   chat: ChatListItem;
+  /** Hairline above this row — every row but the first, so the header's own
+   *  hairline is not doubled. */
+  divided: boolean;
   onOpenChat: (jid: string, name: string) => void;
 }): React.ReactElement {
   const contactsName = useContactName(chat.chatJid);
   const displayName = pickContactName(contactsName, chat.chatName, chat.chatName);
+  const [hovered, setHovered] = React.useState(false);
+
+  // The two-tier selection law (DS §4): an unread row takes the NEUTRAL
+  // backplate and the accent appears only as a 6px dot on the label. The old
+  // accent border was an accent ring, which §16 bans outright.
+  const background = chat.attention
+    ? SD_SURFACES.selected
+    : hovered
+      ? SD_SURFACES.hover
+      : "transparent";
+
   return (
     <button
       type="button"
       onClick={() => onOpenChat(chat.chatJid, displayName)}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
       style={{
         display: "block",
         width: "100%",
         minHeight: MIN_TARGET_PX,
-        padding: 8,
+        padding: "8px 10px",
         textAlign: "left",
-        border: `1px solid ${chat.attention ? STUDIO_COLORS.accent : STUDIO_COLORS.rule}`,
-        borderRadius: 6,
-        color: STUDIO_COLORS.text,
-        background: chat.attention
-          ? `color-mix(in srgb, ${STUDIO_COLORS.accent} 6%, transparent)`
-          : "transparent",
+        border: 0,
+        borderTop: divided ? hairline : undefined,
+        color: SD_INK.base,
+        background,
         cursor: "pointer",
+        font: "inherit",
+        transition: `background-color ${SD_DURATION.micro}ms ease-out`,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          fontSize: 12,
-          fontWeight: 600,
-        }}
-      >
-        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-          {displayName}
+      {/* The dot lives in its own reserved gutter, so the name and the preview
+          line share one rail and read/unread rows do not shift (DS §6). */}
+      <div style={{ display: "flex", gap: 6 }}>
+        <span style={{ display: "flex", width: 6, flexShrink: 0, paddingTop: 5 }}>
+          {chat.attention ? <span style={unreadDot} /> : null}
         </span>
-        <time
-          style={{
-            flexShrink: 0,
-            color: STUDIO_COLORS.muted,
-            fontFamily: STUDIO_MONO,
-            fontSize: 9,
-          }}
-        >
-          {timeLabel(chat.lastAt)}
-        </time>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+            <span
+              style={{
+                minWidth: 0,
+                flex: 1,
+                overflow: "hidden",
+                color: chat.attention || hovered ? SD_INK.base : SD_INK.dull,
+                fontWeight: chat.attention ? 600 : 500,
+                letterSpacing: "-0.01em",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                transition: `color ${SD_DURATION.micro}ms ease-out`,
+              }}
+            >
+              {displayName}
+            </span>
+            <time style={{ ...monoCaption, flexShrink: 0 }}>{timeLabel(chat.lastAt)}</time>
+          </div>
+          <p
+            style={{
+              margin: "3px 0 0",
+              overflow: "hidden",
+              color: SD_INK.dull,
+              fontSize: 11,
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {chat.lastFromMe ? "You: " : ""}
+            {chat.lastBody ?? "Media message"}
+          </p>
+        </div>
       </div>
-      <p
-        style={{
-          margin: "4px 0 0",
-          overflow: "hidden",
-          color: STUDIO_COLORS.muted,
-          fontSize: 11,
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {chat.lastFromMe ? "You: " : ""}
-        {chat.lastBody ?? "Media message"}
-      </p>
     </button>
   );
 }
@@ -387,43 +504,26 @@ function Conversation({
   }, [messages.length, chatJid]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div style={contentRoot}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 6,
+          gap: 4,
           flexShrink: 0,
-          padding: "8px 10px",
-          borderBottom: `1px solid ${STUDIO_COLORS.rule}`,
+          padding: "6px 10px 6px 4px",
+          borderBottom: hairline,
         }}
       >
-        <button
-          type="button"
-          aria-label="Back to chats"
-          onClick={onBack}
-          style={{
-            display: "grid",
-            placeItems: "center",
-            width: MIN_TARGET_PX,
-            height: MIN_TARGET_PX,
-            flexShrink: 0,
-            padding: 0,
-            border: 0,
-            borderRadius: 6,
-            color: STUDIO_COLORS.accent,
-            background: "transparent",
-            cursor: "pointer",
-          }}
-        >
-          <ChevronLeft size={18} aria-hidden />
-        </button>
+        <BackButton onBack={onBack} />
         <span
           style={{
             minWidth: 0,
             overflow: "hidden",
+            color: SD_INK.base,
             fontSize: 13,
             fontWeight: 600,
+            letterSpacing: "-0.01em",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}
@@ -432,13 +532,17 @@ function Conversation({
         </span>
       </div>
 
-      <div ref={scrollRef} style={{ minHeight: 0, flex: 1, overflowY: "auto", padding: 12 }}>
+      <div ref={scrollRef} style={{ minHeight: 0, flex: 1, overflowY: "auto", padding: "4px 12px 12px" }}>
         {isLoading ? (
-          <p style={{ ...uppercaseLabel }}>Loading…</p>
+          <p style={{ ...monoEyebrow, margin: "12px 0 0" }}>Loading…</p>
         ) : error ? (
-          <p style={{ color: STUDIO_COLORS.danger, fontSize: 12 }}>{error.message}</p>
+          <p style={{ margin: "12px 0 0", color: SD_FUNCTIONAL.coral, fontSize: 12 }}>
+            {error.message}
+          </p>
         ) : rows.length === 0 ? (
-          <p style={{ color: STUDIO_COLORS.muted, fontSize: 12 }}>No messages in this chat.</p>
+          <p style={{ margin: "12px 0 0", color: SD_INK.faint, fontSize: 13 }}>
+            No messages in this chat.
+          </p>
         ) : (
           <div style={{ display: "grid", gap: 2 }}>
             {rows.map((row) =>
@@ -460,25 +564,53 @@ function Conversation({
   );
 }
 
-/** A centered pill marking the start of a new calendar day in the history. */
+/** Back to the chat list. A verb, so it takes a quiet lucide glyph and ink —
+ *  the accent is reserved for the unread state and is never chrome (DS §2). */
+function BackButton({ onBack }: { onBack: () => void }): React.ReactElement {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <button
+      type="button"
+      aria-label="Back to chats"
+      onClick={onBack}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      style={{
+        display: "grid",
+        placeItems: "center",
+        width: MIN_TARGET_PX,
+        height: MIN_TARGET_PX,
+        flexShrink: 0,
+        padding: 0,
+        border: 0,
+        borderRadius: SD_RADIUS.chrome,
+        color: hovered ? SD_INK.base : SD_INK.dull,
+        background: hovered ? SD_SURFACES.hover : "transparent",
+        cursor: "pointer",
+        transition: `color ${SD_DURATION.micro}ms ease-out, background-color ${SD_DURATION.micro}ms ease-out`,
+      }}
+    >
+      <ChevronLeft size={16} strokeWidth={1.75} aria-hidden />
+    </button>
+  );
+}
+
+/** The day row: a mono eyebrow struck between two hairlines, which is also the
+ *  rule separating one day's cluster of messages from the next. Replaces the
+ *  old bordered pill — hairlines over borders. */
 function DaySeparator({ label }: { label: string }): React.ReactElement {
   return (
-    <div style={{ display: "flex", justifyContent: "center", margin: "10px 0 6px" }}>
-      <span
-        style={{
-          padding: "2px 10px",
-          borderRadius: 999,
-          border: `1px solid ${STUDIO_COLORS.rule}`,
-          color: STUDIO_COLORS.muted,
-          background: `color-mix(in srgb, ${STUDIO_COLORS.surface} 80%, transparent)`,
-          fontFamily: STUDIO_MONO,
-          fontSize: 9,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-        }}
-      >
-        {label}
-      </span>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        margin: "14px 0 8px",
+      }}
+    >
+      <span style={{ height: 1, flex: 1, background: SD_SURFACES.line }} />
+      <span style={monoEyebrow}>{label}</span>
+      <span style={{ height: 1, flex: 1, background: SD_SURFACES.line }} />
     </div>
   );
 }
@@ -530,31 +662,32 @@ function MessageBubble({
         style={{
           maxWidth: "80%",
           padding: "6px 9px",
-          borderRadius: 10,
-          [tailCorner]: clusterEnd ? 10 : 3,
+          borderRadius: SD_RADIUS.pillInset,
+          [tailCorner]: clusterEnd ? SD_RADIUS.pillInset : 3,
+          // Mine wears the chip's cyan tone (DS §10): the hue at 30% into the
+          // line for the border, 15% into the box for the fill. Theirs is the
+          // recessed input surface. The pulse moves the BORDER and an inset
+          // hairline — never an outer glow ring (§16).
           border: `1px solid ${
-            pulsing ? STUDIOLO.fireflyCyan : mine ? STUDIO_COLORS.accent : STUDIO_COLORS.rule
+            pulsing
+              ? SD_ACCENT
+              : mine
+                ? `color-mix(in srgb, ${SD_ACCENT} 30%, ${SD_SURFACES.line})`
+                : SD_SURFACES.line
           }`,
-          color: STUDIO_COLORS.text,
+          color: SD_INK.base,
           background: mine
-            ? `color-mix(in srgb, ${STUDIO_COLORS.accent} 14%, transparent)`
-            : `color-mix(in srgb, ${STUDIO_COLORS.surface} 92%, transparent)`,
+            ? `color-mix(in srgb, ${SD_ACCENT} 15%, ${SD_SURFACES.box})`
+            : SD_SURFACES.input,
           boxShadow: pulsing
-            ? `0 0 0 2px color-mix(in srgb, ${STUDIOLO.fireflyCyan} 55%, transparent)`
+            ? `inset 0 0 0 1px color-mix(in srgb, ${SD_ACCENT} 55%, transparent)`
             : "none",
           opacity: pending ? 0.72 : 1,
-          transition: "box-shadow 260ms ease, border-color 260ms ease, opacity 200ms ease",
+          transition: `box-shadow ${SD_DURATION.micro}ms ease-out, border-color ${SD_DURATION.micro}ms ease-out, opacity ${SD_DURATION.micro}ms ease-out`,
         }}
       >
         {!mine && clusterStart && message.senderName ? (
-          <div
-            style={{
-              marginBottom: 2,
-              color: STUDIO_COLORS.accent,
-              fontSize: 9,
-              fontWeight: 600,
-            }}
-          >
+          <div style={{ ...monoEyebrow, fontSize: 10, marginBottom: 3 }}>
             {message.senderName}
           </div>
         ) : null}
@@ -563,11 +696,10 @@ function MessageBubble({
         </div>
         <time
           style={{
+            ...monoCaption,
             display: "block",
-            marginTop: 2,
-            color: STUDIO_COLORS.muted,
-            fontFamily: STUDIO_MONO,
-            fontSize: 8,
+            marginTop: 3,
+            fontSize: 9,
             textAlign: "right",
           }}
         >
