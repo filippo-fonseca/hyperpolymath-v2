@@ -1,9 +1,9 @@
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { CameraOff } from "lucide-react";
+import { CameraIcon } from "@hyperpolymath/ui-icons";
 
-import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import { SD_FONT, SD_FUNCTIONAL, SD_INK, SD_RADIUS, SD_SURFACES } from "../tokens";
 
 type Status = "loading" | "live" | "error";
 
@@ -76,7 +76,9 @@ export default function CameraWidget(): React.ReactElement {
         position: "relative",
         height: "100%",
         overflow: "hidden",
-        background: STUDIO_COLORS.background,
+        // The feed is the content, so it sits on the recessed rung rather than
+        // the card surface — it reads as an inset viewport, not a tile.
+        background: SD_SURFACES.darkerBox,
       }}
     >
       <video
@@ -94,15 +96,16 @@ export default function CameraWidget(): React.ReactElement {
         }}
       />
 
-      {/* Slim HUD frame corners */}
+      {/* Slim HUD frame. Hairline over accent ring: §16 bans accent rings as
+          chrome, and a 1px --sd-line frame says the same thing more quietly. */}
       <div
         aria-hidden="true"
         style={{
           position: "absolute",
           inset: 8,
           pointerEvents: "none",
-          borderRadius: 4,
-          boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${STUDIO_COLORS.accent} 34%, transparent)`,
+          borderRadius: SD_RADIUS.chip,
+          boxShadow: `inset 0 0 0 1px ${SD_SURFACES.line}`,
         }}
       />
 
@@ -116,29 +119,32 @@ export default function CameraWidget(): React.ReactElement {
             alignItems: "center",
             gap: 6,
             padding: "3px 7px",
-            borderRadius: 4,
-            background: "color-mix(in srgb, #020305 62%, transparent)",
+            borderRadius: SD_RADIUS.chip,
+            // Sealed D1: this overlay is chrome sitting over the feed, so its
+            // blur(4px) STAYS. Only the fill is re-tokenised.
+            background: `color-mix(in srgb, ${SD_SURFACES.menu} 62%, transparent)`,
             backdropFilter: "blur(4px)",
           }}
         >
           <motion.span
             aria-hidden="true"
             style={{
-              width: 7,
-              height: 7,
+              width: 6,
+              height: 6,
               borderRadius: "50%",
-              background: STUDIO_COLORS.danger,
+              // Functional ink as a status dot — the one use §2 sanctions.
+              background: SD_FUNCTIONAL.coral,
             }}
             animate={reduced ? undefined : { opacity: [1, 0.25, 1] }}
             transition={{ duration: 1.6, ease: "easeInOut", repeat: Infinity }}
           />
           <span
             style={{
-              color: STUDIO_COLORS.text,
-              fontFamily: STUDIO_MONO,
-              fontSize: 9,
+              color: SD_INK.base,
+              fontFamily: SD_FONT.mono,
+              fontSize: 10,
               fontWeight: 600,
-              letterSpacing: "0.2em",
+              letterSpacing: "0.16em",
             }}
           >
             LIVE
@@ -161,15 +167,19 @@ export default function CameraWidget(): React.ReactElement {
           }}
         >
           {status === "error" ? (
-            <CameraOff size={22} color={STUDIO_COLORS.muted} aria-hidden />
+            // 40px dimensional icon at 40% opacity — the DS §9 empty-state
+            // grammar, replacing the lucide glyph on a named-noun surface (§13).
+            <span style={{ opacity: 0.4, lineHeight: 0 }}>
+              <CameraIcon size={40} />
+            </span>
           ) : null}
           <p
             style={{
               margin: 0,
-              color: status === "error" ? STUDIO_COLORS.danger : STUDIO_COLORS.muted,
-              fontFamily: STUDIO_MONO,
-              fontSize: 10,
-              letterSpacing: "0.12em",
+              color: status === "error" ? SD_FUNCTIONAL.coral : SD_INK.faint,
+              fontFamily: SD_FONT.mono,
+              fontSize: 11,
+              letterSpacing: "0.1em",
               textTransform: "uppercase",
             }}
           >
