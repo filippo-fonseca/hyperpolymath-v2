@@ -113,6 +113,11 @@ import type {
   WebSearchAction,
 } from "@hyperpolymath/jarvis-core";
 import { validateCalendarId, validateProjectIds } from "./validate-references";
+import {
+  captureRefToken,
+  personRefToken,
+  taskRefToken,
+} from "./reference-tokens";
 import type { StudioCloseWidgetInput, StudioOpenWidgetInput } from "./studio-widget-tools";
 import { emitStudioAction } from "@/lib/voice/physical-extension/bus";
 
@@ -437,6 +442,9 @@ export function createServerExecutor(): ActionExecutor {
           receipt: {
             id: taskId,
             title: input.title,
+            // Canonical S1 token — the model echoes this verbatim when it names
+            // the task in its reply, so the transcript renders a live pill.
+            ref: taskRefToken(taskId, input.title),
             priority: input.priority ?? "P3",
             // No-date → Inbox (D-02 / I-7): an undated task carries NO due on
             // the receipt and sets `inbox: true` so the formatter renders
@@ -528,6 +536,9 @@ export function createServerExecutor(): ActionExecutor {
           receipt: {
             id: captureId,
             content: input.content,
+            // Canonical S1 token (label = synthesized first line, as captures
+            // have no title) so the model can render the capture as a pill.
+            ref: captureRefToken(captureId, input.content),
             hashtags: input.hashtags ?? [],
             project_ids: projectCheck.ids,
             resurface_at: input.resurface_at ?? null,
@@ -931,7 +942,13 @@ export function createServerExecutor(): ActionExecutor {
         .where(and(...conditions))
         .limit(10);
 
-      return { ok: true, id: "find_tasks", receipt: { matches: rows } };
+      // Attach the canonical S1 token to each match so the model can name any
+      // discovered task as a live pill (rather than inventing a token from id).
+      const matches = rows.map((r) => ({
+        ...r,
+        ref: taskRefToken(r.id, r.title),
+      }));
+      return { ok: true, id: "find_tasks", receipt: { matches } };
     },
 
     async findCaptures(input: FindCapturesAction, ctx: ExecutionContext): Promise<ExecutorResult> {
@@ -954,7 +971,13 @@ export function createServerExecutor(): ActionExecutor {
         .where(and(...conditions))
         .limit(10);
 
-      return { ok: true, id: "find_captures", receipt: { matches: rows } };
+      // Attach the canonical S1 token (label = synthesized first line from the
+      // preview) so the model can name a discovered capture as a live pill.
+      const matches = rows.map((r) => ({
+        ...r,
+        ref: captureRefToken(r.id, r.preview),
+      }));
+      return { ok: true, id: "find_captures", receipt: { matches } };
     },
 
     async updateEvent(input: UpdateEventAction, ctx: ExecutionContext): Promise<ExecutorResult> {
@@ -1118,6 +1141,8 @@ export function createServerExecutor(): ActionExecutor {
           receipt: {
             id: row.id,
             name: row.name,
+            // Canonical S1 token so the model can render the person as a pill.
+            ref: personRefToken(row.id, row.name),
             email: input.email?.trim() || undefined,
             phone: input.phone?.trim() || undefined,
             tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean),
@@ -1150,6 +1175,8 @@ export function createServerExecutor(): ActionExecutor {
         name: person.name,
         tags: person.tags,
         reference_count: person.referenceCount,
+        // Canonical S1 token so the model can name a person as a live pill.
+        ref: personRefToken(person.id, person.name),
       }));
       return { ok: true, id: "find_people", receipt: { matches } };
     },
