@@ -3,11 +3,32 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } fr
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import {
+  BrowserIcon,
+  CameraIcon,
+  ClockIcon,
+  NewsIcon,
+  PageIcon,
+  SettingsIcon,
+  WeatherIcon,
+  WhatsappIcon,
+  type DimensionalIconProps,
+} from "@hyperpolymath/ui-icons";
+
+import {
   restoreWidget,
   summonWidget,
   type WidgetWindowInstance,
 } from "../state/widget-windows";
-import { HUD_EASE_OUT_QUART, HUD_SURFACES, STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import {
+  HUD_EASE_OUT_QUART,
+  SD_ACCENT,
+  SD_DURATION,
+  SD_FONT,
+  SD_HAIRLINE,
+  SD_INK,
+  SD_RADIUS,
+  SD_SURFACES,
+} from "../tokens";
 import { catalogEntries, type WidgetKind, WIDGET_CATALOG } from "../windows/catalog";
 import { playDropPop } from "../sound/studio-sfx";
 
@@ -127,6 +148,40 @@ function isStowable(item: WidgetWindowInstance): boolean {
 }
 
 /**
+ * Dimensional feature icons for the picker, keyed by widget kind.
+ *
+ * The catalog's own `entry.icon` is a flat lucide glyph, which is the right
+ * weight for window-chrome controls but not for a picker card — §9 gives a card
+ * header a dimensional icon, and D3 authored these desktop motifs for exactly
+ * these nouns. The catalog lives in another unit's fence, so the mapping is kept
+ * local here rather than pushed into `WIDGET_CATALOG`; `entry.icon` stays the
+ * fallback so a new kind can never render iconless.
+ */
+const DIMENSIONAL_ICONS: Partial<Record<WidgetKind, React.ComponentType<DimensionalIconProps>>> = {
+  browser: BrowserIcon,
+  whatsapp: WhatsappIcon,
+  weather: WeatherIcon,
+  news: NewsIcon,
+  clock: ClockIcon,
+  camera: CameraIcon,
+  settings: SettingsIcon,
+  card: (props) => <PageIcon {...props} kind="note" />,
+};
+
+function KindIcon({
+  kind,
+  size,
+}: {
+  kind: WidgetKind;
+  size: number;
+}): React.ReactElement {
+  const Dimensional = DIMENSIONAL_ICONS[kind];
+  if (Dimensional) return <Dimensional size={size} />;
+  const Flat = WIDGET_CATALOG[kind].icon;
+  return <Flat size={size} />;
+}
+
+/**
  * A small stylized preview block for a catalog card — a mini "live-look"
  * representation (never a full live widget instance): a few skeleton bars in the
  * widget's accent register so each card reads as that widget at a glance. Kept
@@ -137,7 +192,7 @@ function CardPreview({ kind }: { kind: WidgetKind }): React.ReactElement {
     height: 5,
     width,
     borderRadius: 3,
-    background: `color-mix(in srgb, ${STUDIO_COLORS.accent} ${Math.round(opacity * 100)}%, transparent)`,
+    background: `color-mix(in srgb, ${SD_ACCENT} ${Math.round(opacity * 100)}%, transparent)`,
   });
   // Per-kind skeleton shapes so a card evokes its widget without rendering one.
   const layouts: Partial<Record<WidgetKind, React.ReactElement>> = {
@@ -148,7 +203,7 @@ function CardPreview({ kind }: { kind: WidgetKind }): React.ReactElement {
     ),
     weather: (
       <div style={{ display: "flex", alignItems: "center", gap: 8, height: "100%", padding: "0 4px" }}>
-        <div style={{ width: 18, height: 18, borderRadius: "50%", background: `color-mix(in srgb, ${STUDIO_COLORS.accent} 45%, transparent)` }} />
+        <div style={{ width: 18, height: 18, borderRadius: "50%", background: `color-mix(in srgb, ${SD_ACCENT} 45%, transparent)` }} />
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           <div style={bar("46px", 0.55)} />
           <div style={bar("30px", 0.3)} />
@@ -175,13 +230,72 @@ function CardPreview({ kind }: { kind: WidgetKind }): React.ReactElement {
   );
 }
 
+/**
+ * Section eyebrow — the mono register's whole job (§3): 11px, uppercase, wide
+ * tracking, faint ink. Mono is a micro-label face here and nowhere else in this
+ * panel; the cards themselves speak Space Grotesk.
+ */
 const microLabelStyle: CSSProperties = {
   margin: 0,
-  color: STUDIO_COLORS.muted,
-  fontSize: 8,
-  letterSpacing: "0.22em",
+  color: SD_INK.faint,
+  fontFamily: SD_FONT.mono,
+  fontSize: 11,
+  letterSpacing: "0.1em",
   textTransform: "uppercase",
 };
+
+/**
+ * Card v2 hover, scoped to this panel.
+ *
+ * The shared `.studio-drawer-tile` in `studio.css` predates the sd register: it
+ * changes the fill, strengthens the border to a hard-coded old-blue
+ * (`--studio-accent` is never actually declared, so its #2fa8ff fallback is what
+ * paints), and lifts the tile 1px. Card v2 says hover moves the BORDER and
+ * nothing else — no fill change, no lift. `studio.css` is another unit's fence,
+ * so rather than reach across it these tiles carry their own class and this
+ * block owns the interaction. The old class now has no consumers.
+ */
+const TILE_CLASS = "sd-drawer-tile";
+
+function DrawerStyleBlock(): React.ReactElement {
+  return (
+    <style>{`
+.${TILE_CLASS} {
+  border: 1px solid ${SD_SURFACES.line};
+  background: ${SD_SURFACES.box};
+  box-shadow: ${SD_HAIRLINE.card};
+  transition: border-color ${SD_DURATION.micro}ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+.${TILE_CLASS}:hover {
+  border-color: ${SD_SURFACES.frame};
+}
+.${TILE_CLASS}:focus-visible {
+  outline: none;
+  border-color: ${SD_ACCENT};
+  box-shadow: ${SD_HAIRLINE.card}, 0 0 0 2px color-mix(in srgb, ${SD_ACCENT} 45%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .${TILE_CLASS} { transition: none; }
+}
+/* Hairline track, accent-muted thumb — the picker's list is the only scroller
+   in this panel, and the shared .studio-custom-scroll still resolves to the old
+   accent's fallback hex. */
+.sd-drawer-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, ${SD_ACCENT} 34%, transparent) transparent;
+}
+.sd-drawer-scroll::-webkit-scrollbar { width: 7px; }
+.sd-drawer-scroll::-webkit-scrollbar-track { background: transparent; }
+.sd-drawer-scroll::-webkit-scrollbar-thumb {
+  border-radius: ${SD_RADIUS.chip}px;
+  background: color-mix(in srgb, ${SD_ACCENT} 30%, transparent);
+}
+.sd-drawer-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, ${SD_ACCENT} 48%, transparent);
+}
+`}</style>
+  );
+}
 
 export function Drawer({
   open,
@@ -398,23 +512,25 @@ export function Drawer({
           placeItems: "center",
           gap: 4,
           border: 0,
-          borderRadius: "8px 0 0 8px",
-          background: `linear-gradient(90deg, transparent, color-mix(in srgb, ${STUDIO_COLORS.accent} ${open ? 0 : 10}%, transparent))`,
-          color: STUDIO_COLORS.accent,
+          borderRadius: `${SD_RADIUS.tile}px 0 0 ${SD_RADIUS.tile}px`,
+          background: `linear-gradient(90deg, transparent, color-mix(in srgb, ${SD_SURFACES.box} ${open ? 0 : 80}%, transparent))`,
+          color: SD_ACCENT,
           cursor: "pointer",
           opacity: open ? 0 : 1,
-          transition: reduced ? "none" : "opacity 160ms",
+          transition: reduced ? "none" : `opacity ${SD_DURATION.entrance}ms`,
           pointerEvents: open ? "none" : "auto",
         }}
       >
+        {/* The grip. It was an accent bar wearing a 12px glow halo; §16 bans glow
+            rings, so depth now comes from the rail's own surface wash and the
+            grip is a flat accent hairline. */}
         <span
           aria-hidden
           style={{
             width: 3,
             height: 44,
-            borderRadius: 3,
-            background: `color-mix(in srgb, ${STUDIO_COLORS.accent} 55%, transparent)`,
-            boxShadow: `0 0 12px color-mix(in srgb, ${STUDIO_COLORS.accent} 40%, transparent)`,
+            borderRadius: SD_RADIUS.full,
+            background: `color-mix(in srgb, ${SD_ACCENT} 55%, transparent)`,
           }}
         />
       </button>
@@ -436,18 +552,28 @@ export function Drawer({
               minHeight: 0,
               margin: 8,
               padding: "14px 12px",
-              border: `1px solid ${targeted ? STUDIO_COLORS.accent : HUD_SURFACES.line}`,
-              borderRadius: 14,
-              color: STUDIO_COLORS.text,
-              background: `color-mix(in srgb, ${HUD_SURFACES.raised} 92%, transparent)`,
+              // Targeted (a widget is being dragged at the drawer) moves the
+              // BORDER and nothing else — the same law card v2 gives hover. It
+              // used to swap the drop shadow for a 44px accent bloom, which was
+              // the one real glow left on this surface.
+              border: `1px solid ${targeted ? SD_ACCENT : SD_SURFACES.line}`,
+              borderRadius: SD_RADIUS.card,
+              color: SD_INK.base,
+              // Glass STAYS: this panel is chrome, not content (sealed D1).
+              background: `color-mix(in srgb, ${SD_SURFACES.app} 92%, transparent)`,
               backdropFilter: "blur(20px)",
-              boxShadow: targeted
-                ? `0 18px 44px color-mix(in srgb, ${STUDIO_COLORS.accent} 22%, transparent)`
-                : `0 20px 50px color-mix(in srgb, ${STUDIO_COLORS.shadow} 74%, transparent)`,
-              fontFamily: STUDIO_MONO,
+              // Depth is the sd idiom now: the white inset top hairline does the
+              // lifting and the shadow only grounds the panel, instead of a 50px
+              // shade sitting under a glow.
+              boxShadow: `${SD_HAIRLINE.panel}, 0 12px 28px rgb(0 0 0 / 0.28)`,
+              transition: reduced
+                ? "none"
+                : `border-color ${SD_DURATION.micro}ms cubic-bezier(0.25, 1, 0.5, 1)`,
+              fontFamily: SD_FONT.sans,
               pointerEvents: "auto",
             }}
           >
+            <DrawerStyleBlock />
             {/* Stowed section on top — chip-restore for stowed widgets. */}
             {stowedWidgets.length ? (
               <section aria-labelledby="picker-stowed-label" style={{ flexShrink: 0, marginBottom: 12 }}>
@@ -476,29 +602,35 @@ export function Drawer({
                           restoreWidget(item.id);
                           playDropPop();
                         }}
-                        className="studio-drawer-tile"
+                        className={TILE_CLASS}
                         style={{
                           display: "flex",
                           minWidth: 108,
+                          // §10's chip is a 4px-radius, ~18px-tall label. This
+                          // one is also a hand-cursor drag target, and a jittery
+                          // synthetic pointer cannot land on 18px — so it takes
+                          // chip GRAMMAR (box surface, line hairline, dull ink,
+                          // sans at the tiny step) at the tile radius and the
+                          // hand-sized height it already had.
                           height: 40,
                           alignItems: "center",
                           gap: 8,
                           padding: "0 11px",
-                          border: `1px solid ${HUD_SURFACES.line}`,
-                          borderRadius: 20,
-                          color: STUDIO_COLORS.text,
-                          background: HUD_SURFACES.sunken,
+                          borderRadius: SD_RADIUS.tile,
+                          color: SD_INK.dull,
                           cursor: "grab",
-                          fontFamily: STUDIO_MONO,
+                          fontFamily: SD_FONT.sans,
                           touchAction: "none",
                         }}
                       >
-                        <entry.icon size={15} aria-hidden />
+                        <KindIcon kind={item.kind} size={24} />
                         <span
                           style={{
                             minWidth: 0,
                             overflow: "hidden",
-                            fontSize: 9,
+                            fontSize: 12,
+                            fontWeight: 500,
+                            letterSpacing: "0.025em",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
                           }}
@@ -517,7 +649,7 @@ export function Drawer({
             </h2>
             {/* Scrollable list of LARGE, hand-friendly preview cards. */}
             <div
-              className="studio-custom-scroll"
+              className="sd-drawer-scroll"
               aria-labelledby="picker-catalog-label"
               style={{
                 display: "flex",
@@ -546,7 +678,7 @@ export function Drawer({
                       }
                       summon(kind);
                     }}
-                    className="studio-drawer-tile"
+                    className={TILE_CLASS}
                     style={{
                       display: "flex",
                       // Hand-friendly rows: comfortably tall (>= 64px) so a
@@ -555,51 +687,52 @@ export function Drawer({
                       alignItems: "center",
                       gap: 12,
                       padding: "10px 12px",
-                      border: `1px solid ${HUD_SURFACES.line}`,
-                      borderRadius: 12,
-                      color: STUDIO_COLORS.text,
-                      background: HUD_SURFACES.sunken,
+                      // Card v2: 14px is this radius' one sanctioned home.
+                      borderRadius: SD_RADIUS.card,
+                      color: SD_INK.base,
                       cursor: "grab",
-                      fontFamily: STUDIO_MONO,
+                      fontFamily: SD_FONT.sans,
                       textAlign: "left",
                       touchAction: "none",
                     }}
                   >
+                    {/* §9 heads a card with a bare dimensional icon. The old
+                        accent-tinted, hairlined plate around it was a border
+                        inside a border, which the nesting rule bans. */}
                     <span
                       aria-hidden
                       style={{
                         display: "grid",
                         placeItems: "center",
-                        width: 40,
-                        height: 40,
+                        width: 36,
+                        height: 36,
                         flexShrink: 0,
-                        borderRadius: 10,
-                        border: `1px solid ${HUD_SURFACES.line}`,
-                        background: `color-mix(in srgb, ${STUDIO_COLORS.accent} 8%, transparent)`,
-                        color: STUDIO_COLORS.accent,
                       }}
                     >
-                      <entry.icon size={19} />
+                      <KindIcon kind={kind} size={36} />
                     </span>
                     <span style={{ display: "flex", minWidth: 0, flex: 1, flexDirection: "column", gap: 6 }}>
+                      {/* Card title, not an eyebrow: sans at the §9 display
+                          tracking. It was uppercase mono, which spends the
+                          instrument face on a name it does not label. */}
                       <span
                         style={{
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: 600,
-                          letterSpacing: "0.06em",
-                          textTransform: "uppercase",
+                          letterSpacing: "-0.01em",
                         }}
                       >
                         {entry.label}
                       </span>
+                      {/* Inset sub-card: --sd-input fill at 10px, no border —
+                          the ladder carries the step, not a second hairline. */}
                       <span
                         aria-hidden
                         style={{
                           height: 30,
                           overflow: "hidden",
-                          borderRadius: 7,
-                          border: `1px solid color-mix(in srgb, ${HUD_SURFACES.line} 70%, transparent)`,
-                          background: `color-mix(in srgb, ${STUDIO_COLORS.surface} 60%, transparent)`,
+                          borderRadius: SD_RADIUS.pillInset,
+                          background: SD_SURFACES.input,
                         }}
                       >
                         <CardPreview kind={kind} />
@@ -630,15 +763,16 @@ export function Drawer({
               width: 48,
               height: 48,
               placeItems: "center",
-              border: `1px solid ${STUDIO_COLORS.accent}`,
-              borderRadius: 9,
-              color: STUDIO_COLORS.accent,
-              background: HUD_SURFACES.raised,
+              border: `1px solid ${SD_ACCENT}`,
+              borderRadius: SD_RADIUS.tile,
+              color: SD_ACCENT,
+              background: SD_SURFACES.box,
+              boxShadow: SD_HAIRLINE.card,
               pointerEvents: "none",
               transform: "translate(-50%, -50%)",
             }}
           >
-            {React.createElement(WIDGET_CATALOG[drag.kind].icon, { size: 19 })}
+            <KindIcon kind={drag.kind} size={28} />
           </motion.div>
         ) : null}
       </AnimatePresence>
