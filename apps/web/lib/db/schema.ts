@@ -1508,6 +1508,49 @@ export const peopleReferences = pgTable(
   ],
 );
 
+// entity_references — one row per (source entity → target entity) reference,
+// the general form of people_references: instead of a person-shaped far end it
+// stores a (targetType, targetId) pair, so any entity can reference any other.
+// Neither end carries a hard FK because both are polymorphic; userId is
+// denormalized for RLS like every other junction table here. Rows are
+// reconciled on save (parse the source's text for @[label](ref://type/uuid)
+// tokens, diff against existing rows — see lib/references/reconcile.ts), which
+// makes this the queryable projection of tokens that otherwise only exist
+// inside free text: it powers backlinks, reference counts, and the captures
+// graph's co_reference edges.
+export const entityReferences = pgTable(
+  "entity_references",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "capture" | "task" | "page" | "jarvis_turn"
+    sourceType: text("source_type").notNull(),
+    sourceId: uuid("source_id").notNull(),
+    // "capture" | "task" | "page" | "project" | "area" | "person"
+    targetType: text("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // At most one reference per (source, target) — a source naming the same
+    // target twice collapses to one row, which is what lets the reconcile diff
+    // stay idempotent.
+    unique("entity_references_source_target_uniq").on(
+      t.sourceType,
+      t.sourceId,
+      t.targetType,
+      t.targetId,
+    ),
+    // "what references this entity" — backlinks, counts, graph.
+    index("entity_references_target_idx").on(t.targetType, t.targetId),
+    index("entity_references_user_idx").on(t.userId),
+    // "what does this entity reference" — the reconcile read, on every save.
+    index("entity_references_source_idx").on(t.sourceType, t.sourceId),
+  ],
+);
+
 // whatsapp_messages — messages synced from the local lharries/whatsapp-mcp
 // Go bridge (which owns the whatsmeow session and its own SQLite mirror).
 // A small local sync worker (tools/whatsapp-sync/sync.mjs) reads new rows
