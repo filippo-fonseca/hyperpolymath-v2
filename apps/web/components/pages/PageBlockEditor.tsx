@@ -19,6 +19,7 @@ import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-actio
 import { type InDocumentAction, invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
 import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import { ENTITY_KIND_PLURAL } from "@/lib/references/glyphs";
+import { blocksWithReferenceTokens } from "@/lib/references/page-mirror";
 import {
   type BlockNoteEditor,
   BlockNoteSchema,
@@ -517,7 +518,15 @@ export default function PageBlockEditor({
           slashMenu={false}
           onChange={() => {
             void (async () => {
-              const markdown = await editor.blocksToMarkdownLossy(editor.document);
+              // content_json keeps the real nodes; only the mirror is rewritten,
+              // so a reference reaches pages.content as its canonical S1 token
+              // (searchable, resolvable) instead of the app-relative link the
+              // exporter would otherwise derive from the chip's anchor.
+              const markdown = await editor.blocksToMarkdownLossy(
+                blocksWithReferenceTokens(editor.document) as Parameters<
+                  typeof editor.blocksToMarkdownLossy
+                >[0]
+              );
               onChange(editor.document, markdown);
             })();
           }}
