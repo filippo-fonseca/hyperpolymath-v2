@@ -175,4 +175,19 @@ describe("AreaProjectList — grid | timeline", () => {
     fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
     expect(screen.queryByRole("button", { name: /Hide classes/ })).not.toBeInTheDocument();
   });
+
+  it("shares the zoom key with /areas — Quarters chosen there carries into the detail timeline", () => {
+    // The /areas index persists zoom under the SHARED `areas:timeline-zoom` key.
+    // ProjectsTimeline reads that same key via useTimelineView, and the page-scoped
+    // useAreaDetailView deliberately never touches zoom — so a zoom picked on the
+    // index shows up here for free. Seed the shared key as if the user had chosen
+    // Quarters on /areas, then open the detail timeline and confirm it carried.
+    localStorage.setItem("areas:timeline-zoom", "quarters");
+
+    renderList([project({ id: "p1", name: "Thesis" })]);
+    fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
+
+    expect(screen.getByRole("button", { name: "Quarters" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Months" })).toHaveAttribute("aria-pressed", "false");
+  });
 });
