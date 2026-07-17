@@ -37,8 +37,23 @@ import {
 import { HashtagDecorations } from "@/components/captures/hashtag-decorations";
 
 import { createPersonDecorations } from "@/components/captures/person-decorations";
-import { createPersonSuggestion } from "@/components/captures/person-suggestions";
 import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
+import {
+  EntityMention,
+  ENTITY_MENTION_HTML_ATTRIBUTES,
+  renderEntityMentionHTML,
+} from "@/components/references/entity-mention-node";
+import {
+  createEntityMentionSuggestion,
+  insertCreatedPerson,
+} from "@/components/references/entity-mention-suggestion";
+import {
+  ENTITY_MENTION_NODE,
+  entityMentionAttrsToRef,
+  refToEntityMentionNode,
+  segmentTextForSeeding,
+} from "@/lib/references/tiptap-tokens";
+import { serializeReference } from "@/lib/references/token";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
 import {
@@ -250,6 +265,37 @@ function isDirty(a: FormState, b: FormState): boolean {
   );
 }
 
+/**
+ * Seed the notes editor from the stored string.
+ *
+ * Replaces `<p>${notes.split("\n").join("</p><p>")}</p>`, which could not seed
+ * a reference at all: the token would parse as literal text and the chip the
+ * user inserted would come back as raw `@[Label](ref://…)` the next time the
+ * panel opened. Building the doc as JSON also means the notes are never spliced
+ * into an HTML string on their way into the editor.
+ *
+ * Only references are structured here. `#tags` and `@names` in notes stay plain
+ * text and are chipped by the live decorations, exactly as before.
+ */
+function notesToDoc(notes: string): Record<string, unknown> {
+  return {
+    type: "doc",
+    content: notes.split("\n").map((para) => {
+      const inline: Record<string, unknown>[] = [];
+      for (const part of segmentTextForSeeding(para)) {
+        if (part.kind === "ref") {
+          inline.push(refToEntityMentionNode(part.ref));
+        } else if (part.text) {
+          inline.push({ type: "text", text: part.text });
+        }
+      }
+      return inline.length === 0
+        ? { type: "paragraph" }
+        : { type: "paragraph", content: inline };
+    }),
+  };
+}
+
 export function TaskDetailPanel({
   task,
   projects,
@@ -286,7 +332,7 @@ export function TaskDetailPanel({
   });
   const [initialForm, setInitialForm] = useState<FormState>(form);
 
-  // TipTap notes editor — supports #hashtag and @person inline.
+  // TipTap notes editor — supports #hashtag and the universal @ inline.
   // `immediatelyRender: false` avoids SSR hydration mismatch (Next 16 + React 19).
   const notesEditor = useEditor({
     immediatelyRender: false,
@@ -312,6 +358,8 @@ export function TaskDetailPanel({
         },
         suggestion: createHashtagSuggestion(() => hashtags),
       }),
+      // Still in the schema (it seeds existing `@name` text and receives the
+      // create-person sentinel) but no longer driven by `@` directly.
       Mention.extend({ name: "personMention" }).configure({
         HTMLAttributes: { class: "person-chip-inline" },
         renderHTML({ options, node }) {
@@ -321,7 +369,15 @@ export function TaskDetailPanel({
             `@${node.attrs.label}`,
           ];
         },
-        suggestion: createPersonSuggestion(() => people),
+      }),
+      EntityMention.configure({
+        HTMLAttributes: ENTITY_MENTION_HTML_ATTRIBUTES,
+        renderHTML: renderEntityMentionHTML,
+        suggestion: createEntityMentionSuggestion({
+          allowCreatePerson: true,
+          onCreatePerson: ({ name, editor: ed, range }) =>
+            insertCreatedPerson(ed, range, name),
+        }),
       }),
       HashtagDecorations,
       createPersonDecorations(() => people),
@@ -333,7 +389,7 @@ export function TaskDetailPanel({
         "data-placeholder": "Add a description… Use #tags and @people.",
       },
     },
-    content: form.notes ? `<p>${form.notes.split("\n").join("</p><p>")}</p>` : "",
+    content: notesToDoc(form.notes),
   });
 
   // Parse the notes TipTap doc into { notes, hashtagNames, personNames }.
@@ -362,6 +418,22 @@ export function TaskDetailPanel({
           if (!tagCasing.has(lower)) tagCasing.set(lower, raw);
         }
       }
+      // Without this the node contributes nothing to the saved notes
+      // (doc.textContent ignores renderText), so the reference would be erased
+      // the first time the task was saved after inserting it.
+      if (n.type === ENTITY_MENTION_NODE) {
+        const ref = entityMentionAttrsToRef(n.attrs);
+        if (ref) {
+          notes += serializeReference(ref);
+          // Keep personNames fed so ensureTaskPeople still links a referenced
+          // person — the switch from personMention to entityMention must not
+          // quietly stop writing people_references.
+          if (ref.type === "person") {
+            const lower = ref.label.toLowerCase();
+            if (!personCasing.has(lower)) personCasing.set(lower, ref.label);
+          }
+        }
+      }
       if (n.type === "mention" && typeof n.attrs?.label === "string") {
         const label = n.attrs.label;
         tagCasing.set(label.toLowerCase(), label);
@@ -387,14 +459,13 @@ export function TaskDetailPanel({
   }
 
   // Sync notes editor content when the task changes (panel opens a different task).
+  // The old getHTML() equality guard is gone with the HTML seed: a doc holding
+  // chips never round-trips to the naive `<p>…</p>` string it was compared
+  // against, so the guard could only ever be false here. This effect runs once
+  // per task open, which is exactly when a reseed is wanted anyway.
   useEffect(() => {
     if (!notesEditor) return;
-    const newContent = form.notes
-      ? `<p>${form.notes.split("\n").join("</p><p>")}</p>`
-      : "";
-    if (notesEditor.getHTML() !== newContent) {
-      notesEditor.commands.setContent(newContent, { emitUpdate: false });
-    }
+    notesEditor.commands.setContent(notesToDoc(form.notes), { emitUpdate: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id]);
 
