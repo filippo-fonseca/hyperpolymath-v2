@@ -18,6 +18,7 @@ import { type InDocumentAction, invokeInDocumentJarvis } from "@/lib/jarvis/invo
 import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import { ENTITY_KIND_PLURAL } from "@/lib/references/glyphs";
 import { blocksWithReferenceTokens } from "@/lib/references/page-mirror";
+import { stripOrphanBracket } from "@/lib/references/strip-orphan-bracket";
 import {
   type BlockNoteEditor,
   BlockNoteSchema,
@@ -590,7 +591,19 @@ export default function PageBlockEditor({
               // Strip a leading second "[" so typing the familiar "[[" still
               // queries cleanly rather than searching for a literal bracket.
               const trimmed = query.replace(/^\[+/, "").trim();
-              return entityMentionItems(editor, trimmed);
+              const items = await entityMentionItems(editor, trimmed);
+              // BlockNote re-fires the "[" trigger on the second bracket and so
+              // deletes only "[query" on accept, orphaning the first "[". Strip
+              // that stray bracket before the chip goes in so "[[" leaves no
+              // literal bracket behind (the single-character "@" path is
+              // unaffected and stays byte-identical).
+              return items.map((item) => ({
+                ...item,
+                onItemClick: () => {
+                  stripOrphanBracket(editor);
+                  item.onItemClick?.();
+                },
+              }));
             }}
           />
         </BlockNoteView>
