@@ -163,10 +163,13 @@
   background: var(--sd-line);
 }
 
+/* Section header ("HEADINGS", "OTHERS"): mono eyebrow + a hairline above each
+   run, matching SlashCommandPopover.tsx:59 and the cmdk group heading. */
 .bn-suggestion-menu-label {
-  margin: 2px 3px 0;
-  padding: 6px 7px 3px;
-  font-size: 0.65rem;
+  margin: 2px 0 0;
+  padding: 6px 8px 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -175,67 +178,109 @@
 .bn-suggestion-menu-label:not(:first-child) {
   border-top: 1px solid var(--sd-line);
   margin-top: 4px;
-  padding-top: 7px;
+  padding-top: 8px;
 }
 
-/* The shadcn item renders its own inner DOM (Tailwind utilities): a `p-3`
-   icon wrapper [data-position=left], a `.flex-1` body whose first child is
-   `text-base` (title) and second is `text-xs` (subtext), and a right badge.
-   Override those internals directly — styling the row alone leaves the
-   oversized icon padding and 16px title untouched. */
-.bn-suggestion-menu-item {
+/* ---- Row internals.
+
+   THE SCOPING TRAP, and the reason every row rule below carries [role="option"]:
+   @blocknote/react passes `className="bn-suggestion-menu-item"` into the shadcn
+   Item, which spreads it through its own `cn()` calls into its INNER divs
+   (@blocknote/shadcn/src/suggestionMenu/SuggestionMenuItem.tsx). The class
+   therefore lands on four nested elements at once — the row, the icon wrapper,
+   the title and the subtext. A bare `.bn-suggestion-menu-item { padding }` rule
+   hits all four, and the title/subtext copies stacked into 59px rows. That was
+   the "too much space between options". Only the row carries role="option". ---- */
+.bn-suggestion-menu-item[role="option"] {
   align-items: center;
   gap: 8px !important;
-  padding: 5px 7px !important;
+  /* px-2 py-1.5, the DropdownMenuItem/CommandItem row rhythm. */
+  padding: 6px 8px !important;
   border-radius: 6px;
   color: var(--ink);
   cursor: pointer;
   transition: background-color 120ms ease-out;
 }
-/* Hover is a neutral backplate and nothing else. An earlier pass drew an
-   `inset 2px 0 0 var(--sd-accent)` left edge here; on a 6px-radius row the inset
-   shadow follows the rounded corners, so it rendered as a cyan `[` bracket
-   curling around the row. It was also an accent ring for selection, which §16
-   bans outright. */
-.bn-suggestion-menu-item:hover,
-.bn-suggestion-menu-item[aria-selected="true"],
-.bn-suggestion-menu-item[data-selected="true"] {
+
+/* Undo the leaked class on the inner divs (see THE SCOPING TRAP). */
+.bn-suggestion-menu-item:not([role="option"]) {
+  padding: 0 !important;
+  border-radius: 0;
+}
+
+/* Two-tier selection (§ selection rule): hover is the lighter neutral backplate,
+   the keyboard cursor is the firmer one, so arrowing stays visible while the
+   mouse rests elsewhere. Neither is accent-filled.
+   An earlier pass drew `inset 2px 0 0 var(--sd-accent)` here; on a 6px-radius row
+   an inset shadow follows the corners, so it rendered as the cyan `[` bracket. */
+.bn-suggestion-menu-item[role="option"]:hover {
   background-color: var(--sd-hover) !important;
   color: var(--ink) !important;
   outline: none;
 }
+.bn-suggestion-menu-item[role="option"][aria-selected="true"],
+.bn-suggestion-menu-item[role="option"][data-selected="true"] {
+  background-color: var(--sd-selected) !important;
+  color: var(--ink) !important;
+  outline: none;
+}
 
-/* Leading icon chip: drop the 12px p-3, give it a tidy fixed box. */
+/* Leading icon: drop the 12px p-3, give it a tidy fixed 16px box. */
 .bn-suggestion-menu-item [data-position="left"] {
   padding: 0 !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   color: var(--sd-ink-dull);
 }
 .bn-suggestion-menu-item [data-position="left"] svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
-/* Title (was text-base / 16px) + subtext (text-xs). */
+/* Title (was text-base / 16px) + subtext (text-xs). Both ellipsize so a long
+   label can't reopen the width problem the fixed panel just closed. */
+.bn-suggestion-menu-item .flex-1 {
+  min-width: 0;
+}
 .bn-suggestion-menu-item .flex-1 > div:first-child {
   font-size: 13px !important;
   font-weight: 500;
-  line-height: 1.25;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .bn-suggestion-menu-item .flex-1 > div:last-child:not(:first-child) {
   font-size: 11px !important;
   color: var(--sd-ink-faint);
-  line-height: 1.2;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+/* Shortcut chip. BlockNote wraps the badge in a shadcn <Badge variant=secondary>
+   (a filled pill); strip it back to the app's unfilled mono kbd chip
+   (CommandShortcut, components/ui/command.tsx:177). */
 .bn-suggestion-menu-item [data-position="right"] {
   margin-left: auto;
-  color: var(--sd-ink-faint);
-  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+.bn-suggestion-menu-item [data-position="right"] > * {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  font-family: var(--font-mono);
+  font-size: 10px !important;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sd-ink-faint) !important;
 }
 
 /* ---- Placeholder ("Type '/' for commands") — quieter. ---- */
