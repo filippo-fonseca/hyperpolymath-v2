@@ -15,9 +15,16 @@ interface Props {
  *
  * This is the /branding banner treatment (`renderBannerJsx` in
  * `lib/branding/svg.tsx`) brought in-app: the mark leads, the wordmark follows,
- * both in one ink. The proportions are ported rather than reinvented — the
- * banner draws the mark at ~0.67× the wordmark's font size, which is why an
- * 18px mark pairs with the header's 16px type.
+ * both in one ink.
+ *
+ * The banner sets the mark at ~0.67× the wordmark's font size, but that ratio
+ * is struck at a 132px wordmark and does not survive the trip down to 16px
+ * sidebar type: 0.67 × 16 ≈ 11px, at which the silhouette's legs and beak
+ * collapse into mush. The mark is optically matched at this size instead
+ * (`markSize`), which is the same call the dimensional icon set makes — it
+ * draws on an 80 viewBox and fills ~62% of it, so an "18px" nav icon carries
+ * ~11px of actual ink. The kiwi spans its full 24 viewBox, so it needs a
+ * smaller nominal size to weigh the same on the page.
  *
  * The wordmark delegates to `Logotype`, which owns the ONE sanctioned use of EB
  * Garamond (`--font-logotype`). Both parts inherit `--ink` so the lockup stays
