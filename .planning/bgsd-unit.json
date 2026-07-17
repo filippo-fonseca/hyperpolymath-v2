@@ -1,29 +1,28 @@
 {
-  "unit_id": "unit-u3-timeline-core-timeline-compon-c4f6",
+  "unit_id": "unit-u5-area-detail-timeline-by-date--b485",
   "run_id": "sesh-1784257742502",
   "scale": "feature",
-  "title": "u3-timeline-core: timeline components + /areas by-date view with zoom, popover, persistence",
-  "scope": "ProjectsTimeline component per the sealed visual contract: sticky mono date headers per zoom, horizontal scroller (.scrollbar-hidden + real edge-fade class in globals.css), area group rows, cyan bars with open-ended fade, today marker + Today button (scroll-to-today), Weeks/Months/Quarters segmented control (DayWeekToggle grammar), click popover with project link + start/end date editing + archive-trap warning + undo toast, ghost bars for archived/expired behind show-archived toggle, empty/edge states, both themes, motion law. /areas index integration: tree|timeline view toggle (localStorage areas:view idiom), data via getProjectsForCurrentUser with client-side sort/filter, realtime alsoInvalidate wiring. NO drag interactions (u4 owns those). Component tests per tests/ conventions.",
+  "title": "u5-area-detail-timeline: by-date view on /areas/[areaId]",
+  "scope": "Bring the timeline to the area detail page. Widen the area-detail RSC data path to include start_date (and whatever TimelineProjectInput needs), extend the AreaProject interface accordingly, add a grid|timeline view toggle in the AreaProjectList filter row consistent with u3's TREE|TIMELINE toggle grammar, render ProjectsTimeline with scope=\"area\" (single pre-filtered area, no group headers per u3's API NOTES), sensible persistence (shared zoom key areas:timeline-zoom; page-scoped view key), realtime invalidation for date mutations mirroring u3's alsoInvalidate wiring, reconcile with the page's existing show-archived idiom, responsive per the DESIGN.md amendment, tests. Consumes u3's components strictly - NEVER edits components/projects/timeline/** (u4 owns that surface concurrently).",
   "criteria": [
-    "/areas gains a tree|timeline toggle (localStorage areas:view idiom, SSR-safe); timeline renders all areas as row groups",
-    "Sticky mono date headers per zoom; Weeks/Months/Quarters segmented control persisted (areas:timeline-zoom)",
-    "Bars follow the sealed visual contract (cyan accent, sd tokens, open-ended fade, today marker 3px accent@70%, 1px sd-line grid)",
-    "Horizontal scroll with .scrollbar-hidden + real edge-fade class in globals.css (verified in compiled CSS); Today button centers today",
-    "Click popover: project link + start/end date editing via updateProject with archive-trap warning + undo toast",
-    "Archived/expired projects render as muted ghost bars behind the show-archived idiom",
-    "Empty states (no areas, no projects, all undated) designed, not broken; both themes verified; motion law respected (no width animation)",
-    "Realtime: projects subscription alsoInvalidate areas key where dates are mutated; component tests in apps/web/tests/"
+    "/areas/[areaId] offers a grid|timeline toggle in the filter row, grammar-consistent with u3's toggle; grid view remains byte-for-byte today's behavior",
+    "Timeline renders via ProjectsTimeline scope=\"area\" with the single area pre-filtered (no areaId prop exists - pass filtered arrays per u3 API NOTES); no area group header shown",
+    "Area-detail data path includes start_date and satisfies TimelineProjectInput without changing existing consumers' semantics",
+    "Zoom persists via the SHARED areas:timeline-zoom key; view mode persists via a page-scoped key following the lifeos:view idiom exactly",
+    "Date edits from the popover work on the detail page with undo toast and archive-trap intact; realtime invalidation wired so external date changes refresh the timeline",
+    "Show-archived: detail page's existing idiom governs; ghosts render when shown",
+    "Responsive per DESIGN.md amendment (no page-body overflow; toolbar wraps); both themes; reduced motion",
+    "Scoped tests green plus npx tsc --noEmit clean; zero edits under components/projects/timeline/"
   ],
-  "touched": ["apps/web/components/projects/timeline/", "apps/web/components/areas/AreasPageClient.tsx", "apps/web/app/(app)/areas/page.tsx", "apps/web/app/globals.css"],
-  "deps": ["unit-u1-timeline-engine-pure-date-geo-6ed5 (MERGED into this branch's base)"],
+  "touched": ["apps/web/app/(app)/areas/[areaId]/page.tsx", "apps/web/components/areas/AreaProjectList.tsx", "apps/web/tests"],
   "model": "claude-opus-4-8",
   "model_assignment": {
     "tier": "heavy",
     "effort": "xhigh",
-    "reason": "fixed routing: user contract pins every build lane to Opus 4.8; flagship UI unit"
+    "reason": "fixed routing: user contract pins every build lane to Opus 4.8"
   },
-  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/advisor/unit-u3-timeline-core-timeline-compon-c4f6.md",
-  "control_report_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/control/u3-timeline-core.report.md",
+  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/advisor/unit-u5-area-detail-timeline-by-date--b485.md",
+  "control_report_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/control/u5-area-detail-timeline.report.md",
   "advisor_checkpoints": [
     "before implementation",
     "after planning",

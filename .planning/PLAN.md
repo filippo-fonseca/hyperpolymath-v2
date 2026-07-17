@@ -1,64 +1,52 @@
-# PLAN — u7-mobile-shell (mobile-progressive app shell)
+# u5-area-detail-timeline — plan (sesh-1784257742502)
 
-Run: sesh-1784257742502 · Unit: unit-u7-mobile-shell-progressive-shell-77aa · Model: claude-opus-4-8
+Bring u3's `ProjectsTimeline` to `/areas/[areaId]` behind a grid|timeline toggle in
+the `AreaProjectList` filter row. Consume u3's API NOTES verbatim; ZERO edits under
+`components/projects/timeline/**` (u4 owns it concurrently). No new mutation, no
+migration, no new props on the frozen components — pre-filter to the single area.
 
-## Problem
-The app-shell sidebar (`components/shell/Sidebar.tsx`, `w-[230px]` expanded) never
-collapses below `md`. At 390px the route gets ~160px, so the /areas timeline zoom
-toolbar (Quarters/Today) clips. Root cause is the shell yielding no width; the fix
-is shell-only. Do NOT touch `components/projects/timeline/**` or the areas page
-components — the toolbar unclips itself once the shell yields width.
+## Slices (each its own commit)
 
-## Approach
-Below `md` the sidebar defaults to the collapsed rail and expansion becomes the
-existing z-50 hover-peek OVERLAY (float over content, zero layout push), opened by
-the collapse toggle (coarse pointers have no hover), closed by tap-outside /
-Escape / navigation. Breakpoint collapse is DERIVED (matchMedia on the exact
-48rem `md` query) composed with the persisted `sidebar-collapsed` value, and NEVER
-writes that preference. At `>= md` behavior is byte-for-byte today's.
+1. **Data widening** — `feat(areas): widen area-detail RSC select + AreaProject for the timeline`
+   - `app/(app)/areas/[areaId]/page.tsx`: add `projects.startDate`, `projects.createdAt`,
+     `projects.orderIndex`, `projects.semesterTerm/Year`; add `areas.orderIndex`,
+     `areas.createdAt`; pass `area` (full) + `userId` into `AreaProjectList`. Additive
+     only — grid/header semantics unchanged.
+   - `AreaProject` interface widened compatibly (startDate/createdAt/orderIndex/semester*).
 
-## Steps
-1. **`components/shell/use-sidebar-breakpoint.ts`** (pure, unit-testable):
-   - `useIsBelowMd()` — SSR-safe (default false = desktop-first, matches SSR);
-     reads `matchMedia("(min-width: 48rem)")` in an effect and subscribes to
-     `change`. Below md === `!mql.matches`.
-   - `deriveSidebarLayout({ belowMd, collapsed, hovered, overlayOpen })` →
-     `{ railMode, effectiveCollapsed, peeking }`. railMode = belowMd || collapsed;
-     effectiveCollapsed = belowMd ? !overlayOpen : (collapsed && !hovered);
-     peeking = railMode && !effectiveCollapsed.
-   - `planToggle({ belowMd, collapsed, overlayOpen })` → decision with
-     `persistCollapsed` false below md (proves "no persistence write below md").
-2. **`Sidebar.tsx`**: add `overlayOpen` state + `belowMd`; outer aside width from
-   `railMode`, inner div from `effectiveCollapsed`, z-50 float from `peeking`;
-   `toggleCollapsed` routes through `planToggle`; gate `onMouseEnter` peek to
-   `!belowMd`; close overlay on outside pointerdown / Escape / pathname change and
-   whenever the viewport crosses back to `>= md`; width tweens gated to
-   `!belowMd && !reduceMotion` (overlay snaps, §14; reduced motion honored);
-   `SidebarHeader` receives `collapsed={railMode}` `peeking={peeking}` (identical
-   at `>= md`, since railMode === collapsed there).
-3. **390px sweep**: `TopTabBar` pills had `min-w-[220px]` + `px-9`, which pushed
-   the +/split controls off a ~334px route and clipped labels; gate both to md+
-   (`min-w-0 md:min-w-[220px]`, `px-3 md:px-9`). No other shell fixed-width
-   breakers found (JARVIS panel is `hidden lg:flex`; breadcrumb width is a `max-`).
-4. **Test** `tests/sidebar-breakpoint.test.tsx`: mocked matchMedia → useIsBelowMd
-   true below md + reacts to change; deriveSidebarLayout forces the rail below md;
-   planToggle below md → persistCollapsed=false. Keep `sidebar-areas-nav` green.
-5. **Gates**: `npx vitest run tests/sidebar-areas-nav.test.tsx
-   tests/sidebar-breakpoint.test.tsx`; `npx tsc --noEmit` (both from apps/web).
-6. **Evidence** (prod build, both themes, `.planning/evidence/`, prefix `u7-`):
-   /areas timeline 390px (toolbar UNCLIPPED), 390px overlay open, 768px, captures
-   390px.
+2. **Page-scoped view hook** — `feat(areas): page-scoped area-detail:view persistence hook`
+   - `components/areas/useAreaDetailView.ts`: `lifeos:view` idiom EXACTLY — `useState("grid")`,
+     mount effect reads/validates `localStorage["area-detail:view"]`, write in setter.
+     Values `"grid"|"timeline"`, default `"grid"`. A separate hook from the frozen
+     `useTimelineView` (which is `areas:view`/"tree" shaped); zoom is NOT duplicated —
+     it shares `areas:timeline-zoom` through the frozen hook for free.
 
-## Canon
-§14 (no width tween on the overlay; reduced-motion guard), §16 (no new hex
-literals — all `color-mix`/tokens reused), §18 (both themes). Existing Tailwind
-breakpoints + coarse-pointer semantics only; no bespoke px media queries. u2
-branding/lockup, Areas pill, and focus order preserved (untouched).
+3. **Toggle + timeline wiring** — `feat(areas): grid|timeline toggle + timeline on the area detail page`
+   - GRID|TIMELINE segmented control (u3 SEGMENTS grammar, `--sd-*` tokens) in the filter row.
+   - Timeline branch: `areas=[area]`, `projects=(liveRows?.filter(areaId) ?? RSC props).map(→TimelineProjectInput)`,
+     `scope="area"`, `showArchived = tab === "archived"`.
+   - Live data via `useQuery(getProjectsForCurrentUser)` keyed on the shared
+     `["projects", userId]` (the only read path carrying `start_date`); widened RSC props
+     seed first paint (no loading flash).
+   - Realtime: `useTableSubscription("projects", userId, { alsoInvalidate: [tableKey("areas", userId)] })`,
+     gated on the timeline being active — mirrors the /areas index wiring so date edits
+     refresh both the bars and the sidebar tree.
+   - One archived control governs both views: the existing Active/Archived tab.
+     `hideClasses` stays grid-only. Empty-area: toggle stays visible so the timeline
+     "No active projects" panel + toolbar renders.
 
-## Assumptions
-- Tailwind `md` = 48rem (Tailwind 4 default; no `@theme` override found).
-- Below-md expansion keys off the breakpoint (a narrow desktop window behaves
-  like mobile: rail + toggle overlay). This also covers coarse pointers (no hover).
-- The full `<Sidebar>` is not unit-tested (heavy realtime/query/theme mocks); the
-  two properties that matter (below-md default rail; no persistence write) are
-  proven via the extracted pure helpers + matchMedia-mocked hook.
+4. **Tests** — `test(areas): area-detail timeline view, toggle, scope + archived control`
+   - `tests/area-detail-view-persistence.test.ts` (hook), `tests/area-detail-timeline.test.tsx`
+     (grid default, toggle → timeline scope="area" no group header, tab governs showArchived,
+     empty-area toolbar, class filter grid-only, shared-zoom DOM assertion).
+
+5. **Evidence + report** — `docs(planning)`
+   - Production build (`next build && next start`) screenshots both themes: grid+toggle,
+     timeline (bars, no group header), popover, empty-area timeline, mobile 390px, tablet
+     768px. Shared-zoom proven by DOM assertion (`areas:timeline-zoom` set → Quarters
+     carries into the detail timeline).
+
+## Gates
+- `npx vitest run tests/area-detail-view-persistence.test.ts tests/area-detail-timeline.test.tsx tests/projects-timeline-render.test.tsx lib/projects/__tests__/timeline.test.ts` (from apps/web)
+- `npx tsc --noEmit` (from apps/web)
+- `git diff --stat` shows ZERO changes under `components/projects/timeline/`
