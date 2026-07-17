@@ -23,9 +23,9 @@ import { ProjectsTimeline } from "@/components/projects/timeline/ProjectsTimelin
 import { todayISODate } from "@/lib/projects/archive-status";
 import { addDaysISO, type TimelineAreaInput, type TimelineProjectInput } from "@/lib/projects/timeline";
 
-const updateProject = vi.fn(async () => ({ success: true, data: null }));
+const updateProject = vi.fn(async (_input: unknown) => ({ success: true, data: null }));
 vi.mock("@/app/actions/projects", () => ({
-  updateProject: (input: unknown) => updateProject(input as never),
+  updateProject: (input: unknown) => updateProject(input),
   getProjectsForCurrentUser: vi.fn(async () => []),
 }));
 
