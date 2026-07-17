@@ -1073,6 +1073,22 @@ select,
 .jarvis-input-content p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
 }
+/* Lite JARVIS composer (LifeOsQuickSend + the Cmd+K GlobalJarvisDialog).
+   Same soft serif-italic prompt as the full console input — the two composers
+   are the same affordance at two sizes and should read that way. The textarea
+   this replaced got its placeholder for free; a TipTap doc needs the rule. */
+.lite-jarvis-content[data-placeholder] p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: color-mix(in oklch, var(--ink-muted) 70%, transparent);
+  font-style: italic;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
 /* Inline $project chips — sibling to .hashtag-chip-inline, distinct color */
 .project-chip-inline {
   display: inline-block;

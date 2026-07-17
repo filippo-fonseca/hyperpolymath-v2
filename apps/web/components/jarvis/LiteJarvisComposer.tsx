@@ -1,8 +1,34 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
+import type { EditorView } from "@tiptap/pm/view";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { useEffect, useRef } from "react";
+import {
+  EntityMention,
+  ENTITY_MENTION_HTML_ATTRIBUTES,
+  renderEntityMentionHTML,
+} from "@/components/references/entity-mention-node";
+import { createEntityMentionSuggestion } from "@/components/references/entity-mention-suggestion";
+import { serializeEntityMentionNode } from "@/lib/references/tiptap-tokens";
 import { playSend } from "@/lib/ui/play-send";
+import { cn } from "@/lib/utils";
+
+/**
+ * The key event the composer offers to a host's interceptor.
+ *
+ * Structural rather than `React.KeyboardEvent<HTMLTextAreaElement>` because the
+ * textarea is gone: TipTap hands us a native KeyboardEvent, which satisfies
+ * this shape. Nothing that was passing a React event has to change — a React
+ * synthetic event satisfies it too.
+ */
+export interface ComposerKeyEvent {
+  key: string;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+  preventDefault: () => void;
+}
 
 interface Props {
   placeholder?: string;
@@ -18,28 +44,41 @@ interface Props {
    * preserving the host's Arrow/Enter/Escape control for an attached dropdown).
    * Cmd/Ctrl+Enter (send to JARVIS) is never offered to the interceptor.
    */
-  keyboardInterceptor?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => boolean;
+  keyboardInterceptor?: (e: ComposerKeyEvent) => boolean;
+  /** Blocks typing and sending, e.g. while a turn is already in flight. */
+  disabled?: boolean;
 }
 
-const MAX_ROWS = 8;
+/**
+ * Autosize cap: 8 rows at the 24px line-height, as a literal because Tailwind
+ * cannot see an interpolated class name. The editor grows with its content on
+ * its own, so this replaces the textarea's manual scrollHeight measuring.
+ */
+const MAX_HEIGHT_CLASS = "max-h-[192px]";
 
 /**
- * LiteJarvisComposer — a plain-textarea composer used by both LifeOsQuickSend
- * (inline on /lifeos) and GlobalJarvisDialog (Cmd+K dialog on other routes).
+ * LiteJarvisComposer — the composer used by both LifeOsQuickSend (inline on
+ * /lifeos) and GlobalJarvisDialog (Cmd+K dialog on other routes).
  *
- * Deliberately lighter than JarvisInput.tsx (TipTap + dual mention extensions +
- * slash popover + ignite state machine). This is purely a text capture surface;
- * the actual JARVIS turn fires after a sessionStorage handoff into the full
- * JarvisConsole flow on /today.
+ * Now a slim TipTap editor rather than a plain textarea. The reason is the
+ * universal `@`: a textarea has no caret geometry to anchor a menu to and no
+ * way to hold a chip, and there is zero caret math anywhere in this app. TipTap
+ * gives both for free, and it is already the editor behind every other input
+ * that takes a mention. Still deliberately lighter than JarvisInput.tsx (no
+ * slash popover, no ignite state machine, no #/$ chips): this is a text capture
+ * surface whose turn actually fires after a sessionStorage handoff into
+ * JarvisConsole on /today.
  *
- * Keys:
- *   - Cmd/Ctrl+Enter → onSubmit(trimmed). Clears value on success.
+ * Keys — UNCHANGED from the textarea version, deliberately:
+ *   - Cmd/Ctrl+Enter → onSubmit(trimmed). Clears on success. Never intercepted.
+ *   - Enter          → offered to keyboardInterceptor, else a newline.
+ *   - Shift+Enter    → newline.
  *   - Escape         → onCancel?.()
  *
- * Visual register: serif body font (matches JarvisInput placeholder), surface-
- * raised background, edge-hud border. Focus state is the ONE new sanctioned
- * cyan use per the aesthetic budget: 1px hud-cyan border + 4px low-alpha cyan
- * ring. No glow, no scale, no shimmer.
+ * Enter does NOT submit, and that is load-bearing rather than an oversight:
+ * GlobalJarvisDialog's palette interceptor returns false on Enter when no row
+ * is focused precisely so the key falls through, and the visible hint has
+ * always read ⌘⏎. See the u2 control-file blocker of 2026-07-16.
  */
 export function LiteJarvisComposer({
   placeholder = "Tell JARVIS what's on your mind…",
@@ -49,63 +88,105 @@ export function LiteJarvisComposer({
   className,
   onValueChange,
   keyboardInterceptor,
+  disabled = false,
 }: Props) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [value, setValue] = useState("");
-  const lineHeightRef = useRef<number | null>(null);
+  // TipTap freezes editorProps at editor-creation time, so the keydown handler
+  // must reach these through refs or it would pin them to their first-render
+  // values. GlobalJarvisDialog's interceptor is a useCallback that changes on
+  // every result-set change — reading it directly would run a stale palette.
+  // Same pattern as JarvisInput's userTimezoneRef/onSubmitRef.
+  const keyboardInterceptorRef = useRef(keyboardInterceptor);
+  keyboardInterceptorRef.current = keyboardInterceptor;
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
+  const onValueChangeRef = useRef(onValueChange);
+  onValueChangeRef.current = onValueChange;
+  const onSubmitRef = useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
 
-  // Compute line-height once on mount so the auto-grow logic has a stable
-  // multiplier to cap height against. Falls back to 24px if computed style
-  // doesn't report a numeric line-height (e.g. 'normal').
-  useLayoutEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const cs = getComputedStyle(ta);
-    const parsed = parseFloat(cs.lineHeight);
-    lineHeightRef.current = Number.isFinite(parsed) ? parsed : 24;
-  }, []);
+  const editor = useEditor({
+    immediatelyRender: false,
+    editable: !disabled,
+    autofocus: autoFocus ? "end" : false,
+    extensions: [
+      // Single paragraph: every block feature off, and hardBreak left on so
+      // Shift+Enter still makes a newline.
+      StarterKit.configure({
+        heading: false,
+        codeBlock: false,
+        bulletList: false,
+        orderedList: false,
+        blockquote: false,
+        horizontalRule: false,
+        strike: false,
+        code: false,
+      }),
+      EntityMention.configure({
+        HTMLAttributes: ENTITY_MENTION_HTML_ATTRIBUTES,
+        renderHTML: renderEntityMentionHTML,
+        // Mention-existing-only, like JarvisInput: this composer hands text to
+        // JarvisConsole and has no save path to resolve a new person against.
+        suggestion: createEntityMentionSuggestion({ allowCreatePerson: false }),
+      }),
+    ],
+    editorProps: {
+      attributes: {
+        class: cn(
+          "lite-jarvis-content block w-full outline-none overflow-y-auto",
+          "text-[15px] leading-[1.5] text-[var(--sd-ink)]",
+          MAX_HEIGHT_CLASS,
+        ),
+        "data-placeholder": placeholder,
+      },
+      handleKeyDown: (view, event) => {
+        // Cmd/Ctrl+Enter always sends to JARVIS — never intercepted.
+        if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+          event.preventDefault();
+          submitFrom(view);
+          return true;
+        }
+        // Let the host claim Arrow/Enter/Escape for an attached dropdown.
+        // Read through the ref so a host that re-creates its interceptor (as
+        // GlobalJarvisDialog's useCallback does on every result change) is seen
+        // — TipTap freezes editorProps at editor-creation time.
+        if (keyboardInterceptorRef.current?.(event)) return true;
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onCancelRef.current?.();
+          return true;
+        }
+        return false;
+      },
+    },
+    onUpdate: ({ editor: ed }) => {
+      onValueChangeRef.current?.(readText(ed.getJSON()));
+    },
+  });
 
-  // Autogrow: reset height to recompute, then snap to scrollHeight capped at
-  // MAX_ROWS lines so we never push the dialog off-screen.
-  useLayoutEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = "auto";
-    const lh = lineHeightRef.current ?? 24;
-    const max = lh * MAX_ROWS;
-    ta.style.height = `${Math.min(ta.scrollHeight, max)}px`;
-  }, [value]);
+  /**
+   * Send, reading straight from the live ProseMirror view.
+   *
+   * Takes the view rather than closing over `editor` for two reasons: the
+   * handler is defined inside useEditor's own config, where `editor` does not
+   * exist yet, and reading the view guarantees the sent text is what is on
+   * screen regardless of closure staleness — the same reasoning behind
+   * JarvisInput's `_view.state.doc` read.
+   */
+  function submitFrom(view: EditorView) {
+    if (disabledRef.current) return;
+    const trimmed = readText(view.state.doc.toJSON()).trim();
+    if (!trimmed) return;
+    playSend();
+    onSubmitRef.current(trimmed);
+    view.dispatch(view.state.tr.delete(0, view.state.doc.content.size));
+    onValueChangeRef.current?.("");
+  }
 
   useEffect(() => {
-    if (autoFocus && textareaRef.current) {
-      textareaRef.current.focus();
-    }
-  }, [autoFocus]);
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    // Cmd/Ctrl+Enter always sends to JARVIS — never intercepted.
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-      e.preventDefault();
-      const trimmed = value.trim();
-      if (!trimmed) return;
-      playSend();
-      onSubmit(trimmed);
-      setValue("");
-      onValueChange?.("");
-      return;
-    }
-    // Let the host claim Arrow/Enter/Escape for an attached dropdown.
-    if (keyboardInterceptor?.(e)) return;
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onCancel?.();
-    }
-  }
-
-  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    setValue(e.target.value);
-    onValueChange?.(e.target.value);
-  }
+    editor?.setEditable(!disabled);
+  }, [editor, disabled]);
 
   return (
     <div
@@ -115,23 +196,11 @@ export function LiteJarvisComposer({
         "transition-[border-color,box-shadow] duration-[140ms] ease-out",
         "focus-within:border-[var(--sd-accent)]",
         "focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--sd-accent)_10%,transparent)]",
-        className
+        disabled && "opacity-60",
+        className,
       )}
     >
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        rows={1}
-        placeholder={placeholder}
-        spellCheck
-        className={cn(
-          "block w-full resize-none bg-transparent outline-none",
-          "text-[15px] leading-[1.5] text-[var(--sd-ink)]",
-          "placeholder:text-[var(--sd-ink-faint)]"
-        )}
-      />
+      <EditorContent editor={editor} />
       <div className="mt-2 flex items-center justify-end">
         <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
           ⌘⏎ to send · ⎋ to cancel
@@ -139,6 +208,27 @@ export function LiteJarvisComposer({
       </div>
     </div>
   );
+}
+
+/**
+ * The composer's text, with references as S1 tokens.
+ *
+ * Reads the JSON rather than `editor.getText()` for the usual reason: an
+ * entityMention is invisible to doc.textContent, so a chip the user inserted
+ * would contribute nothing and silently vanish on send.
+ */
+function readText(json: unknown): string {
+  if (!json || typeof json !== "object") return "";
+  const n = json as { type?: string; text?: string; content?: unknown[] };
+  if (n.type === "text") return typeof n.text === "string" ? n.text : "";
+  const token = serializeEntityMentionNode(n);
+  if (token !== null) return token;
+  if (n.type === "hardBreak") return "\n";
+  if (Array.isArray(n.content)) {
+    const parts = n.content.map(readText);
+    return parts.join(n.type === "doc" ? "\n" : "");
+  }
+  return "";
 }
 
 export default LiteJarvisComposer;
