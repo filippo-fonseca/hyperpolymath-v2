@@ -325,7 +325,10 @@ function ChatRow({
         padding: "8px 10px",
         textAlign: "left",
         border: 0,
-        borderTop: divided ? hairline : undefined,
+        // Explicit "0" rather than undefined: React drops an undefined longhand
+        // from the inline style entirely, which lets the UA's default 2px outset
+        // button border win on the first row.
+        borderTop: divided ? hairline : "0",
         color: SD_INK.base,
         background,
         cursor: "pointer",
