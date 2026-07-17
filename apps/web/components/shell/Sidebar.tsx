@@ -37,10 +37,13 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useOptimistic, useState } from "react";
+import { useReducedMotion } from "motion/react";
+import { usePathname } from "next/navigation";
+import { useEffect, useOptimistic, useRef, useState } from "react";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
 import { PersistentNav, SidebarStatusRow, SidebarSystemNav } from "./PersistentNav";
 import { SidebarTree } from "./SidebarTree";
+import { deriveSidebarLayout, planToggle, useIsBelowMd } from "./use-sidebar-breakpoint";
 
 interface Props {
   userId: string;
@@ -114,6 +117,15 @@ export function Sidebar({
   const [showArchived, setShowArchived] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [hovered, setHovered] = useState(false);
+  // Below-md overlay open state (u7). Derived-not-persisted: the breakpoint
+  // never touches `collapsed`, so a phone visit can't overwrite the desktop
+  // preference. `belowMd` is SSR-safe (defaults false → server/first paint
+  // agree) and the aside stays `invisible` until `mounted`, so no flash.
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const belowMd = useIsBelowMd();
+  const reduceMotion = useReducedMotion();
+  const pathname = usePathname();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const storedCollapsed = localStorage.getItem("sidebar-collapsed");
@@ -123,18 +135,62 @@ export function Sidebar({
     setMounted(true);
   }, []);
 
-  // When collapsed, hovering temporarily expands the panel as an overlay so the
-  // user can pick a destination without losing collapsed-mode page width.
-  // `effectiveCollapsed` is what every inner UI bit reads — the outer aside
-  // keeps its width tied to `collapsed` so the page layout never shifts.
-  const effectiveCollapsed = collapsed && !hovered;
+  // Above md there is no overlay; make sure crossing back up closes any open one
+  // (and never leaves a stale overlay behind on resize).
+  useEffect(() => {
+    if (!belowMd && overlayOpen) setOverlayOpen(false);
+  }, [belowMd, overlayOpen]);
+
+  // Navigating (below md) dismisses the overlay — tapping a destination should
+  // reveal it, not leave the sheet floating over the new route.
+  useEffect(() => {
+    setOverlayOpen(false);
+  }, [pathname]);
+
+  // Below md the overlay is a modal-ish sheet: Escape and a tap outside it
+  // close it. Desktop hover-peek keeps its own mouse-leave path, untouched.
+  useEffect(() => {
+    if (!belowMd || !overlayOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOverlayOpen(false);
+    }
+    function onPointerDown(e: PointerEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOverlayOpen(false);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [belowMd, overlayOpen]);
+
+  // Layout derivation (u7). Above md this collapses to the classic
+  // `collapsed && !hovered`; below md the rail is forced and the overlay drives
+  // expansion. `railMode` sizes the OUTER aside (no layout push);
+  // `effectiveCollapsed` is what inner UI reads; `peeking` floats the panel.
+  const { railMode, effectiveCollapsed, peeking } = deriveSidebarLayout({
+    belowMd,
+    collapsed,
+    hovered,
+    overlayOpen,
+  });
+  // Width tweens only above md and only with motion allowed. The overlay must
+  // never tween width (§14: animate transform/opacity, never width); below md
+  // it snaps open. Reduced motion drops the desktop collapse tween too.
+  const animateWidth = !belowMd && !reduceMotion;
 
   function toggleCollapsed() {
-    const next = !collapsed;
-    setCollapsed(next);
-    if (!next) setHovered(false);
-    localStorage.setItem("sidebar-collapsed", String(next));
-    sfx.play(next ? "sidebarCollapse" : "sidebarExpand");
+    const decision = planToggle({ belowMd, collapsed, overlayOpen });
+    if (decision.persistCollapsed) {
+      setCollapsed(decision.nextCollapsed);
+      if (!decision.nextCollapsed) setHovered(false);
+      localStorage.setItem("sidebar-collapsed", String(decision.nextCollapsed));
+    }
+    setOverlayOpen(decision.nextOverlayOpen);
+    sfx.play(decision.sfx);
   }
 
   function toggleShowArchived() {
@@ -176,33 +232,38 @@ export function Sidebar({
       aria-label="Sidebar"
       className={cn(
         "relative h-full shrink-0",
-        "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
-        collapsed ? "w-14" : "w-[230px]",
+        animateWidth && "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+        // Below md the outer aside is ALWAYS the rail — expansion is the
+        // floating overlay, so the route width never changes with it.
+        railMode ? "w-14" : "w-[230px]",
         // Nothing paints until localStorage has been read, so a pinned-collapsed
         // sidebar never flashes open on first frame.
         !mounted && "invisible"
       )}
     >
       <div
+        ref={panelRef}
         onMouseEnter={() => {
-          if (collapsed) setHovered(true);
+          // Hover-peek is desktop-only: coarse pointers don't hover, and below
+          // md the toggle owns expansion.
+          if (!belowMd && collapsed) setHovered(true);
         }}
         onMouseLeave={() => setHovered(false)}
         className={cn(
           "group/sidebar absolute inset-y-0 left-0 flex flex-col gap-2.5 overflow-hidden p-2.5 pb-2",
           "border-r border-[var(--sd-line)]",
           SIDEBAR_SURFACE,
-          "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+          animateWidth && "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
           effectiveCollapsed ? "w-14" : "w-[230px]",
-          // Collapsed hover-expand floats above the page as a temporary overlay.
-          collapsed &&
-            hovered &&
+          // Expanded-while-railed floats above the page as an overlay: desktop
+          // hover-peek and the below-md toggle sheet share this one path.
+          peeking &&
             "z-50 rounded-r-md border border-[var(--sd-line)] shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]"
         )}
       >
         <SidebarHeader
-          collapsed={collapsed}
-          peeking={collapsed && !effectiveCollapsed}
+          collapsed={railMode}
+          peeking={peeking}
           onToggleCollapsed={toggleCollapsed}
         />
 

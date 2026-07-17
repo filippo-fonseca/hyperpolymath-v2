@@ -1,90 +1,64 @@
-# PLAN — u3-timeline-core (sesh-1784257742502)
+# PLAN — u7-mobile-shell (mobile-progressive app shell)
 
-Supersedes any stale sd-era PLAN.md content. Scope: timeline components +
-/areas by-date view with zoom, popover, persistence. NO drag (u4 owns it).
+Run: sesh-1784257742502 · Unit: unit-u7-mobile-shell-progressive-shell-77aa · Model: claude-opus-4-8
 
-## Component tree (per CONDUCTOR-SEED directive)
+## Problem
+The app-shell sidebar (`components/shell/Sidebar.tsx`, `w-[230px]` expanded) never
+collapses below `md`. At 390px the route gets ~160px, so the /areas timeline zoom
+toolbar (Quarters/Today) clips. Root cause is the shell yielding no width; the fix
+is shell-only. Do NOT touch `components/projects/timeline/**` or the areas page
+components — the toolbar unclips itself once the shell yields width.
 
-```
-apps/web/components/projects/timeline/
-  useTimelineView.ts        areas:view + areas:timeline-zoom (lifeos:view idiom)
-  TimelineZoomToggle.tsx    Weeks/Months/Quarters (DayWeekToggle SEGMENTS grammar) + Today
-  TimelineHeader.tsx        two sticky tiers: headerGroupsForWindow over markCurrentColumn(columnsForWindow)
-  TimelineBar.tsx           one bar: fades, ghost, label overflow, focus ring, u4 drag seams
-  TimelineGroup.tsx         area section: label row + project rows (suppressed when scope="area")
-  ProjectBarPopover.tsx     link, start/end date form, archive-trap warn, undo toast
-  ProjectsTimeline.tsx      composition: scroller + headers + groups + today marker
-```
+## Approach
+Below `md` the sidebar defaults to the collapsed rail and expansion becomes the
+existing z-50 hover-peek OVERLAY (float over content, zero layout push), opened by
+the collapse toggle (coarse pointers have no hover), closed by tap-outside /
+Escape / navigation. Breakpoint collapse is DERIVED (matchMedia on the exact
+48rem `md` query) composed with the persisted `sidebar-collapsed` value, and NEVER
+writes that preference. At `>= md` behavior is byte-for-byte today's.
 
-`ProjectsTimeline` props: `{ areas, projects, showArchived, scope: "all" | "area" }`
-— designed for u5's `scope="area"` reuse from day one (scope="area" drops the
-group header rows, keeps everything else).
+## Steps
+1. **`components/shell/use-sidebar-breakpoint.ts`** (pure, unit-testable):
+   - `useIsBelowMd()` — SSR-safe (default false = desktop-first, matches SSR);
+     reads `matchMedia("(min-width: 48rem)")` in an effect and subscribes to
+     `change`. Below md === `!mql.matches`.
+   - `deriveSidebarLayout({ belowMd, collapsed, hovered, overlayOpen })` →
+     `{ railMode, effectiveCollapsed, peeking }`. railMode = belowMd || collapsed;
+     effectiveCollapsed = belowMd ? !overlayOpen : (collapsed && !hovered);
+     peeking = railMode && !effectiveCollapsed.
+   - `planToggle({ belowMd, collapsed, overlayOpen })` → decision with
+     `persistCollapsed` false below md (proves "no persistence write below md").
+2. **`Sidebar.tsx`**: add `overlayOpen` state + `belowMd`; outer aside width from
+   `railMode`, inner div from `effectiveCollapsed`, z-50 float from `peeking`;
+   `toggleCollapsed` routes through `planToggle`; gate `onMouseEnter` peek to
+   `!belowMd`; close overlay on outside pointerdown / Escape / pathname change and
+   whenever the viewport crosses back to `>= md`; width tweens gated to
+   `!belowMd && !reduceMotion` (overlay snaps, §14; reduced motion honored);
+   `SidebarHeader` receives `collapsed={railMode}` `peeking={peeking}` (identical
+   at `>= md`, since railMode === collapsed there).
+3. **390px sweep**: `TopTabBar` pills had `min-w-[220px]` + `px-9`, which pushed
+   the +/split controls off a ~334px route and clipped labels; gate both to md+
+   (`min-w-0 md:min-w-[220px]`, `px-3 md:px-9`). No other shell fixed-width
+   breakers found (JARVIS panel is `hidden lg:flex`; breadcrumb width is a `max-`).
+4. **Test** `tests/sidebar-breakpoint.test.tsx`: mocked matchMedia → useIsBelowMd
+   true below md + reacts to change; deriveSidebarLayout forces the rail below md;
+   planToggle below md → persistCollapsed=false. Keep `sidebar-areas-nav` green.
+5. **Gates**: `npx vitest run tests/sidebar-areas-nav.test.tsx
+   tests/sidebar-breakpoint.test.tsx`; `npx tsc --noEmit` (both from apps/web).
+6. **Evidence** (prod build, both themes, `.planning/evidence/`, prefix `u7-`):
+   /areas timeline 390px (toolbar UNCLIPPED), 390px overlay open, 768px, captures
+   390px.
 
-## Engine consumption (u1 API DEVIATIONS are binding)
-- `markCurrentColumn(columnsForWindow(w, zoom), todayISO)` — minor/grid tier.
-- `headerGroupsForWindow(w, zoom)` — major tier; the two tiers do NOT nest, each
-  positioned from its own leftPx/widthPx.
-- `computeWindow` + both column calls wrapped in `useMemo` (engine is pure but O(n)).
-- `barGeometry` → honor `visible:false` (skip render), `clampedStart`/`clampedEnd`/
-  `openEnded` (fades), `corrupt` (1-day bar).
-- `groupByArea` → `TimelineRowProject.isGhost` drives the ghost render.
-- `todayOffsetPx` → marker + Today button; null = today off-window (hide marker).
-- Zero date math in components. ISO strings only.
+## Canon
+§14 (no width tween on the overlay; reduced-motion guard), §16 (no new hex
+literals — all `color-mix`/tokens reused), §18 (both themes). Existing Tailwind
+breakpoints + coarse-pointer semantics only; no bespoke px media queries. u2
+branding/lockup, Areas pill, and focus order preserved (untouched).
 
-## Slices (one commit each)
-1. `feat(timeline): edge-fade + bar-fade utilities in globals.css` (§23 real classes)
-2. `feat(timeline): useTimelineView persistence hook` (SSR default, mount read, write-in-setter)
-3. `feat(timeline): TimelineZoomToggle segmented control + Today button`
-4. `feat(timeline): TimelineHeader two sticky tiers`
-5. `feat(timeline): TimelineBar with fades, ghost, label overflow, focus ring`
-6. `feat(timeline): TimelineGroup area rows`
-7. `feat(timeline): ProjectBarPopover with archive-trap warning + undo toast`
-8. `feat(timeline): ProjectsTimeline composition + scroller + today marker`
-9. `feat(areas): tree|timeline view toggle + timeline data wiring + realtime alsoInvalidate`
-10. `test(timeline): component + persistence + archive-trap coverage`
-11. `docs(planning): u3 plan + evidence`
-
-## Design law applied (DESIGN-SYSTEM.md §14/§16/§18/§21/§23)
-- Bars `--sd-accent` fill only (§21 single series, no per-project hue); lane track
-  `--sd-input`; pill radius; border-only hover; `--sd-selected` + accent label chip
-  when the popover is open; ghost = reduced-opacity accent, never grey gradient.
-- Today marker 3px `--sd-accent` @70%, no halo/blur/pulse. Grid 1px `--sd-line`.
-- Headers `font-mono text-[11px] uppercase tracking-[0.1em]` ink-faint, `tabular-nums`.
-- Fades are REAL classes in globals.css, verified in compiled CSS. No inline gradients.
-- §14: entrances opacity/y 160ms, `useReducedMotion()`-guarded. Zoom re-layouts
-  instantly — never a width tween. No hover scale.
-- No new hex literals. Both themes verified.
-
-## Label overflow rule
-Notion-style: when the bar is narrower than its label, the label renders OUTSIDE
-the bar to the right, clipped by the row, never wrapping. Decided by estimating
-label width from character count rather than DOM measurement (no layout thrash,
-and it makes the rule unit-testable).
-
-## Archive trap
-Any popover date edit whose new effective end < today triggers a confirm step
-before commit (the project vanishes from active lists — Issue #55). Every commit
-routes through `updateProject` + the `use-undo-toast` idiom (deferred commit:
-optimistic local state, server write on auto-close, undo restores local state and
-never writes).
-
-## /areas wiring
-- View toggle `areas:view` = "tree" | "timeline"; zoom `areas:timeline-zoom`.
-- Data: `getProjectsForCurrentUser` (full rows, both dates) under
-  `tableKey("projects", userId)`, sorted CLIENT-side by (orderIndex, createdAt).
-  That action's semantics are NOT changed (ProjectDetailClient depends on it).
-- Realtime: `useTableSubscription("projects", userId, { alsoInvalidate: [tableKey("areas", userId)] })`
-  so date mutations don't leave the sidebar tree stale.
-
-## Known deviation (logged, additive)
-`SidebarArea` carries no `createdAt`, but the engine's `groupByArea` requires
-`TimelineAreaInput.createdAt` for its documented (orderIndex, createdAt) ordering.
-`getSidebarTree` already ORDERS BY `areas.createdAt` but does not SELECT it. Fix is
-2 additive lines (select the column, add the field to the interface) rather than
-faking a value. No existing consumer is affected.
-
-## Gates
-- `npx vitest run tests/projects-timeline-*.test.tsx lib/projects/__tests__/timeline.test.ts` (apps/web)
-- `npx tsc --noEmit` (apps/web)
-- edge-fade + bar-fade utilities grepped out of the COMPILED css (§23)
-- Evidence: light+dark at 3 zooms, popover, ghosts, empty state, toggle.
+## Assumptions
+- Tailwind `md` = 48rem (Tailwind 4 default; no `@theme` override found).
+- Below-md expansion keys off the breakpoint (a narrow desktop window behaves
+  like mobile: rail + toggle overlay). This also covers coarse pointers (no hover).
+- The full `<Sidebar>` is not unit-tested (heavy realtime/query/theme mocks); the
+  two properties that matter (below-md default rail; no persistence write) are
+  proven via the extracted pure helpers + matchMedia-mocked hook.
