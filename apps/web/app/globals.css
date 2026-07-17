@@ -1664,6 +1664,72 @@ select:focus-visible,
   mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
 }
 
+/* Projects timeline — the horizontal analogue of .mask-fade-out. Columns and
+   bars dissolve at the scroller's trailing edge instead of hard-clipping
+   mid-column. Real classes rather than inline gradient overlays (§23): an
+   arbitrary one-off utility can be dropped by the Oxide scan, and these are
+   load-bearing, not decoration. All static — nothing animates, so no
+   reduced-motion guard is needed.
+
+   Trailing edge only, deliberately. The leading edge is where the sticky area
+   labels ride, and fading those would dissolve the one anchor telling you which
+   area you are looking at while scrolled deep into the canvas. */
+.timeline-edge-fade {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 28px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+}
+
+/* Bar terminus fades. `-r` is the open-ended / clamped-end affordance (the bar
+   runs on past what we know or past the window); `-l` is a start that predates
+   the window; `-lr` is both. The fade is capped at 40% of the bar so a short
+   bar fades proportionally instead of vanishing entirely. */
+.timeline-bar-fade-r {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+}
+
+.timeline-bar-fade-l {
+  -webkit-mask-image: linear-gradient(
+    to left,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to left,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+}
+
+.timeline-bar-fade-lr {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black min(32px, 40%),
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black min(32px, 40%),
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+}
+
 /* Scrollbar stays invisible until the pointer is actually in the column
    (§1.8). The gutter is reserved at all times so revealing the thumb never
    reflows the rows. Class specificity beats the global `*::-webkit-scrollbar`
