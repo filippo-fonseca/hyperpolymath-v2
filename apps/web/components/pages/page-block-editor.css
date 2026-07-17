@@ -176,15 +176,19 @@
   border-radius: 6px;
   color: var(--ink);
   cursor: pointer;
-  transition: background-color 120ms ease-out, box-shadow 120ms ease-out;
+  transition: background-color 120ms ease-out;
 }
+/* Hover is a neutral backplate and nothing else. An earlier pass drew an
+   `inset 2px 0 0 var(--sd-accent)` left edge here; on a 6px-radius row the inset
+   shadow follows the rounded corners, so it rendered as a cyan `[` bracket
+   curling around the row. It was also an accent ring for selection, which §16
+   bans outright. */
 .bn-suggestion-menu-item:hover,
 .bn-suggestion-menu-item[aria-selected="true"],
 .bn-suggestion-menu-item[data-selected="true"] {
   background-color: var(--sd-hover) !important;
   color: var(--ink) !important;
   outline: none;
-  box-shadow: inset 2px 0 0 var(--sd-accent);
 }
 
 /* Leading icon chip: drop the 12px p-3, give it a tidy fixed box. */
