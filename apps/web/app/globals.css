@@ -1689,53 +1689,11 @@ select:focus-visible,
   background: var(--sd-selected);
 }
 
-/* Collapsed-rail hover wordmark (sd3 unit-fix-people-sidebar). When the 56px
-   rail is hovered, its top logo zone reveals the full EB Garamond wordmark as
-   a floating plate anchored at the rail's top-left. Opacity + 4px translate
-   only, never a width/layout change — the plate is absolutely positioned and
-   the aside width stays tied to the real collapsed state, so nothing reflows.
-   The reveal is gated to a fine pointer so a touch tap can never strand the
-   plate open; reduced-motion collapses the transition to an instant cut. */
-.sidebar-logo-flyout {
-  display: flex;
-  align-items: center;
-  height: 2.25rem;
-  padding: 0 0.625rem;
-  border-radius: 8px;
-  border: 1px solid var(--sd-line);
-  background: var(--sd-box);
-  font-size: 16px;
-  line-height: 1;
-  white-space: nowrap;
-  box-shadow: 6px 0 20px color-mix(in oklch, var(--ink) 14%, transparent);
-  opacity: 0;
-  transform: translateX(-4px);
-  transition:
-    opacity 140ms ease-out,
-    transform 140ms ease-out;
-  pointer-events: none;
-  z-index: 60;
-}
-/* The collapsed "H" monogram cross-fades out under the revealed wordmark so
-   the hover state reads as a single mark, not an "H" beside the plate. */
-.sidebar-logo-mono {
-  transition: opacity 140ms ease-out;
-}
-@media (pointer: fine) {
-  .group\/sidebar:hover .sidebar-logo-flyout {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  .group\/sidebar:hover .sidebar-logo-mono {
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sidebar-logo-flyout,
-  .sidebar-logo-mono {
-    transition: none;
-  }
-}
+/* The collapsed-rail hover wordmark (.sidebar-logo-flyout / .sidebar-logo-mono)
+   used to live here: a floating plate that revealed the wordmark beside the 56px
+   rail on hover. The hover-peek overlay now expands to the full 230px and renders
+   the real lockup in its header, so the plate had become a second wordmark
+   floating over the first. SidebarHeader owns all three brand states now. */
 
 /* --- 6. Lit-from-above buttons -------------------------------------- */
 /* Accent fill + ambient glow tied to --sd-accent (cyan per D1b/D6, not
