@@ -42,6 +42,8 @@ import {
   reconstructSessionEntitiesFromHistory,
   entityFromToolResult,
 } from "@/lib/jarvis/session-entities";
+import { buildReferencedEntitiesBlock } from "@/lib/jarvis/resolve-references";
+import { REFERENCE_GUIDANCE } from "@/lib/jarvis/reference-guidance";
 import type { SessionEntity, JarvisToolName } from "@hyperpolymath/jarvis-core";
 // Phase 16 tool validators (via tools subpath export from jarvis-core)
 import {
@@ -507,6 +509,12 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     mode: opts.mode,
   });
 
+  // Static entity-reference contract. Pushed here (web-side) rather than into
+  // jarvis-core's cache-critical prompt-builder: it's a byte-stable constant, so
+  // folding it into the prefix ahead of the state snapshot keeps the cache
+  // intact and leaves the jarvis-core purity/stability tests untouched.
+  system.push({ type: "text", text: REFERENCE_GUIDANCE });
+
   const stateVersion = userRow?.stateVersion ?? 1n;
   const todayDate = formatTodayDateInTimezone(userRow?.timezone ?? "America/New_York");
   const activeProjectsForSnapshot: SnapshotInputs["projectsActive"] = [];
@@ -623,6 +631,22 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   // can reference entities created in earlier turns without a find call.
   const sessionEntities: SessionEntity[] = reconstructSessionEntitiesFromHistory(anthropicMessages);
 
+  // Inbound reference resolution (S9). Parse the S1 tokens the user @-mentioned
+  // this turn (and in recent history), resolve them to compact summaries, and
+  // build the <referenced_entities> block. Built ONCE here — its content is
+  // stable across the agentic loop's passes — and injected uncached below.
+  // Fail-open: resolution never blocks a turn, it only enriches context.
+  let referencedEntitiesBlock = "";
+  try {
+    referencedEntitiesBlock = await buildReferencedEntitiesBlock({
+      userId: opts.userId,
+      input: opts.input,
+      messages: anthropicMessages,
+    });
+  } catch (err) {
+    console.error("[jarvis] buildReferencedEntitiesBlock failed", err);
+  }
+
   const totalUsage: RunTurnUsage = {
     input_tokens: 0,
     output_tokens: 0,
@@ -646,6 +670,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       const passSystem = [
         ...system,
         { type: "text" as const, text: temporalText },
+        ...(referencedEntitiesBlock
+          ? [{ type: "text" as const, text: referencedEntitiesBlock }]
+          : []),
         ...(scratchpadText ? [{ type: "text" as const, text: scratchpadText }] : []),
       ];
 
