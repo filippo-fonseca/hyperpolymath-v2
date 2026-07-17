@@ -1,56 +1,52 @@
-# Unit brief — `daily-pages-rail` (wave 3)
+# BGSD Pipeline Agent — unit u1-timeline-engine (run sesh-1784257742502)
 
-**Read first:** `.bgsd/runs/sesh-1783700667211/SPEC.md` (binding). Base includes the merged
-wave-2 Explorer. Executor: Opus. You own the Journal-rail section of the Wiki home + the
-auto-create hook. Sibling `coherence-pass` owns ProjectPagesSection/PageDetail — don't touch
-those.
+You are a BGSD Pipeline Agent on Claude, model claude-opus-4-8, running a
+FEATURE-scale unit in an isolated git worktree (your cwd). Execute the full
+installed GSD workflow for this one unit: inspect → research (light; the scout
+reports already cover most of it) → plan → implement → verify → commit as you go.
 
-## Goal
+## Read first, in this order
+1. `.planning/bgsd-unit.json` — your unit, criteria, paths
+2. `.planning/config.json` — GSD config
+3. `.planning/CONDUCTOR-SEED.md` — the Conductor's directive plan (binding)
+4. `.planning/DESIGN.md` — the sealed session design contract
+5. `.planning/scout-data-report.md` + `.planning/scout-ui-report.md`
+6. Your advisor file (path in bgsd-unit.json) — the Conductor's live steering channel
 
-Daily pages become their own beautiful section — the Journal rail — with today's page
-auto-created the moment you land on Wiki (localtime), rendered as editorial glass (this is
-the "reading room" per SPEC §Doctrine-3: glass tiles + Garamond dates ARE appropriate here,
-in deliberate contrast to the flat Explorer below).
+## Checkpoint protocol (mandatory)
+Re-read the advisor file at each: before implementation, after planning, after
+every commit, on any blocker or assumption, before verification, after every
+verification result. Comply with its latest directive before continuing. Never
+block waiting for a human: log assumptions in your control report and proceed;
+the Conductor answers via the advisor file.
 
-## Current state
+## Deliverable contract (this is how you are audited — omit nothing)
+1. **Commits**: small, focused, one per logical unit, staged with explicit
+   pathspecs (never `git add -A`). Subjects: `feat(timeline-engine): <what>`,
+   `test(timeline-engine): <what>`. Commit `.planning` docs separately with
+   `docs(planning): <what>`. Stay on your branch
+   `bgsd/sesh-1784257742502/u1-timeline-engine`. NEVER merge, push, open PRs, or
+   touch next/main/staging.
+2. **Report** (REQUIRED, write/update it as you go, final version before you exit):
+   `/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/control/u1-timeline-engine.report.md`
+   Structure, in order:
+   - `VERDICT: PASS|FAIL|BLOCKED — <one line>`
+   - `SUMMARY:` ≤8 bullets
+   - `COMMITS:` one per line, `<hash> <subject>`
+   - `GATES:` one per line, `<command> → <PASS/FAIL + 1-line detail>`
+   - `API DEVIATIONS:` any exported name/shape that differs from CONDUCTOR-SEED.md (or `none`)
+   - `ASSUMPTIONS:` list
+   - `DEFECTS/RISKS:` list
+3. **Artifacts**: everything stays in the worktree; evidence (if any) in
+   `.planning/evidence/`.
 
-- The old collapsible Daily Pages section in `PagesListClient.tsx` (wave 2 left it as a
-  marked placeholder) + `JournalCalendar` + "no daily page" tile.
-- Data: `pages.dailyDate` (yyyy-MM-dd), partial unique per user/day; `["daily-pages", userId]`
-  query key; `openDailyPage({ date })` idempotent guarded insert (`app/actions/pages.ts`
-  L273) — but it's used via flows that navigate. `apps/web/lib/pages/daily-page.ts`
-  (`dailyPageTitle`), `useTodayDailyPage.ts` hook, `DailyAutoOpen.tsx` (app-wide auto-open
-  redirect — LEAVE its behavior; coordinate, don't duplicate: if it already navigated today,
-  the rail simply shows the page).
-- `TopTabBar.tsx` L114 "Today" link + `useQuickCreateActions` depend on daily queries — keep
-  keys stable.
+## Gates (run verbatim before claiming PASS; paste results in the report)
+- `pnpm --filter web test`
+- `npx tsc --noEmit` run from `apps/web` (or the repo's typecheck script if one exists)
 
-## Deliverables
-
-1. **Auto-create today (no navigation):** a `useEnsureTodayDailyPage` hook mounted on the
-   Wiki home: compute today CLIENT-SIDE localtime (`format(new Date(), 'yyyy-MM-dd')`,
-   date-fns), check the daily-pages cache, and if missing call the guarded insert (reuse
-   `openDailyPage` or a thin `ensureDailyPage` action that does NOT imply navigation),
-   then invalidate `["daily-pages", userId]`. Idempotent, race-safe (the partial unique
-   index is the backstop), fires at most once per mount per day. No redirect, no toast.
-2. **The Journal rail** — replace the placeholder section: a horizontal rail above the
-   Explorer. Today's card: larger glass tile, Garamond date heading ("Thursday, July 10"),
-   live `PagePreviewThumb` of its content, subtle cyan "today" tick; click → page. Previous
-   ~7 days trail as smaller cards (preview + short date); an "earlier" affordance opens the
-   calendar popover (reuse/restyle `JournalCalendar`) for any date — picking an empty past
-   date offers creation (existing `dailyDayClickAction` semantics). Horizontal scroll with
-   `custom-scrollbar`, snap alignment, motion: cards fade/slide in 180ms staggered on first
-   mount only.
-3. **Collapse control:** the rail can collapse to a slim strip (persist
-   `localStorage["wiki:journal-rail"]`), replacing the old collapsible behavior.
-4. **Exclusion invariant:** daily pages never render in the Explorer grid/list below
-   (verify wave 2's filter; enforce here if missing).
-
-## Acceptance criteria
-
-- Land on `/wiki` with no daily page for today → row appears in DB within moments, rail
-  shows today's card, NO navigation occurred. Reload → no duplicate (unique index quiet).
-- Rail renders previews for days with content; calendar reaches arbitrary dates.
-- "Today" in TopTabBar and quick-create still work; `DailyAutoOpen` unaffected.
-- Build + typecheck green; Playwright drives: fresh load → today card exists → click →
-  editor opens → back → rail intact.
+## Hard rules
+- No schema changes, no migrations, no edits outside your unit's scope
+  (`apps/web/lib/projects/**` and its tests).
+- ISO-string date math only; `new Date("YYYY-MM-DD")` is banned.
+- If `node_modules` is missing, run `pnpm install` first.
+- No silent green: a gate you didn't run is a FAIL, not a PASS.
