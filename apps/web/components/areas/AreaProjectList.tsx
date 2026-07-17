@@ -1,15 +1,23 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import { getProjectsForCurrentUser, type ProjectRow } from "@/app/actions/projects";
 import { AreaProjectCardMenu } from "@/components/areas/AreaProjectCardMenu";
+import { useAreaDetailView } from "@/components/areas/useAreaDetailView";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
+import { ProjectsTimeline } from "@/components/projects/timeline/ProjectsTimeline";
 import {
   type SemesterTerm,
   isProjectExpired,
   todayISODate,
 } from "@/lib/projects/archive-status";
+import type { TimelineAreaInput, TimelineProjectInput } from "@/lib/projects/timeline";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
-import { useMemo, useState } from "react";
 
 export interface AreaProject {
   id: string;
@@ -65,9 +73,32 @@ function isPast(p: AreaProject): boolean {
  *  - Active / Archived tabs — archived or past-end-date projects move out of the
  *    live view into their own tab instead of vanishing.
  */
-export function AreaProjectList({ areaId, projects, allAreas }: Props) {
+export function AreaProjectList({ areaId, area, userId, projects, allAreas }: Props) {
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [hideClasses, setHideClasses] = useState(false);
+  const { view, setView } = useAreaDetailView();
+
+  const timelineActive = view === "timeline";
+
+  // Live projects for the timeline. getProjectsForCurrentUser is the only read
+  // path carrying start_date, and — keyed on the shared ["projects", userId] —
+  // the realtime subscription's own invalidation refetches it, so external date
+  // changes refresh the bars. Until it resolves the widened RSC props render the
+  // timeline instantly (no loading flash). Semantics of that action are left
+  // untouched; this area's rows are filtered out client-side.
+  const { data: liveRows } = useQuery({
+    queryKey: tableKey("projects", userId),
+    queryFn: getProjectsForCurrentUser,
+    enabled: timelineActive,
+  });
+
+  // Date edits from the timeline move a project between active and archived, so
+  // the sidebar tree (under the areas key) must hear about it too. Mirrors the
+  // /areas index wiring exactly.
+  useTableSubscription("projects", userId, {
+    enabled: timelineActive,
+    alsoInvalidate: [tableKey("areas", userId)],
+  });
 
   const { active, archived } = useMemo(() => {
     const active: AreaProject[] = [];
@@ -80,15 +111,44 @@ export function AreaProjectList({ areaId, projects, allAreas }: Props) {
   const baseList = tab === "active" ? active : archived;
   const list = tab === "active" && hideClasses ? baseList.filter((p) => !p.isClass) : baseList;
 
+  const timelineAreas = useMemo<TimelineAreaInput[]>(
+    () => [areaToTimelineInput(area)],
+    [area],
+  );
+  const timelineProjects = useMemo<TimelineProjectInput[]>(() => {
+    if (liveRows) {
+      return liveRows.filter((r) => r.areaId === areaId).map(projectRowToTimeline);
+    }
+    return projects.map((p) => areaProjectToTimeline(p, areaId));
+  }, [liveRows, projects, areaId]);
+
+  // One control governs archived visibility across BOTH views: the Active /
+  // Archived tab. Active → active bars only; Archived → ghosts surface.
+  const showArchived = tab === "archived";
+
   if (projects.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-10 text-center">
-        <p className="text-base text-[var(--ink-muted)]">
-          No projects in this area yet.
-        </p>
-        <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]/70 mt-2">
-          Use the New project button above to get started.
-        </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-end">
+          <ViewToggle view={view} onChange={setView} />
+        </div>
+        {timelineActive ? (
+          <ProjectsTimeline
+            areas={timelineAreas}
+            projects={timelineProjects}
+            showArchived={showArchived}
+            scope="area"
+          />
+        ) : (
+          <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-10 text-center">
+            <p className="text-base text-[var(--ink-muted)]">
+              No projects in this area yet.
+            </p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]/70 mt-2">
+              Use the New project button above to get started.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
@@ -112,25 +172,36 @@ export function AreaProjectList({ areaId, projects, allAreas }: Props) {
           />
         </div>
 
-        {tab === "active" && activeHasClasses ? (
-          <button
-            type="button"
-            onClick={() => setHideClasses((v) => !v)}
-            aria-pressed={hideClasses}
-            className={cn(
-              "px-2.5 py-1 rounded-sm font-mono text-[11px] uppercase tracking-[0.08em] cursor-pointer-always",
-              "border transition-colors duration-150 ease-out",
-              hideClasses
-                ? "border-[var(--edge-hud)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]"
-            )}
-          >
-            {hideClasses ? "Show classes" : "Hide classes"}
-          </button>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {/* hideClasses filters the grid only — the timeline has no class filter. */}
+          {view === "grid" && tab === "active" && activeHasClasses ? (
+            <button
+              type="button"
+              onClick={() => setHideClasses((v) => !v)}
+              aria-pressed={hideClasses}
+              className={cn(
+                "px-2.5 py-1 rounded-sm font-mono text-[11px] uppercase tracking-[0.08em] cursor-pointer-always",
+                "border transition-colors duration-150 ease-out",
+                hideClasses
+                  ? "border-[var(--edge-hud)] bg-[var(--surface-raised)] text-[var(--ink)]"
+                  : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]"
+              )}
+            >
+              {hideClasses ? "Show classes" : "Hide classes"}
+            </button>
+          ) : null}
+          <ViewToggle view={view} onChange={setView} />
+        </div>
       </div>
 
-      {list.length === 0 ? (
+      {timelineActive ? (
+        <ProjectsTimeline
+          areas={timelineAreas}
+          projects={timelineProjects}
+          showArchived={showArchived}
+          scope="area"
+        />
+      ) : list.length === 0 ? (
         <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-8 text-center">
           <p className="text-base text-[var(--ink-muted)]">
             {tab === "archived"
@@ -237,4 +308,95 @@ function TabButton({
       {label} <span className="tabular-nums text-[var(--ink-muted)]">({count})</span>
     </button>
   );
+}
+
+const VIEW_SEGMENTS: { value: "grid" | "timeline"; label: string }[] = [
+  { value: "grid", label: "Grid" },
+  { value: "timeline", label: "Timeline" },
+];
+
+/**
+ * Grid|Timeline segmented control. Same grammar as the /areas index
+ * TREE|TIMELINE toggle (AreasPageClient) so the two surfaces read as one system.
+ */
+function ViewToggle({
+  view,
+  onChange,
+}: {
+  view: "grid" | "timeline";
+  onChange: (next: "grid" | "timeline") => void;
+}) {
+  return (
+    <div
+      data-testid="area-detail-view-toggle"
+      className="flex items-center gap-0.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5"
+    >
+      {VIEW_SEGMENTS.map((seg) => (
+        <button
+          key={seg.value}
+          type="button"
+          onClick={() => onChange(seg.value)}
+          aria-pressed={view === seg.value}
+          className={cn(
+            "cursor-pointer-always rounded-[5px] px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em]",
+            "transition-colors duration-150 ease-out",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+            view === seg.value
+              ? "bg-[var(--sd-selected)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]"
+              : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
+          )}
+        >
+          {seg.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// --- Mappers: page shapes → the timeline engine's inputs -------------------
+
+function areaToTimelineInput(area: AreaDetailArea): TimelineAreaInput {
+  return {
+    id: area.id,
+    name: area.name,
+    emoji: area.emoji,
+    orderIndex: area.orderIndex,
+    createdAt: area.createdAt,
+  };
+}
+
+/** Widened RSC props → TimelineProjectInput (this area's projects, pre-filtered). */
+function areaProjectToTimeline(p: AreaProject, areaId: string): TimelineProjectInput {
+  return {
+    id: p.id,
+    name: p.name,
+    icon: p.icon,
+    areaId,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    createdAt: p.createdAt,
+    archivedAt: p.archivedAt,
+    isClass: p.isClass,
+    semesterTerm: p.semesterTerm,
+    semesterYear: p.semesterYear,
+    orderIndex: p.orderIndex,
+  };
+}
+
+/** Live query rows → TimelineProjectInput. */
+function projectRowToTimeline(r: ProjectRow): TimelineProjectInput {
+  return {
+    id: r.id,
+    name: r.name,
+    icon: r.icon,
+    areaId: r.areaId,
+    startDate: r.startDate,
+    endDate: r.endDate,
+    createdAt: r.createdAt,
+    archivedAt: r.archivedAt,
+    isClass: r.isClass,
+    semesterTerm: r.semesterTerm,
+    semesterYear: r.semesterYear,
+    orderIndex: r.orderIndex,
+  };
 }
