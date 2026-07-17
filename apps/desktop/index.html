@@ -226,13 +226,17 @@
         z-index: 40;
         width: 208px; max-width: 44vw;
         padding: 12px 13px 11px;
-        border-radius: 12px;
-        border: 1px solid color-mix(in srgb, var(--sd-accent) 26%, var(--sd-line));
+        border-radius: var(--r-panel);
+        /* Card v2 on chrome: a 1px --sd-line hairline (not a cyan-tinted border)
+           plus the white inset top hairline for elevation. Glass stays (D1) —
+           this is a floating chrome panel, not an inner content surface. */
+        border: 1px solid var(--sd-line);
         background: color-mix(in srgb, var(--sd-box) 88%, transparent);
         backdrop-filter: blur(9px) saturate(120%);
         -webkit-backdrop-filter: blur(9px) saturate(120%);
-        box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5),
-                    0 0 18px color-mix(in srgb, var(--sd-accent) 16%, transparent);
+        box-shadow: var(--sd-hairline-card),
+                    0 10px 34px rgba(0, 0, 0, 0.5),
+                    var(--glow-hud-subtle);
         opacity: 0;
         transform: translateY(-6px);
         transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
@@ -368,13 +372,15 @@
         display: flex; align-items: center; gap: 8px;
         max-width: 100%;
         padding: 7px 11px;
-        border-radius: 10px;
-        border: 1px solid color-mix(in srgb, var(--sd-accent) 26%, var(--sd-line));
+        border-radius: var(--r-pill-inset);
+        /* Card v2 on chrome: hairline + inset top hairline; glass kept (D1). */
+        border: 1px solid var(--sd-line);
         background: color-mix(in srgb, var(--sd-box) 88%, transparent);
         backdrop-filter: blur(9px) saturate(120%);
         -webkit-backdrop-filter: blur(9px) saturate(120%);
-        box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5),
-                    0 0 14px color-mix(in srgb, var(--sd-accent) 14%, transparent);
+        box-shadow: var(--sd-hairline-card),
+                    0 8px 26px rgba(0, 0, 0, 0.5),
+                    var(--glow-hud-subtle);
         animation: task-fade-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
         transition: opacity 0.35s ease, border-color 0.3s ease, box-shadow 0.3s ease;
       }
@@ -454,13 +460,15 @@
         display: flex; align-items: baseline; gap: 8px;
         max-width: 100%;
         padding: 8px 13px;
-        border-radius: 11px;
-        border: 1px solid color-mix(in srgb, var(--sd-accent) 30%, var(--sd-line));
+        border-radius: var(--r-panel);
+        /* Card v2 on chrome: hairline + inset top hairline; glass kept (D1). */
+        border: 1px solid var(--sd-line);
         background: color-mix(in srgb, var(--sd-box) 90%, transparent);
         backdrop-filter: blur(10px) saturate(122%);
         -webkit-backdrop-filter: blur(10px) saturate(122%);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.52),
-                    0 0 16px color-mix(in srgb, var(--sd-accent) 16%, transparent);
+        box-shadow: var(--sd-hairline-card),
+                    0 10px 30px rgba(0, 0, 0, 0.52),
+                    var(--glow-hud-subtle);
         opacity: 0;
         animation: noti-toast-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         transition: opacity 0.4s ease;
@@ -502,9 +510,14 @@
         flex-direction: column;
         gap: 10px;
         padding: 12px 14px;
+        /* The transcript is the one inner CONTENT surface here (conversation
+           text), so it goes SOLID sd (recessed --sd-dark-box), not translucent:
+           §D1 keeps glass on chrome, content stays opaque. Hairline + inset top
+           hairline for the card-v2 well. */
         border: 1px solid var(--sd-line);
-        border-radius: 12px;
-        background: color-mix(in srgb, var(--sd-box) 70%, transparent);
+        border-radius: var(--r-panel);
+        background: var(--sd-dark-box);
+        box-shadow: var(--sd-hairline-card);
         scroll-behavior: smooth;
       }
       /* Slim custom scrollbar (custom-scrollbar pattern). */
@@ -558,7 +571,7 @@
         color: var(--sd-ink-faint);
         background: transparent;
         border: 1px solid var(--sd-line);
-        border-radius: 7px;
+        border-radius: var(--r-chrome);
         padding: 3px 9px;
         cursor: pointer;
         transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
@@ -609,9 +622,10 @@
       }
       .turn.user .who { color: color-mix(in srgb, var(--sd-ink) 55%, var(--sd-ink-faint)); }
       .turn.jarvis .who { color: var(--sd-accent); }
-      /* Turn text is the one serif surface — EB Garamond (journal register)
-         against the mono chrome everywhere else. Slightly larger than the
-         old sans size; Garamond runs small on the body. */
+      /* Turn text is Space Grotesk (the app sans) — the serif transcript is
+         dead per oracle O1; body/transcript may not use EB Garamond. Kept a
+         touch larger than the mono chrome so the conversation reads as the
+         primary surface. */
       .turn .body { font-family: var(--font-sans); font-size: 15px; }
       .turn.user .body { color: color-mix(in srgb, var(--sd-ink) 80%, var(--sd-ink-faint)); }
       /* Optimistic placeholder while STT is still resolving — reads as
@@ -710,88 +724,20 @@
         transition: color 0.15s, background 0.15s;
       }
       .gear-btn:hover { color: var(--sd-ink); background: color-mix(in srgb, var(--sd-ink) 6%, transparent); }
-      .settings {
-        position: fixed; inset: 0;
-        background: color-mix(in srgb, var(--sd-app) 92%, transparent);
-        backdrop-filter: blur(8px);
-        padding: 40px 28px 28px;
-        overflow-y: auto;
-        display: none;
-        z-index: 10;
-      }
-      .settings.open { display: block; }
-      .settings h2 { font-size: 14px; font-weight: 600; margin: 0 0 14px; color: var(--sd-ink); }
-      .row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--sd-line); font-size: 13px; }
-      .row:last-child { border-bottom: none; }
-      .label { color: var(--sd-ink-faint); }
-      .value { font-family: var(--font-mono); font-size: 12px; color: var(--sd-ink); text-align: right; max-width: 62%; word-break: break-word; }
+      /* The old vanilla settings drawer (`.settings`, its rows, toggles, list
+         editors, and section chrome) was consolidated into the one React
+         Settings widget by unit u7, which deleted its markup. The orphaned rules
+         are excised here. The `select` / `input[type=password]` element rules
+         below are KEPT: the React widget still renders those elements in this
+         document, and although its inline styles override them, they remain live
+         markup. `.gear-btn` (above) and `.sr-only` (below) also stay — the gear
+         still summons the widget and the a11y utility wraps hidden controls. */
       select {
         background: var(--sd-box); color: var(--sd-ink); border: 1px solid var(--sd-line);
         border-radius: 6px; padding: 4px 7px; font-size: 12px; font-family: inherit;
         cursor: pointer; outline: none;
       }
       select:focus { border-color: var(--sd-accent); }
-      .toggle-pill { position: relative; display: inline-flex; align-items: center; width: 36px; height: 22px; cursor: pointer; }
-      .toggle-pill input[type=checkbox] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 2; }
-      .toggle-track { position: absolute; inset: 0; background: var(--sd-line); border-radius: 11px; transition: background 0.2s; z-index: 1; }
-      .toggle-track::before { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
-      .toggle-pill input[type=checkbox]:checked + .toggle-track { background: var(--sd-accent); }
-      .toggle-pill input[type=checkbox]:checked + .toggle-track::before { transform: translateX(14px); }
-      .stop-btn {
-        background: transparent; border: 1px solid color-mix(in srgb, var(--sd-accent) 50%, var(--sd-line));
-        color: var(--sd-accent); padding: 4px 12px; border-radius: 6px;
-        font-size: 11px; cursor: pointer; font-weight: 500; font-family: inherit;
-      }
-      .stop-btn:hover { background: color-mix(in srgb, var(--sd-accent) 12%, transparent); }
-      .settings-close {
-        position: absolute; top: 12px; right: 14px;
-        appearance: none; background: transparent; border: none; color: var(--sd-ink-faint);
-        font-size: 18px; cursor: pointer; line-height: 1;
-      }
-      .settings-close:hover { color: var(--sd-ink); }
-      /* Section header inside the drawer — mono-caps with a hairline rule,
-         same register as .status-line, faint cyan cast to mark the section. */
-      .section-title {
-        font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: color-mix(in srgb, var(--sd-accent) 40%, var(--sd-ink-faint));
-        margin: 24px 0 4px; padding-bottom: 6px;
-        border-bottom: 1px solid var(--sd-line);
-      }
-      /* Muted description line under a settings row. */
-      .note {
-        color: var(--sd-ink-faint); font-size: 11px; line-height: 1.6;
-        margin: 7px 0 3px; max-width: 460px;
-      }
-      /* Add/remove list editors (Open on start, Startup Shortcuts) — indented
-         under their row behind a hairline, so they read as the row's detail. */
-      .list-editor {
-        display: flex; flex-direction: column; gap: 6px;
-        padding: 8px 0 10px 10px; margin-left: 2px;
-        border-left: 1px solid var(--sd-line);
-      }
-      .list-editor .list-item { display: flex; align-items: center; gap: 6px; }
-      .list-editor input[type=text] {
-        flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 12px; padding: 5px 8px;
-        border-radius: 5px; border: 1px solid var(--sd-line);
-        background: color-mix(in srgb, var(--sd-box) 80%, transparent); color: var(--sd-ink);
-        transition: border-color 0.15s;
-      }
-      .list-editor input[type=text]:focus {
-        border-color: color-mix(in srgb, var(--sd-accent) 60%, var(--sd-line)); outline: none;
-      }
-      /* Remove is a quiet ghost until hovered — destructive tint on intent
-         only, so the cyan .stop-btn base doesn't imply a primary action. */
-      .list-editor .list-remove {
-        padding: 4px 8px; font-size: 12px; line-height: 1;
-        color: var(--sd-ink-faint); border-color: var(--sd-line);
-      }
-      .list-editor .list-remove:hover {
-        color: var(--ink-coral);
-        border-color: color-mix(in srgb, var(--ink-coral) 45%, var(--sd-line));
-        background: color-mix(in srgb, var(--ink-coral) 10%, transparent);
-      }
-      .list-editor .list-empty { color: var(--sd-ink-faint); font-size: 11px; font-style: italic; }
       input[type=password] {
         font-family: var(--font-mono); font-size: 12px; width: 200px; padding: 4px 8px;
         border-radius: 5px; border: 1px solid var(--sd-line); background: var(--sd-box); color: var(--sd-ink);
