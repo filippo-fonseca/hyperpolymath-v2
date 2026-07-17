@@ -86,6 +86,9 @@ export function AreaCreateDialog({
       emoji: trimmedEmoji,
       orderIndex: currentAreaCount ?? 0,
       archivedAt: null,
+      // The server stamps its own now(); this is the optimistic row's stand-in
+      // until the refetch replaces it, and it sorts last either way.
+      createdAt: new Date(),
       projects: [],
     };
 

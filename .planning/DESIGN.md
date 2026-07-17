@@ -87,6 +87,27 @@ archived/expired ghosts; sentinel "No Area" group renders last; class projects
 switching mid-drag (cancel drag); mobile/touch width; keyboard focus ring on bars
 (§ focus-visible ring).
 
+## Responsive contract (amendment, user-directed 2026-07-17)
+The timeline must be mobile-progressive and readjust cleanly across web sizes.
+- **Any viewport width**: the scroller is the release valve — the window's
+  totalWidthPx never squeezes; narrow viewports simply show a narrower slice and
+  pan. No horizontal overflow may ever leak to the page body (scroll stays
+  inside the timeline scroller).
+- **Touch**: native touch panning on the scroller (no JS hijack); tap = the
+  popover path (tap targets ≥44px effective — row height or padding may need a
+  touch-friendly bump via coarse-pointer media query, NOT a layout fork).
+- **Toolbar** (view toggle + zoom segments + Today): wraps or compacts at narrow
+  widths per the app's existing responsive idiom — never clipped, never
+  overlapping the page title.
+- **Popover**: clamps within the viewport at all sizes (small screens included);
+  date inputs usable on mobile.
+- **Sticky headers** stay correct while panning at every width; today marker and
+  fades unaffected by viewport size.
+- **Breakpoint discipline**: use the app's existing Tailwind breakpoints /
+  coarse-pointer queries; no bespoke px media queries; both themes at every size.
+- Evidence must include mobile-width (~390px) and tablet-width (~768px) shots in
+  addition to desktop.
+
 ## Non-goals (this session)
 No virtualization (tens of projects assumed); no per-project colors; no
 milestones/dependencies; no new tables/columns; no desktop/mobile app work;
