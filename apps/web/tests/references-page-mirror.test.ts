@@ -108,7 +108,7 @@ describe("blocksWithReferenceTokens", () => {
     expect(blocksWithReferenceTokens(doc)).toEqual(doc);
   });
 
-  it("drops a half-inserted node with no id rather than emitting a broken token", () => {
+  it("passes a half-inserted node with no id through untokenized rather than emitting a broken token", () => {
     // Both specs default refId to "", so an incomplete node is reachable. The
     // walker refuses it, and the mirror must agree — a token pointing at
     // nothing is worse than no token.
