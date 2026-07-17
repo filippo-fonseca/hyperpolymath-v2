@@ -3,6 +3,7 @@
 import { format, isToday, parseISO, subDays } from "date-fns";
 import type { CSSProperties } from "react";
 import type { JournalEntry } from "@/app/actions/journal";
+import { stripReferences } from "@/lib/references/token";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -59,7 +60,11 @@ export function JournalHistoryFeed({ entries, selectedDate, onSelectDate }: Prop
         <div className="divide-y divide-[var(--sd-line)]">
           {entries.map((entry) => {
             const isSelected = entry.date === selectedDate;
-            const preview = entry.mainResponse?.trim();
+            // Stripped to label text rather than chipped: this preview lives
+            // inside the row's own <button>, so it can hold no interactive
+            // pill. A reference reads as its label, which is what the sentence
+            // meant anyway.
+            const preview = stripReferences(entry.mainResponse ?? "").trim();
 
             return (
               <button

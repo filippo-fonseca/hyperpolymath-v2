@@ -58,9 +58,17 @@ const KIND_NAME: Record<EntityRefType, string> = {
 export function EntityPill({
   entityRef,
   className,
+  asButton = true,
 }: {
   entityRef: EntityRef;
   className?: string;
+  /**
+   * `false` renders a plain `<span>`, matching HashtagChip/PersonChip's escape
+   * hatch. Required wherever the pill sits inside something already clickable
+   * — a search result row is itself a `<button>`, and a nested button is
+   * invalid DOM.
+   */
+  asButton?: boolean;
 }) {
   const router = useRouter();
   const resolved = useResolvedLabel(entityRef.type, entityRef.id);
@@ -83,6 +91,7 @@ export function EntityPill({
     </>
   );
 
+  // A tombstone is inert regardless of `asButton`: there is nowhere to go.
   if (isTombstone) {
     return (
       <TooltipProvider delayDuration={300}>
@@ -102,27 +111,33 @@ export function EntityPill({
     );
   }
 
+  // Static: the entity is live, so it keeps its normal register — it simply
+  // isn't independently clickable, because something above it already is.
+  const trigger = asButton ? (
+    <button
+      type="button"
+      className={cn("entity-pill", className)}
+      data-kind={entityRef.type}
+      aria-label={`${kindName}: ${label}`}
+      onClick={(e) => {
+        // Cards and rows are themselves clickable; opening the card *and* the
+        // reference on one click would be a race.
+        e.stopPropagation();
+        router.push(entityHref({ kind: entityRef.type, id: entityRef.id }));
+      }}
+    >
+      {body}
+    </button>
+  ) : (
+    <span className={cn("entity-pill", className)} data-kind={entityRef.type}>
+      {body}
+    </span>
+  );
+
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className={cn("entity-pill", className)}
-            data-kind={entityRef.type}
-            aria-label={`${kindName}: ${label}`}
-            onClick={(e) => {
-              // Cards and rows are themselves clickable; opening the card
-              // *and* the reference on one click would be a race.
-              e.stopPropagation();
-              router.push(
-                entityHref({ kind: entityRef.type, id: entityRef.id }),
-              );
-            }}
-          >
-            {body}
-          </button>
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
         <TooltipContent className="max-w-[280px] normal-case tracking-normal">
           <EntityPreview
             kindName={kindName}
