@@ -1,52 +1,57 @@
-# u5-area-detail-timeline — plan (sesh-1784257742502)
+# PLAN — u4-timeline-drag (sesh-1784257742502)
 
-Bring u3's `ProjectsTimeline` to `/areas/[areaId]` behind a grid|timeline toggle in
-the `AreaProjectList` filter row. Consume u3's API NOTES verbatim; ZERO edits under
-`components/projects/timeline/**` (u4 owns it concurrently). No new mutation, no
-migration, no new props on the frozen components — pre-filter to the single area.
+Supersedes any stale sd-era / u3 PLAN.md content. Scope: full drag interactions
+on timeline bars. NO new date math (engine only); NO new mutation (u3's
+`onCommitDates`/`handleCommitDates` deferred-commit undo seam only). Touched
+paths: `apps/web/components/projects/timeline/**` + scoped test files only.
 
-## Slices (each its own commit)
+Slices (each its own focused commit, explicit pathspecs, branch
+`bgsd/sesh-1784257742502/u4-timeline-drag`):
 
-1. **Data widening** — `feat(areas): widen area-detail RSC select + AreaProject for the timeline`
-   - `app/(app)/areas/[areaId]/page.tsx`: add `projects.startDate`, `projects.createdAt`,
-     `projects.orderIndex`, `projects.semesterTerm/Year`; add `areas.orderIndex`,
-     `areas.createdAt`; pass `area` (full) + `userId` into `AreaProjectList`. Additive
-     only — grid/header semantics unchanged.
-   - `AreaProject` interface widened compatibly (startDate/createdAt/orderIndex/semester*).
+1. **fix(timeline): wrap populated-state toolbar row** — verifier FINDING 1.
+   `flex items-center justify-between gap-3` → `flex flex-wrap items-center
+   justify-between gap-x-3 gap-y-2` (same treatment the empty state already has).
 
-2. **Page-scoped view hook** — `feat(areas): page-scoped area-detail:view persistence hook`
-   - `components/areas/useAreaDetailView.ts`: `lifeos:view` idiom EXACTLY — `useState("grid")`,
-     mount effect reads/validates `localStorage["area-detail:view"]`, write in setter.
-     Values `"grid"|"timeline"`, default `"grid"`. A separate hook from the frozen
-     `useTimelineView` (which is `areas:view`/"tree" shaped); zoom is NOT duplicated —
-     it shares `areas:timeline-zoom` through the frozen hook for free.
+2. **feat(timeline): pure drag-plan module** (`drag-plan.ts`) — every non-pointer
+   decision as pure, unit-testable functions over the u1 engine only: `planDrag`
+   (move / resize-start / resize-end, open-ended terminus → real end, null-edge
+   preservation, clamps), `previewGeometry`, `autoScrollVelocity`, `isNoopPatch`,
+   `patchWouldArchive` (same `isProjectExpired` rule as the popover),
+   `crossedThreshold`, plus the tunables (threshold, long-press, edge, hit-zone).
 
-3. **Toggle + timeline wiring** — `feat(areas): grid|timeline toggle + timeline on the area detail page`
-   - GRID|TIMELINE segmented control (u3 SEGMENTS grammar, `--sd-*` tokens) in the filter row.
-   - Timeline branch: `areas=[area]`, `projects=(liveRows?.filter(areaId) ?? RSC props).map(→TimelineProjectInput)`,
-     `scope="area"`, `showArchived = tab === "archived"`.
-   - Live data via `useQuery(getProjectsForCurrentUser)` keyed on the shared
-     `["projects", userId]` (the only read path carrying `start_date`); widened RSC props
-     seed first paint (no loading flash).
-   - Realtime: `useTableSubscription("projects", userId, { alsoInvalidate: [tableKey("areas", userId)] })`,
-     gated on the timeline being active — mirrors the /areas index wiring so date edits
-     refresh both the bars and the sidebar tree.
-   - One archived control governs both views: the existing Active/Archived tab.
-     `hideClasses` stays grid-only. Empty-area: toggle stays visible so the timeline
-     "No active projects" panel + toolbar renders.
+3. **test(timeline): drag-plan unit tests** — snap/commit-patch (all 3 modes),
+   threshold, cancel (no-op), archive-trap detection, preview geometry, auto-scroll.
 
-4. **Tests** — `test(areas): area-detail timeline view, toggle, scope + archived control`
-   - `tests/area-detail-view-persistence.test.ts` (hook), `tests/area-detail-timeline.test.tsx`
-     (grid default, toggle → timeline scope="area" no group header, tab governs showArchived,
-     empty-area toolbar, class filter grid-only, shared-zoom DOM assertion).
+4. **feat(timeline): useTimelineDrag hook** — imperative pointer session:
+   `setPointerCapture`, 4px threshold (below = click = popover), rAF preview via
+   direct inline left/width writes (no CSS transition on dragged props),
+   auto-scroll rAF loop keeping the bar under the pointer, Escape cancels + full
+   revert, touch long-press (~300ms) to arm else native pan wins, release builds
+   the patch and calls the parent commit seam, suppresses the post-drag click.
 
-5. **Evidence + report** — `docs(planning)`
-   - Production build (`next build && next start`) screenshots both themes: grid+toggle,
-     timeline (bars, no group header), popover, empty-area timeline, mobile 390px, tablet
-     768px. Shared-zoom proven by DOM assertion (`areas:timeline-zoom` set → Quarters
-     carries into the detail timeline).
+5. **feat(timeline): drag seams on TimelineBar** — `onBeginDrag` prop; two 8px
+   edge resize-handles (wider on coarse pointer), `cursor-ew-resize`; corrupt bars
+   don't drag; ghost bars drag but keep ghost styling; click still opens popover.
 
-## Gates
-- `npx vitest run tests/area-detail-view-persistence.test.ts tests/area-detail-timeline.test.tsx tests/projects-timeline-render.test.tsx lib/projects/__tests__/timeline.test.ts` (from apps/web)
-- `npx tsc --noEmit` (from apps/web)
-- `git diff --stat` shows ZERO changes under `components/projects/timeline/`
+6. **feat(timeline): thread drag through TimelineGroup** — pass the drag starter
+   from `ProjectsTimeline` down to each `TimelineBar`.
+
+7. **feat(timeline): ProjectsTimeline drag controller + archive-trap confirm** —
+   instantiate `useTimelineDrag`; route release through `handleDragCommit` →
+   reuses `handleCommitDates`/`onCommitDates` (NEVER `updateProject` directly); a
+   drag that newly expires a project opens an AlertDialog confirm before the toast
+   path fires — cancel = full revert.
+
+   (+ follow-up fix: keep drag preview and committed dates consistent for
+   pinned-terminus bars — `barEndISO` = real end ?? semester end ?? window edge.)
+
+8. **docs(planning): u4 evidence** — production build + Playwright real mouse
+   drags; both themes; mid-drag snapped preview, after-drop undo toast, edge
+   resize, open-ended terminus→real end, archive-trap-by-drag, toolbar wrap at
+   narrow width; mobile(390)/tablet(768). Verify undo actually reverts in the UI.
+
+Gates (from apps/web): the scoped vitest set in the seed + the new drag test, and
+`npx tsc --noEmit`. Repo-wide vitest is NOT a gate (31 pre-existing failures).
+
+a11y note: drag is pointer-only by design; the popover remains the full keyboard
++ mobile editing path. Bars keep their focus ring; no ARIA drag theater.

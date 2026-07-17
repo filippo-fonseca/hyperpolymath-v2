@@ -1,28 +1,27 @@
 {
-  "unit_id": "unit-u5-area-detail-timeline-by-date--b485",
+  "unit_id": "unit-u4-timeline-drag-full-drag-inter-6e38",
   "run_id": "sesh-1784257742502",
   "scale": "feature",
-  "title": "u5-area-detail-timeline: by-date view on /areas/[areaId]",
-  "scope": "Bring the timeline to the area detail page. Widen the area-detail RSC data path to include start_date (and whatever TimelineProjectInput needs), extend the AreaProject interface accordingly, add a grid|timeline view toggle in the AreaProjectList filter row consistent with u3's TREE|TIMELINE toggle grammar, render ProjectsTimeline with scope=\"area\" (single pre-filtered area, no group headers per u3's API NOTES), sensible persistence (shared zoom key areas:timeline-zoom; page-scoped view key), realtime invalidation for date mutations mirroring u3's alsoInvalidate wiring, reconcile with the page's existing show-archived idiom, responsive per the DESIGN.md amendment, tests. Consumes u3's components strictly - NEVER edits components/projects/timeline/** (u4 owns that surface concurrently).",
+  "title": "u4-timeline-drag: full drag interactions on timeline bars",
+  "scope": "Pointer-capture drag on bars (move both dates) and edge handles (resize start/end; dragging an open-ended terminus sets a real end date), per-zoom snapping from the u1 drag math, drag preview via direct style updates (no transitions), Escape cancels, drag-vs-click threshold (click still opens the popover), auto-scroll at window edges, commits through u3's existing onCommitDates/handleCommitDates seam (deferred-commit undo toast), archive-trap confirm when a drag would newly expire a project, touch policy per seed (long-press to drag; native panning wins otherwise), reduced-motion + a11y (popover remains the keyboard path), tests for snap/commit/cancel logic. Also closes verifier FINDING 1: the populated-state toolbar row in ProjectsTimeline.tsx gets the same flex-wrap treatment as the empty state.",
   "criteria": [
-    "/areas/[areaId] offers a grid|timeline toggle in the filter row, grammar-consistent with u3's toggle; grid view remains byte-for-byte today's behavior",
-    "Timeline renders via ProjectsTimeline scope=\"area\" with the single area pre-filtered (no areaId prop exists - pass filtered arrays per u3 API NOTES); no area group header shown",
-    "Area-detail data path includes start_date and satisfies TimelineProjectInput without changing existing consumers' semantics",
-    "Zoom persists via the SHARED areas:timeline-zoom key; view mode persists via a page-scoped key following the lifeos:view idiom exactly",
-    "Date edits from the popover work on the detail page with undo toast and archive-trap intact; realtime invalidation wired so external date changes refresh the timeline",
-    "Show-archived: detail page's existing idiom governs; ghosts render when shown",
-    "Responsive per DESIGN.md amendment (no page-body overflow; toolbar wraps); both themes; reduced motion",
-    "Scoped tests green plus npx tsc --noEmit clean; zero edits under components/projects/timeline/"
+    "Bar drag moves both dates; edge handles resize start/end; open-ended terminus drag sets a real end date; per-zoom snapping uses pxToSnappedDayDelta from the engine (no new date math)",
+    "Drag-vs-click threshold preserved: a plain click still opens the popover; Escape cancels an in-flight drag with full visual revert",
+    "Commits reuse u3's onCommitDates/handleCommitDates deferred-commit undo path; a drag that newly expires a project triggers the archive-trap confirm before committing",
+    "Auto-scroll engages near scroller edges during drag; touch: long-press initiates drag, otherwise native horizontal panning is untouched",
+    "No width/position transitions during drag (direct style updates only); reduced motion respected; both themes; §14/§16 canon on every changed line",
+    "Populated-state toolbar row wraps at narrow widths (verifier FINDING 1 closed)",
+    "Scoped tests green (drag logic: snap, commit, cancel, threshold, archive-trap) plus u3's test files and the 71 engine tests; npx tsc --noEmit clean"
   ],
-  "touched": ["apps/web/app/(app)/areas/[areaId]/page.tsx", "apps/web/components/areas/AreaProjectList.tsx", "apps/web/tests"],
+  "touched": ["apps/web/components/projects/timeline/"],
   "model": "claude-opus-4-8",
   "model_assignment": {
     "tier": "heavy",
     "effort": "xhigh",
     "reason": "fixed routing: user contract pins every build lane to Opus 4.8"
   },
-  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/advisor/unit-u5-area-detail-timeline-by-date--b485.md",
-  "control_report_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/control/u5-area-detail-timeline.report.md",
+  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/advisor/unit-u4-timeline-drag-full-drag-inter-6e38.md",
+  "control_report_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/control/u4-timeline-drag.report.md",
   "advisor_checkpoints": [
     "before implementation",
     "after planning",

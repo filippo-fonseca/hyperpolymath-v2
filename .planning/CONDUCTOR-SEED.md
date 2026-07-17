@@ -1,59 +1,70 @@
-# Conductor seed — u5-area-detail-timeline (from Kiwi/Fable)
+# Conductor seed — u4-timeline-drag (from Kiwi/Fable)
 
 Read `.planning/DESIGN.md` (sealed contract incl. the Responsive amendment),
-`.planning/u3-core-report.md` (API NOTES section is BINDING — ProjectsTimeline
-props, useTimelineView keys, empty states), and `.planning/scout-ui-report.md`
-(AreaProjectList seam). Stale sd-era planning docs litter `.planning/` —
-anything not named here is NOT yours; overwrite PLAN.md with your own plan.
+`.planning/u3-core-report.md` (its API NOTES section is BINDING — the drag
+seams, commit seam, and test ids are defined there), and
+`.planning/u1-engine-report.md` (drag math). Scout reports for background.
+Stale sd-era planning docs litter `.planning/` — anything not named here is NOT
+yours; overwrite PLAN.md with your own plan.
 
-## The contract you consume (u3, merged into your base)
-- `ProjectsTimeline { areas, projects, showArchived, scope, toolbarSlot? }` —
-  `scope="area"` suppresses area group headers and NOTHING else. There is NO
-  areaId prop: you pre-filter `areas` (the one area) and `projects` (its
-  projects) before passing them in. Types come from `@/lib/projects/timeline`
-  (`TimelineAreaInput` needs the area's `createdAt`; `TimelineProjectInput`
-  needs start/end dates, orderIndex, createdAt, classSemester fields — check
-  the type, satisfy it from the RSC data path).
-- Popover editing, undo toast, archive-trap all live inside ProjectsTimeline —
-  you get them for free; verify they work on this page, don't rebuild them.
-- Zoom: use the hook's SHARED `areas:timeline-zoom` key so zoom follows the
-  user between /areas and detail. View mode: page-scoped key
-  `area-detail:view` ("grid" | "timeline", default grid), lifeos:view idiom
-  EXACTLY (SSR default, mount effect read, write in setter). u3's
-  useTimelineView is areas-page-shaped; if it doesn't decompose cleanly for a
-  scoped view key, write a tiny local hook in your own files rather than
-  editing u3's — remember: components/projects/timeline/** is FROZEN for you
-  (u4 edits it concurrently; any edit there guarantees a merge conflict).
-- Realtime: mirror u3's wiring — the projects subscription on this page gets
-  `alsoInvalidate` so date mutations from elsewhere refresh the timeline
-  (check what the detail page already subscribes to; extend minimally).
+## The seams you build on (do not re-derive)
+- `TimelineBar` is a single forwardRef `<button>` with `data-timeline-bar`,
+  `data-project-id`, `data-bar-left-px`, `data-bar-width-px`,
+  `data-open-ended`, `data-ghost`. Position is inline style from engine
+  geometry. `onOpen` is its only callback today; you ADD drag props.
+- Commits go through `ProjectsTimeline.handleCommitDates` /
+  `ProjectBarPopover`'s `onCommitDates(patch: TimelineDatePatch)` — the
+  deferred-commit undo-toast path. Your drag release calls THE SAME seam.
+  Never call updateProject directly.
+- Engine: `pxToSnappedDayDelta` (per-zoom snapping: weeks→day, months→day,
+  quarters→week per sealed contract), `isoDateToPx`, geometry from
+  `TimelineBarGeometry`. ZERO new date math in components.
+- Archive-trap: reuse/extract the popover's `wouldArchive` logic (an edit that
+  NEWLY expires the project) — a drag-commit that trips it shows the same
+  confirm before the toast path fires; cancel = full revert.
 
-## Directive
-1. Toggle sits in the AreaProjectList filter row (scout: the seam at the
-   filter/sort controls), grammar-consistent with u3's TREE|TIMELINE toggle
-   (DayWeekToggle SEGMENTS style). Grid stays the default and byte-for-byte
-   unchanged.
-2. Data: the detail page RSC select must include start_date (it already has
-   end-date-adjacent fields; widen minimally). Do NOT change any existing
-   consumer's semantics; additive only. If the page's AreaProject interface is
-   reused elsewhere, extend it compatibly.
-3. Show-archived: the page has an existing idiom for archived visibility —
-   reconcile: the timeline's `showArchived` prop follows the SAME control the
-   grid uses (one control governs both views).
-4. Empty states come from ProjectsTimeline; make sure the area-with-no-projects
-   case renders its "No active projects" panel with the toolbar (screenshot it).
-5. Responsive amendment applies: no page-body overflow, toolbar wraps at narrow
-   widths, both themes, reduced motion.
+## Interaction directive (binding)
+1. Pointer events + `setPointerCapture` on the bar; drag threshold ~4px before
+   a drag starts (below it, release = click = popover). Escape mid-drag cancels
+   and reverts. During drag: update inline left/width DIRECTLY per frame — no
+   CSS transitions on dragged properties (transitions off while dragging; §14).
+2. Edge handles: ~8px hit zones at bar ends (larger via coarse-pointer query),
+   cursor `ew-resize`, resize start or end independently. Dragging the faded
+   open-ended terminus converts it to a REAL end date at the snapped position.
+   Corrupt bars (`data-corrupt`) do not drag.
+3. Ghost bars DO drag (they hold real dates) but keep ghost styling during drag.
+4. Auto-scroll: when the pointer nears the scroller's left/right edge
+   (~40px) mid-drag, scroll and keep the bar under the pointer (rAF loop;
+   cancel on release/Escape).
+5. TOUCH POLICY (Conductor ruling, from the Responsive amendment): native
+   horizontal panning always wins on coarse pointers. Bar drag on touch
+   requires a ~300ms long-press to arm (haptic-free, visual cue via the
+   selected/border state); tap = popover, which remains the full mobile editing
+   path. Set `touch-action` accordingly ONLY while armed. Do not hijack the
+   scroller.
+6. Snapped preview: while dragging, the bar snaps live (per-zoom) so the drop
+   position is always truthful. Optionally surface the dates in the existing
+   label chip idiom — no new tooltip surface.
+7. a11y: drag is pointer-only; the popover stays the keyboard path (document
+   this in your report). Bars keep their focus ring; no ARIA drag theater.
+
+## Also in scope (small, verifier finding)
+- `ProjectsTimeline.tsx` populated-state toolbar row (the `flex items-center
+  justify-between gap-3` one) gets the same flex-wrap treatment the empty
+  state already has (verifier FINDING 1 — the 580fb01c fix missed this row).
 
 ## Gates (base = staging 0fba4668; repo-wide vitest is NOT a gate — 31
 pre-existing jarvis/voice failures, Conductor ruling)
-- `npx vitest run tests/<your new tests> tests/projects-timeline-render.test.tsx lib/projects/__tests__/timeline.test.ts` (from apps/web)
+- `npx vitest run tests/<your new drag tests> tests/projects-timeline-archive-trap.test.tsx tests/projects-timeline-render.test.tsx tests/projects-timeline-view-persistence.test.ts lib/projects/__tests__/timeline.test.ts` (from apps/web)
 - `npx tsc --noEmit` (from apps/web)
-- `git diff --stat` must show ZERO changes under components/projects/timeline/
+- Extract drag logic into a testable module (e.g. `useTimelineDrag.ts` or a
+  pure `drag-plan.ts`): snap/threshold/commit-patch/cancel become unit tests,
+  not browser theater.
 
-## Evidence (.planning/evidence/, committed, prefix u5-)
+## Evidence (.planning/evidence/, committed, prefix u4-)
 Production build (`next build && next start` — dev does not hydrate in these
-worktrees). Both themes: detail page grid view with the new toggle, timeline
-view (bars, no group header), popover open on the detail page, empty-area
-timeline, ~768px width shot. Note the shared-zoom behavior (set zoom on
-/areas, confirm it carries to detail) with a screenshot pair or DOM assertion.
+worktrees). Use Playwright mouse APIs to perform REAL drags. Both themes where
+visual: mid-drag bar (snapped preview + cursor), after-drop with undo toast
+visible, edge-resize mid-gesture, open-ended terminus converted to real end,
+archive-trap confirm triggered by a drag, toolbar wrapping at narrow width
+(FINDING 1 closed). Verify in the DB-visible UI that undo actually reverts.

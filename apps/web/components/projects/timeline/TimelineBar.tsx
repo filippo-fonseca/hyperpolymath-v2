@@ -23,8 +23,9 @@
  * name into the ∞ affordance.
  */
 
-import { forwardRef } from "react";
+import { type PointerEvent as ReactPointerEvent, forwardRef } from "react";
 
+import type { DragMode } from "@/components/projects/timeline/drag-plan";
 import type { TimelineBarGeometry, TimelineRowProject } from "@/lib/projects/timeline";
 import { cn } from "@/lib/utils";
 
@@ -67,10 +68,17 @@ interface Props {
   isOpen: boolean;
   onOpen: (projectId: string) => void;
   heightPx: number;
+  /**
+   * Pointer path to u4's drag session. Absent (SSR / tests) → the bar is a
+   * plain click-to-popover button with no drag affordances. `mode` picks which
+   * gesture the pointerdown starts: the body moves both dates, the edge handles
+   * resize each end independently.
+   */
+  onBeginDrag?: (mode: DragMode, event: ReactPointerEvent<HTMLElement>) => void;
 }
 
 export const TimelineBar = forwardRef<HTMLButtonElement, Props>(function TimelineBar(
-  { project, geometry, isOpen, onOpen, heightPx },
+  { project, geometry, isOpen, onOpen, heightPx, onBeginDrag },
   ref,
 ) {
   // The engine reports visible:false when a clamped window excludes the project
@@ -78,12 +86,16 @@ export const TimelineBar = forwardRef<HTMLButtonElement, Props>(function Timelin
   if (!geometry.visible) return null;
 
   const fitsInside = labelFitsInsideBar(project.name, geometry.widthPx);
+  // Corrupt bars are a 1-day stub over bad data; they never drag or resize, so
+  // they get no handles and no move cursor (the hook also refuses them).
+  const draggable = onBeginDrag != null && !geometry.corrupt;
 
   return (
     <button
       ref={ref}
       type="button"
       onClick={() => onOpen(project.id)}
+      onPointerDown={draggable ? (e) => onBeginDrag?.("move", e) : undefined}
       data-timeline-bar=""
       data-project-id={project.id}
       data-bar-left-px={geometry.leftPx}
@@ -101,16 +113,45 @@ export const TimelineBar = forwardRef<HTMLButtonElement, Props>(function Timelin
       )}
       style={{ left: geometry.leftPx, width: geometry.widthPx, height: heightPx }}
     >
-      {/* Fill — masked for the terminus fades, so the label above stays crisp. */}
+      {/* Fill — masked for the terminus fades, so the label above stays crisp.
+          The border is the only drag cue: it moves to accent while a touch
+          long-press arms the drag, and to dull ink while dragging or hovering.
+          Nothing here transitions left/width (§14). */}
       <span
         aria-hidden="true"
         className={cn(
           "absolute inset-0 rounded-full border border-transparent bg-[var(--sd-accent)]",
           "transition-colors duration-150 ease-out group-hover:border-[var(--sd-ink-dull)]",
+          "group-data-[dragging]:border-[var(--sd-ink-dull)] group-data-[drag-armed]:border-[var(--sd-accent)]",
           project.isGhost && "opacity-40",
           fadeClassFor(geometry),
         )}
       />
+
+      {/* Edge resize handles — thin hit zones at each end, wider on coarse
+          pointers. The left one moves the start; the right one moves the end
+          (and converts an open-ended terminus to a real date). Each stops its
+          pointerdown from also starting a body-move. */}
+      {draggable && (
+        <>
+          <span
+            aria-hidden="true"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onBeginDrag?.("resize-start", e);
+            }}
+            className="absolute inset-y-0 left-0 z-[2] w-2 cursor-ew-resize [@media(pointer:coarse)]:w-3"
+          />
+          <span
+            aria-hidden="true"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onBeginDrag?.("resize-end", e);
+            }}
+            className="absolute inset-y-0 right-0 z-[2] w-2 cursor-ew-resize [@media(pointer:coarse)]:w-3"
+          />
+        </>
+      )}
 
       {fitsInside ? (
         <span className="pointer-events-none relative z-[1] block truncate px-2 text-left font-medium text-[13px] text-[var(--sd-app)] leading-none">
