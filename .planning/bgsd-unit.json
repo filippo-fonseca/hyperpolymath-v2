@@ -1,26 +1,29 @@
 {
-  "unit_id": "unit-u1-timeline-engine-pure-date-geo-6ed5",
+  "unit_id": "unit-u3-timeline-core-timeline-compon-c4f6",
   "run_id": "sesh-1784257742502",
   "scale": "feature",
-  "title": "u1-timeline-engine: pure date/geometry engine for the projects timeline",
-  "scope": "lib/projects timeline engine: projectEffectiveStartISO (start_date ?? semester start for classes ?? createdAt date-part), window/zoom scale math for weeks|months|quarters (px-per-day, column derivation, header labels), bar geometry (clamping, open-ended ends, min-width, start>end corruption guard), drag math (px->date with per-zoom snapping), area grouping + ordering (orderIndex,createdAt; sentinel No Area last), archived/expired classification reuse. Pure functions, ISO-string date math only, exhaustive unit tests in lib/projects/__tests__/. No UI, no page edits.",
+  "title": "u3-timeline-core: timeline components + /areas by-date view with zoom, popover, persistence",
+  "scope": "ProjectsTimeline component per the sealed visual contract: sticky mono date headers per zoom, horizontal scroller (.scrollbar-hidden + real edge-fade class in globals.css), area group rows, cyan bars with open-ended fade, today marker + Today button (scroll-to-today), Weeks/Months/Quarters segmented control (DayWeekToggle grammar), click popover with project link + start/end date editing + archive-trap warning + undo toast, ghost bars for archived/expired behind show-archived toggle, empty/edge states, both themes, motion law. /areas index integration: tree|timeline view toggle (localStorage areas:view idiom), data via getProjectsForCurrentUser with client-side sort/filter, realtime alsoInvalidate wiring. NO drag interactions (u4 owns those). Component tests per tests/ conventions.",
   "criteria": [
-    "projectEffectiveStartISO resolves start_date ?? semester start (classes) ?? createdAt date-part",
-    "Zoom scales (weeks/months/quarters) produce correct columns, px-per-day, header labels",
-    "Bar geometry handles: open-ended (null end), clamping to window, start>end corruption guard, min width",
-    "Drag math: px->ISO date with per-zoom snapping (day/day/week), pure and tested",
-    "Area grouping ordered by orderIndex,createdAt with sentinel No Area last",
-    "All date math ISO-string based; zero new Date(\"YYYY-MM-DD\") parsing; pnpm --filter web test green"
+    "/areas gains a tree|timeline toggle (localStorage areas:view idiom, SSR-safe); timeline renders all areas as row groups",
+    "Sticky mono date headers per zoom; Weeks/Months/Quarters segmented control persisted (areas:timeline-zoom)",
+    "Bars follow the sealed visual contract (cyan accent, sd tokens, open-ended fade, today marker 3px accent@70%, 1px sd-line grid)",
+    "Horizontal scroll with .scrollbar-hidden + real edge-fade class in globals.css (verified in compiled CSS); Today button centers today",
+    "Click popover: project link + start/end date editing via updateProject with archive-trap warning + undo toast",
+    "Archived/expired projects render as muted ghost bars behind the show-archived idiom",
+    "Empty states (no areas, no projects, all undated) designed, not broken; both themes verified; motion law respected (no width animation)",
+    "Realtime: projects subscription alsoInvalidate areas key where dates are mutated; component tests in apps/web/tests/"
   ],
-  "touched": ["apps/web/lib/projects/timeline.ts", "apps/web/lib/projects/archive-status.ts", "apps/web/lib/projects/__tests__/"],
+  "touched": ["apps/web/components/projects/timeline/", "apps/web/components/areas/AreasPageClient.tsx", "apps/web/app/(app)/areas/page.tsx", "apps/web/app/globals.css"],
+  "deps": ["unit-u1-timeline-engine-pure-date-geo-6ed5 (MERGED into this branch's base)"],
   "model": "claude-opus-4-8",
   "model_assignment": {
     "tier": "heavy",
     "effort": "xhigh",
-    "reason": "fixed routing: user contract pins every build lane to Opus 4.8"
+    "reason": "fixed routing: user contract pins every build lane to Opus 4.8; flagship UI unit"
   },
-  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/advisor/unit-u1-timeline-engine-pure-date-geo-6ed5.md",
-  "control_report_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/control/u1-timeline-engine.report.md",
+  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/advisor/unit-u3-timeline-core-timeline-compon-c4f6.md",
+  "control_report_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/control/u3-timeline-core.report.md",
   "advisor_checkpoints": [
     "before implementation",
     "after planning",

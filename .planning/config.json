@@ -40,13 +40,13 @@
   "mode": "yolo",
   "granularity": "coarse",
   "bgsd_unit_posture": {
-    "unit_id": "u1-timeline-engine",
+    "unit_id": "u3-timeline-core",
     "model": "opus",
     "effort": "xhigh",
-    "difficulty": 0.41
+    "difficulty": 0.575
   },
   "bgsd_phase_config": {
-    "unit_id": "u1-timeline-engine",
+    "unit_id": "u3-timeline-core",
     "research": true,
     "plan_check": true,
     "code_review": true,
