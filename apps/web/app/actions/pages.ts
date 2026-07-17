@@ -10,6 +10,11 @@ import {
 import { pageFolders, pages, pagesProjects, projects } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { dailyPageTitle, isValidDailyDate } from "@/lib/pages/daily-page";
+import { extractReferencesFromContentJson } from "@/lib/references/page-refs";
+import {
+  deleteReferencesForEntity,
+  reconcileEntityReferences,
+} from "@/lib/references/reconcile";
 // pageFolders is imported for the createPage folder-ownership check below.
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -104,6 +109,16 @@ export async function createPage(input: unknown): Promise<ActionResult<{ id: str
       }
     }
 
+    // References come from the block tree, never from `content`: that column is
+    // only a lossy markdown mirror of content_json, and a reference it drops
+    // would silently unlink on save.
+    await reconcileEntityReferences(tx, {
+      userId,
+      sourceType: "page",
+      sourceId: page.id,
+      refs: extractReferencesFromContentJson(parsed.data.contentJson),
+    });
+
     return page.id;
   });
 
@@ -191,6 +206,18 @@ export async function updatePage(input: unknown): Promise<ActionResult<null>> {
         }
       }
     }
+
+    // Re-index only when the block tree itself changed. A title-, emoji-, or
+    // pin-only edit carries no contentJson, and reconciling against an absent
+    // tree would read as "this page references nothing" and unlink everything.
+    if (parsed.data.contentJson !== undefined) {
+      await reconcileEntityReferences(tx, {
+        userId,
+        sourceType: "page",
+        sourceId: parsed.data.id,
+        refs: extractReferencesFromContentJson(parsed.data.contentJson),
+      });
+    }
   });
 
   return { success: true, data: null };
@@ -228,7 +255,11 @@ export async function deletePage(id: string): Promise<ActionResult<null>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
   if (!z.string().uuid().safeParse(id).success) return { success: false, error: "Invalid id" };
-  await db.delete(pages).where(and(eq(pages.id, id), eq(pages.userId, userId)));
+  await db.transaction(async (tx) => {
+    // Both directions, by hand: no FK to cascade through.
+    await deleteReferencesForEntity(tx, { userId, type: "page", id });
+    await tx.delete(pages).where(and(eq(pages.id, id), eq(pages.userId, userId)));
+  });
   return { success: true, data: null };
 }
 
