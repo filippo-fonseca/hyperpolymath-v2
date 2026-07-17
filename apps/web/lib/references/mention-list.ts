@@ -136,17 +136,8 @@ export const MENTION_KIND_LABEL: Record<EntityRefType, string> = {
 /**
  * The fallback glyph for a kind, shown when the entity has no emoji of its own.
  *
- * `area`/`project`/`task`/`page` are copied verbatim from the shipped map in
- * EntityReferenceInline.tsx — the wiki already teaches these four shapes, and a
- * task that is `✓` in a page but `☑` in the menu is a bug the user reads as
- * two different things. `capture` and `person` are new: `◇` is the open
- * counterpart of area's filled `◆`, and `@` needs no explanation.
+ * Re-exported alias for the canonical map in glyphs.ts — the menu and the
+ * entityMention node import this name, and pointing it at the single source of
+ * truth is what stops a kind from wearing two different marks across surfaces.
  */
-export const MENTION_KIND_GLYPH: Record<EntityRefType, string> = {
-  capture: "◇",
-  task: "✓",
-  page: "¶",
-  project: "▸",
-  area: "◆",
-  person: "@",
-};
+export { ENTITY_KIND_GLYPH as MENTION_KIND_GLYPH } from "./glyphs";

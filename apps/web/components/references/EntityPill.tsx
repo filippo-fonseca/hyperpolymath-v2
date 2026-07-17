@@ -8,6 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { entityHref } from "@/lib/entity-href";
+import { ENTITY_KIND_GLYPH } from "@/lib/references/glyphs";
 import type { EntityRef, EntityRefType } from "@/lib/references/token";
 import { cn } from "@/lib/utils";
 import { useResolvedLabel } from "./use-entity-labels";
@@ -34,16 +35,6 @@ import { useResolvedLabel } from "./use-entity-labels";
  * which *is* an anchor precisely because it must survive a copy-paste out of a
  * document). No innerHTML anywhere — the label is text, and text is a child.
  */
-
-/** Per-kind glyph. Extends the wiki chip's map (EntityReferenceInline) with the two new kinds. */
-const KIND_GLYPH: Record<EntityRefType, string> = {
-  area: "◆",
-  project: "▸",
-  task: "✓",
-  page: "¶",
-  capture: "✎",
-  person: "@",
-};
 
 /** Human-facing kind name, for the tooltip's header and the a11y label. */
 const KIND_NAME: Record<EntityRefType, string> = {
@@ -79,7 +70,7 @@ export function EntityPill({
   // An entity can be real and still have no name (an untitled page), so fall
   // through the ladder rather than trusting the live label's mere presence.
   const label = resolved?.label.trim() || snapshot || "Untitled";
-  const glyph = resolved?.emoji || KIND_GLYPH[entityRef.type];
+  const glyph = resolved?.emoji || ENTITY_KIND_GLYPH[entityRef.type];
   const kindName = KIND_NAME[entityRef.type];
 
   const body = (
