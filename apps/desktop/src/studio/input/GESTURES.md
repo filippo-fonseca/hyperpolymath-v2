@@ -92,7 +92,7 @@ from the smoothed palm centroid) + dolly (dz from pinch-dolly).
 **Arbitration.** Rides `pinchActive`. Survives a MediaPipe dropout up to
 `pinchLostGraceMs` without re-anchoring (see §14).
 
-**Tests.** None (pure delta arithmetic, no thresholds of its own).
+**Tests.** `pinch-drag-recognizer.test.ts` (7).
 
 ---
 
@@ -122,7 +122,7 @@ release. A release before the threshold emits nothing.
 overlap. `reset()` mid-grab emits `grabEnd` so a hand-lost gap never strands a
 held widget.
 
-**Tests.** None.
+**Tests.** `pinch-hold-recognizer.test.ts` (8).
 
 ---
 
@@ -261,7 +261,7 @@ the cursor, which is the whole reason for the velocity deadband. Demoted behind
 fist-scroll but fully live: it shares a pose with nothing else, so it never
 contends.
 
-**Tests.** `index-scroll-recognizer.test.ts` (8).
+**Tests.** `index-scroll-recognizer.test.ts` (9).
 
 ---
 
@@ -296,7 +296,7 @@ what stops a scroll flickering into a swipe mid-drag.
 **Known asymmetry (#2).** `fistScrolling` is `mode === "scroll"` ONLY, so a
 `swipe`-latched fist starves nothing. See the arbitration map.
 
-**Tests.** `fist-scroll-recognizer.test.ts` (7).
+**Tests.** `fist-scroll-recognizer.test.ts` (8).
 
 ---
 
@@ -337,7 +337,7 @@ already bit once, and it is the model the others should follow.
 **Known conflict (#1).** It is NOT separated from **open-hand-resize**, which
 shares the same openness scalar. See the arbitration map.
 
-**Tests.** `four-finger-scroll-recognizer.test.ts` (8), plus the gate in
+**Tests.** `four-finger-scroll-recognizer.test.ts` (9), plus the gate in
 `hand/gesture-click-gates.test.ts`.
 
 ---
@@ -376,7 +376,7 @@ belt-and-suspenders, so a partial curl never reads as a click.
 **Known asymmetry (#2).** Palm-click is NOT gated on `swipeFired`, though collapse
 is. See the arbitration map.
 
-**Tests.** `palm-click-recognizer.test.ts` (17).
+**Tests.** `palm-click-recognizer.test.ts` (18).
 
 ---
 
@@ -619,15 +619,15 @@ bare literal.
 | Gesture | Tests |
 |---|---|
 | pinch-dolly | 16 |
-| pinch-drag | none (no thresholds of its own) |
-| pinch-hold | none |
+| pinch-drag | 7 |
+| pinch-hold | 8 |
 | open-palm-halt | 13 |
 | pinch-bloom | 6 |
 | open-hand-resize | 9 |
-| index-scroll | 8 |
-| fist-scroll | 7 |
-| four-finger-scroll | 8 (+ the curl gate) |
-| palm-click | 17 |
+| index-scroll | 9 |
+| fist-scroll | 8 |
+| four-finger-scroll | 9 (+ the curl gate) |
+| palm-click | 18 |
 | thumb-confirm | 8 (+ geometry) |
 | swipe | 11 |
 | collapse | partial (gates only) |
