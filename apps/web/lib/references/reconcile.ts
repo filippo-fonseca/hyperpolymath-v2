@@ -85,15 +85,30 @@ export function diffReferences(
   return { toInsert, toDelete };
 }
 
-/** Which table owns each target kind, for the ownership check. */
-const TARGET_TABLES = {
-  capture: captures,
-  task: tasks,
-  page: pages,
-  project: projects,
-  area: areas,
-  person: people,
-} as const;
+/**
+ * Which table owns each target kind, for the ownership check.
+ *
+ * Resolved per call rather than built into a module-scope map: this module is
+ * imported (via the action files) by tests that only partially mock
+ * @/lib/db/schema, and a map built at import time would demand all six exports
+ * from every one of them just to load.
+ */
+function targetTable(type: EntityRefType) {
+  switch (type) {
+    case "capture":
+      return captures;
+    case "task":
+      return tasks;
+    case "page":
+      return pages;
+    case "project":
+      return projects;
+    case "area":
+      return areas;
+    case "person":
+      return people;
+  }
+}
 
 /**
  * Drop any target the user doesn't own.
@@ -123,7 +138,7 @@ async function keepOwnedTargets(
   const owned = new Set<string>();
   await Promise.all(
     Array.from(byType, async ([type, ids]) => {
-      const table = TARGET_TABLES[type];
+      const table = targetTable(type);
       const rows = await handle
         .select({ id: table.id })
         .from(table)
