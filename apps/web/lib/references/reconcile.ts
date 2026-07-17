@@ -10,7 +10,7 @@ import {
   projects,
   tasks,
 } from "@/lib/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import {
   type EntityRef,
   type EntityRefType,
@@ -295,4 +295,38 @@ export async function deleteReferencesForEntity(
     targetType: type,
     targetId: id,
   });
+}
+
+/**
+ * The same cleanup for a set of entities of one kind, in a single statement.
+ * A bulk delete of 500 tasks shouldn't cost 1000 round trips.
+ */
+export async function deleteReferencesForEntities(
+  handle: DbOrTx,
+  {
+    userId,
+    type,
+    ids,
+  }: {
+    userId: string;
+    type: ReferenceSourceType & EntityRefType;
+    ids: readonly string[];
+  },
+): Promise<void> {
+  if (!ids.length) return;
+  await handle.delete(entityReferences).where(
+    and(
+      eq(entityReferences.userId, userId),
+      or(
+        and(
+          eq(entityReferences.sourceType, type),
+          inArray(entityReferences.sourceId, ids as string[]),
+        ),
+        and(
+          eq(entityReferences.targetType, type),
+          inArray(entityReferences.targetId, ids as string[]),
+        ),
+      ),
+    ),
+  );
 }
