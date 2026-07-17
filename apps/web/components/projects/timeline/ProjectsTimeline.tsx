@@ -200,7 +200,10 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
+      {/* Same flex-wrap treatment as the empty-state toolbar row: each control
+          group wraps as a unit at narrow widths rather than clipping or
+          overlapping the page title (verifier FINDING 1). */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <TimelineZoomToggle
           zoom={zoom}
           onZoomChange={setZoom}
