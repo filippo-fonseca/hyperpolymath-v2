@@ -7,10 +7,8 @@ import "./blocks/link-embed-block.css";
 
 import { undoJarvisAction } from "@/app/actions/jarvis";
 import { resolveOrCreatePerson } from "@/app/actions/people";
-import {
-  type EntityMentionCandidate,
-  searchEntityMentions,
-} from "@/app/actions/wiki-references";
+import { searchEntityMentions } from "@/app/actions/wiki-references";
+import type { EntityMentionCandidate } from "@/lib/references/mention-search";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import type { PersonWithStats } from "@/lib/db/queries/people";
 import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
