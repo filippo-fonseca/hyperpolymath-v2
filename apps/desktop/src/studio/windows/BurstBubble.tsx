@@ -1,10 +1,13 @@
 import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
-import { STUDIO_COLORS } from "../tokens";
+import { SD_ACCENT, SD_DURATION } from "../tokens";
 import { BURST_THRESHOLD } from "./edge-burst";
 
-const CYAN = STUDIO_COLORS.accent;
+const CYAN = SD_ACCENT;
+
+/** The pop flourish and its shards, on §14's collapse step. */
+const POP_DURATION = SD_DURATION.collapse / 1000;
 
 interface Props {
   /** Burst progress 0..1 for the widget currently arming this bubble. */
@@ -28,6 +31,13 @@ const SHARDS = Array.from({ length: 8 }, (_, index) => {
  * cyan skin that swells with `progress` and, as it nears the commit threshold,
  * tautens and wobbles ("about to burst" warning). On `popping` it flashes and
  * scatters shards. Transforms + opacity only — no blur/filter churn.
+ *
+ * De-glowed for sd: the skin used to cast an 18-44px cyan halo that grew with
+ * progress, and both skin and pop were radial gradients. §1 keeps neither. The
+ * bubble now reads as a flat translucent fill inside a 1px ring, and says
+ * "about to burst" through scale and ring opacity alone — which is what was
+ * carrying the meaning anyway. The wobble stays: it IS the affordance, not
+ * decoration, and it lives only for the length of the gesture.
  */
 export function BurstBubble({
   progress,
@@ -65,7 +75,7 @@ export function BurstBubble({
               style={popStyle}
               initial={{ opacity: 0.9, scale: 0.9 }}
               animate={{ opacity: 0, scale: 1.9 }}
-              transition={{ duration: 0.32, ease: "easeOut" }}
+              transition={{ duration: POP_DURATION, ease: "easeOut" }}
             />
             {SHARDS.map((shard, index) => (
               <motion.span
@@ -78,7 +88,7 @@ export function BurstBubble({
                   x: (shard.x + direction.x * 1.1) * 78,
                   y: (shard.y + direction.y * 1.1) * 78,
                 }}
-                transition={{ duration: 0.36, ease: "easeOut" }}
+                transition={{ duration: POP_DURATION, ease: "easeOut" }}
               />
             ))}
           </React.Fragment>
@@ -91,9 +101,8 @@ export function BurstBubble({
               maxWidth: 260,
               maxHeight: 260,
               borderRadius: "50%",
-              border: `1.5px solid color-mix(in srgb, ${CYAN} ${Math.round(ringOpacity * 100)}%, transparent)`,
-              background: `radial-gradient(circle at 38% 32%, color-mix(in srgb, ${CYAN} ${Math.round(skinOpacity * 100)}%, transparent), transparent 72%)`,
-              boxShadow: `0 0 ${18 + progress * 26}px color-mix(in srgb, ${CYAN} ${Math.round(progress * 40)}%, transparent)`,
+              border: `1px solid color-mix(in srgb, ${CYAN} ${Math.round(ringOpacity * 100)}%, transparent)`,
+              background: `color-mix(in srgb, ${CYAN} ${Math.round(skinOpacity * 100)}%, transparent)`,
             }}
             initial={{ opacity: 0, scale: 0.7 }}
             animate={
@@ -133,8 +142,8 @@ const popStyle: React.CSSProperties = {
   maxWidth: 240,
   maxHeight: 240,
   borderRadius: "50%",
-  border: `2px solid color-mix(in srgb, ${CYAN} 82%, transparent)`,
-  background: `radial-gradient(circle, color-mix(in srgb, ${CYAN} 32%, transparent), transparent 66%)`,
+  border: `1px solid color-mix(in srgb, ${CYAN} 82%, transparent)`,
+  background: `color-mix(in srgb, ${CYAN} 24%, transparent)`,
 };
 
 const shardStyle: React.CSSProperties = {
@@ -142,5 +151,5 @@ const shardStyle: React.CSSProperties = {
   width: 6,
   height: 6,
   borderRadius: "50%",
-  background: STUDIO_COLORS.accent,
+  background: CYAN,
 };
