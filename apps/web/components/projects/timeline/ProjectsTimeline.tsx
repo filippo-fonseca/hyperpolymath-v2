@@ -20,14 +20,34 @@
  * computed (totalWidthPx, leftPx, widthPx, todayOffsetPx).
  */
 
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { updateProject } from "@/app/actions/projects";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { patchWouldArchive, type DragMode } from "@/components/projects/timeline/drag-plan";
 import type { TimelineDatePatch } from "@/components/projects/timeline/ProjectBarPopover";
 import { TimelineGroup } from "@/components/projects/timeline/TimelineGroup";
 import { TimelineHeader, TIMELINE_HEADER_HEIGHT_PX } from "@/components/projects/timeline/TimelineHeader";
 import { TimelineZoomToggle } from "@/components/projects/timeline/TimelineZoomToggle";
+import { useTimelineDrag } from "@/components/projects/timeline/useTimelineDrag";
 import { useTimelineView } from "@/components/projects/timeline/useTimelineView";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { todayISODate } from "@/lib/projects/archive-status";
@@ -61,6 +81,13 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
 
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<DateOverrides>({});
+  // A drag whose drop would newly expire a project parks here until the user
+  // confirms the archive trap; committing straight through would strand the
+  // project in the past with no warning (DESIGN.md, Issue #55).
+  const [pendingArchiveDrag, setPendingArchiveDrag] = useState<{
+    project: TimelineRowProject;
+    patch: TimelineDatePatch;
+  } | null>(null);
 
   // "Today" is read once per render rather than ticked: these are `date`
   // columns with no time component, so the only event that can move the marker
@@ -173,6 +200,42 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
     [showUndoToast],
   );
 
+  // A drag release only produces a patch (Conductor trap #1); the archive trap
+  // is the one gate it can't skip. If the drop would newly expire the project,
+  // park it for confirmation; otherwise it flows straight down the SAME
+  // deferred-commit undo path the popover uses.
+  const handleDragCommit = useCallback(
+    (project: TimelineRowProject, patch: TimelineDatePatch) => {
+      if (patchWouldArchive(project, patch, todayISO)) {
+        setPendingArchiveDrag({ project, patch });
+        return;
+      }
+      handleCommitDates(project, patch);
+    },
+    [handleCommitDates, todayISO],
+  );
+
+  const { beginDrag } = useTimelineDrag({
+    timelineWindow,
+    zoom,
+    scrollerRef,
+    onCommit: handleDragCommit,
+  });
+
+  const handleBeginDrag = useCallback(
+    (project: TimelineRowProject, mode: DragMode, event: ReactPointerEvent<HTMLElement>) => {
+      beginDrag({ event, project, mode });
+    },
+    [beginDrag],
+  );
+
+  const confirmArchiveDrag = useCallback(() => {
+    setPendingArchiveDrag((pending) => {
+      if (pending) handleCommitDates(pending.project, pending.patch);
+      return null;
+    });
+  }, [handleCommitDates]);
+
   if (areas.length === 0) {
     return <TimelineEmpty title="No areas yet" hint="Create an area to start placing projects on the timeline." />;
   }
@@ -255,6 +318,7 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
                   openProjectId={openProjectId}
                   onSetOpen={setOpenProjectId}
                   onCommitDates={handleCommitDates}
+                  onBeginDrag={handleBeginDrag}
                   rowIndexOffset={offset}
                 />
               );
@@ -272,6 +336,35 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
           </div>
         </div>
       </div>
+
+      {/* Archive trap for drag: the popover shows its own inline confirm, but a
+          drag has no panel to host one, so it surfaces the SAME warning as a
+          modal before the deferred-commit undo path fires. Cancel = full
+          revert (the bar already snapped back on release; nothing committed). */}
+      <AlertDialog
+        open={pendingArchiveDrag !== null}
+        onOpenChange={(next) => {
+          if (!next) setPendingArchiveDrag(null);
+        }}
+      >
+        <AlertDialogContent data-testid="timeline-drag-archive-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {pendingArchiveDrag?.project.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              An end date in the past archives{" "}
+              <strong className="text-[var(--sd-ink)]">{pendingArchiveDrag?.project.name}</strong>. It
+              disappears from the sidebar, /areas, and /lifeos until you clear the date or show
+              archived.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingArchiveDrag(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmArchiveDrag} data-testid="timeline-drag-archive-confirm-action">
+              Archive anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
