@@ -15,9 +15,9 @@
  */
 
 import {
+  type SemesterTerm,
   isProjectExpired,
   projectEffectiveEndISO,
-  type SemesterTerm,
   semesterStartISO,
 } from "@/lib/projects/archive-status";
 
@@ -282,7 +282,7 @@ export function projectEffectiveStartISO(p: TimelineProjectInput): string {
 export function computeWindow(
   projects: TimelineProjectInput[],
   zoom: TimelineZoom,
-  todayISO: string,
+  todayISO: string
 ): TimelineWindow {
   let startISO = todayISO;
   let endISO = todayISO;
@@ -321,7 +321,7 @@ export function computeWindow(
 function clampWindowSpan(
   rawStartISO: string,
   rawEndISO: string,
-  todayISO: string,
+  todayISO: string
 ): { startISO: string; endISO: string } {
   if (diffDaysISO(rawStartISO, rawEndISO) + 1 <= MAX_WINDOW_DAYS) {
     return { startISO: rawStartISO, endISO: rawEndISO };
@@ -345,7 +345,7 @@ function clampWindowSpan(
 function snapWindowToColumns(
   startISO: string,
   endISO: string,
-  zoom: TimelineZoom,
+  zoom: TimelineZoom
 ): { startISO: string; endISO: string } {
   if (zoom === "quarters") {
     return { startISO: startOfMonthISO(startISO), endISO: endOfMonthISO(endISO) };
@@ -365,11 +365,21 @@ function snapWindowToColumns(
 export function columnsForWindow(w: TimelineWindow, zoom: TimelineZoom): TimelineColumn[] {
   switch (zoom) {
     case "weeks":
-      return buildColumns(w, startOfDayNoop, (iso) => iso, (iso) => String(Number(iso.slice(8, 10))));
+      return buildColumns(
+        w,
+        startOfDayNoop,
+        (iso) => iso,
+        (iso) => String(Number(iso.slice(8, 10)))
+      );
     case "months":
       return buildColumns(w, startOfWeekISO, endOfWeekISO, weekLabel);
     case "quarters":
-      return buildColumns(w, startOfMonthISO, endOfMonthISO, (iso) => MONTH_ABBR[Number(iso.slice(5, 7)) - 1]);
+      return buildColumns(
+        w,
+        startOfMonthISO,
+        endOfMonthISO,
+        (iso) => MONTH_ABBR[Number(iso.slice(5, 7)) - 1]
+      );
   }
 }
 
@@ -415,7 +425,7 @@ function buildColumns(
   w: TimelineWindow,
   startOfUnit: (iso: string) => string,
   endOfUnit: (iso: string) => string,
-  labelOf: (unitStartISO: string) => string,
+  labelOf: (unitStartISO: string) => string
 ): TimelineColumn[] {
   const columns: TimelineColumn[] = [];
   let cursorISO = startOfUnit(w.startISO);
@@ -478,7 +488,7 @@ const warnedCorrupt = new Set<string>();
 export function barGeometry(
   p: TimelineProjectInput,
   w: TimelineWindow,
-  _todayISO: string,
+  _todayISO: string
 ): TimelineBarGeometry {
   const startISO = projectEffectiveStartISO(p);
   const rawEndISO = projectEffectiveEndISO(p);
@@ -488,7 +498,7 @@ export function barGeometry(
   if (corrupt && !warnedCorrupt.has(p.id)) {
     warnedCorrupt.add(p.id);
     console.warn(
-      `[timeline] project ${p.id} ("${p.name}") starts ${startISO} after it ends ${rawEndISO}; rendering a 1-day bar.`,
+      `[timeline] project ${p.id} ("${p.name}") starts ${startISO} after it ends ${rawEndISO}; rendering a 1-day bar.`
     );
   }
 
@@ -568,7 +578,7 @@ export function isProjectGhost(p: TimelineProjectInput, todayISO: string): boole
 
 function byOrderThenCreated(
   a: { orderIndex: number; createdAt: string | Date },
-  b: { orderIndex: number; createdAt: string | Date },
+  b: { orderIndex: number; createdAt: string | Date }
 ): number {
   if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
   return toSortableTime(a.createdAt) - toSortableTime(b.createdAt);
@@ -586,7 +596,7 @@ function byOrderThenCreated(
 export function groupByArea(
   areas: TimelineAreaInput[],
   projects: TimelineProjectInput[],
-  opts: { showArchived: boolean; todayISO: string },
+  opts: { showArchived: boolean; todayISO: string }
 ): TimelineGroup[] {
   const byArea = new Map<string, TimelineRowProject[]>();
   for (const a of areas) byArea.set(a.id, []);
