@@ -213,12 +213,14 @@ export function Sidebar({
           {/* MAIN — no section header; the labels speak for themselves (§1.3). */}
           <PersistentNav collapsed={effectiveCollapsed} />
 
-          {/* AREAS — the header is itself the link to /areas, with the tree
-              nested beneath it as proper children. */}
+          {/* AREAS — a plain section title over the tree. The label used to be
+              the /areas link too, but the MAIN rail now carries an Areas pill;
+              two rows reading "Areas" that both navigate to /areas is a coin
+              flip for the reader, so the pill is the destination and this is
+              just the tree's title. */}
           <section>
             <SectionHeader
               label="Areas"
-              href="/areas"
               collapsed={effectiveCollapsed}
               // Counts what the tree actually renders, not the active list.
               // `areas` follows the archived-eye toggle and the optimistic add,
@@ -388,13 +390,11 @@ function SidebarHeader({
  */
 function SectionHeader({
   label,
-  href,
   collapsed,
   count,
   action,
 }: {
   label: string;
-  href?: string;
   collapsed: boolean;
   count?: number;
   action?: React.ReactNode;
@@ -410,16 +410,7 @@ function SectionHeader({
 
   return (
     <div className="group/section mb-1 flex h-6 items-center gap-1.5 px-2">
-      {href ? (
-        <a
-          href={href}
-          className={cn(labelClasses, SB_FOCUS, "rounded-[4px] hover:text-[var(--sd-ink)]")}
-        >
-          {label}
-        </a>
-      ) : (
-        <span className={cn(labelClasses, "select-none")}>{label}</span>
-      )}
+      <span className={cn(labelClasses, "select-none")}>{label}</span>
 
       {count !== undefined && count > 0 && (
         <span
