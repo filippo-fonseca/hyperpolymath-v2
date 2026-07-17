@@ -26,6 +26,27 @@ export function semesterEndISO(term: SemesterTerm, year: number): string {
   }
 }
 
+/**
+ * First plausible day of an academic term, as an ISO date. The mirror of
+ * `semesterEndISO`: where that one takes the end of the term's final month,
+ * this takes the start of the term's first month, so a class anchored only by
+ * its semester spans the whole term and never starts late:
+ *   fall   → Sep 1 of its year
+ *   spring → Jan 1 of its year
+ *   summer → Jun 1 of its year
+ * Together the three terms tile the calendar year without overlapping.
+ */
+export function semesterStartISO(term: SemesterTerm, year: number): string {
+  switch (term) {
+    case "fall":
+      return `${year}-09-01`;
+    case "spring":
+      return `${year}-01-01`;
+    case "summer":
+      return `${year}-06-01`;
+  }
+}
+
 export interface ProjectExpiryFields {
   isClass: boolean;
   endDate: string | null;
