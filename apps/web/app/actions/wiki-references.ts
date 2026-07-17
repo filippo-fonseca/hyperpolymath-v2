@@ -527,11 +527,3 @@ export async function resolveEntityLabels(
   return assembleResolvedLabels(requests, found);
 }
 
-export type {
-  EntityMentionCandidate,
-  EntityMentionGroup,
-  EntityMentionResults,
-  EntityLabelRequest,
-  ResolvedEntityLabel,
-};
-
