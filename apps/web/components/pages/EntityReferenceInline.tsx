@@ -73,9 +73,7 @@ export const entityReferenceInlineSpec = createReactInlineContentSpec(
     type: ENTITY_REFERENCE_TYPE,
     propSchema: {
       // Spread from the token's kind list so a kind added there is accepted
-      // here without a second edit. BlockNote validates props against `values`
-      // and drops a node whose prop falls outside it, so a kind missing from
-      // this list would make those chips vanish from documents on load.
+      // here without a second edit.
       refKind: { default: "page", values: [...ENTITY_REF_TYPES] },
       refId: { default: "" },
       label: { default: "" },
