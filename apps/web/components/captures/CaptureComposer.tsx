@@ -23,7 +23,20 @@ import { mergeContentUrls } from "@/lib/url";
 import { HashtagChip } from "./HashtagChip";
 import { HashtagDecorations } from "./hashtag-decorations";
 import { createPersonDecorations } from "./person-decorations";
-import { createPersonSuggestion } from "./person-suggestions";
+import {
+  EntityMention,
+  ENTITY_MENTION_HTML_ATTRIBUTES,
+  renderEntityMentionHTML,
+} from "@/components/references/entity-mention-node";
+import {
+  createEntityMentionSuggestion,
+  insertCreatedPerson,
+} from "@/components/references/entity-mention-suggestion";
+import {
+  ENTITY_MENTION_NODE,
+  entityMentionAttrsToRef,
+} from "@/lib/references/tiptap-tokens";
+import { serializeReference } from "@/lib/references/token";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 
 interface Hashtag {
@@ -150,11 +163,12 @@ export function CaptureComposer({
         },
         suggestion: createHashtagSuggestion(() => hashtags),
       }),
-      // A SECOND Mention instance for `@person` (Phase C). Distinct node name so
-      // it never collides with the `#` mention node; TipTap gives each Suggestion
-      // its own plugin key automatically. The node stores the typed NAME (not a
-      // person id) so createCapture resolves-or-creates by name on save, exactly
-      // like hashtags canonicalize server side.
+      // `personMention` — kept in the schema, but no longer driven by `@`.
+      // It stores the typed NAME (not a person id) so createCapture resolves-
+      // or-creates by name on save, exactly like hashtags canonicalize server
+      // side. That flow is still live: it is what the universal menu's
+      // "Create person" sentinel inserts, and it is what already-drafted
+      // person chips are.
       Mention.extend({ name: "personMention" }).configure({
         HTMLAttributes: { class: "person-chip-inline" },
         renderHTML({ options, node }) {
@@ -164,7 +178,20 @@ export function CaptureComposer({
             `@${node.attrs.label}`,
           ];
         },
-        suggestion: createPersonSuggestion(() => people),
+      }),
+      // `@` now opens the universal picker: captures, tasks, pages, projects,
+      // areas AND people, instead of people alone. Picking an EXISTING entity
+      // inserts an id-carrying entityMention; picking the create sentinel falls
+      // back to the name-carrying personMention above, because there is no id
+      // to point at until the server resolves the name on save.
+      EntityMention.configure({
+        HTMLAttributes: ENTITY_MENTION_HTML_ATTRIBUTES,
+        renderHTML: renderEntityMentionHTML,
+        suggestion: createEntityMentionSuggestion({
+          allowCreatePerson: true,
+          onCreatePerson: ({ name, editor: ed, range }) =>
+            insertCreatedPerson(ed, range, name),
+        }),
       }),
       // Live-decorate plain `#word` text so the token styling lands without
       // waiting for the suggestion popover to commit a Mention node (#41).
@@ -250,6 +277,25 @@ export function CaptureComposer({
       if (n.type === "text" && typeof n.text === "string") {
         content += n.text;
         extractFromText(n.text);
+      }
+      // An entityMention writes its canonical S1 token into the saved content —
+      // the id-carrying half of the universal `@`. Without this branch the node
+      // contributes nothing at all (doc.textContent ignores renderText) and the
+      // reference the user deliberately inserted vanishes on save.
+      if (n.type === ENTITY_MENTION_NODE) {
+        const ref = entityMentionAttrsToRef(n.attrs);
+        if (ref) {
+          content += serializeReference(ref);
+          // A referenced PERSON also feeds personNames, so the people_references
+          // join keeps being written. entity_references (the token's own index)
+          // and people_references answer different questions and the shipped UI
+          // — the "Linked people" field, the person decorations — reads the
+          // latter. Resolve-or-create by name lands on the existing person.
+          if (ref.type === "person") {
+            const lower = ref.label.toLowerCase();
+            if (!personCasing.has(lower)) personCasing.set(lower, ref.label);
+          }
+        }
       }
       if (n.type === "personMention" && typeof n.attrs?.label === "string") {
         const label = n.attrs.label;

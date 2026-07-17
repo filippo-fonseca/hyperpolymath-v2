@@ -5,7 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { CornerDownLeft } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { LiteJarvisComposer } from "@/components/jarvis/LiteJarvisComposer";
+import {
+  LiteJarvisComposer,
+  type ComposerKeyEvent,
+} from "@/components/jarvis/LiteJarvisComposer";
 import { capResults, SearchDropdown } from "@/components/search/SearchDropdown";
 import { flattenResults } from "@/components/search/SearchResults";
 import { useSearch } from "@/components/search/SearchProvider";
@@ -130,7 +133,7 @@ export function GlobalJarvisDialog() {
   // Pre-handler the composer consults before its own key logic. Returns true
   // when we've claimed the event for the actions/results list.
   const interceptor = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    (e: ComposerKeyEvent): boolean => {
       const hasItems = combinedLength > 0;
       if (e.key === "ArrowDown" && hasItems) {
         e.preventDefault();
