@@ -20,9 +20,25 @@ import {
   escapeLikePattern,
   toPrefixTsQuery,
 } from "@/lib/references/mention-search";
+import {
+  type EntityLabelRequest,
+  type ResolvedEntityLabel,
+  assembleResolvedLabels,
+  groupIdsByType,
+  normalizeLabelRequests,
+  previewContext,
+} from "@/lib/references/resolve-labels";
 import { captureLabel } from "@/lib/references/token";
 import { createClient } from "@/lib/supabase/server";
-import { type SQLWrapper, and, desc, eq, isNull, sql } from "drizzle-orm";
+import {
+  type SQLWrapper,
+  and,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  sql,
+} from "drizzle-orm";
 
 /**
  * On-demand entity search for the wiki "@" / "[[" reference picker (issue #9,
@@ -467,8 +483,187 @@ async function searchCaptureMentions(
   return rows.map(toCandidate);
 }
 
+/**
+ * Batch-resolve the live labels behind a render tree's reference tokens (S7).
+ *
+ * A token carries a label snapshot taken when it was inserted. That snapshot is
+ * a fallback, not the truth: rename a project and every pill pointing at it
+ * should say the new name on the next render. This is the action that makes
+ * that so, and the reason `useEntityLabels` collects a whole tree's refs before
+ * calling it — one round trip per tree, not one per pill.
+ *
+ * Every requested ref comes back, whether or not it resolved. `exists: false`
+ * means the target is gone and the pill renders as a tombstone against its
+ * snapshot label; per S3 the token stays in the source text after a delete, so
+ * this is a normal steady state, not an error.
+ *
+ * Scoping is in the WHERE on every query, not left to RLS: the app connects as
+ * `postgres`, which carries BYPASSRLS. Resolving is a read of arbitrary
+ * caller-supplied ids, so it is exactly the path where a missing user_id
+ * predicate would leak another user's titles. A ref to someone else's entity
+ * simply doesn't resolve, and reads as deleted.
+ */
+export async function resolveEntityLabels(
+  refs: EntityLabelRequest[],
+): Promise<ResolvedEntityLabel[]> {
+  const requests = normalizeLabelRequests(refs);
+  if (requests.length === 0) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  // Degrade like the pickers do: unauthenticated resolves to nothing, so pills
+  // fall back to their snapshot labels instead of throwing into a render.
+  if (error || !data?.claims) return [];
+  const userId = data.claims.sub;
+
+  const byType = groupIdsByType(requests);
+
+  const [
+    captureRows,
+    taskRows,
+    pageRows,
+    projectRows,
+    areaRows,
+    personRows,
+  ] = await Promise.all([
+    byType.capture.length
+      ? db
+          .select({
+            id: captures.id,
+            content: captures.content,
+          })
+          .from(captures)
+          .where(
+            and(
+              eq(captures.userId, userId),
+              inArray(captures.id, byType.capture),
+            ),
+          )
+      : [],
+    byType.task.length
+      ? db
+          .select({
+            id: tasks.id,
+            label: tasks.title,
+            notes: tasks.notes,
+            sublabel: sql<string | null>`(
+              select ${projects.name} from ${tasksProjects}
+              join ${projects} on ${projects.id} = ${tasksProjects.projectId}
+              where ${tasksProjects.taskId} = ${tasks.id}
+              limit 1
+            )`,
+          })
+          .from(tasks)
+          .where(and(eq(tasks.userId, userId), inArray(tasks.id, byType.task)))
+      : [],
+    byType.page.length
+      ? db
+          .select({
+            id: pages.id,
+            label: pages.title,
+            emoji: pages.emoji,
+            body: pages.content,
+          })
+          .from(pages)
+          .where(and(eq(pages.userId, userId), inArray(pages.id, byType.page)))
+      : [],
+    byType.project.length
+      ? db
+          .select({
+            id: projects.id,
+            label: projects.name,
+            description: projects.description,
+            sublabel: areas.name,
+          })
+          .from(projects)
+          .leftJoin(areas, eq(areas.id, projects.areaId))
+          .where(
+            and(
+              eq(projects.userId, userId),
+              inArray(projects.id, byType.project),
+            ),
+          )
+      : [],
+    byType.area.length
+      ? db
+          .select({ id: areas.id, label: areas.name, emoji: areas.emoji })
+          .from(areas)
+          .where(and(eq(areas.userId, userId), inArray(areas.id, byType.area)))
+      : [],
+    byType.person.length
+      ? db
+          .select({
+            id: people.id,
+            label: people.name,
+            sublabel: people.email,
+            bio: people.bio,
+          })
+          .from(people)
+          .where(
+            and(eq(people.userId, userId), inArray(people.id, byType.person)),
+          )
+      : [],
+  ]);
+
+  const found: ResolvedEntityLabel[] = [
+    // A capture's label is a synthesized first line, so its preview skips that
+    // line — showing it twice would just be the chip again, larger.
+    ...captureRows.map((r) => ({
+      type: "capture" as const,
+      id: r.id,
+      label: captureLabel(r.content),
+      exists: true,
+      context: previewContext(r.content, { skipFirstLine: true }),
+    })),
+    ...taskRows.map((r) => ({
+      type: "task" as const,
+      id: r.id,
+      label: r.label,
+      exists: true,
+      sublabel: r.sublabel ?? undefined,
+      context: previewContext(r.notes),
+    })),
+    ...pageRows.map((r) => ({
+      type: "page" as const,
+      id: r.id,
+      label: r.label,
+      exists: true,
+      emoji: r.emoji,
+      context: previewContext(r.body),
+    })),
+    ...projectRows.map((r) => ({
+      type: "project" as const,
+      id: r.id,
+      label: r.label,
+      exists: true,
+      sublabel: r.sublabel ?? undefined,
+      context: previewContext(r.description),
+    })),
+    ...areaRows.map((r) => ({
+      type: "area" as const,
+      id: r.id,
+      label: r.label,
+      exists: true,
+      emoji: r.emoji,
+    })),
+    ...personRows.map((r) => ({
+      type: "person" as const,
+      id: r.id,
+      label: r.label,
+      exists: true,
+      sublabel: r.sublabel ?? undefined,
+      context: previewContext(r.bio),
+    })),
+  ];
+
+  return assembleResolvedLabels(requests, found);
+}
+
 export type {
   EntityMentionCandidate,
   EntityMentionGroup,
   EntityMentionResults,
+  EntityLabelRequest,
+  ResolvedEntityLabel,
 };
+
