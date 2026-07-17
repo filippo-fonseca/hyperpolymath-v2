@@ -1,3 +1,4 @@
+import type { Editor, Range } from "@tiptap/core";
 import type { MentionNodeAttrs } from "@tiptap/extension-mention";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { createElement, createRef, type RefObject } from "react";
@@ -46,13 +47,39 @@ export interface EntityMentionSuggestionOptions {
   /**
    * Called when the sentinel is picked. The surface inserts its own legacy
    * name-carrying `personMention` node, because there is no id to point at
-   * until the server resolves the name on save.
+   * until the server resolves the name on save. `insertCreatedPerson` is the
+   * default implementation every captures-shaped surface wants.
    */
   onCreatePerson?: (args: {
     name: string;
-    editor: unknown;
-    range: unknown;
+    editor: Editor;
+    range: Range;
   }) => void;
+}
+
+/**
+ * Insert the create-person sentinel's result: a name-carrying `personMention`,
+ * identical to what the person-only `@` inserted before this menu replaced it.
+ *
+ * Deliberately NOT an entityMention. The person does not exist yet, so there is
+ * no uuid, so there is no valid S1 token to write — and inventing one would put
+ * a dangling id in the user's text. The name round-trips through the save
+ * path's existing resolve-or-create instead, which is the flow that has shipped
+ * since Phase C.
+ */
+export function insertCreatedPerson(
+  editor: Editor,
+  range: Range,
+  name: string,
+): void {
+  editor
+    .chain()
+    .focus()
+    .insertContentAt(range, [
+      { type: "personMention", attrs: { id: name, label: name } },
+      { type: "text", text: " " },
+    ])
+    .run();
 }
 
 /**
