@@ -3,7 +3,16 @@ import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
 
 import { studioBridge } from "@studio/bridge";
-import { HUD_COLORS, HUD_SURFACES } from "@studio/tokens";
+import {
+  SD_ACCENT,
+  SD_ACCENT_DEEP,
+  SD_ACCENT_FAINT,
+  SD_DURATION,
+  SD_FONT,
+  SD_INK,
+  SD_RADIUS,
+  SD_SURFACES,
+} from "@studio/tokens";
 import { ConstellationCanvas } from "@studio/background/ConstellationCanvas";
 import { WidgetWindowLayer } from "@studio/windows/WidgetWindowLayer";
 
@@ -30,6 +39,43 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
+/**
+ * The sd vocabulary, declared as custom properties on the Studio's own roots.
+ *
+ * `src/styles/sd-tokens.css` is the source of truth and declares these same
+ * names on `:root` — but only for entries that import it, which today is the
+ * debug stage alone (index.html's wiring belongs to the HUD unit). Declaring
+ * them here too means the Studio carries its own vocabulary and paints
+ * correctly through either entry; the values are mirrored from `tokens.ts`, so
+ * a `:root` copy and this one always agree.
+ *
+ * It is applied to BOTH roots on purpose. The widget layer is portaled into a
+ * sibling host, outside `.studio-shell`, so it would otherwise inherit none of
+ * these and every `var(--sd-*)` in the window chrome would fall back.
+ */
+const SD_SCOPE = {
+  "--sd-accent": SD_ACCENT,
+  "--sd-accent-faint": SD_ACCENT_FAINT,
+  "--sd-accent-deep": SD_ACCENT_DEEP,
+  "--sd-ink": SD_INK.base,
+  "--sd-ink-dull": SD_INK.dull,
+  "--sd-ink-faint": SD_INK.faint,
+  "--sd-app": SD_SURFACES.app,
+  "--sd-box": SD_SURFACES.box,
+  "--sd-dark-box": SD_SURFACES.darkBox,
+  "--sd-darker-box": SD_SURFACES.darkerBox,
+  "--sd-line": SD_SURFACES.line,
+  "--sd-hover": SD_SURFACES.hover,
+  "--sd-selected": SD_SURFACES.selected,
+  "--r-chip": `${SD_RADIUS.chip}px`,
+  "--r-chrome": `${SD_RADIUS.chrome}px`,
+  "--r-tile": `${SD_RADIUS.tile}px`,
+  "--r-card": `${SD_RADIUS.card}px`,
+  "--font-mono": SD_FONT.mono,
+  "--dur-micro": `${SD_DURATION.micro}ms`,
+  "--dur-entrance": `${SD_DURATION.entrance}ms`,
+} as CSSProperties;
+
 interface StudioAppProps {
   widgetHost: HTMLElement;
 }
@@ -55,29 +101,12 @@ export function StudioApp({ widgetHost }: StudioAppProps) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const colors = {
-    "--studio-canvas": HUD_COLORS.canvas,
-    "--studio-canvas-raised": HUD_COLORS.canvasRaised,
-    "--studio-grid": HUD_COLORS.grid,
-    "--studio-rule": HUD_COLORS.rule,
-    "--studio-accent": HUD_COLORS.accent,
-    "--studio-accent-high": HUD_COLORS.accentHigh,
-    "--studio-text": HUD_COLORS.text,
-    "--studio-muted": HUD_COLORS.muted,
-    "--studio-surface-sunken": HUD_SURFACES.sunken,
-    "--studio-surface-base": HUD_SURFACES.base,
-    "--studio-surface-raised": HUD_SURFACES.raised,
-    "--studio-surface-hover": HUD_SURFACES.hover,
-    "--studio-line": HUD_SURFACES.line,
-    "--studio-line-strong": HUD_SURFACES.lineStrong,
-  } as CSSProperties;
-
   return (
-    <div className="studio-shell" style={colors}>
+    <div className="studio-shell" style={SD_SCOPE}>
       <ConstellationCanvas />
       <div className="studio-rulers" aria-hidden="true" />
       {createPortal(
-        <div className="studio-widget-stage" data-studio-stage>
+        <div className="studio-widget-stage" style={SD_SCOPE} data-studio-stage>
           <WidgetWindowLayer />
         </div>,
         widgetHost,
