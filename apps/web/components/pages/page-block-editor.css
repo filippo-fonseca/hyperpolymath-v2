@@ -123,23 +123,37 @@
   height: 15px;
 }
 
-/* ---- Slash, @, and [ suggestion menus: Spacedrive-clean floating chrome. ---- */
+/* ---- Slash, @, and [ suggestion menus: Spacedrive-clean floating chrome.
+
+   The panel mirrors `.sd-menu-surface` + DropdownMenuContent's 12px frame
+   (globals.css:1818, components/ui/dropdown-menu.tsx:46). It can't just wear the
+   class — BlockNote owns this element and takes no className for it — so the
+   declarations are duplicated here deliberately, tokens and all. Keep the two in
+   step if the menu surface grammar moves. ---- */
 .bn-suggestion-menu {
-  min-width: 248px;
-  padding: 5px;
+  /* Fixed, not min-width: the widest subtext used to stretch the panel to 331px
+     and every menu came out a different size. Titles/subtexts ellipsize instead. */
+  width: 288px;
+  padding: 4px;
   border: 1px solid var(--sd-line);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--sd-box);
-  box-shadow: 0 10px 28px hsl(235 15% 0% / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
   display: flex;
   flex-direction: column;
   gap: 1px;
   max-height: 320px;
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-color: var(--sd-line) transparent;
   scrollbar-width: thin;
   font-family: inherit;
   color: var(--ink);
+}
+/* The light theme was wearing a dark-theme drop shadow (a hardcoded
+   `hsl(235 15% 0% / 0.4)`), so the panel sat in a bruise on parchment. */
+.dark .bn-suggestion-menu {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 .bn-suggestion-menu::-webkit-scrollbar {
   width: 5px;
