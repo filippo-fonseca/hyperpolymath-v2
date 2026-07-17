@@ -1,13 +1,13 @@
 <!DOCTYPE html>
+<!-- DEV EVIDENCE ONLY — generated static HUD chrome preview. Ships in no build,
+     referenced by nothing in production. Its <style> is a hand-synced byte copy
+     of index.html's restyled <style> block (the sd register), so the chrome can
+     be screenshotted without a Tauri runtime. Keep it identical to index.html's
+     block when that changes. See the u3-hud-chrome report. -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>JARVIS</title>
-    <!-- The sd register (unit 1): vendored Space Grotesk + JetBrains Mono
-         @font-face, then the --sd-* design vocabulary. index.html no longer
-         declares its own palette — every surface/ink/accent below resolves
-         through the sd ladder. Linked before the inline block so the block
-         consumes the tokens. -->
+    <title>HUD chrome preview (dev evidence)</title>
     <link rel="stylesheet" href="/src/styles/sd-fonts.css" />
     <link rel="stylesheet" href="/src/styles/sd-tokens.css" />
     <style>
@@ -778,110 +778,87 @@
       }
     </style>
   </head>
-  <body data-jarvis-state="idle">
-    <!-- React-owned full-window studio canvas. Legacy HUD controls and overlays
-         stay later in the DOM so they remain interactive above this layer. -->
-    <div id="studio-root"></div>
+  <body data-jarvis-state="speaking" data-sse="connected" data-routine="active">
+
+    <!-- Seeded HUD chrome gallery. Every surface pinned to a representative
+         state so a screenshot is deterministic. Dev evidence only. -->
     <button class="disconnect-banner" id="disconnect-banner" type="button">
       ⚠ Disconnected from JARVIS server — tap to check the device token in Settings
     </button>
-    <!-- WhatsApp first-run pairing overlay. Hidden until the bridge sidecar
-         emits a QR (whatsapp-qr); dismissed on whatsapp-ready. -->
-    <div class="wa-qr-overlay" id="wa-qr-overlay" hidden>
-      <div class="wa-qr-card">
-        <div class="wa-qr-title">Link WhatsApp</div>
-        <canvas class="wa-qr-canvas" id="wa-qr-canvas" width="240" height="240" aria-label="WhatsApp linking QR code"></canvas>
-        <div class="wa-qr-caption">Scan with WhatsApp → Linked Devices to connect JARVIS</div>
+
+    <aside class="routine-loader visible" id="routine-loader" data-phase="gathering" aria-live="polite">
+      <div class="routine-loader-head">
+        <span class="routine-loader-dot" aria-hidden="true"></span>
+        <span class="routine-loader-title" id="routine-loader-title">Evening Brief</span>
       </div>
+      <ul class="routine-loader-list" id="routine-loader-list">
+        <li class="routine-row" data-status="done"><span class="routine-row-mark" aria-hidden="true"></span><span class="routine-row-label">Weather</span></li>
+        <li class="routine-row" data-status="active"><span class="routine-row-mark" aria-hidden="true"></span><span class="routine-row-label">News</span></li>
+        <li class="routine-row" data-status="error"><span class="routine-row-mark" aria-hidden="true"></span><span class="routine-row-label">Email</span></li>
+        <li class="routine-row" data-status="pending"><span class="routine-row-mark" aria-hidden="true"></span><span class="routine-row-label">Calendar</span></li>
+      </ul>
+      <div class="routine-loader-phase" id="routine-loader-phase">Gathering…</div>
+    </aside>
+
+    <div id="background-tasks" aria-live="polite">
+      <div class="task-chip" data-task-id="a" data-status="running"><span class="task-dot" aria-hidden="true"></span><span class="task-label">Sending to Rohan…</span></div>
+      <div class="task-chip" data-task-id="b" data-status="done"><span class="task-dot" aria-hidden="true"></span><span class="task-label">Screenshot described</span></div>
+      <div class="task-chip" data-task-id="c" data-status="failed"><span class="task-dot" aria-hidden="true"></span><span class="task-label">AppleScript failed</span></div>
     </div>
+
+    <div id="notification-toasts" aria-live="polite">
+      <div class="noti-toast"><span class="noti-channel" aria-hidden="true">WhatsApp</span><span class="noti-sender">Rohan</span><span class="noti-preview">Are we still on for the 4pm review call this afternoon?</span></div>
+    </div>
+
     <main class="stage">
-      <!-- Region 1: compact status and routine progress. Never scrolls. -->
       <header class="hud-header">
         <div class="routine-ring-slot">
-          <!-- Hidden until the loader is visible; the label reads "3/5" then
-               "✓". CSS-only fill via the --progress angle var. -->
-          <div class="routine-ring" id="routine-ring" aria-hidden="true">
-            <span class="routine-ring-label" id="routine-ring-label"></span>
+          <div class="routine-ring" id="routine-ring" style="--progress: 216deg" aria-hidden="true">
+            <span class="routine-ring-label" id="routine-ring-label">3/5</span>
           </div>
         </div>
         <div class="status-line" id="status-line">
-          <span class="conn-dot" aria-hidden="true"></span><span id="status-word">standing by</span>
-          <!-- Voice-degraded indicator: shown only while ElevenLabs is down and
-               JARVIS is speaking through the local fallback voice. Hidden on
-               recovery. -->
-          <span
-            class="voice-degraded"
-            id="voice-degraded"
-            hidden
-            title="ElevenLabs unavailable — using local voice"
-          >voice degraded</span>
+          <span class="conn-dot" aria-hidden="true"></span><span id="status-word">speaking</span>
+          <span class="voice-degraded" id="voice-degraded" title="ElevenLabs unavailable — using local voice">voice degraded</span>
         </div>
-        <div class="ack-strip" id="ack-strip" aria-hidden="true"></div>
+        <div class="ack-strip visible" id="ack-strip" aria-hidden="true">Right away, sir</div>
       </header>
 
-      <!-- Routine loader card (src/hud/routine-loader.ts). A fixed glassy panel
-           on the top-left rail, clear of the transcript scroll region, that
-           lists every source of a synthesize routine and ticks each as it
-           settles. Visible only while a routine is in flight; its compact ring
-           appears above the status line. Never overlaps the transcript. -->
-      <aside class="routine-loader" id="routine-loader" aria-live="polite">
-        <div class="routine-loader-head">
-          <span class="routine-loader-dot" aria-hidden="true"></span>
-          <span class="routine-loader-title" id="routine-loader-title">Routine</span>
-        </div>
-        <ul class="routine-loader-list" id="routine-loader-list"></ul>
-        <div class="routine-loader-phase" id="routine-loader-phase">One moment…</div>
-      </aside>
-
-      <!-- Region 2 wrapper: occupies the single 1fr grid row. A nested grid
-           stacks a slim toolbar (auto) over the scroll region (1fr) so adding
-           the toolbar never steals the transcript's flex height. -->
       <div class="transcript-region">
-        <!-- Transcript toolbar: minimal HUD chrome above the scroll region.
-             Holds the Clear control, which empties the visible transcript AND
-             wipes the server-side conversation memory (jarvis_turns) so a fresh
-             session never inherits stale turns. Hidden until there's content. -->
         <div class="transcript-toolbar" id="transcript-toolbar">
-          <button
-            class="chrome-btn"
-            id="clear-convo-btn"
-            type="button"
-            title="Clear conversation — wipes the transcript and JARVIS's memory of it"
-          >Clear</button>
+          <button class="chrome-btn" id="clear-convo-btn" type="button">Clear</button>
         </div>
-
-        <!-- The ONLY scroll area. Conversation turns land here and it
-             auto-scrolls to the latest. Wraps; readable type; never overlaps. -->
-        <section class="transcript" id="transcript" aria-live="polite">
-          <div class="transcript-empty" id="transcript-empty">
-            Press <strong>Talk to JARVIS</strong> or ⌘⌃J to begin.<br />
-            Your words and JARVIS's replies appear here.
+        <section class="transcript has-content" id="transcript" aria-live="polite">
+          <div class="transcript-empty" id="transcript-empty">Press <strong>Talk to JARVIS</strong> or ⌘⌃J to begin.</div>
+          <div class="turn user">
+            <div class="who"><span>You</span><span class="when">9:42 PM</span></div>
+            <div class="body">What's on my calendar tomorrow, and did the deploy finish?</div>
+          </div>
+          <div class="turn jarvis">
+            <div class="who"><span>JARVIS</span><span class="when">9:42 PM</span></div>
+            <div class="body">You have three meetings tomorrow, sir — a 9am standup, the review at 4, and dinner at 7. The production deploy went green four minutes ago.</div>
+          </div>
+          <div class="turn user pending">
+            <div class="who"><span>You</span><span class="when">9:43 PM</span></div>
+            <div class="body">move the standup to ten</div>
           </div>
         </section>
       </div>
 
-      <!-- Region 3: pinned footer — invoke button + inline action receipts. -->
       <footer class="hud-footer">
-        <div class="footer-receipts" id="tool-calls-footer" aria-live="polite"></div>
+        <div class="footer-receipts" id="tool-calls-footer" aria-live="polite">
+          <div class="tool-call-item action-flash">▸ opening Calendar</div>
+          <div class="tool-call-item">▸ checked deploy status</div>
+        </div>
         <div class="footer-actions">
-          <button class="invoke-btn" id="wake-btn" type="button">
-            Talk to JARVIS
-            <span class="shortcut-label">⌘⌃J</span>
-          </button>
+          <button class="invoke-btn" id="wake-btn" type="button">Talk to JARVIS<span class="shortcut-label">⌘⌃J</span></button>
           <button class="cancel-btn" id="cancel-btn">Cancel</button>
         </div>
       </footer>
-
-      <!-- Retained for capture-module wiring; visually hidden. -->
       <button id="extend-btn" type="button" aria-hidden="true"></button>
     </main>
 
-    <!-- Settings trigger. The gear (and the disconnect banner) summon the ONE
-         React Settings widget on the studio stage — main.ts wires both. The
-         legacy DOM settings drawer that used to live here was consolidated into
-         that surface (unit u7); everything it held now has a home there. -->
     <button class="gear-btn" id="gear-btn" type="button" title="Settings" aria-label="Settings">⚙</button>
 
-    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
