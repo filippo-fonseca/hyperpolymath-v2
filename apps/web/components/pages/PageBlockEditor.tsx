@@ -18,6 +18,7 @@ import { JARVIS_ALIASES, JARVIS_LABEL, hasPromptBody } from "@/lib/jarvis/at-tri
 import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
 import { type InDocumentAction, invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
 import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
+import { ENTITY_KIND_PLURAL } from "@/lib/references/glyphs";
 import {
   type BlockNoteEditor,
   BlockNoteSchema,
@@ -45,11 +46,7 @@ import {
   JarvisPillProvider,
   jarvisReceiptInlineSpec,
 } from "./JarvisReceiptInline";
-import {
-  ENTITY_REFERENCE_TYPE,
-  type EntityReferenceKind,
-  entityReferenceInlineSpec,
-} from "./EntityReferenceInline";
+import { ENTITY_REFERENCE_TYPE, entityReferenceInlineSpec } from "./EntityReferenceInline";
 import { PERSON_MENTION_TYPE, personMentionInlineSpec } from "./PersonMentionInline";
 import { calloutBlock } from "./blocks/CalloutBlock";
 import { linkEmbedBlock } from "./blocks/LinkEmbedBlock";
@@ -652,15 +649,6 @@ function createPersonAtItem(
   };
 }
 
-/** Human-readable group label per referenceable entity kind, used to bucket
- * the reference picker results so areas/projects/tasks/pages read cleanly. */
-const ENTITY_GROUP_LABEL: Record<EntityReferenceKind, string> = {
-  area: "Areas",
-  project: "Projects",
-  task: "Tasks",
-  page: "Pages",
-};
-
 /**
  * Insert an entity-reference chip at the cursor, plus a trailing space so the
  * cursor can leave the atom and continue typing cleanly (mirrors person
@@ -696,7 +684,7 @@ async function entityReferenceItems(
     title: candidate.emoji ? `${candidate.emoji} ${candidate.label}` : candidate.label,
     subtext: candidate.context ?? undefined,
     aliases: [candidate.label],
-    group: ENTITY_GROUP_LABEL[candidate.kind],
+    group: ENTITY_KIND_PLURAL[candidate.kind],
     onItemClick: () => insertEntityReference(editor, candidate),
   }));
 }

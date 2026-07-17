@@ -549,6 +549,30 @@
   outline-offset: 1px;
 }
 
+/* A person reference wears the amber register of .bn-person-pill instead of the
+   cyan one. The universal `@` menu now inserts an entityReference (refKind
+   "person") where it used to insert a personMention, so without this the same
+   person would read amber in an old document and cyan in a new one. Purely
+   additive: no entityReference written before this existed carries kind
+   "person", so every already-saved chip renders exactly as it did. */
+.bn-entity-ref[data-kind="person"] {
+  background: color-mix(in oklch, var(--surface-raised) 70%, transparent);
+  border-color: var(--sd-line);
+}
+
+.bn-entity-ref[data-kind="person"]:hover {
+  background: color-mix(in oklch, var(--ink-amber) 12%, var(--surface-raised));
+  border-color: color-mix(in oklch, var(--ink-amber) 40%, transparent);
+}
+
+.bn-entity-ref[data-kind="person"]:focus-visible {
+  outline-color: color-mix(in oklch, var(--ink-amber) 60%, transparent);
+}
+
+.bn-entity-ref[data-kind="person"] .bn-entity-ref-glyph {
+  color: var(--ink-amber);
+}
+
 .bn-entity-ref-glyph {
   flex-shrink: 0;
   color: var(--hud-cyan);
