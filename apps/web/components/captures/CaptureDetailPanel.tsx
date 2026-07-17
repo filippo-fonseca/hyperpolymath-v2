@@ -59,6 +59,7 @@ import {
   updateCapture,
 } from "@/app/actions/captures";
 import { tokenizeContent } from "@/lib/captures/tokenize-content";
+import { serializeReference } from "@/lib/references/token";
 import { extractUrlsFromContent } from "@/lib/url";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { cn } from "@/lib/utils";
@@ -199,7 +200,15 @@ function contentToTipTapDoc(
           inline.push({ type: "mention", attrs: { id: seg.display, label: seg.display } });
         } else if (seg.kind === "person") {
           inline.push({ type: "personMention", attrs: { id: seg.display, label: seg.display } });
-        } else if (seg.value) {
+        } else if (seg.kind === "entityRef") {
+          // Re-serialized to its canonical token rather than seeded as a node:
+          // this editor has no entity-mention node type yet, and the segment
+          // carries no `.value`, so the plain-text branch below would drop the
+          // reference entirely — open a capture, save it, and the mention is
+          // silently gone. Round-tripping the exact token is lossless; it just
+          // shows as raw text in the editor until the node type lands.
+          inline.push({ type: "text", text: serializeReference(seg.ref) });
+        } else if (seg.kind === "text" && seg.value) {
           inline.push({ type: "text", text: seg.value });
         }
       }

@@ -11,6 +11,11 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { ConvertCaptureToTaskDialog } from "@/components/captures/ConvertCaptureToTaskDialog";
+import { HashtagChip } from "@/components/captures/HashtagChip";
+import { PersonChip } from "@/components/captures/PersonChip";
+import { EntityLabelsProvider } from "@/components/references/EntityLabelsProvider";
+import { EntityPill } from "@/components/references/EntityPill";
+import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
 import { CaptureIcon } from "@/components/ui/icons";
 import {
@@ -130,7 +135,7 @@ export function RecentCapturesWidget({
                     </span>
                   </div>
                   <p className="line-clamp-3 text-[14px] leading-[1.45] text-[var(--sd-ink)]">
-                    {c.content}
+                    <CaptureLine capture={c} />
                   </p>
                   {(c.hashtags.length > 0 || c.projects.length > 0) && (
                     <ChipRow>
@@ -190,5 +195,37 @@ export function RecentCapturesWidget({
         />
       )}
     </>
+  );
+}
+
+/**
+ * One capture's body, with the same chips the /captures feed shows.
+ *
+ * This used to render `{c.content}` raw, so the same capture read one way on
+ * /captures (chips) and another here (literal `#tag` and `@name`) — a shipped
+ * inconsistency that adding a fourth syntax would only have widened. Routing
+ * it through the shared tokenizer is what keeps one capture looking like one
+ * capture wherever it appears.
+ */
+function CaptureLine({ capture }: { capture: CaptureWithLinks }) {
+  const segments = tokenizeContent(capture.content, {
+    hashtagDisplay: new Map(capture.hashtags.map((h) => [h.name, h.displayName])),
+    personNames: capture.people?.map((p) => p.name) ?? [],
+  });
+  return (
+    <EntityLabelsProvider text={capture.content}>
+      {segments.map((seg, i) => {
+        if (seg.kind === "hashtag") {
+          return <HashtagChip key={i} displayName={seg.display} asButton={false} />;
+        }
+        if (seg.kind === "person") {
+          return <PersonChip key={i} name={seg.display} asButton={false} />;
+        }
+        if (seg.kind === "entityRef") {
+          return <EntityPill key={i} entityRef={seg.ref} />;
+        }
+        return <span key={i}>{seg.value}</span>;
+      })}
+    </EntityLabelsProvider>
   );
 }

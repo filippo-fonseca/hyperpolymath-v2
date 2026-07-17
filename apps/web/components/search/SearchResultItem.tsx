@@ -3,6 +3,11 @@
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { BreadcrumbCrumb, SearchEntry } from "@/lib/search";
+import { HashtagChip } from "@/components/captures/HashtagChip";
+import { PersonChip } from "@/components/captures/PersonChip";
+import { EntityLabelsProvider } from "@/components/references/EntityLabelsProvider";
+import { EntityPill } from "@/components/references/EntityPill";
+import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import { HighlightedText } from "./HighlightedText";
 import { TypeBadge } from "./TypeBadge";
 
@@ -70,6 +75,42 @@ function Breadcrumb({
         </span>
       ))}
     </nav>
+  );
+}
+
+/**
+ * A result's primary line: chips where the text carries markers, highlighted
+ * text everywhere else.
+ *
+ * This line used to render raw, so a capture that shows chips on /captures
+ * showed a literal `#tag` and a literal reference token here — the same
+ * shipped inconsistency RecentCapturesWidget had. Routing it through the
+ * shared tokenizer settles it.
+ *
+ * Two deliberate limits. The pills are static: the row itself is a `<button>`
+ * that opens the result, so a nested button would be invalid DOM, and a chip
+ * that navigated somewhere else would fight the row it sits in. And a search
+ * entry carries no people list (only `tags: string[]`), so a legacy `@name`
+ * marker stays plain text here rather than being guessed at — the same rule
+ * every other surface follows.
+ */
+function PrimaryLine({ text, query }: { text: string; query: string }) {
+  const segments = tokenizeContent(text);
+  return (
+    <EntityLabelsProvider text={text}>
+      {segments.map((seg, i) => {
+        if (seg.kind === "hashtag") {
+          return <HashtagChip key={i} displayName={seg.display} asButton={false} />;
+        }
+        if (seg.kind === "person") {
+          return <PersonChip key={i} name={seg.display} asButton={false} />;
+        }
+        if (seg.kind === "entityRef") {
+          return <EntityPill key={i} entityRef={seg.ref} asButton={false} />;
+        }
+        return <HighlightedText key={i} text={seg.value} query={query} />;
+      })}
+    </EntityLabelsProvider>
   );
 }
 
@@ -149,7 +190,7 @@ export function SearchResultItem({
             compact ? "text-[13px]" : "text-[15px]"
           )}
         >
-          <HighlightedText text={primary} query={query} />
+          <PrimaryLine text={primary} query={query} />
         </div>
       </button>
 
