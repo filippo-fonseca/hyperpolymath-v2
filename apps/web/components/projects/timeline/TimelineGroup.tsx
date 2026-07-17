@@ -16,8 +16,10 @@
  * changes re-layout instantly rather than tweening a lane's geometry.
  */
 
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { motion, useReducedMotion } from "motion/react";
 
+import type { DragMode } from "@/components/projects/timeline/drag-plan";
 import {
   ProjectBarPopover,
   type TimelineDatePatch,
@@ -44,6 +46,12 @@ interface Props {
   openProjectId: string | null;
   onSetOpen: (projectId: string | null) => void;
   onCommitDates: (project: TimelineRowProject, patch: TimelineDatePatch) => void;
+  /** Pointer path to u4's drag session; absent → bars are click-only. */
+  onBeginDrag?: (
+    project: TimelineRowProject,
+    mode: DragMode,
+    event: ReactPointerEvent<HTMLElement>,
+  ) => void;
   /** Running row index across all groups, for the entrance stagger. */
   rowIndexOffset: number;
 }
@@ -57,6 +65,7 @@ export function TimelineGroup({
   openProjectId,
   onSetOpen,
   onCommitDates,
+  onBeginDrag,
   rowIndexOffset,
 }: Props) {
   const reduceMotion = useReducedMotion();
@@ -147,6 +156,9 @@ export function TimelineGroup({
                   isOpen={isOpen}
                   onOpen={onSetOpen}
                   heightPx={TIMELINE_BAR_HEIGHT_PX}
+                  onBeginDrag={
+                    onBeginDrag ? (mode, event) => onBeginDrag(project, mode, event) : undefined
+                  }
                 />
               </ProjectBarPopover>
             </motion.div>
