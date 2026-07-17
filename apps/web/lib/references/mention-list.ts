@@ -26,6 +26,13 @@ import type { EntityRef, EntityRefType } from "./token";
  */
 export interface EntityMentionOption extends EntityMentionCandidate {
   isCreatePerson?: boolean;
+  /**
+   * True for a semantic ("Related") hit appended after the exact groups (U7).
+   * It changes only presentation — the row groups under one "Related" header
+   * instead of its kind header — never the keyboard contract, which still walks
+   * the flat list `mod length`.
+   */
+  semantic?: boolean;
 }
 
 /** The sentinel's synthetic id. Never reaches the DB; never becomes a token. */
@@ -87,9 +94,36 @@ function buildCreatePersonOption(
   };
 }
 
-/** A render row: either a sticky kind header or an option at a flat index. */
+/** The synthetic section key for the semantic "Related" group (U7). */
+export const SEMANTIC_SECTION_KEY = "__semantic__";
+
+/**
+ * Append semantic hits after the exact options, deduped by (kind,id) (U7).
+ *
+ * The exact list is preserved verbatim and always leads — the semantic section
+ * is purely additive. A semantic hit that duplicates an exact option (or an
+ * earlier semantic one) is dropped so no entity appears twice, and the survivors
+ * keep their similarity order. Each appended option is tagged `semantic: true`
+ * so `mentionRows` files them under one "Related" header.
+ */
+export function mergeSemanticOptions(
+  exact: readonly EntityMentionOption[],
+  semantic: readonly EntityMentionCandidate[],
+): EntityMentionOption[] {
+  const seen = new Set(exact.map((o) => `${o.kind}:${o.id}`));
+  const out: EntityMentionOption[] = [...exact];
+  for (const candidate of semantic) {
+    const key = `${candidate.kind}:${candidate.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ ...candidate, semantic: true });
+  }
+  return out;
+}
+
+/** A render row: either a sticky section header or an option at a flat index. */
 export type MentionRow =
-  | { type: "header"; kind: EntityRefType }
+  | { type: "header"; kind: EntityRefType; semantic: boolean }
   | { type: "option"; option: EntityMentionOption; index: number };
 
 /**
@@ -103,16 +137,23 @@ export function mentionRows(
   options: readonly EntityMentionOption[],
 ): MentionRow[] {
   const rows: MentionRow[] = [];
-  let lastKind: EntityRefType | null = null;
+  let lastSection: string | null = null;
   options.forEach((option, index) => {
-    if (option.kind !== lastKind) {
-      rows.push({ type: "header", kind: option.kind });
-      lastKind = option.kind;
+    // All semantic hits share one section regardless of their individual kinds,
+    // so a mixed-kind "Related" run gets a single header; the exact groups still
+    // break on kind. The section key is what the boundary is watched on.
+    const section = option.semantic ? SEMANTIC_SECTION_KEY : option.kind;
+    if (section !== lastSection) {
+      rows.push({ type: "header", kind: option.kind, semantic: option.semantic ?? false });
+      lastSection = section;
     }
     rows.push({ type: "option", option, index });
   });
   return rows;
 }
+
+/** The heading shown for the semantic section (U7). Journal register, sentence case. */
+export const SEMANTIC_SECTION_LABEL = "Related";
 
 /**
  * The ref an option inserts, or null for the create-person sentinel (which has

@@ -4,6 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import {
   MENTION_KIND_GLYPH,
   MENTION_KIND_LABEL,
+  SEMANTIC_SECTION_LABEL,
   type EntityMentionOption,
   isCreatePersonOption,
   mentionRows,
@@ -116,11 +117,11 @@ export const EntityMentionList = forwardRef<EntityMentionListHandle, Props>(
           rows.map((row) =>
             row.type === "header" ? (
               <div
-                key={`h-${row.kind}`}
-                // Sticky so the kind stays legible while a long group scrolls.
+                key={row.semantic ? "h-__semantic__" : `h-${row.kind}`}
+                // Sticky so the section stays legible while a long group scrolls.
                 className="sticky top-0 z-10 bg-[var(--sd-box)] px-3 pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
               >
-                {MENTION_KIND_LABEL[row.kind]}
+                {row.semantic ? SEMANTIC_SECTION_LABEL : MENTION_KIND_LABEL[row.kind]}
               </div>
             ) : (
               <EntityMentionItem

@@ -231,9 +231,11 @@ describe("flattenMentionGroups", () => {
 describe("mentionRows", () => {
   it("emits one header per kind change and indexes options into the flat list", () => {
     expect(mentionRows(ITEMS)).toEqual([
-      { type: "header", kind: "capture" },
+      // semantic:false on every exact header (U7): the field is present because
+      // headers now carry the semantic vs "Related" distinction.
+      { type: "header", kind: "capture", semantic: false },
       { type: "option", option: ITEMS[0], index: 0 },
-      { type: "header", kind: "task" },
+      { type: "header", kind: "task", semantic: false },
       { type: "option", option: ITEMS[1], index: 1 },
       { type: "option", option: ITEMS[2], index: 2 },
     ]);

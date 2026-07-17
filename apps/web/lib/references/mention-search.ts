@@ -19,6 +19,12 @@ export interface EntityMentionCandidate {
   emoji?: string | null;
   /** ISO, for recency ordering. */
   updatedAt?: string;
+  /**
+   * Cosine similarity to the query, present only on semantic hits (U7). Surfaced
+   * so the picker can carry it, hidden in the UI for v1 — it exists to give
+   * later floor-tuning real data, not to show a score.
+   */
+  similarity?: number;
 }
 
 export interface EntityMentionGroup {
@@ -28,6 +34,17 @@ export interface EntityMentionGroup {
 
 export interface EntityMentionResults {
   groups: EntityMentionGroup[];
+  query: string;
+}
+
+/**
+ * The semantic picker's return (U7). Flat, NOT grouped: unlike the exact search,
+ * semantic hits are ordered by similarity across kinds, so folding them into
+ * per-kind groups would throw that ordering away. `query` rides along so the
+ * render host can drop a response that a newer keystroke has already superseded.
+ */
+export interface SemanticMentionResults {
+  candidates: EntityMentionCandidate[];
   query: string;
 }
 

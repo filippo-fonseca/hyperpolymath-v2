@@ -5,11 +5,24 @@ import { createElement, createRef, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { searchEntityMentions } from "@/app/actions/wiki-references";
 import {
+  getReferencesSemanticEnabled,
+  searchEntityMentionsSemantic,
+} from "@/app/actions/references-semantic";
+import {
   type EntityMentionOption,
   flattenMentionGroups,
   isCreatePersonOption,
+  mergeSemanticOptions,
   optionToRef,
 } from "@/lib/references/mention-list";
+import type {
+  EntityMentionCandidate,
+  SemanticMentionResults,
+} from "@/lib/references/mention-search";
+import {
+  SEMANTIC_MIN_QUERY_LENGTH,
+  SEMANTIC_SEARCH_DEBOUNCE_MS,
+} from "@/lib/references/semantic-search";
 import { createMentionSearchRunner } from "@/lib/references/mention-search-runner";
 import { refToEntityMentionNode } from "@/lib/references/tiptap-tokens";
 import type { EntityMentionListHandle } from "./EntityMentionList";
@@ -97,6 +110,34 @@ type MentionSuggestion = Omit<
   "editor"
 >;
 
+/**
+ * The semantic-rung flag, probed ONCE per page load and cached (U7).
+ *
+ * The directive wants a read-once-per-mount probe, not a per-keystroke one;
+ * caching it module-wide is stronger — every mention surface on the page shares
+ * the single answer. A failed probe caches `false`, so a flaky call degrades to
+ * the exact-only path rather than retrying on every keystroke. When the flag is
+ * off (the default) the semantic runner never fires and the write paths and
+ * exact search are untouched.
+ */
+let semanticEnabledCache: boolean | null = null;
+let semanticProbe: Promise<boolean> | null = null;
+function ensureSemanticFlag(): Promise<boolean> {
+  if (semanticEnabledCache !== null) return Promise.resolve(semanticEnabledCache);
+  if (!semanticProbe) {
+    semanticProbe = getReferencesSemanticEnabled()
+      .then((enabled) => {
+        semanticEnabledCache = enabled;
+        return enabled;
+      })
+      .catch(() => {
+        semanticEnabledCache = false;
+        return false;
+      });
+  }
+  return semanticProbe;
+}
+
 export function createEntityMentionSuggestion(
   options: EntityMentionSuggestionOptions = {},
 ): MentionSuggestion {
@@ -140,7 +181,12 @@ export function createEntityMentionSuggestion(
       let container: HTMLDivElement | null = null;
       let root: Root | null = null;
       let rect: { left: number; top: number; bottom: number } | null = null;
-      let items: EntityMentionOption[] = [];
+      let exactItems: EntityMentionOption[] = [];
+      // The semantic "Related" hits for the CURRENT query, appended after the
+      // exact groups. Cleared the instant a new query starts (see runSearches)
+      // so a stale section can never sit under a different set of exact results.
+      let semanticCandidates: EntityMentionCandidate[] = [];
+      let currentQuery = "";
       let loading = false;
       let dismissed = false;
       let command: (item: EntityMentionOption) => void = () => {};
@@ -148,11 +194,13 @@ export function createEntityMentionSuggestion(
       const listRef: RefObject<EntityMentionListHandle | null> =
         createRef<EntityMentionListHandle>();
 
-      const runner = createMentionSearchRunner(
+      // Exact search — unchanged: renders immediately on every keystroke, never
+      // gated on the semantic promise. Loading + items come from here.
+      const exactRunner = createMentionSearchRunner(
         (query: string) => searchEntityMentions(query),
         (state) => {
           loading = state.loading;
-          items = state.results
+          exactItems = state.results
             ? flattenMentionGroups(state.results.groups, {
                 createPersonName: allowCreatePerson ? state.query : undefined,
               })
@@ -160,6 +208,38 @@ export function createEntityMentionSuggestion(
           paint();
         },
       );
+
+      // Semantic search — the SECOND call (300ms debounce). Its own stale-guard
+      // runner already drops out-of-order responses; the extra query check keeps
+      // a settled result from landing after the user moved on. Loading ticks
+      // (results null) are ignored so the section doesn't flicker.
+      const semanticRunner = createMentionSearchRunner<SemanticMentionResults>(
+        (query: string) => searchEntityMentionsSemantic(query),
+        (state) => {
+          if (state.results && state.results.query === currentQuery) {
+            semanticCandidates = state.results.candidates;
+            paint();
+          }
+        },
+        SEMANTIC_SEARCH_DEBOUNCE_MS,
+      );
+
+      // Fire both searches for a query. The exact path always runs; the semantic
+      // path runs only when the deployment flag is on AND the query is long
+      // enough. A new query wipes the previous semantic section up front.
+      function runSearches(query: string) {
+        currentQuery = query;
+        semanticCandidates = [];
+        exactRunner.run(query);
+        void ensureSemanticFlag().then((enabled) => {
+          if (!enabled) return;
+          // Superseded while the (first-time) probe was in flight.
+          if (query !== currentQuery) return;
+          if (query.trim().length >= SEMANTIC_MIN_QUERY_LENGTH) {
+            semanticRunner.run(query);
+          }
+        });
+      }
 
       function toRect(clientRect: DOMRect | null | undefined) {
         if (!clientRect) return null;
@@ -172,6 +252,10 @@ export function createEntityMentionSuggestion(
 
       function paint() {
         if (!root) return;
+        // Exact groups first, then the deduped semantic "Related" section. When
+        // the flag is off semanticCandidates stays empty, so this is exactly the
+        // exact list — zero behavioral change on the shipped path.
+        const items = mergeSemanticOptions(exactItems, semanticCandidates);
         root.render(
           createElement(EntityMentionPopover, {
             ref: listRef,
@@ -197,7 +281,7 @@ export function createEntityMentionSuggestion(
           rect = toRect(props.clientRect());
           command = props.command as unknown as (o: EntityMentionOption) => void;
           dismissed = false;
-          runner.run(props.query);
+          runSearches(props.query);
           paint();
         },
 
@@ -207,7 +291,7 @@ export function createEntityMentionSuggestion(
           // A new query re-arms a menu the user escaped out of: they've since
           // typed something, which means they want it back.
           dismissed = false;
-          runner.run(props.query);
+          runSearches(props.query);
           paint();
         },
 
@@ -217,7 +301,8 @@ export function createEntityMentionSuggestion(
         },
 
         onExit: () => {
-          runner.dispose();
+          exactRunner.dispose();
+          semanticRunner.dispose();
           if (root) {
             const rootRef = root;
             const containerRef = container;
@@ -234,7 +319,9 @@ export function createEntityMentionSuggestion(
           root = null;
           container = null;
           rect = null;
-          items = [];
+          exactItems = [];
+          semanticCandidates = [];
+          currentQuery = "";
         },
       };
     },

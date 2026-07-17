@@ -388,6 +388,13 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# embed-entity — gte-small embeddings for the semantic reference rung (U7).
+# verify_jwt stays ON: the function additionally asserts role = service_role, so
+# only the web server (invoking with the service-role key) may write embeddings.
+[functions.embed-entity]
+enabled = true
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327

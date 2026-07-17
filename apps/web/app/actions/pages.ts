@@ -15,6 +15,7 @@ import {
   deleteReferencesForEntity,
   reconcileEntityReferences,
 } from "@/lib/references/reconcile";
+import { scheduleEntityEmbedding } from "@/lib/references/embedding-enqueue";
 // pageFolders is imported for the createPage folder-ownership check below.
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -122,6 +123,9 @@ export async function createPage(input: unknown): Promise<ActionResult<{ id: str
     return page.id;
   });
 
+  // U7: embed the new page (title + markdown mirror). No-op unless the rung is on.
+  scheduleEntityEmbedding({ userId, entityType: "page", entityId: result });
+
   return { success: true, data: { id: result } };
 }
 
@@ -219,6 +223,13 @@ export async function updatePage(input: unknown): Promise<ActionResult<null>> {
       });
     }
   });
+
+  // U7: re-embed when the title or the markdown mirror changed (the embed input
+  // is title + content). The enqueue reads the current row, so a title-only edit
+  // still embeds the whole page. No-op unless the rung is on.
+  if (parsed.data.title !== undefined || parsed.data.content !== undefined) {
+    scheduleEntityEmbedding({ userId, entityType: "page", entityId: parsed.data.id });
+  }
 
   return { success: true, data: null };
 }
