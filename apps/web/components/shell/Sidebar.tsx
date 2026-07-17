@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Logotype } from "@/components/ui/Logotype";
+import { BrandLockup } from "@/components/ui/BrandLockup";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
@@ -200,7 +200,11 @@ export function Sidebar({
             "z-50 rounded-r-md border border-[var(--sd-line)] shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]"
         )}
       >
-        <SidebarHeader collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
+        <SidebarHeader
+          collapsed={collapsed}
+          peeking={collapsed && !effectiveCollapsed}
+          onToggleCollapsed={toggleCollapsed}
+        />
 
         {/* Scroll column. Rows dissolve into the footer through the bottom
             mask-fade rather than hard-clipping; the scrollbar stays invisible
@@ -292,87 +296,82 @@ export function Sidebar({
  * trigger variant and unmounted the portal mid-interaction, which is exactly
  * what trapped the collapse toggle (BUG 1).
  *
- * What's left is deliberately dumb: a plain brand mark that does nothing on
- * click, and a dedicated, ALWAYS-MOUNTED collapse icon-button. Both gate on the
- * REAL `collapsed` prop, never on hover, so no control ever changes identity
- * under the pointer during a hover-peek.
+ * What's left is deliberately dumb: the brand lockup, which does nothing on
+ * click, and a dedicated, ALWAYS-MOUNTED collapse icon-button.
+ *
+ * Three states, one JSX tree:
+ *
+ *   - expanded            [kiwi + Hyperpolymath] ......... [toggle]
+ *   - collapsed + peeking [kiwi + Hyperpolymath] ......... [toggle]
+ *   - collapsed rail      [kiwi] / [toggle] stacked, centered — 56px cannot
+ *                         carry a wordmark and a button on one row.
+ *
+ * `peeking` IS hover-derived, which the BUG 1 note above rightly treats as
+ * dangerous — so the danger is designed out rather than avoided. There is
+ * exactly ONE branchless JSX tree here: the same elements always mount in the
+ * same positions and only their classNames change (`flex-col` ↔ `flex-row`).
+ * React reconciles instead of remounting, so the tooltip trigger under the
+ * pointer never changes identity mid-hover. What trapped BUG 1 was a control
+ * swapping out from under the pointer; nothing swaps here.
  */
 function SidebarHeader({
   collapsed,
+  peeking,
   onToggleCollapsed,
 }: {
+  /** The REAL collapsed state — owns the rail-vs-lockup presentation. */
   collapsed: boolean;
+  /** Collapsed AND hovered: the overlay is at full width, so use the full row. */
+  peeking: boolean;
   onToggleCollapsed: () => void;
 }) {
-  if (collapsed) {
-    return (
-      <TooltipProvider delayDuration={300}>
-        <div className="relative flex shrink-0 flex-col items-center gap-1.5">
-          {/* Brand monogram — a plain mark, not a control. The expand button
-              below owns the toggle so the wordmark is never a collapse trap. */}
-          <span
-            className="sidebar-logo-mono flex h-9 items-center justify-center text-[18px] leading-none"
-            aria-hidden="true"
-          >
-            <Logotype collapsed />
-          </span>
-          {/* On pointer hover of the rail, a floating plate reveals the full
-              "Hyperpolymath" wordmark anchored at the rail's top-left. It
-              overlays rather than expanding the rail (absolutely positioned;
-              the aside width stays tied to the real collapsed state), so no
-              layout shifts. See .sidebar-logo-flyout in globals.css. */}
-          <span className="sidebar-logo-flyout absolute left-0 top-0" aria-hidden="true">
-            <Logotype className="text-[16px]" />
-          </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={onToggleCollapsed}
-                aria-label="Expand sidebar"
-                className={cn(
-                  SB_GHOST,
-                  SB_FOCUS,
-                  "inline-flex h-8 w-8 items-center justify-center text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
-                )}
-              >
-                <PanelLeftOpen size={16} strokeWidth={1.75} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Expand sidebar</TooltipContent>
-          </Tooltip>
-        </div>
-      </TooltipProvider>
-    );
-  }
+  // Rail = collapsed with no pointer on it. Peeking borrows the expanded row.
+  const rail = collapsed && !peeking;
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-9 w-full shrink-0 items-center gap-2 px-1">
-        {/* Status dot — cyan stays functional chrome: it says "connected". */}
+      <div
+        className={cn(
+          "flex shrink-0 items-center",
+          rail ? "flex-col gap-1.5" : "h-9 w-full flex-row gap-2 px-1"
+        )}
+      >
+        {/* Brand lockup — a plain mark, not a control. The toggle owns the
+            collapse so the wordmark is never a collapse trap. */}
         <span
-          className="h-2 w-2 shrink-0 rounded-full bg-[var(--hud-cyan)]"
+          className={cn(
+            "flex min-w-0 items-center leading-none",
+            rail ? "h-9 justify-center" : "flex-1 text-[16px]"
+          )}
           aria-hidden="true"
-        />
-        <span className="min-w-0 flex-1 truncate text-[16px] leading-none">
-          <Logotype />
+        >
+          <BrandLockup markOnly={rail} />
         </span>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
               onClick={onToggleCollapsed}
-              aria-label="Collapse sidebar"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               className={cn(
                 SB_GHOST,
                 SB_FOCUS,
-                "inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
+                "inline-flex shrink-0 items-center justify-center",
+                "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
+                rail ? "h-8 w-8" : "h-7 w-7"
               )}
             >
-              <PanelLeftClose size={16} strokeWidth={1.75} />
+              {collapsed ? (
+                <PanelLeftOpen size={16} strokeWidth={1.75} />
+              ) : (
+                <PanelLeftClose size={16} strokeWidth={1.75} />
+              )}
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right">Collapse sidebar</TooltipContent>
+          <TooltipContent side="right">
+            {collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          </TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>
