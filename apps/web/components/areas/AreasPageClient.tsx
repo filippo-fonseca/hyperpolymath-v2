@@ -1,11 +1,32 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
+
+import { getProjectsForCurrentUser } from "@/app/actions/projects";
 import { AreaCardMenu } from "@/components/areas/AreaCardMenu";
 import { AreasPageHeader } from "@/components/areas/AreasPageHeader";
 import { AreasTree } from "@/components/areas/AreasTree";
+import { ProjectsTimeline } from "@/components/projects/timeline/ProjectsTimeline";
+import { useTimelineView } from "@/components/projects/timeline/useTimelineView";
 import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
-import { useEffect, useState } from "react";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { cn } from "@/lib/utils";
+
+/**
+ * The tree's own show-archived preference. The timeline deliberately shares the
+ * key rather than minting a second one: "show archived" is one intent about
+ * this page, and having it mean two different things depending on which view
+ * you happen to be in would be a bug, not a feature.
+ */
+const SHOW_ARCHIVED_KEY = "areas-tree-show-archived";
+
+const VIEW_SEGMENTS: { value: "tree" | "timeline"; label: string }[] = [
+  { value: "tree", label: "Tree" },
+  { value: "timeline", label: "Timeline" },
+];
 
 interface Props {
   initialAreas: SidebarArea[];
@@ -23,10 +44,50 @@ export function AreasPageClient({
   rootLabel,
 }: Props) {
   const [areas, setAreas] = useState(initialAreas);
+  const { view, setView } = useTimelineView();
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     setAreas(initialAreas);
   }, [initialAreas]);
+
+  useEffect(() => {
+    try {
+      setShowArchived(localStorage.getItem(SHOW_ARCHIVED_KEY) === "true");
+    } catch {
+      /* localStorage unavailable — stay hiding archived. */
+    }
+  }, []);
+
+  const toggleShowArchived = useCallback(() => {
+    setShowArchived((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SHOW_ARCHIVED_KEY, String(next));
+      } catch {
+        /* Persistence is best-effort. */
+      }
+      return next;
+    });
+  }, []);
+
+  // getProjectsForCurrentUser is the only read path carrying start_date. Its
+  // semantics are left exactly as they are — ProjectDetailClient depends on
+  // them — so ordering and the archived filter happen client-side, inside the
+  // engine's groupByArea.
+  const timelineActive = view === "timeline";
+  const { data: projectRows, isPending } = useQuery({
+    queryKey: tableKey("projects", userId),
+    queryFn: getProjectsForCurrentUser,
+    enabled: timelineActive,
+  });
+
+  // Date edits from the timeline move a project between active and archived, so
+  // the sidebar tree (which lives under the areas key) has to hear about it too.
+  useTableSubscription("projects", userId, {
+    enabled: timelineActive,
+    alsoInvalidate: [tableKey("areas", userId)],
+  });
 
   function handleCreated(area: SidebarArea) {
     setAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]));
@@ -43,12 +104,34 @@ export function AreasPageClient({
     <>
       <div className="mb-6 flex items-center justify-between gap-4">
         <Breadcrumbs items={[{ label: "Areas" }]} />
-        <AreasPageHeader
-          userId={userId}
-          currentAreaCount={areas.length}
-          onCreated={handleCreated}
-          onCreateFailed={handleCreateFailed}
-        />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-0.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5">
+            {VIEW_SEGMENTS.map((seg) => (
+              <button
+                key={seg.value}
+                type="button"
+                onClick={() => setView(seg.value)}
+                aria-pressed={view === seg.value}
+                className={cn(
+                  "cursor-pointer-always rounded-[5px] px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em]",
+                  "transition-colors duration-150 ease-out",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+                  view === seg.value
+                    ? "bg-[var(--sd-selected)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]"
+                    : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
+                )}
+              >
+                {seg.label}
+              </button>
+            ))}
+          </div>
+          <AreasPageHeader
+            userId={userId}
+            currentAreaCount={areas.length}
+            onCreated={handleCreated}
+            onCreateFailed={handleCreateFailed}
+          />
+        </div>
       </div>
 
       <header className="mb-4 text-center space-y-1">
@@ -60,12 +143,45 @@ export function AreasPageClient({
         </p>
       </header>
 
-      <AreasTree
-        areas={areas}
-        rootAvatarUrl={rootAvatarUrl}
-        rootInitial={rootInitial}
-        rootLabel={rootLabel}
-      />
+      {view === "tree" ? (
+        <AreasTree
+          areas={areas}
+          rootAvatarUrl={rootAvatarUrl}
+          rootInitial={rootInitial}
+          rootLabel={rootLabel}
+        />
+      ) : isPending ? (
+        <div className="sd-panel flex items-center justify-center px-6 py-14">
+          <span className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.08em]">
+            Loading timeline…
+          </span>
+        </div>
+      ) : (
+        <ProjectsTimeline
+          areas={areas}
+          projects={projectRows ?? []}
+          showArchived={showArchived}
+          scope="all"
+          toolbarSlot={
+            <button
+              type="button"
+              onClick={toggleShowArchived}
+              aria-pressed={showArchived}
+              title="Archived and ended projects render as muted ghost bars"
+              className={cn(
+                "inline-flex h-[26px] items-center gap-1.5 rounded-[8px] border px-2 text-[12px] font-medium",
+                "cursor-pointer-always transition-colors duration-150 ease-out",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+                showArchived
+                  ? "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink)]"
+                  : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
+              )}
+            >
+              Show archived
+            </button>
+          }
+        />
+      )}
 
       {areas.length > 0 && (
         <section className="mt-10">
