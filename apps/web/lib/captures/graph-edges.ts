@@ -80,8 +80,10 @@ export interface CaptureGraphEdge {
   kind: CaptureGraphEdgeKind;
   /**
    * How many distinct things the pair shares: hashtags for shared_hashtag,
-   * projects for shared_project, shared targets for co_reference. Always 1 for
-   * direct_reference (the pair either references the other or it doesn't).
+   * projects for shared_project, shared targets for co_reference. For
+   * direct_reference it counts the directed references collapsed onto the
+   * undirected pair: 1 when only one capture references the other, 2 when the
+   * reference is mutual (A→B and B→A).
    */
   weight: number;
   /**
