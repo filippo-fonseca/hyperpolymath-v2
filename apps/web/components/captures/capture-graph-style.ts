@@ -95,41 +95,48 @@ export interface GraphInk {
   highlight: string;
 }
 
+const FALLBACK_INK = "#808080";
+
 /**
  * Normalize any CSS colour to `rgba(r, g, b, a)`.
  *
- * The design tokens are authored as `hsl(235 15% 87%)` and some alias others
- * through `var()` chains, so rather than string-splicing an alpha in, each
- * resolved value is round-tripped through a canvas context — the browser does
- * the parsing and hands back a normalized form. Falls back to a mid grey if a
- * token is missing entirely, so a typo dims the graph rather than blanking it.
+ * Never parse the token text. Tailwind 4 hands these back in whatever space it
+ * settled on — the same token reads as `#212231` or `lab(96.5 0.43 1.85)`
+ * depending on the value — and reading three numbers out of `lab()` as if they
+ * were RGB turns a papery near-white into blood red. So the browser does the
+ * conversion: paint one pixel and read it back, which works for hex, rgb, hsl,
+ * lab, oklch, and anything added later.
+ *
+ * An unparseable value leaves `fillStyle` at the fallback, so a missing token
+ * dims the graph rather than blanking or corrupting it.
  */
 function withAlpha(color: string, alpha: number): string {
+  const cached = inkCache.get(`${color}|${alpha}`);
+  if (cached) return cached;
+
   const ctx = normalizeCtx();
   if (!ctx) return `rgba(128, 128, 128, ${alpha})`;
-  ctx.fillStyle = "#808080";
-  ctx.fillStyle = color.trim() || "#808080";
-  const normalized = ctx.fillStyle as string;
 
-  if (normalized.startsWith("#")) {
-    const hex = normalized.slice(1);
-    const full =
-      hex.length === 3
-        ? hex
-            .split("")
-            .map((c) => c + c)
-            .join("")
-        : hex;
-    const r = Number.parseInt(full.slice(0, 2), 16);
-    const g = Number.parseInt(full.slice(2, 4), 16);
-    const b = Number.parseInt(full.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-  // Already rgb()/rgba() — swap in our alpha.
-  const nums = normalized.match(/[\d.]+/g);
-  if (!nums || nums.length < 3) return `rgba(128, 128, 128, ${alpha})`;
-  return `rgba(${nums[0]}, ${nums[1]}, ${nums[2]}, ${alpha})`;
+  ctx.fillStyle = FALLBACK_INK;
+  const value = color.trim();
+  // Assigning an unparseable colour is a no-op, leaving the fallback in place.
+  if (value) ctx.fillStyle = value;
+  ctx.clearRect(0, 0, 1, 1);
+  ctx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+
+  const result = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  inkCache.set(`${color}|${alpha}`, result);
+  return result;
 }
+
+/**
+ * Resolved colours are memoized because the link painter asks for its kind's
+ * ink on every link on every frame, and each miss costs a `getImageData`
+ * readback. The key space is tiny and bounded (a handful of tokens × a handful
+ * of alphas), so this never grows.
+ */
+const inkCache = new Map<string, string>();
 
 let cachedCtx: CanvasRenderingContext2D | null | undefined;
 function normalizeCtx(): CanvasRenderingContext2D | null {
@@ -138,7 +145,10 @@ function normalizeCtx(): CanvasRenderingContext2D | null {
     cachedCtx = null;
     return null;
   }
-  cachedCtx = document.createElement("canvas").getContext("2d");
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  cachedCtx = canvas.getContext("2d", { willReadFrequently: true });
   return cachedCtx;
 }
 

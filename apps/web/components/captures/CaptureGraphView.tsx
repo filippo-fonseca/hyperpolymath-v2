@@ -77,6 +77,10 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
   );
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  // The layout settles wherever the simulation lands, which is rarely centred
+  // in the viewport. Frame it once per dataset — and only once, or every
+  // re-settle would yank the canvas back from wherever the user panned to.
+  const hasFramedRef = useRef(false);
   const [ink, setInk] = useState<GraphInk | null>(null);
   const { resolvedTheme } = useTheme();
 
@@ -100,12 +104,20 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
 
   // Canvas holds no reference back to the CSS, so the tokens are re-read
   // whenever the register flips. resolvedTheme is the trigger, not an input —
-  // the values come from getComputedStyle after the theme class has landed.
+  // the values come from getComputedStyle.
+  //
+  // The read is deferred a frame (as app/design/TokenSwatches.tsx does):
+  // next-themes toggles `.dark` on <html>, and reading synchronously in the
+  // effect resolves against the outgoing register, which leaves a paper-white
+  // canvas sitting in dark mode.
   // biome-ignore lint/correctness/useExhaustiveDependencies: theme flip is the signal to re-read
   useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    setInk(resolveGraphInk(el));
+    const frame = requestAnimationFrame(() => {
+      const el = wrapRef.current;
+      if (!el) return;
+      setInk(resolveGraphInk(el));
+    });
+    return () => cancelAnimationFrame(frame);
   }, [resolvedTheme]);
 
   const graph = graphQuery.data;
@@ -170,6 +182,7 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: reapply forces when the data or canvas changes
   useEffect(() => {
     let raf = 0;
+    hasFramedRef.current = false;
     // biome-ignore lint/suspicious/noExplicitAny: force-graph node accessor is untyped
     const collideRadius = (n: any) => nodeRadius(n.degree ?? 0) + 4;
     const apply = () => {
@@ -400,6 +413,11 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
                 // biome-ignore lint/suspicious/noExplicitAny: untyped accessor args
                 onNodeClick={(n: any) => focusOn(String(n.id))}
                 onBackgroundClick={() => setFocusedId(null)}
+                onEngineStop={() => {
+                  if (hasFramedRef.current) return;
+                  hasFramedRef.current = true;
+                  fgRef.current?.zoomToFit(500, 48);
+                }}
                 warmupTicks={40}
                 cooldownTicks={120}
               />
