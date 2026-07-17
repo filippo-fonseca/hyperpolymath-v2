@@ -5,6 +5,7 @@ import { eq, and, sql, isNull } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
+import { deleteReferencesForTarget } from "@/lib/references/reconcile";
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -207,6 +208,11 @@ export async function deleteArea(id: string): Promise<ActionResult<null>> {
         .set({ areaId: sentinelId, updatedAt: sql`now()` })
         .where(and(eq(projects.areaId, id), eq(projects.userId, userId)));
     }
+
+    // An area is only ever a reference target. Its rows carry no FK, so they
+    // outlive it unless cleared here; the tokens naming it stay in whatever
+    // text they were typed into and render as tombstones.
+    await deleteReferencesForTarget(tx, { userId, targetType: "area", targetId: id });
 
     await tx
       .delete(areas)

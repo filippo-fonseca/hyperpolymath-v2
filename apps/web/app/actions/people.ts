@@ -4,6 +4,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { people, peopleReferences } from "@/lib/db/schema";
+import { deleteReferencesForTarget } from "@/lib/references/reconcile";
 import {
   type PersonReferenceBreakdown,
   type PersonWithStats,
@@ -106,8 +107,13 @@ export async function deletePerson(id: string): Promise<ActionResult<null>> {
   if (!userId) return { success: false, error: "Not authenticated" };
   if (!z.string().uuid().safeParse(id).success)
     return { success: false, error: "Invalid id" };
-  // people_references rows cascade via the person FK.
-  await db.delete(people).where(and(eq(people.id, id), eq(people.userId, userId)));
+  await db.transaction(async (tx) => {
+    // people_references rows cascade via the person FK. entity_references rows
+    // do not — target_id is polymorphic and carries no FK — so a person named
+    // by the newer universal @-mention needs clearing by hand.
+    await deleteReferencesForTarget(tx, { userId, targetType: "person", targetId: id });
+    await tx.delete(people).where(and(eq(people.id, id), eq(people.userId, userId)));
+  });
   return { success: true, data: null };
 }
 

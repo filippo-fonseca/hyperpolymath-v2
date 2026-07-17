@@ -5,6 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
+import { deleteReferencesForTarget } from "@/lib/references/reconcile";
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -249,9 +250,17 @@ export async function deleteProject(id: string): Promise<ActionResult<null>> {
   if (!z.string().uuid().safeParse(id).success) {
     return { success: false, error: "Invalid id" };
   }
-  await db
-    .delete(projects)
-    .where(and(eq(projects.id, id), eq(projects.userId, userId)));
+  await db.transaction(async (tx) => {
+    // A project is only ever a reference TARGET (nothing on it holds tokens).
+    // Its rows have no FK to cascade through, so they'd otherwise keep the
+    // deleted project alive in reference counts and the graph forever. The
+    // tokens naming it survive in whatever text they were typed into and
+    // render as tombstones, per the sealed policy.
+    await deleteReferencesForTarget(tx, { userId, targetType: "project", targetId: id });
+    await tx
+      .delete(projects)
+      .where(and(eq(projects.id, id), eq(projects.userId, userId)));
+  });
   return { success: true, data: null };
 }
 
