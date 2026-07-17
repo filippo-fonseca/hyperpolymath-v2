@@ -1,24 +1,28 @@
 {
-  "unit_id": "unit-sidebar-overhaul-s1d1",
-  "run_id": "sesh-sd2-overhaul",
+  "unit_id": "unit-u1-timeline-engine-pure-date-geo-6ed5",
+  "run_id": "sesh-1784257742502",
   "scale": "feature",
-  "title": "unit-sidebar-overhaul-s1d1",
-  "scope": "See .planning/fable-plan.md + UI-CONTRACT",
+  "title": "u1-timeline-engine: pure date/geometry engine for the projects timeline",
+  "scope": "lib/projects timeline engine: projectEffectiveStartISO (start_date ?? semester start for classes ?? createdAt date-part), window/zoom scale math for weeks|months|quarters (px-per-day, column derivation, header labels), bar geometry (clamping, open-ended ends, min-width, start>end corruption guard), drag math (px->date with per-zoom snapping), area grouping + ordering (orderIndex,createdAt; sentinel No Area last), archived/expired classification reuse. Pure functions, ISO-string date math only, exhaustive unit tests in lib/projects/__tests__/. No UI, no page edits.",
   "criteria": [
-    "contract sections implemented exactly",
-    "iter-1 screenshot for Conductor review",
-    "both themes",
-    "zero jank"
+    "projectEffectiveStartISO resolves start_date ?? semester start (classes) ?? createdAt date-part",
+    "Zoom scales (weeks/months/quarters) produce correct columns, px-per-day, header labels",
+    "Bar geometry handles: open-ended (null end), clamping to window, start>end corruption guard, min width",
+    "Drag math: px->ISO date with per-zoom snapping (day/day/week), pure and tested",
+    "Area grouping ordered by orderIndex,createdAt with sentinel No Area last",
+    "All date math ISO-string based; zero new Date(\"YYYY-MM-DD\") parsing; pnpm --filter web test green"
   ],
-  "touched": [],
+  "touched": ["apps/web/lib/projects/timeline.ts", "apps/web/lib/projects/archive-status.ts", "apps/web/lib/projects/__tests__/"],
   "model": "claude-opus-4-8",
   "model_assignment": {
     "tier": "heavy",
-    "effort": "high",
-    "reason": "design-critical overhaul unit"
+    "effort": "xhigh",
+    "reason": "fixed routing: user contract pins every build lane to Opus 4.8"
   },
-  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2/.bgsd/runs/sesh-sd2-overhaul/advisor/unit-sidebar-overhaul-s1d1.md",
+  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/advisor/unit-u1-timeline-engine-pure-date-geo-6ed5.md",
+  "control_report_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/control/u1-timeline-engine.report.md",
   "advisor_checkpoints": [
+    "before implementation",
     "after planning",
     "after every commit",
     "on blocker or assumption",
