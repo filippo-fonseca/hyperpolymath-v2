@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
 import { deleteReferencesForTarget } from "@/lib/references/reconcile";
+import { scheduleEntityEmbedding } from "@/lib/references/embedding-enqueue";
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -132,6 +133,9 @@ export async function createProject(
       })
       .returning({ id: projects.id });
 
+    // U7: embed the new project (name + description). No-op unless the rung is on.
+    scheduleEntityEmbedding({ userId, entityType: "project", entityId: row!.id });
+
     return { success: true, data: { id: row!.id } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Database error";
@@ -201,6 +205,14 @@ export async function updateProject(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .set(updates as any)
       .where(and(eq(projects.id, id), eq(projects.userId, userId)));
+
+    // U7: re-embed when the embed input (name or description) changed. The
+    // enqueue reads the full current row, so a name-only edit still embeds both.
+    // No-op unless the rung is on.
+    if (rest.name !== undefined || rest.description !== undefined) {
+      scheduleEntityEmbedding({ userId, entityType: "project", entityId: id });
+    }
+
     return { success: true, data: null };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Database error";

@@ -22,6 +22,7 @@ import {
   deleteReferencesForEntity,
   reconcileEntityReferencesFromText,
 } from "@/lib/references/reconcile";
+import { scheduleEntityEmbedding } from "@/lib/references/embedding-enqueue";
 import { upsertHashtag } from "./hashtags";
 import { reconcilePersonReferencesForUser, resolveOrCreatePersonForUser } from "./people";
 
@@ -171,6 +172,11 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
   // EXISTING person confidently referenced in the text, additively on top of
   // the explicit @-mentions reconciled above. Scheduled via after(); fail-soft.
   scheduleEntityPeopleDerivation("capture", result, userId, parsed.data.content);
+
+  // U7: refresh this capture's semantic embedding. No-op unless the semantic
+  // rung is enabled; when it is, runs via after() and short-circuits on an
+  // unchanged content hash.
+  scheduleEntityEmbedding({ userId, entityType: "capture", entityId: result });
 
   // Phase 3 D-12: no manual cache busting here — Supabase Realtime echo +
   // TanStack Query invalidation own cross-window propagation now.
@@ -367,6 +373,13 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
   // additively over the new text (never removing the reconciled explicit set).
   if (parsed.data.content !== undefined) {
     scheduleEntityPeopleDerivation("capture", parsed.data.id, userId, parsed.data.content);
+  }
+
+  // U7: re-embed only when the content changed — the embed input is the content,
+  // so a url/hashtag/resurface-only edit leaves the vector as it was. No-op
+  // unless the semantic rung is on.
+  if (parsed.data.content !== undefined) {
+    scheduleEntityEmbedding({ userId, entityType: "capture", entityId: parsed.data.id });
   }
 
   // Phase 3 D-12: no manual cache busting — Realtime + TanStack Query own refresh.

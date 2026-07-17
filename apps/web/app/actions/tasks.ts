@@ -17,6 +17,7 @@ import {
   resolveOrCreatePersonForUser,
 } from "./people";
 import { ensureEntityPeople, scheduleEntityPeopleDerivation } from "@/lib/people/derive";
+import { scheduleEntityEmbedding } from "@/lib/references/embedding-enqueue";
 import {
   deleteReferencesForEntities,
   deleteReferencesForEntity,
@@ -204,6 +205,9 @@ export async function createTask(
     taskContent(parsed.data.title, parsed.data.notes),
   );
 
+  // U7: embed the new task (title + notes). No-op unless the semantic rung is on.
+  scheduleEntityEmbedding({ userId, entityType: "task", entityId: result });
+
   return { success: true, data: { id: result } };
 }
 
@@ -347,6 +351,12 @@ export async function updateTask(
   // explicit set). Fail-soft.
   if (rest.title !== undefined || rest.notes !== undefined) {
     scheduleEntityPeopleDerivation("task", id, userId, taskContent(rest.title, rest.notes));
+  }
+
+  // U7: re-embed when title or notes changed (the enqueue reads the full current
+  // text, so a partial update still embeds the whole task). No-op unless on.
+  if (rest.title !== undefined || rest.notes !== undefined) {
+    scheduleEntityEmbedding({ userId, entityType: "task", entityId: id });
   }
 
   return { success: true, data: null };

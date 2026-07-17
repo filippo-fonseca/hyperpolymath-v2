@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
 import { deleteReferencesForTarget } from "@/lib/references/reconcile";
+import { scheduleEntityEmbedding } from "@/lib/references/embedding-enqueue";
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -62,6 +63,10 @@ export async function createArea(
     })
     .returning({ id: areas.id });
 
+  // U7: embed the new area (name is its only meaning-bearing text). No-op unless
+  // the semantic rung is on.
+  scheduleEntityEmbedding({ userId, entityType: "area", entityId: row!.id });
+
   // Cache invalidation is driven by Realtime echoes across all open clients
   // via useTableSubscription (D-09 / RT-04) — no Server Component path-revalidation.
   return { success: true, data: { id: row!.id } };
@@ -93,6 +98,13 @@ export async function updateArea(input: unknown): Promise<ActionResult<null>> {
     .update(areas)
     .set(updates)
     .where(and(eq(areas.id, parsed.data.id), eq(areas.userId, userId)));
+
+  // U7: re-embed only when the name changed (emoji carries no meaning to embed).
+  // No-op unless the rung is on.
+  if (parsed.data.name !== undefined) {
+    scheduleEntityEmbedding({ userId, entityType: "area", entityId: parsed.data.id });
+  }
+
   return { success: true, data: null };
 }
 

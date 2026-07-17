@@ -1,7 +1,15 @@
 import { after } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { entityEmbeddings } from "@/lib/db/schema";
+import {
+  areas,
+  captures,
+  entityEmbeddings,
+  pages,
+  people,
+  projects,
+  tasks,
+} from "@/lib/db/schema";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { EntityRefType } from "./token";
 import { embeddingContentHash, normalizeEmbeddingInput } from "./embedding-content";
@@ -22,30 +30,34 @@ import { isReferencesSemanticEnabled } from "./semantic-flag";
  * has no fresh vector until its next save or a backfill, nothing user-visible
  * breaks.
  *
- * The content-hash short-circuit is what keeps re-saves cheap. The normalized
- * (title + body) is hashed and compared to the stored row's content_hash; an
- * unchanged hash skips the edge-function round trip entirely, so editing a
- * task's due date or re-saving an untouched page embeds nothing.
+ * The call site passes only the entity's identity — this helper reads the
+ * entity's CURRENT canonical text itself. That's deliberate: a partial update
+ * (a task whose due date changed but whose title didn't) doesn't carry the full
+ * title + notes, and embedding only the changed field would produce a vector of
+ * half the entity. Reading the row here means the embed input is always the
+ * whole entity, and the content-hash short-circuit stays honest.
  */
 export function scheduleEntityEmbedding(input: {
   userId: string;
   entityType: EntityRefType;
   entityId: string;
-  title?: string | null;
-  body?: string | null;
 }): void {
-  // Flag gate FIRST — the whole point of staging. Off by default → no cost.
+  // Flag gate FIRST — the whole point of staging. Off by default → no cost, and
+  // in particular no extra read on the write path.
   if (!isReferencesSemanticEnabled()) return;
-
-  const normalized = normalizeEmbeddingInput(input.title, input.body);
-  // Nothing meaning-bearing to embed (e.g. an untitled, empty entity). Leave any
-  // existing row alone rather than overwrite it with a vector of empty text.
-  if (!normalized) return;
-
-  const contentHash = embeddingContentHash(normalized);
 
   after(async () => {
     try {
+      const text = await loadEntityText(input.entityType, input.entityId, input.userId);
+      if (text === null) return; // entity gone (raced with a delete) — nothing to embed
+
+      const normalized = normalizeEmbeddingInput(text.title, text.body);
+      // Nothing meaning-bearing to embed (e.g. an untitled, empty entity). Leave
+      // any existing row alone rather than overwrite it with a vector of empty text.
+      if (!normalized) return;
+
+      const contentHash = embeddingContentHash(normalized);
+
       const existing = await db
         .select({ contentHash: entityEmbeddings.contentHash })
         .from(entityEmbeddings)
@@ -70,10 +82,81 @@ export function scheduleEntityEmbedding(input: {
         },
       });
       if (error) {
-        console.error("[embedding-enqueue] embed-entity invoke failed", input.entityType, input.entityId, error);
+        console.error(
+          "[embedding-enqueue] embed-entity invoke failed",
+          input.entityType,
+          input.entityId,
+          error,
+        );
       }
     } catch (err) {
       console.error("[embedding-enqueue] failed", input.entityType, input.entityId, err);
     }
   });
+}
+
+/**
+ * The (title, body) an entity is embedded from, read from its current row.
+ *
+ * Every query is userId-scoped: the app connects as `postgres` (BYPASSRLS), so
+ * scoping is the app's job even for a background read. Returns null when the row
+ * is gone — a write immediately followed by a delete can race the after() hook.
+ */
+async function loadEntityText(
+  entityType: EntityRefType,
+  entityId: string,
+  userId: string,
+): Promise<{ title: string | null; body: string | null } | null> {
+  switch (entityType) {
+    case "capture": {
+      const [row] = await db
+        .select({ content: captures.content })
+        .from(captures)
+        .where(and(eq(captures.id, entityId), eq(captures.userId, userId)))
+        .limit(1);
+      return row ? { title: null, body: row.content } : null;
+    }
+    case "task": {
+      const [row] = await db
+        .select({ title: tasks.title, notes: tasks.notes })
+        .from(tasks)
+        .where(and(eq(tasks.id, entityId), eq(tasks.userId, userId)))
+        .limit(1);
+      return row ? { title: row.title, body: row.notes } : null;
+    }
+    case "page": {
+      const [row] = await db
+        .select({ title: pages.title, content: pages.content })
+        .from(pages)
+        .where(and(eq(pages.id, entityId), eq(pages.userId, userId)))
+        .limit(1);
+      return row ? { title: row.title, body: row.content } : null;
+    }
+    case "project": {
+      const [row] = await db
+        .select({ name: projects.name, description: projects.description })
+        .from(projects)
+        .where(and(eq(projects.id, entityId), eq(projects.userId, userId)))
+        .limit(1);
+      return row ? { title: row.name, body: row.description } : null;
+    }
+    case "area": {
+      const [row] = await db
+        .select({ name: areas.name })
+        .from(areas)
+        .where(and(eq(areas.id, entityId), eq(areas.userId, userId)))
+        .limit(1);
+      return row ? { title: row.name, body: null } : null;
+    }
+    case "person": {
+      const [row] = await db
+        .select({ name: people.name, bio: people.bio })
+        .from(people)
+        .where(and(eq(people.id, entityId), eq(people.userId, userId)))
+        .limit(1);
+      return row ? { title: row.name, body: row.bio } : null;
+    }
+    default:
+      return null;
+  }
 }

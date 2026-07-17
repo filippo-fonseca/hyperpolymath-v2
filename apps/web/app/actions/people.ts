@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { people, peopleReferences } from "@/lib/db/schema";
 import { deleteReferencesForTarget } from "@/lib/references/reconcile";
+import { scheduleEntityEmbedding } from "@/lib/references/embedding-enqueue";
 import {
   type PersonReferenceBreakdown,
   type PersonWithStats,
@@ -66,6 +67,9 @@ export async function createPerson(
     })
     .returning({ id: people.id });
 
+  // U7: embed the new person (name + bio). No-op unless the semantic rung is on.
+  scheduleEntityEmbedding({ userId, entityType: "person", entityId: row.id });
+
   return { success: true, data: { id: row.id } };
 }
 
@@ -98,6 +102,13 @@ export async function updatePerson(input: unknown): Promise<ActionResult<null>> 
     .update(people)
     .set(set)
     .where(and(eq(people.id, parsed.data.id), eq(people.userId, userId)));
+
+  // U7: re-embed when the embed input (name or bio) changed. The enqueue reads
+  // the full current row, so a bio-only edit still embeds name + bio. No-op
+  // unless the rung is on.
+  if (parsed.data.name !== undefined || parsed.data.bio !== undefined) {
+    scheduleEntityEmbedding({ userId, entityType: "person", entityId: parsed.data.id });
+  }
 
   return { success: true, data: null };
 }

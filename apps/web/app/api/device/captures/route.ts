@@ -12,6 +12,7 @@ import {
   deleteReferencesForEntity,
   reconcileEntityReferencesFromText,
 } from "@/lib/references/reconcile";
+import { scheduleEntityEmbedding } from "@/lib/references/embedding-enqueue";
 import { mergeContentUrls } from "@/lib/url";
 
 export const runtime = "nodejs";
@@ -105,6 +106,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Auto-derive linked people from the body (parity with the web + JARVIS
   // create paths). Background Haiku match; fail-soft.
   scheduleEntityPeopleDerivation("capture", id, userId, content);
+  // U7: refresh the capture's semantic embedding. No-op unless the rung is on.
+  scheduleEntityEmbedding({ userId, entityType: "capture", entityId: id });
   return Response.json({ id }, { headers: CORS });
 }
 
@@ -177,6 +180,8 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     scheduleLinkPreviews(userId, body.content.trim());
     // Re-derive linked people over the new body. Background; fail-soft.
     scheduleEntityPeopleDerivation("capture", body.id, userId, body.content.trim());
+    // U7: re-embed the changed content. No-op unless the rung is on.
+    scheduleEntityEmbedding({ userId, entityType: "capture", entityId: body.id });
   }
   return Response.json({ ok: true }, { headers: CORS });
 }
