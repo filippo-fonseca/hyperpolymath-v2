@@ -17,13 +17,6 @@
  */
 
 import {
-  BlockNoteEditor,
-  BlockNoteSchema,
-  defaultBlockSpecs,
-  defaultInlineContentSpecs,
-} from "@blocknote/core";
-import { describe, expect, it } from "vitest";
-import {
   ENTITY_REFERENCE_TYPE,
   entityReferenceInlineSpec,
 } from "@/components/pages/EntityReferenceInline";
@@ -33,6 +26,13 @@ import {
 } from "@/components/pages/PersonMentionInline";
 import { ENTITY_KIND_GLYPH, ENTITY_KIND_PLURAL } from "@/lib/references/glyphs";
 import { ENTITY_REF_TYPES } from "@/lib/references/token";
+import {
+  BlockNoteEditor,
+  BlockNoteSchema,
+  defaultBlockSpecs,
+  defaultInlineContentSpecs,
+} from "@blocknote/core";
+import { describe, expect, it } from "vitest";
 
 const schema = BlockNoteSchema.create({
   blockSpecs: { ...defaultBlockSpecs },
@@ -53,9 +53,7 @@ function insertInline(content: unknown[]): Array<Record<string, unknown>> {
   });
   editor.insertInlineContent(content as never);
   const block = editor.document[0] as { content?: unknown };
-  return (Array.isArray(block.content) ? block.content : []) as Array<
-    Record<string, unknown>
-  >;
+  return (Array.isArray(block.content) ? block.content : []) as Array<Record<string, unknown>>;
 }
 
 function chip(kind: string, label: string) {
@@ -66,20 +64,17 @@ function chip(kind: string, label: string) {
 }
 
 describe("entityReference kinds", () => {
-  it.each([...ENTITY_REF_TYPES])(
-    "persists the full reference shape for kind %s",
-    (kind) => {
-      const [node] = insertInline([chip(kind, `A ${kind}`)]);
-      expect(node.type).toBe(ENTITY_REFERENCE_TYPE);
-      // All three of kind/id/label must survive: the walker reconciles from
-      // refKind+refId, and label is the snapshot a tombstone falls back to.
-      expect(node.props).toMatchObject({
-        refKind: kind,
-        refId: ID,
-        label: `A ${kind}`,
-      });
-    },
-  );
+  it.each([...ENTITY_REF_TYPES])("persists the full reference shape for kind %s", (kind) => {
+    const [node] = insertInline([chip(kind, `A ${kind}`)]);
+    expect(node.type).toBe(ENTITY_REFERENCE_TYPE);
+    // All three of kind/id/label must survive: the walker reconciles from
+    // refKind+refId, and label is the snapshot a tombstone falls back to.
+    expect(node.props).toMatchObject({
+      refKind: kind,
+      refId: ID,
+      label: `A ${kind}`,
+    });
+  });
 
   it("still loads a legacy personMention node untouched", () => {
     const [node] = insertInline([

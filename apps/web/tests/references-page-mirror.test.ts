@@ -16,13 +16,6 @@
  */
 
 import {
-  BlockNoteEditor,
-  BlockNoteSchema,
-  defaultBlockSpecs,
-  defaultInlineContentSpecs,
-} from "@blocknote/core";
-import { describe, expect, it } from "vitest";
-import {
   ENTITY_REFERENCE_TYPE,
   entityReferenceInlineSpec,
 } from "@/components/pages/EntityReferenceInline";
@@ -32,6 +25,13 @@ import {
 } from "@/components/pages/PersonMentionInline";
 import { blocksWithReferenceTokens } from "@/lib/references/page-mirror";
 import { parseReferences, serializeReference } from "@/lib/references/token";
+import {
+  BlockNoteEditor,
+  BlockNoteSchema,
+  defaultBlockSpecs,
+  defaultInlineContentSpecs,
+} from "@blocknote/core";
+import { describe, expect, it } from "vitest";
 
 const schema = BlockNoteSchema.create({
   blockSpecs: { ...defaultBlockSpecs },
@@ -62,9 +62,7 @@ async function mirror(blocks: unknown[]): Promise<string> {
     schema,
     initialContent: blocks as never,
   });
-  return await editor.blocksToMarkdownLossy(
-    blocksWithReferenceTokens(editor.document) as never,
-  );
+  return await editor.blocksToMarkdownLossy(blocksWithReferenceTokens(editor.document) as never);
 }
 
 const para = (content: unknown[]) => ({ type: "paragraph", content });
@@ -78,9 +76,9 @@ describe("blocksWithReferenceTokens", () => {
   });
 
   it("replaces a reference node with a text node holding its token", () => {
-    const out = blocksWithReferenceTokens([
-      para([ref("page", PAGE_ID, "Marathon")]),
-    ]) as Array<{ content: unknown[] }>;
+    const out = blocksWithReferenceTokens([para([ref("page", PAGE_ID, "Marathon")])]) as Array<{
+      content: unknown[];
+    }>;
     expect(out[0].content).toEqual([
       {
         type: "text",
@@ -114,9 +112,9 @@ describe("blocksWithReferenceTokens", () => {
     // Both specs default refId to "", so an incomplete node is reachable. The
     // walker refuses it, and the mirror must agree — a token pointing at
     // nothing is worse than no token.
-    const out = blocksWithReferenceTokens([
-      para([ref("page", "", "Ghost")]),
-    ]) as Array<{ content: Array<{ type: string }> }>;
+    const out = blocksWithReferenceTokens([para([ref("page", "", "Ghost")])]) as Array<{
+      content: Array<{ type: string }>;
+    }>;
     expect(out[0].content[0].type).toBe(ENTITY_REFERENCE_TYPE);
   });
 });
@@ -126,9 +124,7 @@ describe("the mirror pages.content actually receives", () => {
     const md = await mirror([
       para([text("see "), ref("page", PAGE_ID, "Marathon"), text(" today")]),
     ]);
-    expect(md.trim()).toBe(
-      `see @[Marathon](ref://page/${PAGE_ID}) today`,
-    );
+    expect(md.trim()).toBe(`see @[Marathon](ref://page/${PAGE_ID}) today`);
   });
 
   it("serializes a legacy personMention as a person token, id and all", async () => {
@@ -147,7 +143,7 @@ describe("the mirror pages.content actually receives", () => {
       ]),
     ]);
     expect(md.trim()).toBe(
-      `@[A jotted thought](ref://capture/${CAPTURE_ID}) @[Ada](ref://person/${PERSON_ID})`,
+      `@[A jotted thought](ref://capture/${CAPTURE_ID}) @[Ada](ref://person/${PERSON_ID})`
     );
   });
 
@@ -165,29 +161,20 @@ describe("the mirror pages.content actually receives", () => {
       para([person(PERSON_ID, "Ada")]),
       para([ref("capture", CAPTURE_ID, "Jot")]),
     ]);
-    expect(parseReferences(md).map((r) => ({ type: r.type, id: r.id }))).toEqual(
-      [
-        { type: "page", id: PAGE_ID },
-        { type: "person", id: PERSON_ID },
-        { type: "capture", id: CAPTURE_ID },
-      ],
-    );
+    expect(parseReferences(md).map((r) => ({ type: r.type, id: r.id }))).toEqual([
+      { type: "page", id: PAGE_ID },
+      { type: "person", id: PERSON_ID },
+      { type: "capture", id: CAPTURE_ID },
+    ]);
   });
 
   it("survives labels markdown would want to escape", async () => {
     // The load-bearing third-party claim: remark must not escape the token's
     // own punctuation, whatever the label contains.
-    for (const label of [
-      "a*b*c",
-      "a_b_c",
-      "a (b) c",
-      "50% & <x>",
-      "Ünïcode ✓",
-      "",
-    ]) {
+    for (const label of ["a*b*c", "a_b_c", "a (b) c", "50% & <x>", "Ünïcode ✓", ""]) {
       const md = await mirror([para([ref("page", PAGE_ID, label)])]);
       expect(md.trim(), `label ${JSON.stringify(label)}`).toBe(
-        serializeReference({ type: "page", id: PAGE_ID, label }),
+        serializeReference({ type: "page", id: PAGE_ID, label })
       );
       expect(parseReferences(md)).toHaveLength(1);
     }
