@@ -422,7 +422,7 @@ export async function searchEntityMentions(
  * Trigram *similarity* would be the wrong tool here even though the index is
  * the same one: similarity() scores whole strings, so a 3-character query
  * against a 500-character capture scores near zero no matter how well it
- * matches. The index earns its keep accelerating the LIKE, not a threshold.
+ * matches. The index earns its keep accelerating the ILIKE, not a threshold.
  */
 async function searchCaptureMentions(
   userId: string,
@@ -455,12 +455,15 @@ async function searchCaptureMentions(
   }
 
   const tsQuery = toPrefixTsQuery(query);
-  const contains = `%${escapeLikePattern(query.toLowerCase())}%`;
-  // An all-punctuation query leaves no tsquery to run; the LIKE still works.
+  const contains = `%${escapeLikePattern(query)}%`;
+  // ILIKE against the raw content column (not lower(content)) so the planner can
+  // use captures_content_trgm_idx — a gin_trgm_ops index on content, which a
+  // lower(content) wrapper would hide. ILIKE carries the case-insensitivity the
+  // lower() used to. An all-punctuation query leaves no tsquery; ILIKE still works.
   const match = tsQuery
     ? sql`(${captures.contentSearch} @@ to_tsquery('english', ${tsQuery})
-        or lower(${captures.content}) like ${contains} escape '\\')`
-    : sql`lower(${captures.content}) like ${contains} escape '\\'`;
+        or ${captures.content} ilike ${contains} escape '\\')`
+    : sql`${captures.content} ilike ${contains} escape '\\'`;
 
   const rows = await db
     .select({
