@@ -180,7 +180,7 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
   if (visibleProjects.length === 0) {
     return (
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <TimelineZoomToggle zoom={zoom} onZoomChange={setZoom} onToday={scrollToToday} todayDisabled />
           {toolbarSlot}
         </div>

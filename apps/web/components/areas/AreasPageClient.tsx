@@ -102,7 +102,7 @@ export function AreasPageClient({
 
   return (
     <>
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <Breadcrumbs items={[{ label: "Areas" }]} />
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-0.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5">
