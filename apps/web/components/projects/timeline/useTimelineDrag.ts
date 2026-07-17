@@ -32,6 +32,7 @@ import {
   TOUCH_MOVE_TOL_PX,
 } from "@/components/projects/timeline/drag-plan";
 import type { TimelineDatePatch } from "@/components/projects/timeline/ProjectBarPopover";
+import { projectEffectiveEndISO } from "@/lib/projects/archive-status";
 import {
   projectEffectiveStartISO,
   pxToSnappedDayDelta,
@@ -60,6 +61,8 @@ interface DragSession {
   pointerId: number;
   pointerType: string;
   barEl: HTMLElement;
+  /** The user grabbed the bar body (not a resize handle): grabbing cursor. */
+  isBodyDrag: boolean;
   startClientX: number;
   startClientY: number;
   lastClientX: number;
@@ -206,7 +209,7 @@ export function useTimelineDrag({ timelineWindow, zoom, scrollerRef, onCommit }:
         if (!crossedThreshold(dxPx)) return;
         s.dragging = true;
         s.barEl.setAttribute("data-dragging", "");
-        if (s.mode === "move") s.barEl.style.cursor = "grabbing";
+        if (s.isBodyDrag) s.barEl.style.cursor = "grabbing";
         s.rafId = requestAnimationFrame(tick);
       }
       paint(s);
@@ -236,7 +239,9 @@ export function useTimelineDrag({ timelineWindow, zoom, scrollerRef, onCommit }:
         rawStartISO: s.project.startDate ?? null,
         effectiveStartISO: s.effectiveStartISO,
         rawEndISO: s.project.endDate ?? null,
-        windowEndISO: w.endISO,
+        // The bar's visual right edge: a real end, else a class's semester end,
+        // else the window edge (open terminus). Keeps commit == preview.
+        barEndISO: projectEffectiveEndISO(s.project) ?? w.endISO,
       });
 
       restoreBaseGeometry(s);
@@ -319,9 +324,16 @@ export function useTimelineDrag({ timelineWindow, zoom, scrollerRef, onCommit }:
       const baseLeftPx = Number(barEl.dataset.barLeftPx ?? "0");
       const baseWidthPx = Number(barEl.dataset.barWidthPx ?? "0");
 
+      // A body-drag on a bar with no movable end — open-ended, or a class whose
+      // terminus is semester-bound — has nothing to translate on the right, so
+      // it becomes a start-only resize. That keeps the live preview honest: the
+      // bar grows/shrinks from the left instead of sliding a phantom right edge.
+      const dragMode: DragMode = mode === "move" && project.endDate == null ? "resize-start" : mode;
+
       const s: DragSession = {
         project,
-        mode,
+        mode: dragMode,
+        isBodyDrag: mode === "move",
         pointerId: event.pointerId,
         pointerType: event.pointerType,
         barEl,

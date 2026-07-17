@@ -38,7 +38,7 @@ describe("planDrag — move", () => {
       rawStartISO: START,
       effectiveStartISO: START,
       rawEndISO: END,
-      windowEndISO: WINDOW_END,
+      barEndISO: END,
     });
     expect(patch.startDate).toBe(addDaysISO(START, 7));
     expect(patch.endDate).toBe(addDaysISO(END, 7));
@@ -51,7 +51,7 @@ describe("planDrag — move", () => {
       rawStartISO: START,
       effectiveStartISO: START,
       rawEndISO: END,
-      windowEndISO: WINDOW_END,
+      barEndISO: END,
     });
     expect(patch.startDate).toBe(addDaysISO(START, -5));
     expect(patch.endDate).toBe(addDaysISO(END, -5));
@@ -64,7 +64,7 @@ describe("planDrag — move", () => {
       rawStartISO: START,
       effectiveStartISO: START,
       rawEndISO: null,
-      windowEndISO: WINDOW_END,
+      barEndISO: WINDOW_END,
     });
     expect(patch.startDate).toBe(addDaysISO(START, 10));
     expect(patch.endDate).toBeNull();
@@ -79,7 +79,7 @@ describe("planDrag — move", () => {
       rawStartISO: null,
       effectiveStartISO: START,
       rawEndISO: null,
-      windowEndISO: WINDOW_END,
+      barEndISO: WINDOW_END,
     });
     expect(patch.startDate).toBe(addDaysISO(START, 3));
     expect(patch.endDate).toBeNull();
@@ -94,7 +94,7 @@ describe("planDrag — resize-start", () => {
       rawStartISO: START,
       effectiveStartISO: START,
       rawEndISO: END,
-      windowEndISO: WINDOW_END,
+      barEndISO: END,
     });
     expect(patch.startDate).toBe(addDaysISO(START, 4));
     expect(patch.endDate).toBe(END);
@@ -107,7 +107,7 @@ describe("planDrag — resize-start", () => {
       rawStartISO: START,
       effectiveStartISO: START,
       rawEndISO: END,
-      windowEndISO: WINDOW_END,
+      barEndISO: END,
     });
     expect(patch.startDate).toBe(END);
     expect(patch.endDate).toBe(END);
@@ -120,9 +120,26 @@ describe("planDrag — resize-start", () => {
       rawStartISO: START,
       effectiveStartISO: START,
       rawEndISO: null,
-      windowEndISO: WINDOW_END,
+      barEndISO: WINDOW_END,
     });
     expect(patch.startDate).toBe(addDaysISO(START, 8));
+    expect(patch.endDate).toBeNull();
+  });
+
+  it("clamps a pinned-terminus start to the VISUAL right edge, not the raw end", () => {
+    // A class / open-ended bar has rawEnd null but a real visual right edge
+    // (semester end / window edge). The start can't cross it, or the bar would
+    // invert past a terminus it can never move. This was the preview/commit bug.
+    const semesterEnd = addDaysISO(START, 40);
+    const patch = planDrag({
+      mode: "resize-start",
+      dayDelta: 500, // way past the visual end
+      rawStartISO: null,
+      effectiveStartISO: START,
+      rawEndISO: null,
+      barEndISO: semesterEnd,
+    });
+    expect(patch.startDate).toBe(semesterEnd);
     expect(patch.endDate).toBeNull();
   });
 });
@@ -135,7 +152,7 @@ describe("planDrag — resize-end", () => {
       rawStartISO: START,
       effectiveStartISO: START,
       rawEndISO: END,
-      windowEndISO: WINDOW_END,
+      barEndISO: END,
     });
     expect(patch.startDate).toBe(START);
     expect(patch.endDate).toBe(addDaysISO(END, 6));
@@ -148,7 +165,7 @@ describe("planDrag — resize-end", () => {
       rawStartISO: null,
       effectiveStartISO: START,
       rawEndISO: END,
-      windowEndISO: WINDOW_END,
+      barEndISO: END,
     });
     expect(patch.startDate).toBeNull();
     expect(patch.endDate).toBe(addDaysISO(END, 2));
@@ -163,7 +180,7 @@ describe("planDrag — resize-end", () => {
       rawStartISO: START,
       effectiveStartISO: START,
       rawEndISO: null,
-      windowEndISO: WINDOW_END,
+      barEndISO: WINDOW_END,
     });
     expect(patch.endDate).toBe(addDaysISO(WINDOW_END, -20));
     expect(patch.endDate).not.toBeNull();
@@ -177,7 +194,7 @@ describe("planDrag — resize-end", () => {
       rawStartISO: START,
       effectiveStartISO: START,
       rawEndISO: END,
-      windowEndISO: WINDOW_END,
+      barEndISO: END,
     });
     expect(patch.endDate).toBe(START);
   });

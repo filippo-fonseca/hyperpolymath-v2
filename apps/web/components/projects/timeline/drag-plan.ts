@@ -53,26 +53,30 @@ export interface DragPlanInput {
   effectiveStartISO: string;
   /** The bar's raw end (null = open-ended); the untouched edge is preserved verbatim. */
   rawEndISO: string | null;
-  /** The window's last rendered day — where an open-ended terminus visually sits. */
-  windowEndISO: string;
+  /**
+   * The bar's VISUAL right edge as a date: a real end, else a class's semester
+   * end, else the window edge where an open-ended terminus sits. This is the
+   * basis a resize snaps against, so preview pixels and committed dates agree.
+   */
+  barEndISO: string;
 }
 
 /**
  * The `TimelineDatePatch` a drag release commits.
  *
- *  - `move`: shift both edges by `dayDelta`. An open end stays open (null); the
- *    start becomes explicit because you dragged the whole bar somewhere real.
- *  - `resize-start`: move the start edge only, clamped so it can't cross a
- *    bounded end (that would invert the bar). The end is preserved verbatim.
- *  - `resize-end`: move the end edge only. An open-ended terminus is anchored at
- *    the window edge, so dragging it in CONVERTS it to a real end date (DESIGN
- *    interaction directive #2). Clamped so it can't cross the start.
- *
- * The edge you didn't touch is copied straight through — a null stays null, so a
- * resize never silently schedules an undated project.
+ *  - `move`: shift both edges by `dayDelta`. Only ever reaches a bar with a real
+ *    stored end (the hook remaps a pinned-terminus body-drag — open-ended or a
+ *    semester-bound class — to `resize-start`, since there is no movable end).
+ *  - `resize-start`: move the start edge only, clamped so it can't cross the
+ *    bar's visual right edge (that would invert it). The end is preserved
+ *    verbatim — a null stays null, so a resize never schedules an undated end.
+ *  - `resize-end`: move the end edge only, from the bar's visual right edge. An
+ *    open-ended terminus sits at the window edge, so dragging it in CONVERTS it
+ *    to a real end date (DESIGN interaction directive #2). Clamped so it can't
+ *    cross the start.
  */
 export function planDrag(input: DragPlanInput): TimelineDatePatch {
-  const { mode, dayDelta, rawStartISO, effectiveStartISO, rawEndISO, windowEndISO } = input;
+  const { mode, dayDelta, rawStartISO, effectiveStartISO, rawEndISO, barEndISO } = input;
 
   if (mode === "move") {
     return {
@@ -83,15 +87,15 @@ export function planDrag(input: DragPlanInput): TimelineDatePatch {
 
   if (mode === "resize-start") {
     let start = addDaysISO(effectiveStartISO, dayDelta);
-    // Can't drag the start past a bounded end; pin it to the end (engine renders
-    // the floor as a MIN_BAR_WIDTH_PX stub) rather than invert the bar.
-    if (rawEndISO != null && start > rawEndISO) start = rawEndISO;
+    // Can't drag the start past the visual right edge; pin it there (engine
+    // renders the floor as a MIN_BAR_WIDTH_PX stub) rather than invert the bar.
+    if (start > barEndISO) start = barEndISO;
     return { startDate: start, endDate: rawEndISO };
   }
 
-  // resize-end
-  const base = rawEndISO ?? windowEndISO;
-  let end = addDaysISO(base, dayDelta);
+  // resize-end — snap from the visual right edge so an open terminus converts to
+  // a real date and a bounded end moves in step with the preview.
+  let end = addDaysISO(barEndISO, dayDelta);
   // Can't drag the end before the start.
   if (end < effectiveStartISO) end = effectiveStartISO;
   return { startDate: rawStartISO, endDate: end };
