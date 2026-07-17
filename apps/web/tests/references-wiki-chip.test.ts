@@ -25,6 +25,7 @@ import {
   personMentionInlineSpec,
 } from "@/components/pages/PersonMentionInline";
 import { ENTITY_KIND_GLYPH, ENTITY_KIND_PLURAL } from "@/lib/references/glyphs";
+import { extractReferencesFromContentJson } from "@/lib/references/page-refs";
 import { ENTITY_REF_TYPES } from "@/lib/references/token";
 import {
   BlockNoteEditor,
@@ -92,5 +93,44 @@ describe("entityReference kinds", () => {
     // A person reads as "@" whichever node carries it — the legacy pill and the
     // new chip must not diverge on the same entity.
     expect(ENTITY_KIND_GLYPH.person).toBe("@");
+  });
+});
+
+/**
+ * The walker reads what the editor actually writes.
+ *
+ * The page-refs suite already covers the extended kinds, but against hand-built
+ * fixtures — objects a human wrote to look like editor output. That leaves one
+ * seam untested: if the editor's real persisted shape ever drifted from those
+ * fixtures, both suites would stay green while every reference on every page
+ * silently stopped reconciling. These drive the document through a real editor
+ * and hand THAT to the walker, which is the pairing the save path performs.
+ */
+describe("the wiki chip against U1's walker", () => {
+  it("links every kind the @ menu can insert", () => {
+    const editor = BlockNoteEditor.create({
+      schema,
+      initialContent: [{ type: "paragraph" }] as never,
+    });
+    for (const kind of ENTITY_REF_TYPES) {
+      editor.insertInlineContent([chip(kind, `A ${kind}`), " "] as never);
+    }
+    // ENTITY_REF_TYPES shares one id across kinds, so dedupe (which keys on
+    // type+id) must still keep all six: they are six distinct targets.
+    const refs = extractReferencesFromContentJson(editor.document);
+    expect(refs.map((r) => r.type).sort()).toEqual([...ENTITY_REF_TYPES].sort());
+  });
+
+  it("links a legacy personMention written by the old @ menu", () => {
+    const editor = BlockNoteEditor.create({
+      schema,
+      initialContent: [{ type: "paragraph" }] as never,
+    });
+    editor.insertInlineContent([
+      { type: PERSON_MENTION_TYPE, props: { personId: ID, name: "Ada" } },
+    ] as never);
+    expect(extractReferencesFromContentJson(editor.document)).toEqual([
+      { type: "person", id: ID, label: "Ada" },
+    ]);
   });
 });
