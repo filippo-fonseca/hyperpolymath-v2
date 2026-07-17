@@ -5,6 +5,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
+import { deleteReferencesForTarget } from "@/lib/references/reconcile";
+import { scheduleEntityEmbedding } from "@/lib/references/embedding-enqueue";
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -131,6 +133,9 @@ export async function createProject(
       })
       .returning({ id: projects.id });
 
+    // U7: embed the new project (name + description). No-op unless the rung is on.
+    scheduleEntityEmbedding({ userId, entityType: "project", entityId: row!.id });
+
     return { success: true, data: { id: row!.id } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Database error";
@@ -200,6 +205,14 @@ export async function updateProject(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .set(updates as any)
       .where(and(eq(projects.id, id), eq(projects.userId, userId)));
+
+    // U7: re-embed when the embed input (name or description) changed. The
+    // enqueue reads the full current row, so a name-only edit still embeds both.
+    // No-op unless the rung is on.
+    if (rest.name !== undefined || rest.description !== undefined) {
+      scheduleEntityEmbedding({ userId, entityType: "project", entityId: id });
+    }
+
     return { success: true, data: null };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Database error";
@@ -249,9 +262,17 @@ export async function deleteProject(id: string): Promise<ActionResult<null>> {
   if (!z.string().uuid().safeParse(id).success) {
     return { success: false, error: "Invalid id" };
   }
-  await db
-    .delete(projects)
-    .where(and(eq(projects.id, id), eq(projects.userId, userId)));
+  await db.transaction(async (tx) => {
+    // A project is only ever a reference TARGET (nothing on it holds tokens).
+    // Its rows have no FK to cascade through, so they'd otherwise keep the
+    // deleted project alive in reference counts and the graph forever. The
+    // tokens naming it survive in whatever text they were typed into and
+    // render as tombstones, per the sealed policy.
+    await deleteReferencesForTarget(tx, { userId, targetType: "project", targetId: id });
+    await tx
+      .delete(projects)
+      .where(and(eq(projects.id, id), eq(projects.userId, userId)));
+  });
   return { success: true, data: null };
 }
 

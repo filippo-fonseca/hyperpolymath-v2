@@ -15,6 +15,7 @@ import {
   unique,
   uniqueIndex,
   jsonb,
+  vector,
   customType,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
@@ -1505,6 +1506,82 @@ export const peopleReferences = pgTable(
     index("people_references_person_idx").on(t.personId),
     index("people_references_user_idx").on(t.userId),
     index("people_references_from_idx").on(t.fromType, t.fromId),
+  ],
+);
+
+// entity_references — one row per (source entity → target entity) reference,
+// the general form of people_references: instead of a person-shaped far end it
+// stores a (targetType, targetId) pair, so any entity can reference any other.
+// Neither end carries a hard FK because both are polymorphic; userId is
+// denormalized for RLS like every other junction table here. Rows are
+// reconciled on save (parse the source's text for @[label](ref://type/uuid)
+// tokens, diff against existing rows — see lib/references/reconcile.ts), which
+// makes this the queryable projection of tokens that otherwise only exist
+// inside free text: it powers backlinks, reference counts, and the captures
+// graph's co_reference edges.
+export const entityReferences = pgTable(
+  "entity_references",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "capture" | "task" | "page" | "jarvis_turn"
+    sourceType: text("source_type").notNull(),
+    sourceId: uuid("source_id").notNull(),
+    // "capture" | "task" | "page" | "project" | "area" | "person"
+    targetType: text("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // At most one reference per (source, target) — a source naming the same
+    // target twice collapses to one row, which is what lets the reconcile diff
+    // stay idempotent.
+    unique("entity_references_source_target_uniq").on(
+      t.sourceType,
+      t.sourceId,
+      t.targetType,
+      t.targetId,
+    ),
+    // "what references this entity" — backlinks, counts, graph.
+    index("entity_references_target_idx").on(t.targetType, t.targetId),
+    index("entity_references_user_idx").on(t.userId),
+    // "what does this entity reference" — the reconcile read, on every save.
+    index("entity_references_source_idx").on(t.sourceType, t.sourceId),
+  ],
+);
+
+// entity_embeddings — one gte-small (384-dim) vector per referenceable entity,
+// backing the STAGED semantic reference search (U7). The exact @-mention search
+// (searchEntityMentions, S4) does not touch this; it powers a second, flag-gated
+// "Related" section that finds entities a literal query would miss. Vectors are
+// produced by the embed-entity edge function's built-in Supabase.ai inference
+// (no external vendor). contentHash is sha256 of the normalized (title + body)
+// the embedding was built from — an unchanged hash on save lets the enqueue
+// short-circuit the embed round trip. userId denormalized for RLS; entityId
+// carries no FK because the target is polymorphic, same as entity_references.
+export const entityEmbeddings = pgTable(
+  "entity_embeddings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "capture" | "task" | "page" | "project" | "area" | "person"
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    contentHash: text("content_hash").notNull(),
+    embedding: vector("embedding", { dimensions: 384 }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // One embedding per entity; the enqueue upserts on this constraint.
+    unique("entity_embeddings_entity_uniq").on(t.entityType, t.entityId),
+    // Cosine ANN index — HNSW over IVFFlat at single-user scale (see 0036).
+    index("entity_embeddings_embedding_hnsw_idx")
+      .using("hnsw", t.embedding.op("vector_cosine_ops")),
+    index("entity_embeddings_user_idx").on(t.userId),
   ],
 );
 

@@ -17,6 +17,12 @@ import {
   resolveOrCreatePersonForUser,
 } from "./people";
 import { ensureEntityPeople, scheduleEntityPeopleDerivation } from "@/lib/people/derive";
+import { scheduleEntityEmbedding } from "@/lib/references/embedding-enqueue";
+import {
+  deleteReferencesForEntities,
+  deleteReferencesForEntity,
+  reconcileEntityReferencesFromText,
+} from "@/lib/references/reconcile";
 
 /** The text scanned for people references on a task: title + notes. */
 function taskContent(title: string | undefined | null, notes: string | undefined | null): string {
@@ -164,6 +170,16 @@ export async function createTask(
       }
     }
 
+    // Index reference tokens in the notes — the task's only free-text field and
+    // the only one with a mention-capable editor behind it (the title is a
+    // plain input). Inside the tx so the index can't survive a rolled back task.
+    await reconcileEntityReferencesFromText(tx, {
+      userId,
+      sourceType: "task",
+      sourceId: row!.id,
+      text: parsed.data.notes,
+    });
+
     return row!.id;
   });
 
@@ -188,6 +204,9 @@ export async function createTask(
     userId,
     taskContent(parsed.data.title, parsed.data.notes),
   );
+
+  // U7: embed the new task (title + notes). No-op unless the semantic rung is on.
+  scheduleEntityEmbedding({ userId, entityType: "task", entityId: result });
 
   return { success: true, data: { id: result } };
 }
@@ -301,6 +320,19 @@ export async function updateTask(
           .values({ taskId: id, hashtagId: tag.id, userId });
       }
     }
+
+    // Re-index references only when notes are present, so a status- or
+    // due-date-only update never clears them. An explicit null clears the
+    // notes, and with them the references — which is right: the tokens are
+    // gone from the text.
+    if (rest.notes !== undefined) {
+      await reconcileEntityReferencesFromText(tx, {
+        userId,
+        sourceType: "task",
+        sourceId: id,
+        text: rest.notes,
+      });
+    }
   });
 
   // Issue #159 — reconcile @-mentioned people only when the field is present,
@@ -319,6 +351,12 @@ export async function updateTask(
   // explicit set). Fail-soft.
   if (rest.title !== undefined || rest.notes !== undefined) {
     scheduleEntityPeopleDerivation("task", id, userId, taskContent(rest.title, rest.notes));
+  }
+
+  // U7: re-embed when title or notes changed (the enqueue reads the full current
+  // text, so a partial update still embeds the whole task). No-op unless on.
+  if (rest.title !== undefined || rest.notes !== undefined) {
+    scheduleEntityEmbedding({ userId, entityType: "task", entityId: id });
   }
 
   return { success: true, data: null };
@@ -442,10 +480,19 @@ export async function bulkDeleteTasks(
     };
   }
 
-  const result = await db
-    .delete(tasks)
-    .where(and(inArray(tasks.id, parsed.data.ids), eq(tasks.userId, userId)))
-    .returning({ id: tasks.id });
+  const result = await db.transaction(async (tx) => {
+    // One statement for the whole set — a 500-task delete shouldn't cost 1000
+    // round trips clearing references one id at a time.
+    await deleteReferencesForEntities(tx, {
+      userId,
+      type: "task",
+      ids: parsed.data.ids,
+    });
+    return await tx
+      .delete(tasks)
+      .where(and(inArray(tasks.id, parsed.data.ids), eq(tasks.userId, userId)))
+      .returning({ id: tasks.id });
+  });
 
   return { success: true, data: { deleted: result.length } };
 }
@@ -548,9 +595,11 @@ export async function deleteTask(id: string): Promise<ActionResult<null>> {
   if (!userId) return { success: false, error: "Not authenticated" };
   if (!z.string().uuid().safeParse(id).success)
     return { success: false, error: "Invalid id" };
-  await db
-    .delete(tasks)
-    .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+  await db.transaction(async (tx) => {
+    // Both directions, by hand: no FK to cascade through.
+    await deleteReferencesForEntity(tx, { userId, type: "task", id });
+    await tx.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+  });
   return { success: true, data: null };
 }
 

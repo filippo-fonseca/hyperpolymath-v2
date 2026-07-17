@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
+import { getPeopleForCurrentUser } from "@/app/actions/people";
+import { useCurrentUserId } from "@/components/providers/CurrentUserProvider";
+import { EntityLabelsProvider } from "@/components/references/EntityLabelsProvider";
+import { tableKey } from "@/lib/realtime/query-keys";
 import type { ScrollbackAssistantTurn, ScrollbackTurn, ScrollbackAction } from "./jarvis-types";
 import { JarvisReceipt } from "./JarvisReceipt";
 import { JarvisClarification } from "./JarvisClarification";
@@ -180,6 +185,27 @@ export function JarvisScrollback({
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const shouldReduce = useReducedMotion();
+  // The composer sends a person mention as a bare `@name` marker, so chipping
+  // one back requires knowing the names — the same deliberate data dependency
+  // as tokenize-content.ts. Without this list, a person the user picked from
+  // the menu came back as literal text in their own transcript (a shipped bug).
+  const userId = useCurrentUserId();
+  const { data: people } = useQuery({
+    queryKey: [...tableKey("people", userId ?? "anon")] as const,
+    queryFn: () => getPeopleForCurrentUser(),
+    enabled: !!userId,
+    staleTime: 5 * 60_000,
+  });
+  const personNames = useMemo(() => (people ?? []).map((p) => p.name), [people]);
+  // Every reference across the whole transcript resolves in one batch rather
+  // than one call per bubble.
+  const turnText = useMemo(
+    () =>
+      turns.flatMap((t) =>
+        t.kind === "user" ? [t.text] : [(t as ScrollbackAssistantTurn).textDelta],
+      ),
+    [turns],
+  );
   const prevTurnsCountRef = useRef(turns.length);
   // When the user clicks "Older messages", we record scrollHeight + scrollTop
   // BEFORE the fetch resolves so the post-prepend effect can restore the
@@ -305,6 +331,7 @@ export function JarvisScrollback({
   }
 
   return (
+    <EntityLabelsProvider text={turnText}>
     <div
       ref={containerRef}
       className="h-full overflow-y-auto overscroll-contain px-6 py-4 hud-scrollbar"
@@ -383,7 +410,9 @@ export function JarvisScrollback({
                         </span>
                       ) : (
                         <p className="text-[15px] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
-                          {renderUserText(stripSystemTags(turn.text))}
+                          {renderUserText(stripSystemTags(turn.text), {
+                            personNames,
+                          })}
                         </p>
                       )}
                     </motion.div>
@@ -441,7 +470,9 @@ export function JarvisScrollback({
                           className="font-mono text-base italic font-medium leading-relaxed"
                           style={{ color: "var(--sd-ink)" }}
                         >
-                          {renderInlineMarkdown(stripSystemTags(turn.textDelta))}
+                          {renderInlineMarkdown(stripSystemTags(turn.textDelta), {
+                            personNames,
+                          })}
                           {turn.status === "streaming" ? (
                             <span className="relative inline-block ml-0.5">
                               {!shouldReduce ? (
@@ -547,6 +578,7 @@ export function JarvisScrollback({
 
       <div ref={bottomRef} />
     </div>
+    </EntityLabelsProvider>
   );
 }
 

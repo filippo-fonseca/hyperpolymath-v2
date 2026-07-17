@@ -51,13 +51,28 @@ import { PersonListField } from "@/components/shared/PersonListField";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 import { HashtagDecorations } from "./hashtag-decorations";
 import { createPersonDecorations } from "./person-decorations";
-import { createPersonSuggestion } from "./person-suggestions";
 import {
   deleteCapture,
   ensureCapturePeople,
   ensureCaptureUrls,
   updateCapture,
 } from "@/app/actions/captures";
+import {
+  EntityMention,
+  ENTITY_MENTION_HTML_ATTRIBUTES,
+  renderEntityMentionHTML,
+} from "@/components/references/entity-mention-node";
+import {
+  createEntityMentionSuggestion,
+  insertCreatedPerson,
+} from "@/components/references/entity-mention-suggestion";
+import {
+  ENTITY_MENTION_NODE,
+  entityMentionAttrsToRef,
+  refToEntityMentionNode,
+  segmentTextForSeeding,
+} from "@/lib/references/tiptap-tokens";
+import { serializeReference } from "@/lib/references/token";
 import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import { extractUrlsFromContent } from "@/lib/url";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
@@ -181,26 +196,43 @@ function contentToTipTapDoc(
   type Inline =
     | { type: "text"; text: string }
     | { type: "mention"; attrs: { id: string; label: string } }
-    | { type: "personMention"; attrs: { id: string; label: string } };
+    | { type: "personMention"; attrs: { id: string; label: string } }
+    | ReturnType<typeof refToEntityMentionNode>;
   // Split paragraphs first (preserve newlines as paragraph boundaries)
   const paragraphs = content.split(/\n+/);
   return {
     type: "doc",
     content: paragraphs.map((para) => {
-      // Tokenize each paragraph with the shared tokenizer so #tags and known
-      // @people seed as committed mention nodes (the rest stays plain text).
-      const segments = tokenizeContent(para, {
-        hashtagDisplay: lookup,
-        personNames: knownPeople.map((p) => p.name),
-      });
       const inline: Inline[] = [];
-      for (const seg of segments) {
-        if (seg.kind === "hashtag") {
-          inline.push({ type: "mention", attrs: { id: seg.display, label: seg.display } });
-        } else if (seg.kind === "person") {
-          inline.push({ type: "personMention", attrs: { id: seg.display, label: seg.display } });
-        } else if (seg.value) {
-          inline.push({ type: "text", text: seg.value });
+      // References are recognised FIRST, and only the leftover prose is handed
+      // to the older tokenizer. Order matters: a token's label can legitimately
+      // contain a `#` or an `@` ("@[Ship #3](ref://task/…)"), and tokenizing
+      // first would chip the inside of a reference and desync the round trip.
+      for (const part of segmentTextForSeeding(para)) {
+        if (part.kind === "ref") {
+          inline.push(refToEntityMentionNode(part.ref));
+          continue;
+        }
+        // Tokenize each prose run with the shared tokenizer so #tags and known
+        // @people seed as committed mention nodes (the rest stays plain text).
+        const segments = tokenizeContent(part.text, {
+          hashtagDisplay: lookup,
+          personNames: knownPeople.map((p) => p.name),
+        });
+        for (const seg of segments) {
+          if (seg.kind === "hashtag") {
+            inline.push({ type: "mention", attrs: { id: seg.display, label: seg.display } });
+          } else if (seg.kind === "person") {
+            inline.push({ type: "personMention", attrs: { id: seg.display, label: seg.display } });
+          } else if (seg.kind === "entityRef") {
+            // U3's tokenizer can also surface a complete reference token here
+            // (segmentTextForSeeding handles most, but the shared tokenizer is
+            // the backstop). Seed it as a real entityMention node so it round-
+            // trips losslessly, matching the node-first path above.
+            inline.push(refToEntityMentionNode(seg.ref));
+          } else if (seg.kind === "text" && seg.value) {
+            inline.push({ type: "text", text: seg.value });
+          }
         }
       }
       return inline.length === 0
@@ -312,6 +344,23 @@ export function CaptureDetailPanel({
           content += n.text;
           extractFromText(n.text);
         }
+        // Round-trips the reference back to its canonical token. Skipping this
+        // would not just drop the chip's styling — the node is invisible to
+        // doc.textContent, so the reference would be erased from the capture
+        // the first time the user edited any other part of it.
+        if (n.type === ENTITY_MENTION_NODE) {
+          const ref = entityMentionAttrsToRef(n.attrs);
+          if (ref) {
+            content += serializeReference(ref);
+            // Keep feeding personNames so the people_references join (and the
+            // "Linked people" field that reads it) survives the switch from
+            // personMention to entityMention for existing people.
+            if (ref.type === "person") {
+              const lower = ref.label.toLowerCase();
+              if (!personCasing.has(lower)) personCasing.set(lower, ref.label);
+            }
+          }
+        }
         if (n.type === "mention" && typeof n.attrs?.label === "string") {
           const label = n.attrs.label;
           const lower = label.toLowerCase();
@@ -364,8 +413,9 @@ export function CaptureDetailPanel({
           },
           suggestion: createHashtagSuggestion(() => hashtags),
         }),
-        // `@person` mention — twin of the composer's personMention node so
-        // editing a capture supports the same dropdown + inline-create flow.
+        // `personMention` — twin of the composer's node. Still in the schema
+        // (it seeds existing `@name` text and receives the create-person
+        // sentinel) but no longer driven by `@` directly.
         Mention.extend({ name: "personMention" }).configure({
           HTMLAttributes: { class: "person-chip-inline" },
           renderHTML({ options, node }) {
@@ -375,7 +425,17 @@ export function CaptureDetailPanel({
               `@${node.attrs.label}`,
             ];
           },
-          suggestion: createPersonSuggestion(() => people),
+        }),
+        // `@` opens the universal picker here too — twin of the composer's, so
+        // editing a capture offers exactly what writing one does.
+        EntityMention.configure({
+          HTMLAttributes: ENTITY_MENTION_HTML_ATTRIBUTES,
+          renderHTML: renderEntityMentionHTML,
+          suggestion: createEntityMentionSuggestion({
+            allowCreatePerson: true,
+            onCreatePerson: ({ name, editor: ed, range }) =>
+              insertCreatedPerson(ed, range, name),
+          }),
         }),
         // Live-decorate plain `#word` text so the token styling lands without
         // waiting for the suggestion popover to commit a Mention node (#41).

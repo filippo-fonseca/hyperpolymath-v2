@@ -1,3 +1,5 @@
+import { stripReferences } from "@/lib/references/token";
+
 export type PreviewBlock =
   | { kind: "heading"; text: string; level: 1 | 2 | 3 }
   | { kind: "paragraph"; text: string }
@@ -399,14 +401,20 @@ function inlineText(content: unknown): string {
 }
 
 function stripInlineMarkdown(value: string): string {
-  return value
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, "$1")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/(\*\*|__)(.*?)\1/g, "$2")
-    .replace(/(\*|_)(.*?)\1/g, "$2")
-    .replace(/~~(.*?)~~/g, "$1")
-    .trim();
+  return (
+    stripReferences(value)
+      // Reference tokens are stripped FIRST, and it has to be first: a token is
+      // `@[label](ref://type/uuid)`, so the markdown-link rule below would
+      // otherwise match the `[label](…)` half and leave the `@` stranded —
+      // "@Marathon" instead of "Marathon" in every preview and thumbnail.
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, "$1")
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/(\*\*|__)(.*?)\1/g, "$2")
+      .replace(/(\*|_)(.*?)\1/g, "$2")
+      .replace(/~~(.*?)~~/g, "$1")
+      .trim()
+  );
 }
 
 function countWords(value: string): number {

@@ -2,6 +2,8 @@
 
 import { HashtagChip } from "@/components/captures/HashtagChip";
 import { PersonChip } from "@/components/captures/PersonChip";
+import { EntityLabelsProvider } from "@/components/references/EntityLabelsProvider";
+import { EntityPill } from "@/components/references/EntityPill";
 import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
@@ -249,13 +251,16 @@ export function TaskCard({
   );
 }
 
-/** Renders the task title with inline #hashtag and @person chips substituted. */
+/**
+ * Renders the task title with inline #hashtag, @person, and entity-reference
+ * chips substituted.
+ */
 function TaskTitle({ task }: { task: TaskWithProjects }) {
   const tagLookup = new Map(task.hashtags.map((h) => [h.name, h.displayName]));
   const personNames = task.people.map((p) => p.name);
   const segments = tokenizeContent(task.title, { hashtagDisplay: tagLookup, personNames });
   return (
-    <>
+    <EntityLabelsProvider text={task.title}>
       {segments.map((seg, i) => {
         if (seg.kind === "hashtag") {
           return <HashtagChip key={i} displayName={seg.display} asButton={false} />;
@@ -263,9 +268,12 @@ function TaskTitle({ task }: { task: TaskWithProjects }) {
         if (seg.kind === "person") {
           return <PersonChip key={i} name={seg.display} asButton={false} />;
         }
+        if (seg.kind === "entityRef") {
+          return <EntityPill key={i} entityRef={seg.ref} />;
+        }
         return <span key={i}>{seg.value}</span>;
       })}
-    </>
+    </EntityLabelsProvider>
   );
 }
 

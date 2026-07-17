@@ -1014,6 +1014,22 @@ select,
   margin: 0 1px;
 }
 
+/* Inline entity-reference chips (.entity-chip-inline lives on the entityMention
+   node in the editor) — the universal `@` chip, pointing at one entity by id.
+   Third sibling to .hashtag-chip-inline (sage) and .person-chip-inline (amber);
+   blue is the register left over, and it reads as "this points at a thing in
+   the app" rather than at a tag or a name. */
+.entity-chip-inline {
+  display: inline-block;
+  background: color-mix(in oklch, var(--ink-blue) 18%, transparent);
+  color: var(--ink);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  margin: 0 1px;
+}
+
 /* Live hashtag decoration (closes #41) — applied by HashtagDecorations
    extension to plain `#word` text in the editor so the styling lands the
    moment the tag is recognised, not only after the popover commits a Mention
@@ -1057,6 +1073,22 @@ select,
 .jarvis-input-content p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
 }
+/* Lite JARVIS composer (LifeOsQuickSend + the Cmd+K GlobalJarvisDialog).
+   Same soft serif-italic prompt as the full console input — the two composers
+   are the same affordance at two sizes and should read that way. The textarea
+   this replaced got its placeholder for free; a TipTap doc needs the rule. */
+.lite-jarvis-content[data-placeholder] p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: color-mix(in oklch, var(--ink-muted) 70%, transparent);
+  font-style: italic;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
 /* Inline $project chips — sibling to .hashtag-chip-inline, distinct color */
 .project-chip-inline {
   display: inline-block;
@@ -1069,7 +1101,71 @@ select,
   margin: 0 1px;
 }
 
+/* Inline entity-reference pills — the render half of the universal @-mention
+   token (@[label](ref://type/uuid)). Deliberately the same cyan register as
+   .bn-entity-ref in page-block-editor.css, so a reference to a project reads
+   identically whether it sits in a wiki page, a capture, or a JARVIS bubble.
+   That rule lives in the editor's stylesheet, which only the wiki loads; these
+   pills render everywhere, so the register is restated here rather than making
+   every surface import the editor's CSS. Keep the two in sync. */
+.entity-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  margin: 0 1px;
+  padding: 0.08em 0.5em;
+  border-radius: 7px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.82em;
+  line-height: 1.4;
+  vertical-align: baseline;
+  user-select: none;
+  text-decoration: none;
+  color: var(--ink);
+  background: color-mix(in oklch, var(--hud-cyan) 9%, var(--surface-raised));
+  border: 1px solid color-mix(in oklch, var(--hud-cyan) 28%, var(--sd-line));
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.entity-pill-glyph {
+  flex-shrink: 0;
+  color: var(--hud-cyan);
+  font-weight: 600;
+}
+
+/* Interactive only when the target still exists. */
+button.entity-pill {
+  cursor: pointer;
+}
+
+button.entity-pill:hover {
+  background: color-mix(in oklch, var(--hud-cyan) 16%, var(--surface-raised));
+  border-color: color-mix(in oklch, var(--hud-cyan) 44%, transparent);
+}
+
+button.entity-pill:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--hud-cyan) 60%, transparent);
+  outline-offset: 1px;
+}
+
+/* Tombstone — the target was deleted, but per S3 the token stays in the source
+   text. It keeps its snapshot label and drops off the cyan ladder entirely so
+   it reads as inert history rather than a link that quietly does nothing.
+   Not struck through: the words are still what the author wrote. */
+.entity-pill-tombstone {
+  color: var(--sd-ink-faint);
+  background: var(--sd-input);
+  border-color: var(--sd-line);
+  border-style: dashed;
+  cursor: default;
+}
+
+.entity-pill-tombstone .entity-pill-glyph {
+  color: var(--sd-ink-faint);
+}
+
 /* react-big-calendar styles removed — CalendarGrid is now hand-rolled. */
+
 
 /* ─── Phase 6.1 Plan 06.1-01 — Focus-visible ring system (UI-SPEC §11a) ─────────
    Applied via focus-visible: only — keyboard navigation surfaces rings;

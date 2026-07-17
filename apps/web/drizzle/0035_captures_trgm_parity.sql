@@ -1,0 +1,32 @@
+-- 0035 — pg_trgm + the captures trigram index, which this directory never got.
+--
+-- Long-standing drift. supabase/migrations/0005_captures_search.sql creates
+-- three things: the captures.content_search tsvector, its GIN index, and — via
+-- `CREATE EXTENSION pg_trgm` plus captures_content_trgm_idx — trigram search
+-- over the raw content. The drizzle twin (0003_captures_search.sql) only ever
+-- created the first two. So the extension and the trigram index exist on any
+-- database built from supabase/, and are missing from any database built from
+-- drizzle/.
+--
+-- That gap matters for the reference picker: searchEntityMentions falls back to
+-- an ILIKE substring match on the raw content when a capture doesn't match the
+-- tsquery, and captures are the one referenceable entity with no title to match
+-- against. The gin_trgm_ops index is what keeps that ILIKE off a sequential
+-- scan (it deliberately never calls similarity()); without pg_trgm the index
+-- can't exist and the fallback degrades to a full-table scan on every keystroke.
+--
+-- No-op on production, which was built from drizzle/ but has been hand-patched,
+-- and on any database built from supabase/, which already has all of it. Both
+-- statements are guarded, so this is safe to re-run anywhere. Kept in both
+-- directories regardless, per the rule in 0049 and the precedent in 0033.
+--
+-- Applied by hand, idempotently (journal intentionally stale).
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+--> statement-breakpoint
+
+-- Trigram GIN over the raw content, for ILIKE-style substring search.
+-- Complements captures_content_search_gin_idx (tsvector/stemmed) rather than
+-- replacing it: the tsvector handles words, trigrams handle fragments.
+CREATE INDEX IF NOT EXISTS "captures_content_trgm_idx"
+  ON "captures" USING gin ("content" gin_trgm_ops);
