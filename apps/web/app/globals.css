@@ -1664,6 +1664,72 @@ select:focus-visible,
   mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
 }
 
+/* Projects timeline — the horizontal analogue of .mask-fade-out. Columns and
+   bars dissolve at the scroller's trailing edge instead of hard-clipping
+   mid-column. Real classes rather than inline gradient overlays (§23): an
+   arbitrary one-off utility can be dropped by the Oxide scan, and these are
+   load-bearing, not decoration. All static — nothing animates, so no
+   reduced-motion guard is needed.
+
+   Trailing edge only, deliberately. The leading edge is where the sticky area
+   labels ride, and fading those would dissolve the one anchor telling you which
+   area you are looking at while scrolled deep into the canvas. */
+.timeline-edge-fade {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 28px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+}
+
+/* Bar terminus fades. `-r` is the open-ended / clamped-end affordance (the bar
+   runs on past what we know or past the window); `-l` is a start that predates
+   the window; `-lr` is both. The fade is capped at 40% of the bar so a short
+   bar fades proportionally instead of vanishing entirely. */
+.timeline-bar-fade-r {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+}
+
+.timeline-bar-fade-l {
+  -webkit-mask-image: linear-gradient(
+    to left,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to left,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+}
+
+.timeline-bar-fade-lr {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black min(32px, 40%),
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black min(32px, 40%),
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+}
+
 /* Scrollbar stays invisible until the pointer is actually in the column
    (§1.8). The gutter is reserved at all times so revealing the thumb never
    reflows the rows. Class specificity beats the global `*::-webkit-scrollbar`
@@ -1689,53 +1755,11 @@ select:focus-visible,
   background: var(--sd-selected);
 }
 
-/* Collapsed-rail hover wordmark (sd3 unit-fix-people-sidebar). When the 56px
-   rail is hovered, its top logo zone reveals the full EB Garamond wordmark as
-   a floating plate anchored at the rail's top-left. Opacity + 4px translate
-   only, never a width/layout change — the plate is absolutely positioned and
-   the aside width stays tied to the real collapsed state, so nothing reflows.
-   The reveal is gated to a fine pointer so a touch tap can never strand the
-   plate open; reduced-motion collapses the transition to an instant cut. */
-.sidebar-logo-flyout {
-  display: flex;
-  align-items: center;
-  height: 2.25rem;
-  padding: 0 0.625rem;
-  border-radius: 8px;
-  border: 1px solid var(--sd-line);
-  background: var(--sd-box);
-  font-size: 16px;
-  line-height: 1;
-  white-space: nowrap;
-  box-shadow: 6px 0 20px color-mix(in oklch, var(--ink) 14%, transparent);
-  opacity: 0;
-  transform: translateX(-4px);
-  transition:
-    opacity 140ms ease-out,
-    transform 140ms ease-out;
-  pointer-events: none;
-  z-index: 60;
-}
-/* The collapsed "H" monogram cross-fades out under the revealed wordmark so
-   the hover state reads as a single mark, not an "H" beside the plate. */
-.sidebar-logo-mono {
-  transition: opacity 140ms ease-out;
-}
-@media (pointer: fine) {
-  .group\/sidebar:hover .sidebar-logo-flyout {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  .group\/sidebar:hover .sidebar-logo-mono {
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sidebar-logo-flyout,
-  .sidebar-logo-mono {
-    transition: none;
-  }
-}
+/* The collapsed-rail hover wordmark (.sidebar-logo-flyout / .sidebar-logo-mono)
+   used to live here: a floating plate that revealed the wordmark beside the 56px
+   rail on hover. The hover-peek overlay now expands to the full 230px and renders
+   the real lockup in its header, so the plate had become a second wordmark
+   floating over the first. SidebarHeader owns all three brand states now. */
 
 /* --- 6. Lit-from-above buttons -------------------------------------- */
 /* Accent fill + ambient glow tied to --sd-accent (cyan per D1b/D6, not

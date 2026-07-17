@@ -54,6 +54,7 @@ import { PERSON_MENTION_TYPE, personMentionInlineSpec } from "./PersonMentionInl
 import { calloutBlock } from "./blocks/CalloutBlock";
 import { linkEmbedBlock } from "./blocks/LinkEmbedBlock";
 import { linkEmbedSlashItems, useLinkEmbedPaste } from "./PageLinkEmbedControls";
+import { withSdSlashChrome } from "./slash-menu-chrome";
 
 const schema = BlockNoteSchema.create({
   blockSpecs: { ...defaultBlockSpecs, callout: calloutBlock, linkEmbed: linkEmbedBlock },
@@ -531,7 +532,7 @@ export default function PageBlockEditor({
             getItems={async (query) =>
               filterSuggestionItems(
                 [
-                  ...withSlashShorthand(getDefaultReactSlashMenuItems(editor)),
+                  ...withSdSlashChrome(withSlashShorthand(getDefaultReactSlashMenuItems(editor))),
                   insertCalloutItem(editor),
                   ...linkEmbedSlashItems(editor),
                   jarvisSlashItem(editor),

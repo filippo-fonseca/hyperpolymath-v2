@@ -259,7 +259,11 @@ function TabPill({
   return (
     <div
       className={cn(
-        "group/tab relative flex h-9 min-w-[220px] max-w-[480px] flex-1 items-center rounded-full",
+        // Below md the 220px floor would push 2-3 pills past a ~334px route and
+        // clip the +/split controls off the right edge, so the floor (and the
+        // kbd-hint padding room) only applies at md+. flex-1 + truncate share
+        // the row cleanly at narrow widths; >= md is byte-for-byte unchanged.
+        "group/tab relative flex h-9 min-w-0 max-w-[480px] flex-1 items-center rounded-full md:min-w-[220px]",
         "transition-colors duration-[80ms] ease-out",
         active
           ? "bg-[var(--sd-selected)]"
@@ -272,7 +276,10 @@ function TabPill({
       <Link
         href={href}
         className={cn(
-          "flex h-full w-full items-center justify-center gap-1.5 rounded-full px-9",
+          // px-9 reserves room for the absolute close-✕ (left) and kbd hint
+          // (right); below md the hint is hidden and touch has no hover-✕, so
+          // that padding only clips the label there. Restore it at md+.
+          "flex h-full w-full items-center justify-center gap-1.5 rounded-full px-3 md:px-9",
           "font-sans text-[14px] font-medium tracking-[-0.005em] outline-none",
           "transition-colors duration-[80ms] ease-out",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",

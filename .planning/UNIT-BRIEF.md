@@ -1,56 +1,58 @@
-# Unit brief — `daily-pages-rail` (wave 3)
+# BGSD Pipeline Agent — unit u4-timeline-drag (run sesh-1784257742502)
 
-**Read first:** `.bgsd/runs/sesh-1783700667211/SPEC.md` (binding). Base includes the merged
-wave-2 Explorer. Executor: Opus. You own the Journal-rail section of the Wiki home + the
-auto-create hook. Sibling `coherence-pass` owns ProjectPagesSection/PageDetail — don't touch
-those.
+You are a BGSD Pipeline Agent on Claude, model claude-opus-4-8, running a
+FEATURE-scale unit in an isolated git worktree (your cwd). Execute the full
+installed GSD workflow: inspect → plan → implement → verify → commit as you go.
 
-## Goal
+## Read first, in this order
+1. `.planning/bgsd-unit.json` — your unit, criteria, paths
+2. `.planning/config.json` — GSD config
+3. `.planning/CONDUCTOR-SEED.md` — the Conductor's directive (binding)
+4. `.planning/DESIGN.md` — the sealed session design contract (incl. Responsive amendment)
+5. `.planning/u3-core-report.md` — API NOTES section is BINDING (your seams)
+6. `.planning/u1-engine-report.md` — drag math you consume
+7. Your advisor file (path in bgsd-unit.json) — the Conductor's live steering channel
 
-Daily pages become their own beautiful section — the Journal rail — with today's page
-auto-created the moment you land on Wiki (localtime), rendered as editorial glass (this is
-the "reading room" per SPEC §Doctrine-3: glass tiles + Garamond dates ARE appropriate here,
-in deliberate contrast to the flat Explorer below).
+WARNING: stale sd-era planning docs linger in `.planning/`. They are NOT yours.
+Overwrite PLAN.md with your own plan.
 
-## Current state
+## Checkpoint protocol (mandatory)
+Re-read the advisor file at each: before implementation, after planning, after
+every commit, on any blocker or assumption, before verification, after every
+verification result. Comply before continuing. Never block on a human; log
+assumptions in your report and proceed. Immediately after sealing your plan,
+write it into the report under PLAN, re-read the advisor file once, then build.
 
-- The old collapsible Daily Pages section in `PagesListClient.tsx` (wave 2 left it as a
-  marked placeholder) + `JournalCalendar` + "no daily page" tile.
-- Data: `pages.dailyDate` (yyyy-MM-dd), partial unique per user/day; `["daily-pages", userId]`
-  query key; `openDailyPage({ date })` idempotent guarded insert (`app/actions/pages.ts`
-  L273) — but it's used via flows that navigate. `apps/web/lib/pages/daily-page.ts`
-  (`dailyPageTitle`), `useTodayDailyPage.ts` hook, `DailyAutoOpen.tsx` (app-wide auto-open
-  redirect — LEAVE its behavior; coordinate, don't duplicate: if it already navigated today,
-  the rail simply shows the page).
-- `TopTabBar.tsx` L114 "Today" link + `useQuickCreateActions` depend on daily queries — keep
-  keys stable.
+## Deliverable contract (this is how you are audited — omit nothing)
+1. **Commits**: small, focused, explicit pathspecs (never `git add -A`). One
+   commit per slice (drag module, bar wiring, handles, auto-scroll, touch
+   policy, archive-trap on drag, toolbar-wrap fix, tests, evidence). Subjects:
+   `feat(timeline): <what>` / `fix(timeline): <what>` / `test(timeline): <what>`
+   / `docs(planning): <what>`. Stay on branch
+   `bgsd/sesh-1784257742502/u4-timeline-drag`. NEVER merge, push, open PRs, or
+   touch next/main/staging.
+2. **Report** (REQUIRED, update as you go, final before exit):
+   `/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/control/u4-timeline-drag.report.md`
+   Structure, in order:
+   - `VERDICT: PASS|FAIL|BLOCKED — <one line>`
+   - `SUMMARY:` ≤10 bullets
+   - `PLAN:` (written right after planning)
+   - `COMMITS:` one per line, `<hash> <subject>`
+   - `GATES:` one per line, `<command> → <PASS/FAIL + 1-line detail>`
+   - `EVIDENCE:` list of screenshots in .planning/evidence/ (u4- prefix)
+   - `API NOTES:` drag props/hooks added to the timeline components
+   - `ASSUMPTIONS:` list
+   - `DEFECTS/RISKS:` list
+3. **Artifacts**: evidence screenshots committed under `.planning/evidence/`.
 
-## Deliverables
-
-1. **Auto-create today (no navigation):** a `useEnsureTodayDailyPage` hook mounted on the
-   Wiki home: compute today CLIENT-SIDE localtime (`format(new Date(), 'yyyy-MM-dd')`,
-   date-fns), check the daily-pages cache, and if missing call the guarded insert (reuse
-   `openDailyPage` or a thin `ensureDailyPage` action that does NOT imply navigation),
-   then invalidate `["daily-pages", userId]`. Idempotent, race-safe (the partial unique
-   index is the backstop), fires at most once per mount per day. No redirect, no toast.
-2. **The Journal rail** — replace the placeholder section: a horizontal rail above the
-   Explorer. Today's card: larger glass tile, Garamond date heading ("Thursday, July 10"),
-   live `PagePreviewThumb` of its content, subtle cyan "today" tick; click → page. Previous
-   ~7 days trail as smaller cards (preview + short date); an "earlier" affordance opens the
-   calendar popover (reuse/restyle `JournalCalendar`) for any date — picking an empty past
-   date offers creation (existing `dailyDayClickAction` semantics). Horizontal scroll with
-   `custom-scrollbar`, snap alignment, motion: cards fade/slide in 180ms staggered on first
-   mount only.
-3. **Collapse control:** the rail can collapse to a slim strip (persist
-   `localStorage["wiki:journal-rail"]`), replacing the old collapsible behavior.
-4. **Exclusion invariant:** daily pages never render in the Explorer grid/list below
-   (verify wave 2's filter; enforce here if missing).
-
-## Acceptance criteria
-
-- Land on `/wiki` with no daily page for today → row appears in DB within moments, rail
-  shows today's card, NO navigation occurred. Reload → no duplicate (unique index quiet).
-- Rail renders previews for days with content; calendar reaches arbitrary dates.
-- "Today" in TopTabBar and quick-create still work; `DailyAutoOpen` unaffected.
-- Build + typecheck green; Playwright drives: fresh load → today card exists → click →
-  editor opens → back → rail intact.
+## Hard rules
+- Touched paths: `apps/web/components/projects/timeline/**` + your test files
+  ONLY. Do NOT touch the areas pages, AreaProjectList, or shell — u5/u7 own
+  those and run concurrently.
+- Commits go through u3's onCommitDates/handleCommitDates seam. Never call
+  updateProject from drag code directly.
+- Engine drag math only (`pxToSnappedDayDelta`); ISO strings; zero new date math.
+- DESIGN-SYSTEM.md is law (§14/§16/§18). No new hex literals. No CSS
+  transitions on properties being dragged.
+- If `node_modules` is missing, run `pnpm install` first.
+- No silent green: a gate you didn't run is a FAIL, not a PASS.

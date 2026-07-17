@@ -1,76 +1,57 @@
-# Plan — wiki-explorer-rebuild (wave 2)
+# PLAN — u4-timeline-drag (sesh-1784257742502)
 
-Reference: `.planning/UNIT-BRIEF.md` (binding). Wave 1 foundations already in
-place: `components/wiki/explorer/*`, `components/wiki/icons/*`,
-`components/wiki/preview/*`, `lib/pages/preview.ts`, `lib/pages/position.ts`,
-`app/actions/ordering.ts`.
+Supersedes any stale sd-era / u3 PLAN.md content. Scope: full drag interactions
+on timeline bars. NO new date math (engine only); NO new mutation (u3's
+`onCommitDates`/`handleCommitDates` deferred-commit undo seam only). Touched
+paths: `apps/web/components/projects/timeline/**` + scoped test files only.
 
-## Approach
+Slices (each its own focused commit, explicit pathspecs, branch
+`bgsd/sesh-1784257742502/u4-timeline-drag`):
 
-Introduce a `WikiExplorer` subtree under `apps/web/components/wiki/` that owns
-folder drill-down, dnd, selection, keyboard, inspector, search, and view-mode
-rendering. `PagesListClient` shrinks to header + daily placeholder + `<WikiExplorer/>`.
-Reuse existing server actions and TanStack Query keys verbatim.
+1. **fix(timeline): wrap populated-state toolbar row** — verifier FINDING 1.
+   `flex items-center justify-between gap-3` → `flex flex-wrap items-center
+   justify-between gap-x-3 gap-y-2` (same treatment the empty state already has).
 
-## File layout
+2. **feat(timeline): pure drag-plan module** (`drag-plan.ts`) — every non-pointer
+   decision as pure, unit-testable functions over the u1 engine only: `planDrag`
+   (move / resize-start / resize-end, open-ended terminus → real end, null-edge
+   preservation, clamps), `previewGeometry`, `autoScrollVelocity`, `isNoopPatch`,
+   `patchWouldArchive` (same `isProjectExpired` rule as the popover),
+   `crossedThreshold`, plus the tunables (threshold, long-press, edge, hit-zone).
 
-```
-apps/web/components/wiki/
-  WikiExplorer.tsx                 top-level composition + DndContext
-  explorer-hooks/
-    useExplorerFolder.ts           URL folder state (nuqs) + back/fwd history
-    useExplorerSelection.ts        single/cmd/shift + arrow-key navigation
-    useExplorerContext.ts          memoized dnd context maps
-  explorer-views/
-    ExplorerGridView.tsx           folder tiles + PagePreviewCards
-    ExplorerListView.tsx           Spacedrive rows
-    ExplorerSearchResults.tsx      flat cross-wiki results
-  explorer-parts/
-    ExplorerInspectorPanel.tsx     inspector body (meta rows + actions)
-    ItemContextMenu.tsx            item right-click actions
-    EmptySpaceContextMenu.tsx      empty-space right-click
-    RubberBandLayer.tsx            rubber-band gesture + geometry
-    DragGhost.tsx                  count-badge drag overlay
-```
+3. **test(timeline): drag-plan unit tests** — snap/commit-patch (all 3 modes),
+   threshold, cancel (no-op), archive-trap detection, preview geometry, auto-scroll.
 
-Target: no file over ~400 LOC.
+4. **feat(timeline): useTimelineDrag hook** — imperative pointer session:
+   `setPointerCapture`, 4px threshold (below = click = popover), rAF preview via
+   direct inline left/width writes (no CSS transition on dragged props),
+   auto-scroll rAF loop keeping the bar under the pointer, Escape cancels + full
+   revert, touch long-press (~300ms) to arm else native pan wins, release builds
+   the patch and calls the parent commit seam, suppresses the post-drag click.
 
-## Slices (each = one commit)
+5. **feat(timeline): drag seams on TimelineBar** — `onBeginDrag` prop; two 8px
+   edge resize-handles (wider on coarse pointer), `cursor-ew-resize`; corrupt bars
+   don't drag; ghost bars drag but keep ghost styling; click still opens popover.
 
-1. URL folder + history hook `useExplorerFolder`.
-2. Selection hook `useExplorerSelection` (pure state + keyboard math).
-3. Grid view (presentational).
-4. List view (Spacedrive rows).
-5. Inspector panel.
-6. Context menus (item + empty space).
-7. Rubber-band + drag-ghost.
-8. WikiExplorer composition (DndContext, sensors, applyMove, keyboard).
-9. Refactor PagesListClient to use WikiExplorer; delete dead tree/grid code.
-10. Vitest tests for pure selection helpers.
-11. Typecheck + build green.
-12. `/gsd-code-review`.
+6. **feat(timeline): thread drag through TimelineGroup** — pass the drag starter
+   from `ProjectsTimeline` down to each `TimelineBar`.
 
-## Data contracts (from survey)
+7. **feat(timeline): ProjectsTimeline drag controller + archive-trap confirm** —
+   instantiate `useTimelineDrag`; route release through `handleDragCommit` →
+   reuses `handleCommitDates`/`onCommitDates` (NEVER `updateProject` directly); a
+   drag that newly expires a project opens an AlertDialog confirm before the toast
+   path fires — cancel = full revert.
 
-- Server actions to reuse: `createPage`, `updatePage`, `deletePage`,
-  `createFolder`, `renameFolder`, `deleteFolder`, `setPageFolder`,
-  `setParentFolder`, `movePagesBulk`, `reorderItem`.
-- Comparators: `withPinnedFirst(compareExplorerItems)` for Manual sort;
-  Name = title asc; Updated = updatedAt desc. Pinned first ALWAYS.
-- TanStack query keys unchanged; realtime channels unchanged; optimistic
-  cache patching mirrors current `applyMove` shape.
+   (+ follow-up fix: keep drag preview and committed dates consistent for
+   pinned-terminus bars — `barEndISO` = real end ?? semester end ?? window edge.)
 
-## Motion (SPEC Doctrine-6)
+8. **docs(planning): u4 evidence** — production build + Playwright real mouse
+   drags; both themes; mid-drag snapped preview, after-drop undo toast, edge
+   resize, open-ended terminus→real end, archive-trap-by-drag, toolbar wrap at
+   narrow width; mobile(390)/tablet(768). Verify undo actually reverts in the UI.
 
-- View toggle: 180ms fade + 4px Y stagger (cap 24 items).
-- Inspector slide: 220ms `cubic-bezier(0.32, 0.72, 0, 1)` (already in
-  `InspectorShell`).
-- Context menu: 120ms fade + 4px Y.
-- Selection ring: instant.
-- Drag ghost: 60% opacity + cyan count badge.
+Gates (from apps/web): the scoped vitest set in the seed + the new drag test, and
+`npx tsc --noEmit`. Repo-wide vitest is NOT a gate (31 pre-existing failures).
 
-## Out of scope (guardrails)
-
-Daily-pages data model, `PageDetailClient`, `ProjectPagesSection`, sidebar,
-schema, `_foundation-preview`/`_preview-preview` gallery routes (leave for
-wave 3 coherence pass unless they conflict with routing).
+a11y note: drag is pointer-only by design; the popover remains the full keyboard
++ mobile editing path. Bars keep their focus ring; no ARIA drag theater.
