@@ -1,90 +1,57 @@
-# PLAN — u3-timeline-core (sesh-1784257742502)
+# PLAN — u4-timeline-drag (sesh-1784257742502)
 
-Supersedes any stale sd-era PLAN.md content. Scope: timeline components +
-/areas by-date view with zoom, popover, persistence. NO drag (u4 owns it).
+Supersedes any stale sd-era / u3 PLAN.md content. Scope: full drag interactions
+on timeline bars. NO new date math (engine only); NO new mutation (u3's
+`onCommitDates`/`handleCommitDates` deferred-commit undo seam only). Touched
+paths: `apps/web/components/projects/timeline/**` + scoped test files only.
 
-## Component tree (per CONDUCTOR-SEED directive)
+Slices (each its own focused commit, explicit pathspecs, branch
+`bgsd/sesh-1784257742502/u4-timeline-drag`):
 
-```
-apps/web/components/projects/timeline/
-  useTimelineView.ts        areas:view + areas:timeline-zoom (lifeos:view idiom)
-  TimelineZoomToggle.tsx    Weeks/Months/Quarters (DayWeekToggle SEGMENTS grammar) + Today
-  TimelineHeader.tsx        two sticky tiers: headerGroupsForWindow over markCurrentColumn(columnsForWindow)
-  TimelineBar.tsx           one bar: fades, ghost, label overflow, focus ring, u4 drag seams
-  TimelineGroup.tsx         area section: label row + project rows (suppressed when scope="area")
-  ProjectBarPopover.tsx     link, start/end date form, archive-trap warn, undo toast
-  ProjectsTimeline.tsx      composition: scroller + headers + groups + today marker
-```
+1. **fix(timeline): wrap populated-state toolbar row** — verifier FINDING 1.
+   `flex items-center justify-between gap-3` → `flex flex-wrap items-center
+   justify-between gap-x-3 gap-y-2` (same treatment the empty state already has).
 
-`ProjectsTimeline` props: `{ areas, projects, showArchived, scope: "all" | "area" }`
-— designed for u5's `scope="area"` reuse from day one (scope="area" drops the
-group header rows, keeps everything else).
+2. **feat(timeline): pure drag-plan module** (`drag-plan.ts`) — every non-pointer
+   decision as pure, unit-testable functions over the u1 engine only: `planDrag`
+   (move / resize-start / resize-end, open-ended terminus → real end, null-edge
+   preservation, clamps), `previewGeometry`, `autoScrollVelocity`, `isNoopPatch`,
+   `patchWouldArchive` (same `isProjectExpired` rule as the popover),
+   `crossedThreshold`, plus the tunables (threshold, long-press, edge, hit-zone).
 
-## Engine consumption (u1 API DEVIATIONS are binding)
-- `markCurrentColumn(columnsForWindow(w, zoom), todayISO)` — minor/grid tier.
-- `headerGroupsForWindow(w, zoom)` — major tier; the two tiers do NOT nest, each
-  positioned from its own leftPx/widthPx.
-- `computeWindow` + both column calls wrapped in `useMemo` (engine is pure but O(n)).
-- `barGeometry` → honor `visible:false` (skip render), `clampedStart`/`clampedEnd`/
-  `openEnded` (fades), `corrupt` (1-day bar).
-- `groupByArea` → `TimelineRowProject.isGhost` drives the ghost render.
-- `todayOffsetPx` → marker + Today button; null = today off-window (hide marker).
-- Zero date math in components. ISO strings only.
+3. **test(timeline): drag-plan unit tests** — snap/commit-patch (all 3 modes),
+   threshold, cancel (no-op), archive-trap detection, preview geometry, auto-scroll.
 
-## Slices (one commit each)
-1. `feat(timeline): edge-fade + bar-fade utilities in globals.css` (§23 real classes)
-2. `feat(timeline): useTimelineView persistence hook` (SSR default, mount read, write-in-setter)
-3. `feat(timeline): TimelineZoomToggle segmented control + Today button`
-4. `feat(timeline): TimelineHeader two sticky tiers`
-5. `feat(timeline): TimelineBar with fades, ghost, label overflow, focus ring`
-6. `feat(timeline): TimelineGroup area rows`
-7. `feat(timeline): ProjectBarPopover with archive-trap warning + undo toast`
-8. `feat(timeline): ProjectsTimeline composition + scroller + today marker`
-9. `feat(areas): tree|timeline view toggle + timeline data wiring + realtime alsoInvalidate`
-10. `test(timeline): component + persistence + archive-trap coverage`
-11. `docs(planning): u3 plan + evidence`
+4. **feat(timeline): useTimelineDrag hook** — imperative pointer session:
+   `setPointerCapture`, 4px threshold (below = click = popover), rAF preview via
+   direct inline left/width writes (no CSS transition on dragged props),
+   auto-scroll rAF loop keeping the bar under the pointer, Escape cancels + full
+   revert, touch long-press (~300ms) to arm else native pan wins, release builds
+   the patch and calls the parent commit seam, suppresses the post-drag click.
 
-## Design law applied (DESIGN-SYSTEM.md §14/§16/§18/§21/§23)
-- Bars `--sd-accent` fill only (§21 single series, no per-project hue); lane track
-  `--sd-input`; pill radius; border-only hover; `--sd-selected` + accent label chip
-  when the popover is open; ghost = reduced-opacity accent, never grey gradient.
-- Today marker 3px `--sd-accent` @70%, no halo/blur/pulse. Grid 1px `--sd-line`.
-- Headers `font-mono text-[11px] uppercase tracking-[0.1em]` ink-faint, `tabular-nums`.
-- Fades are REAL classes in globals.css, verified in compiled CSS. No inline gradients.
-- §14: entrances opacity/y 160ms, `useReducedMotion()`-guarded. Zoom re-layouts
-  instantly — never a width tween. No hover scale.
-- No new hex literals. Both themes verified.
+5. **feat(timeline): drag seams on TimelineBar** — `onBeginDrag` prop; two 8px
+   edge resize-handles (wider on coarse pointer), `cursor-ew-resize`; corrupt bars
+   don't drag; ghost bars drag but keep ghost styling; click still opens popover.
 
-## Label overflow rule
-Notion-style: when the bar is narrower than its label, the label renders OUTSIDE
-the bar to the right, clipped by the row, never wrapping. Decided by estimating
-label width from character count rather than DOM measurement (no layout thrash,
-and it makes the rule unit-testable).
+6. **feat(timeline): thread drag through TimelineGroup** — pass the drag starter
+   from `ProjectsTimeline` down to each `TimelineBar`.
 
-## Archive trap
-Any popover date edit whose new effective end < today triggers a confirm step
-before commit (the project vanishes from active lists — Issue #55). Every commit
-routes through `updateProject` + the `use-undo-toast` idiom (deferred commit:
-optimistic local state, server write on auto-close, undo restores local state and
-never writes).
+7. **feat(timeline): ProjectsTimeline drag controller + archive-trap confirm** —
+   instantiate `useTimelineDrag`; route release through `handleDragCommit` →
+   reuses `handleCommitDates`/`onCommitDates` (NEVER `updateProject` directly); a
+   drag that newly expires a project opens an AlertDialog confirm before the toast
+   path fires — cancel = full revert.
 
-## /areas wiring
-- View toggle `areas:view` = "tree" | "timeline"; zoom `areas:timeline-zoom`.
-- Data: `getProjectsForCurrentUser` (full rows, both dates) under
-  `tableKey("projects", userId)`, sorted CLIENT-side by (orderIndex, createdAt).
-  That action's semantics are NOT changed (ProjectDetailClient depends on it).
-- Realtime: `useTableSubscription("projects", userId, { alsoInvalidate: [tableKey("areas", userId)] })`
-  so date mutations don't leave the sidebar tree stale.
+   (+ follow-up fix: keep drag preview and committed dates consistent for
+   pinned-terminus bars — `barEndISO` = real end ?? semester end ?? window edge.)
 
-## Known deviation (logged, additive)
-`SidebarArea` carries no `createdAt`, but the engine's `groupByArea` requires
-`TimelineAreaInput.createdAt` for its documented (orderIndex, createdAt) ordering.
-`getSidebarTree` already ORDERS BY `areas.createdAt` but does not SELECT it. Fix is
-2 additive lines (select the column, add the field to the interface) rather than
-faking a value. No existing consumer is affected.
+8. **docs(planning): u4 evidence** — production build + Playwright real mouse
+   drags; both themes; mid-drag snapped preview, after-drop undo toast, edge
+   resize, open-ended terminus→real end, archive-trap-by-drag, toolbar wrap at
+   narrow width; mobile(390)/tablet(768). Verify undo actually reverts in the UI.
 
-## Gates
-- `npx vitest run tests/projects-timeline-*.test.tsx lib/projects/__tests__/timeline.test.ts` (apps/web)
-- `npx tsc --noEmit` (apps/web)
-- edge-fade + bar-fade utilities grepped out of the COMPILED css (§23)
-- Evidence: light+dark at 3 zooms, popover, ghosts, empty state, toggle.
+Gates (from apps/web): the scoped vitest set in the seed + the new drag test, and
+`npx tsc --noEmit`. Repo-wide vitest is NOT a gate (31 pre-existing failures).
+
+a11y note: drag is pointer-only by design; the popover remains the full keyboard
++ mobile editing path. Bars keep their focus ring; no ARIA drag theater.
