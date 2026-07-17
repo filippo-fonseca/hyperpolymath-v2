@@ -2,10 +2,10 @@
  * ConstellationCanvas — the ambient graph background for the HUD stage.
  *
  * A single, cheap canvas2d layer beneath the dotted grid and rulers: ~32 nodes
- * drift slowly through normalized space, linked by distance-faded hairlines in a
- * low-opacity cyan (a few nodes borrow a NODE_PALETTE hue for quiet chromatic
- * life). It is atmosphere, not content — opacity stays low and nothing reacts to
- * the cursor.
+ * drift slowly through normalized space, linked by distance-faded hairlines. The
+ * whole layer is ONE hue — the sd accent — per ruling O3; a few nodes recede on
+ * alpha alone to keep the mesh from reading flat. It is atmosphere, not content:
+ * opacity stays low and nothing reacts to the cursor.
  *
  * Frame budget is deliberately small so it never starves the voice/camera loops:
  * the rAF loop is throttled to ~30fps, paused entirely when the document is
@@ -16,7 +16,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { HUD_COLORS, NODE_PALETTE } from "../tokens";
+import { HUD_COLORS } from "../tokens";
 import {
   hydrateHudSettings,
   prefersReducedMotion,
@@ -35,7 +35,22 @@ const FRAME_INTERVAL_MS = 1000 / 30;
 /** Whole-layer opacity — kept low so the graph reads as a scrim, not a subject. */
 const LAYER_OPACITY = 0.5;
 
-const LINK_COLOR = "34, 211, 238"; // HUD cyan, rgb channels (see globals --hud-cyan-rgb).
+/**
+ * The ONE accent, as rgb channels (mirrors `--hud-cyan-rgb`, the sd accent's own
+ * channels). Canvas takes rgba() everywhere without an oklch round-trip, so the
+ * whole layer is painted from this single constant.
+ */
+const ACCENT_RGB = "34, 211, 238";
+
+/**
+ * Alpha for a node the sim flagged into its variation tier. Those nodes used to
+ * be the ones that borrowed a NODE_PALETTE hue; oracle ruling O3 collapsed the
+ * palette to the single accent, because the constellation is atmosphere rather
+ * than data encoding — §21's chart exemption does not reach it and §1's
+ * single-hue rule does. They keep their role in the composition by sitting
+ * FURTHER BACK instead of by being a different colour: depth via alpha, one hue.
+ */
+const DIM_NODE_ALPHA = 0.28;
 
 function systemPrefersReducedMotion(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -61,7 +76,7 @@ function draw(
     const b = nodes[link.b];
     if (!a || !b) continue;
     // Faint links, fading with distance; capped low so the mesh whispers.
-    ctx.strokeStyle = `rgba(${LINK_COLOR}, ${(link.strength * 0.14).toFixed(3)})`;
+    ctx.strokeStyle = `rgba(${ACCENT_RGB}, ${(link.strength * 0.14).toFixed(3)})`;
     ctx.beginPath();
     ctx.moveTo(a.x * widthCss, a.y * heightCss);
     ctx.lineTo(b.x * widthCss, b.y * heightCss);
@@ -72,13 +87,10 @@ function draw(
     const px = node.x * widthCss;
     const py = node.y * heightCss;
     const r = Math.max(0.8, node.radius * Math.min(widthCss, heightCss));
-    if (node.palette >= 0) {
-      ctx.fillStyle = NODE_PALETTE[node.palette % NODE_PALETTE.length] ?? `rgba(${LINK_COLOR}, 0.45)`;
-      ctx.globalAlpha = 0.28;
-    } else {
-      ctx.fillStyle = `rgba(${LINK_COLOR}, 0.45)`;
-      ctx.globalAlpha = 1;
-    }
+    // ONE hue for every node. The only thing the variation tier changes now is
+    // how far back the node sits.
+    ctx.fillStyle = `rgba(${ACCENT_RGB}, 0.45)`;
+    ctx.globalAlpha = node.palette >= 0 ? DIM_NODE_ALPHA : 1;
     ctx.beginPath();
     ctx.arc(px, py, r, 0, Math.PI * 2);
     ctx.fill();
