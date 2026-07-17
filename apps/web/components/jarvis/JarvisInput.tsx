@@ -6,8 +6,14 @@ import Mention from "@tiptap/extension-mention";
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
+import {
+  EntityMention,
+  ENTITY_MENTION_HTML_ATTRIBUTES,
+  renderEntityMentionHTML,
+} from "@/components/references/entity-mention-node";
+import { createEntityMentionSuggestion } from "@/components/references/entity-mention-suggestion";
 import { createProjectSuggestion } from "./project-suggestions";
-import { createPersonSuggestion, type PersonSource } from "./person-suggestions";
+import { type PersonSource } from "./person-suggestions";
 import { SlashCommandPopover, SLASH_COMMANDS, type SlashCommandKey } from "./SlashCommandPopover";
 import { buildJarvisInputPayload, type JarvisInputPayload } from "./jarvis-input-payload";
 import { registerJarvisFocus } from "@/lib/jarvis/focus";
@@ -19,7 +25,13 @@ import { playSend } from "@/lib/ui/play-send";
  * Mounts THREE Mention extension instances in the same TipTap editor:
  *   - `#hashtag`  → default Mention (node name "mention", reused from Phase 2)
  *   - `$project`  → Mention.extend({ name: "projectMention" })
- *   - `@person`   → Mention.extend({ name: "personMention" })
+ *   - `@entity`   → EntityMention (node name "entityMention") — the universal
+ *                   reference picker. Superseded the person-only `@` (which
+ *                   inserted a `personMention` carrying a person UUID); people
+ *                   are now one result group among six, and the chip serializes
+ *                   to a canonical S1 token so the server binds to an exact
+ *                   entity id instead of re-matching a bare `@name`. Legacy
+ *                   `personMention` nodes in old turns still render.
  * Different node names let all popovers coexist without trigger collision.
  *
  * Slash commands shape the request sent to Claude (forcing tool_choice).
@@ -83,6 +95,12 @@ interface Props {
    * only — no inline create here; the captures composer owns that flow).
    * Optional so any lightweight mount site can omit it and skip the menu.
    */
+  /**
+   * @deprecated No-op since the universal `@`. People are one group in the
+   * server-backed mention menu now, so the composer no longer needs a
+   * caller-supplied person list. Still accepted so mount sites that pass it
+   * keep compiling; remove the prop from call sites at leisure.
+   */
   getPeople?: (query: string) => Promise<PersonSource[]> | PersonSource[];
   onSubmit: (payload: JarvisInputPayload) => void;
   disabled?: boolean;
@@ -104,7 +122,6 @@ export function JarvisInput({
   userTimezone,
   getProjects,
   getHashtags,
-  getPeople,
   onSubmit,
   disabled,
   autoFocus,
@@ -141,13 +158,6 @@ export function JarvisInput({
 
   // Memoize the extended Mention classes so we don't recreate them on every render.
   const ProjectMention = useMemo(() => Mention.extend({ name: "projectMention" }), []);
-  const PersonMention = useMemo(() => Mention.extend({ name: "personMention" }), []);
-
-  // `getPeople` is read inside the suggestion config, which TipTap freezes at
-  // editor-creation time. Route through a ref so live prop changes are seen
-  // without recreating the editor. Defaults to an empty list when omitted.
-  const getPeopleRef = useRef(getPeople);
-  getPeopleRef.current = getPeople;
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -185,18 +195,13 @@ export function JarvisInput({
         },
         suggestion: createProjectSuggestion(getProjects),
       }),
-      PersonMention.configure({
-        HTMLAttributes: { class: "person-chip-inline" },
-        renderHTML({ options, node }) {
-          return [
-            "span",
-            { ...options.HTMLAttributes, "data-person": node.attrs.id },
-            `@${node.attrs.label}`,
-          ];
-        },
-        suggestion: createPersonSuggestion((query) =>
-          getPeopleRef.current ? getPeopleRef.current(query) : []
-        ),
+      // The universal `@`. No create-person sentinel here: the JARVIS payload
+      // is a context hint with no save-time DB write, so this composer stays
+      // mention-existing-only exactly as the person-only `@` was.
+      EntityMention.configure({
+        HTMLAttributes: ENTITY_MENTION_HTML_ATTRIBUTES,
+        renderHTML: renderEntityMentionHTML,
+        suggestion: createEntityMentionSuggestion({ allowCreatePerson: false }),
       }),
     ],
     editorProps: {

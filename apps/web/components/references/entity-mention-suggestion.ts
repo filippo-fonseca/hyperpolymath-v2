@@ -1,3 +1,4 @@
+import type { MentionNodeAttrs } from "@tiptap/extension-mention";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { createElement, createRef, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -54,9 +55,24 @@ export interface EntityMentionSuggestionOptions {
   }) => void;
 }
 
+/**
+ * The Mention extension hard-codes its suggestion's selected-item type to
+ * `MentionNodeAttrs` ({id, label}), so a richer option type can't be threaded
+ * through it generically — the callback parameter is contravariant and TS
+ * rightly rejects it. The item flowing through the plugin IS an
+ * EntityMentionOption at runtime (this module both produces and consumes it;
+ * the plugin only passes it along untouched), so the two casts below are the
+ * single, contained seam where that is asserted, rather than a cast at all five
+ * mount sites.
+ */
+type MentionSuggestion = Omit<
+  SuggestionOptions<EntityMentionOption, MentionNodeAttrs>,
+  "editor"
+>;
+
 export function createEntityMentionSuggestion(
   options: EntityMentionSuggestionOptions = {},
-): Omit<SuggestionOptions<EntityMentionOption, EntityMentionOption>, "editor"> {
+): MentionSuggestion {
   const { allowCreatePerson = false, onCreatePerson } = options;
 
   return {
@@ -74,13 +90,14 @@ export function createEntityMentionSuggestion(
     items: () => [],
 
     command: ({ editor, range, props }) => {
+      const option = props as unknown as EntityMentionOption;
       // The sentinel has no entity yet: hand it back to the surface, which
       // knows which legacy person node its save path expects.
-      if (isCreatePersonOption(props)) {
-        onCreatePerson?.({ name: props.label, editor, range });
+      if (isCreatePersonOption(option)) {
+        onCreatePerson?.({ name: option.label, editor, range });
         return;
       }
-      const ref = optionToRef(props);
+      const ref = optionToRef(option);
       if (!ref) return;
       editor
         .chain()
@@ -151,7 +168,7 @@ export function createEntityMentionSuggestion(
           document.body.appendChild(container);
           root = createRoot(container);
           rect = toRect(props.clientRect());
-          command = props.command;
+          command = props.command as unknown as (o: EntityMentionOption) => void;
           dismissed = false;
           runner.run(props.query);
           paint();
@@ -159,7 +176,7 @@ export function createEntityMentionSuggestion(
 
         onUpdate: (props) => {
           if (props.clientRect) rect = toRect(props.clientRect());
-          command = props.command;
+          command = props.command as unknown as (o: EntityMentionOption) => void;
           // A new query re-arms a menu the user escaped out of: they've since
           // typed something, which means they want it back.
           dismissed = false;
