@@ -50,6 +50,7 @@
  * This harness is a dev tool and ships in no build; keep it dependency-light
  * so it cannot be the reason a unit is blocked.
  */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
@@ -87,6 +88,14 @@ document.body.style.cssText = `
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing studio debug root");
+
+/* Bare ?widget= mounts a widget's content with no window chrome, which also
+   means without the QueryClientProvider that WidgetWindowLayer supplies. The
+   data-backed widgets (weather, news, whatsapp, browser) call useQuery and
+   would throw "No QueryClient set" the instant they mount. Give the stage its
+   own client so every widget can be evidenced bare. The window-layer path makes
+   its own client; a second provider above it is harmless. */
+const queryClient = new QueryClient();
 
 /* The stage is a fixed-size box, not a viewport-filling element, so evidence is
    the same 1440x900 whatever the browser window happens to be. It keeps the
@@ -141,6 +150,8 @@ function Stage(): React.ReactElement {
 
 createRoot(root).render(
   <StrictMode>
-    <Stage />
+    <QueryClientProvider client={queryClient}>
+      <Stage />
+    </QueryClientProvider>
   </StrictMode>,
 );
