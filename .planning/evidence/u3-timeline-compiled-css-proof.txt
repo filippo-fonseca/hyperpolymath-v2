@@ -1,0 +1,22 @@
+u3-timeline-core — §23 compiled-CSS proof
+Generated from a production build (npx next build, Next 16.2.6 Turbopack).
+Artifact: apps/web/.next/static/chunks/0hd8hb49hxb82.css
+Why this file exists: §23 warns that one-off arbitrary utilities can be
+dropped by the Oxide scan, so the fades are real classes in globals.css
+and this is the proof they survived compilation with their masks intact.
+
+.timeline-edge-fade -> 1 hit(s)
+.timeline-bar-fade-r -> 1 hit(s)
+.timeline-bar-fade-l -> 1 hit(s)
+.timeline-bar-fade-lr -> 1 hit(s)
+.scrollbar-hidden -> 1 hit(s)
+
+--- emitted rules ---
+.timeline-edge-fade{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),#0000 100%);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),#0000 100%)}
+
+.timeline-bar-fade-r{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - min(32px,40%)),#0000 100%);mask-image:linear-gradient(90deg,#000 calc(100% - min(32px,40%)),#0000 100%)}
+
+.timeline-bar-fade-l{-webkit-mask-image:linear-gradient(270deg,#000 calc(100% - min(32px,40%)),#0000 100%);mask-image:linear-gradient(270deg,#000 calc(100% - min(32px,40%)),#0000 100%)}
+
+.timeline-bar-fade-lr{-webkit-mask-image:linear-gradient(90deg,#0000 0,#000 min(32px,40%) calc(100% - min(32px,40%)),#0000 100%);mask-image:linear-gradient(90deg,#0000 0,#000 min(32px,40%) calc(100% - min(32px,40%)),#0000 100%)}
+
