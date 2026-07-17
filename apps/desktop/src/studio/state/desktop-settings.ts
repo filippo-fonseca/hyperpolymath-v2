@@ -69,6 +69,13 @@ export interface SettingsEffects {
   onManualModeChange?: (enabled: boolean) => void;
   /** Start/stop the idle wake listener. */
   onWakeChange?: (enabled: boolean) => void;
+  /** A device token was saved: re-open the authed SSE stream and resync
+   *  routines, so recovery is immediate rather than restart-gated. */
+  onDeviceTokenSaved?: () => void;
+  /** The device token was cleared: drop the stream (it would 401 anyway). */
+  onDeviceTokenCleared?: () => void;
+  /** Stop TTS playback now (the Stop-speaking affordance). */
+  onStopSpeaking?: () => void;
 }
 
 let effects: SettingsEffects = {};
@@ -213,6 +220,22 @@ export function setWhatsappBridgeUrl(url: string): void {
 export function syncManualModeFromRuntime(enabled: boolean): void {
   if (state.settings.manualMode === enabled) return;
   patch({ manualMode: enabled });
+}
+
+/** Fire the post-token-save effects. Exposed so the auth section can reach the
+ *  same seam the setting writers use. */
+export function notifyDeviceTokenSaved(): void {
+  effects.onDeviceTokenSaved?.();
+}
+
+/** Fire the post-token-clear effect. */
+export function notifyDeviceTokenCleared(): void {
+  effects.onDeviceTokenCleared?.();
+}
+
+/** Ask the audio pipeline to stop speaking. */
+export function requestStopSpeaking(): void {
+  effects.onStopSpeaking?.();
 }
 
 export function useDesktopSettings(): DesktopSettingsState {

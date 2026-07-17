@@ -34,6 +34,12 @@ export interface HudSettings {
   messageAutoReadEnabled: boolean;
   /** UI sound effects (widget drop pop, message-send cue) on/off. Default on. */
   soundEnabled: boolean;
+  /** Webcam gesture pointer on/off (⌘⇧H). Default OFF — it opens the camera,
+   *  so it stays opt-in and only an explicit choice is ever restored. The
+   *  hand-tracking store (input/hand-status) mirrors this key: it seeds its
+   *  initial slice from here and writes back on every toggle, so the hotkey,
+   *  the floating button, and the settings surface all persist alike. */
+  handCursorEnabled: boolean;
 }
 
 const DEFAULTS: HudSettings = {
@@ -42,6 +48,7 @@ const DEFAULTS: HudSettings = {
   messageNotificationsEnabled: true,
   messageAutoReadEnabled: false,
   soundEnabled: true,
+  handCursorEnabled: false,
 };
 
 let state: HudSettings = DEFAULTS;
@@ -94,6 +101,10 @@ export function hydrateHudSettings(): void {
         typeof value.soundEnabled === "boolean"
           ? value.soundEnabled
           : DEFAULTS.soundEnabled,
+      handCursorEnabled:
+        typeof value.handCursorEnabled === "boolean"
+          ? value.handCursorEnabled
+          : DEFAULTS.handCursorEnabled,
     };
     emit();
   } catch {
@@ -143,6 +154,18 @@ export function setMessageAutoReadEnabled(enabled: boolean): void {
 export function setSoundEnabled(enabled: boolean): void {
   if (state.soundEnabled === enabled) return;
   state = { ...state, soundEnabled: enabled };
+  persist();
+  emit();
+}
+
+/**
+ * Persist the hand-cursor choice. Called by the hand-tracking store on every
+ * toggle (hotkey, floating button, or settings surface) — that store stays the
+ * live source of truth for whether the driver runs; this is only its memory.
+ */
+export function setHandCursorEnabled(enabled: boolean): void {
+  if (state.handCursorEnabled === enabled) return;
+  state = { ...state, handCursorEnabled: enabled };
   persist();
   emit();
 }
