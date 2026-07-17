@@ -1014,6 +1014,22 @@ select,
   margin: 0 1px;
 }
 
+/* Inline entity-reference chips (.entity-chip-inline lives on the entityMention
+   node in the editor) — the universal `@` chip, pointing at one entity by id.
+   Third sibling to .hashtag-chip-inline (sage) and .person-chip-inline (amber);
+   blue is the register left over, and it reads as "this points at a thing in
+   the app" rather than at a tag or a name. */
+.entity-chip-inline {
+  display: inline-block;
+  background: color-mix(in oklch, var(--ink-blue) 18%, transparent);
+  color: var(--ink);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  margin: 0 1px;
+}
+
 /* Live hashtag decoration (closes #41) — applied by HashtagDecorations
    extension to plain `#word` text in the editor so the styling lands the
    moment the tag is recognised, not only after the popover commits a Mention
