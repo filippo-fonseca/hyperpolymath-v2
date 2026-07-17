@@ -18,14 +18,30 @@ export interface AreaProject {
   isClass: boolean;
   courseCode: string | null;
   description: string | null;
+  // startDate / createdAt / orderIndex are carried for the timeline view (u5);
+  // the grid does not read them.
+  startDate: string | null;
   endDate: string | null;
   archivedAt: string | Date | null;
   semesterTerm: SemesterTerm | null;
   semesterYear: number | null;
+  orderIndex: number;
+  createdAt: string | Date;
+}
+
+/** The single area this page renders, enough to satisfy TimelineAreaInput. */
+export interface AreaDetailArea {
+  id: string;
+  name: string;
+  emoji: string | null;
+  orderIndex: number;
+  createdAt: string | Date;
 }
 
 interface Props {
   areaId: string;
+  area: AreaDetailArea;
+  userId: string;
   projects: AreaProject[];
   allAreas: { id: string; name: string }[];
 }

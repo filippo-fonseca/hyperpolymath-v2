@@ -29,6 +29,10 @@ export default async function AreaDetailPage({ params }: Props) {
       name: areas.name,
       emoji: areas.emoji,
       archivedAt: areas.archivedAt,
+      // orderIndex + createdAt let the area satisfy TimelineAreaInput for the
+      // timeline view (u5). Additive: the header/grid ignore them.
+      orderIndex: areas.orderIndex,
+      createdAt: areas.createdAt,
     })
     .from(areas)
     .where(and(eq(areas.id, areaId), eq(areas.userId, user.id)))
@@ -37,6 +41,9 @@ export default async function AreaDetailPage({ params }: Props) {
 
   // Fetch active AND archived/past — the list component partitions them into
   // Active / Archived tabs (archived hidden out of the live view, not dropped).
+  // startDate / createdAt / orderIndex are additive: the grid ignores them, the
+  // timeline view (u5) needs them to satisfy TimelineProjectInput. Semantics of
+  // the existing consumers are untouched.
   const projectRows = await db
     .select({
       id: projects.id,
@@ -45,10 +52,13 @@ export default async function AreaDetailPage({ params }: Props) {
       isClass: projects.isClass,
       courseCode: projects.courseCode,
       description: projects.description,
+      startDate: projects.startDate,
       endDate: projects.endDate,
       archivedAt: projects.archivedAt,
       semesterTerm: projects.semesterTerm,
       semesterYear: projects.semesterYear,
+      orderIndex: projects.orderIndex,
+      createdAt: projects.createdAt,
     })
     .from(projects)
     .where(and(eq(projects.areaId, areaId), eq(projects.userId, user.id)))
@@ -85,7 +95,13 @@ export default async function AreaDetailPage({ params }: Props) {
           </h2>
         </div>
 
-        <AreaProjectList areaId={areaId} projects={projectRows} allAreas={allActiveAreas} />
+        <AreaProjectList
+          areaId={areaId}
+          area={area}
+          userId={user.id}
+          projects={projectRows}
+          allAreas={allActiveAreas}
+        />
       </div>
     </main>
   );
