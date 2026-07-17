@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
   type CaptureGraphEdge,
   type CaptureGraphEdgeKind,
@@ -11,6 +10,7 @@ import {
   assembleCaptureEdges,
   buildCaptureNodes,
 } from "@/lib/captures/graph-edges";
+import { describe, expect, it } from "vitest";
 
 const NODE_IDS = new Set(["a", "b", "c", "d"]);
 
@@ -22,7 +22,7 @@ function assemble(
     coReferencePairs: RawCoReferencePair[];
     sharedProjectPairs: RawPair[];
     targetLabels: Map<string, string>;
-  }> = {},
+  }> = {}
 ) {
   return assembleCaptureEdges({
     nodeIds: NODE_IDS,
@@ -39,12 +39,11 @@ function find(
   edges: CaptureGraphEdge[],
   kind: CaptureGraphEdgeKind,
   a: string,
-  b: string,
+  b: string
 ): CaptureGraphEdge | undefined {
   return edges.find(
     (e) =>
-      e.kind === kind &&
-      ((e.source === a && e.target === b) || (e.source === b && e.target === a)),
+      e.kind === kind && ((e.source === a && e.target === b) || (e.source === b && e.target === a))
   );
 }
 
@@ -55,17 +54,13 @@ describe("buildCaptureNodes", () => {
     const [node] = buildCaptureNodes(
       [{ id: "a", content: "\n\n  Ship the graph view  \nsecond line", createdAt }],
       [],
-      [],
+      []
     );
     expect(node.label).toBe("Ship the graph view");
   });
 
   it("truncates long labels to the 60-char canvas budget", () => {
-    const [node] = buildCaptureNodes(
-      [{ id: "a", content: "x".repeat(200), createdAt }],
-      [],
-      [],
-    );
+    const [node] = buildCaptureNodes([{ id: "a", content: "x".repeat(200), createdAt }], [], []);
     expect(node.label.length).toBe(GRAPH_NODE_LABEL_MAX);
     expect(node.label.endsWith("…")).toBe(true);
   });
@@ -87,7 +82,7 @@ describe("buildCaptureNodes", () => {
         { captureId: "a", value: "yale" },
         { captureId: "b", value: "yale" },
       ],
-      [{ captureId: "a", value: "proj-1" }],
+      [{ captureId: "a", value: "proj-1" }]
     );
     expect(nodes[0].hashtags).toEqual(["research", "yale"]);
     expect(nodes[0].projectIds).toEqual(["proj-1"]);
@@ -99,7 +94,7 @@ describe("buildCaptureNodes", () => {
     const nodes = buildCaptureNodes(
       [{ id: "a", content: "kept", createdAt }],
       [{ captureId: "outside-window", value: "research" }],
-      [{ captureId: "outside-window", value: "proj-1" }],
+      [{ captureId: "outside-window", value: "proj-1" }]
     );
     expect(nodes).toHaveLength(1);
     expect(nodes[0].hashtags).toEqual([]);
@@ -112,7 +107,7 @@ describe("buildCaptureNodes", () => {
         { id: "b", content: "string", createdAt: "2026-07-16T12:00:00.000Z" },
       ],
       [],
-      [],
+      []
     );
     expect(nodes[0].createdAt).toBe("2026-07-16T12:00:00.000Z");
     expect(nodes[1].createdAt).toBe("2026-07-16T12:00:00.000Z");
@@ -175,9 +170,7 @@ describe("assembleCaptureEdges — normalization", () => {
 describe("assembleCaptureEdges — co_reference labelling", () => {
   it("labels the edge with the shared target's display name", () => {
     const { edges } = assemble({
-      coReferencePairs: [
-        { a: "a", b: "b", weight: 1, targetType: "project", targetId: "p1" },
-      ],
+      coReferencePairs: [{ a: "a", b: "b", weight: 1, targetType: "project", targetId: "p1" }],
       targetLabels: new Map([["project:p1", "Marathon training"]]),
     });
     expect(edges[0].label).toBe("Marathon training");
@@ -216,9 +209,7 @@ describe("assembleCaptureEdges — co_reference labelling", () => {
 
   it("omits the label when the target could not be resolved (deleted target)", () => {
     const { edges } = assemble({
-      coReferencePairs: [
-        { a: "a", b: "b", weight: 1, targetType: "task", targetId: "gone" },
-      ],
+      coReferencePairs: [{ a: "a", b: "b", weight: 1, targetType: "task", targetId: "gone" }],
     });
     expect(edges[0].label).toBeUndefined();
   });
@@ -296,7 +287,7 @@ describe("assembleCaptureEdges — caps", () => {
     const first = assemble({ sharedHashtagPairs: pairs }).edges;
     const second = assemble({ sharedHashtagPairs: [...pairs].reverse() }).edges;
     expect(first.map((e) => `${e.source}-${e.target}`)).toEqual(
-      second.map((e) => `${e.source}-${e.target}`),
+      second.map((e) => `${e.source}-${e.target}`)
     );
   });
 });
