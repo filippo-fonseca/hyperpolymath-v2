@@ -118,7 +118,11 @@ import {
   personRefToken,
   taskRefToken,
 } from "./reference-tokens";
-import type { StudioCloseWidgetInput, StudioOpenWidgetInput } from "./studio-widget-tools";
+import type {
+  StudioCloseWidgetInput,
+  StudioOpenWidgetInput,
+  StudioSetHandCursorInput,
+} from "./studio-widget-tools";
 import { emitStudioAction } from "@/lib/voice/physical-extension/bus";
 
 // MAJOR-6 — tag every studio-action emit with the invoking user's id so
@@ -144,6 +148,35 @@ export async function executeStudioOpenWidget(
       kind: input.kind,
       ...(input.url ? { url: input.url } : {}),
       message: `Sent a request to open the ${input.kind} widget.`,
+    },
+  };
+}
+
+/**
+ * Voice-commanded hand cursor — flip the Studio HUD's webcam gesture pointer
+ * on or off. Mirrors executeStudioOpenWidget: emit a studio-action onto the
+ * physical bus (userId-tagged for the SSE filter) and return a receipt. The
+ * desktop router maps `{action:"hand",enabled}` -> setHandEnabled, which drives
+ * the driver lifecycle and persists the choice like the ⌘⇧H hotkey.
+ */
+export async function executeStudioSetHandCursor(
+  input: StudioSetHandCursorInput,
+  userId?: string
+): Promise<ExecutorResult> {
+  const ts = Date.now();
+  emitStudioAction({
+    action: "hand",
+    enabled: input.enabled,
+    ...(userId ? { userId } : {}),
+  });
+  return {
+    ok: true,
+    id: `studio_set_hand_cursor:${input.enabled}:${ts}`,
+    receipt: {
+      enabled: input.enabled,
+      message: input.enabled
+        ? "Sent a request to engage the hand cursor."
+        : "Sent a request to disengage the hand cursor.",
     },
   };
 }
