@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@hyperpolymath/jarvis-core",
     "@hyperpolymath/personal-context-mcp",
+    "@hyperpolymath/ui-icons",
   ],
 
   // Phase 8 (LAND-ROADMAP-FS / D-09):

@@ -5,7 +5,14 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 
 import { Drawer } from "../drawer/Drawer";
 import { HandTrackingLayer } from "../input/HandTrackingLayer";
-import { HUD_EASE_OUT_QUART, STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import {
+  HUD_EASE_OUT_QUART,
+  SD_ACCENT,
+  SD_INK,
+  SD_RADIUS,
+  SD_SURFACES,
+  STUDIO_MONO,
+} from "../tokens";
 import {
   getWidgetWindows,
   rehydrateWidgetWindows,
@@ -126,7 +133,10 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
                 width: 112,
                 height: 112,
                 borderRadius: "50%",
-                background: `radial-gradient(circle, color-mix(in srgb, ${STUDIO_COLORS.accent} 42%, transparent), transparent 70%)`,
+                // The summon glint: a 220ms transient, not a resting glow, so
+                // §1's de-glow does not reach it. Flattening the falloff to a
+                // solid fill would turn the flash into a hard disc.
+                background: `radial-gradient(circle, color-mix(in srgb, ${SD_ACCENT} 42%, transparent), transparent 70%)`,
                 transform: "translate(-50%, -50%)",
               }}
               initial={{ opacity: 0, scale: 0.35 }}
@@ -167,9 +177,9 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
             display: "flex",
             gap: 6,
             padding: 6,
-            border: `1px solid ${STUDIO_COLORS.rule}`,
-            borderRadius: 8,
-            background: STUDIO_COLORS.surface,
+            border: `1px solid ${SD_SURFACES.line}`,
+            borderRadius: SD_RADIUS.panel,
+            background: SD_SURFACES.darkBox,
             fontFamily: STUDIO_MONO,
           }}
         >
@@ -178,21 +188,25 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
               key={kind}
               type="button"
               onClick={() => summon(kind)}
+              className="studio-drawer-tile"
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
-                padding: "5px 7px",
-                border: `1px solid ${STUDIO_COLORS.rule}`,
-                borderRadius: 5,
-                color: STUDIO_COLORS.text,
-                background: STUDIO_COLORS.background,
+                gap: 6,
+                padding: "5px 8px",
+                border: `1px solid ${SD_SURFACES.line}`,
+                borderRadius: SD_RADIUS.tile,
+                color: SD_INK.dull,
+                background: SD_SURFACES.box,
                 font: "inherit",
-                fontSize: 9,
+                fontSize: 11,
+                letterSpacing: "0.06em",
                 cursor: "pointer",
               }}
             >
-              <entry.icon size={11} aria-hidden />
+              {/* 16 is the floor for the dimensional family; at the old 11 the
+                  body gradient collapsed into a smudge. */}
+              <entry.icon size={16} aria-hidden />
               {entry.label}
             </button>
           ))}

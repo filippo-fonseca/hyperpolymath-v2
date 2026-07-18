@@ -1,0 +1,203 @@
+/* =====================================================================
+   sd-tokens.css — the --sd-* design vocabulary for apps/desktop.
+
+   apps/desktop has no Tailwind and no PostCSS, and its two styling
+   substrates share nothing: the HUD is an 826-line <style> block of pure
+   CSS inside index.html, and the Studio is React + inline style={{}}.
+   A TS token object cannot serve the first (pure CSS cannot import TS),
+   so the ladder is authored HERE as real CSS and both substrates import
+   it. `src/studio/tokens.ts` re-exports these same values for the TS
+   consumers; this file is the source of truth, tokens.ts mirrors it.
+
+   MIRRORED, NOT INVENTED. Every value below is copied from the web's
+   apps/web/app/globals.css so the two apps speak one palette. The
+   surface/ink ladder mirrors the `.wiki-explorer` block (globals.css
+   1369-1401), which is the web's always-dark sd scope and therefore the
+   exact analog of this always-dark app. The accent trio and easings
+   mirror the `:root` base palette (globals.css 49-100). If a value here
+   ever disagrees with globals.css, globals.css wins and this file is the
+   bug.
+
+   DARK ONLY. Sealed decision D2 exempts apps/desktop from §18's
+   light+dark rule: JARVIS is a dark instrument panel on a near-black
+   canvas, and a parchment HUD is a different product. There is no light
+   ladder here on purpose. Do not add one; re-litigating D2 is a blocker,
+   not a patch.
+
+   This file declares no `transition`, `animation`, or `backdrop-filter`.
+   Consumers own their motion and guard it with prefers-reduced-motion,
+   which keeps the foundations free of transition-on-first-paint flashes.
+   Glass stays on chrome per sealed decision D1, so there is deliberately
+   no de-glass rule here either.
+   ===================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* --- Accent -------------------------------------------------------
+     ONE hue owns the app and it is JARVIS cyan. This supersedes the two
+     accents that disagreed before this file existed: index.html's
+     --accent (#00d4ff) and tokens.ts's jarvisCyan (#2FA8FF). Both old
+     names are aliased at the bottom of this file so nothing breaks
+     before units 3-6 migrate their consumers.
+
+     Values are the web's --hud-cyan family verbatim (globals.css 59-66).
+     The web's dark scope maps the sd accent trio onto that family
+     (globals.css 1441-1443, 1375-1377); being dark-only, we take the
+     dark mapping directly. */
+  --hud-cyan: oklch(72% 0.13 210);
+  --hud-cyan-bright: oklch(78% 0.16 210);
+  --hud-cyan-dim: oklch(58% 0.1 210);
+  --hud-cyan-rgb: 34, 211, 238;
+  --hud-cyan-glow: rgb(34 211 238 / 0.18);
+  --hud-cyan-glow-soft: rgb(34 211 238 / 0.08);
+
+  --sd-accent: var(--hud-cyan);
+  --sd-accent-faint: var(--hud-cyan-bright);
+  --sd-accent-deep: var(--hud-cyan-dim);
+
+  /* Pre-baked glow shadows (globals.css 71-73). Chrome and hero only —
+     §15 gives content surfaces no ambient field. */
+  --glow-hud-subtle: 0 0 20px rgb(var(--hud-cyan-rgb) / 0.1);
+  --glow-hud-medium: 0 0 28px rgb(var(--hud-cyan-rgb) / 0.16);
+  --glow-hud-strong: 0 0 36px rgb(var(--hud-cyan-rgb) / 0.24);
+
+  /* --- Ink ladder ---------------------------------------------------
+     Mirrors .wiki-explorer / .dark (globals.css 1378-1380, 1445-1447). */
+  --sd-ink: hsl(235 35% 92%);
+  --sd-ink-dull: hsl(235 10% 70%);
+  --sd-ink-faint: hsl(235 10% 55%);
+
+  /* --- Surface ladder -----------------------------------------------
+     Mirrors .wiki-explorer (globals.css 1381-1397) verbatim. Depth reads
+     through ~4-5% lightness steps on ONE hue plus hairline borders, never
+     heavy shadows — shadows stay under 10% shade (§5). Ordered recessed →
+     raised: darker-box < app < dark-box < box < input. */
+  --sd-app: hsl(235 15% 13%);
+  --sd-box: hsl(235 15% 18%);
+  --sd-dark-box: hsl(235 15% 15%);
+  --sd-darker-box: hsl(235 16% 11%);
+  --sd-input: hsl(235 15% 20%);
+  --sd-line: hsl(235 15% 23%);
+  --sd-divider: hsl(235 15% 5%);
+  --sd-hover: hsl(235 15% 25%);
+  --sd-selected: hsl(235 15% 26%);
+  --sd-selected-item: hsl(235 15% 18%);
+  --sd-active: hsl(235 15% 30%);
+  --sd-frame: hsl(235 15% 25%);
+  --sd-menu: hsl(235 15% 10%);
+  --sd-menu-line: hsl(235 15% 14%);
+  --sd-menu-hover: hsl(235 15% 30%);
+
+  /* The darkest member, aliased rather than re-coloured (globals.css
+     1471-1476): custom properties resolve lazily, so this picks up
+     whichever --sd-darker-box is in scope at the consuming element. */
+  --sd-sidebar: var(--sd-darker-box);
+  --sd-sidebar-divider: hsl(235 15% 17%);
+
+  --sd-icon-shadow: hsl(235 15% 0%);
+  --sd-icon-shadow-opacity: 0.28;
+
+  /* --- Functional inks ----------------------------------------------
+     The three academic intent inks (globals.css 76-80). Functional hues
+     reuse these so no new hex enters the ladder (§D6): sage = active/LAN,
+     accent = synced/relay, amber = warn, coral = error. */
+  --ink-amber: oklch(70% 0.13 75);
+  --ink-sage: oklch(62% 0.09 145);
+  --ink-coral: oklch(63% 0.16 25);
+  --ink-violet: oklch(62% 0.13 295);
+  --ink-blue: oklch(60% 0.13 255);
+
+  /* --- Typography ---------------------------------------------------
+     Faces are vendored and declared in sd-fonts.css; these are the
+     stacks. Space Grotesk is the app-wide sans. JetBrains Mono is for
+     micro-labels only — eyebrows, dates, kbd hints, unit captions,
+     telemetry (§3, §20). Berkeley Mono is kept ahead of JetBrains in the
+     mono stack: it is the existing local-first preference and users who
+     have it installed keep it.
+
+     There is no serif register. --font-serif aliases the sans so any
+     stray consumer is a no-op rather than a §16 violation; EB Garamond
+     is logotype-only and is not vendored here (nothing in this app
+     renders the logotype). */
+  --font-sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Berkeley Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif: var(--font-sans);
+
+  /* Tracking (§3). Uppercase micro-labels take --track-caps; mono
+     eyebrows go wider than caps. */
+  --track-tight: -0.01em;
+  --track-caps: 0.08em;
+  --track-mono-eyebrow: 0.1em;
+
+  /* --- Radius ladder (§5) -------------------------------------------
+     14px is the one deliberate step above 12px and belongs to card v2 —
+     the widget-window shell. Do not round anything else to 14px. */
+  --r-chip: 4px;
+  --r-chrome: 6px;
+  --r-tile: 8px;
+  --r-pill-inset: 10px;
+  --r-panel: 12px;
+  --r-card: 14px;
+  --r-full: 9999px;
+
+  /* --- Hairlines (§5) -----------------------------------------------
+     Elevation is a 1px --sd-line border plus a white inset top hairline.
+     The panel hairline is the .sd-panel value; the card hairline is the
+     softer dark-scope value card v2 uses. */
+  --sd-border-width: 1px;
+  --sd-hairline-panel: rgba(255, 255, 255, 0.15) 0 1px 0 inset;
+  --sd-hairline-card: rgba(255, 255, 255, 0.09) 0 1px 0 inset;
+
+  /* --- Focus (§ single cyan focus identity) --------------------------
+     Painted with box-shadow so the ring traces each element's own
+     border-radius with no per-element wiring. --canvas is not a token in
+     this app, so the 2px gap is struck against --sd-app. */
+  --ring-focus: 0 0 0 2px var(--sd-app), 0 0 0 4px var(--hud-cyan);
+
+  /* --- Motion (§14) -------------------------------------------------
+     One calibrated easing family. --ease-out-quart is the default and is
+     the same curve as tokens.ts's HUD_EASE_OUT_QUART [0.25, 1, 0.5, 1].
+     Durations: entrance 160ms, micro 120-150ms, tab 80ms, press 100ms,
+     collapse 200-320ms. The session clamp is 120-160ms on
+     opacity/transform only, reduced-motion guarded. */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-fast: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-soft-landing: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-collapse: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --dur-tab: 80ms;
+  --dur-press: 100ms;
+  --dur-micro: 150ms;
+  --dur-entrance: 160ms;
+  --dur-collapse: 240ms;
+
+  /* --- Legacy aliases ------------------------------------------------
+     index.html's HUD vocabulary, remapped onto the sd ladder so the old
+     names keep resolving while units 3-6 migrate their consumers. These
+     are a bridge, not an API: once every fence speaks --sd-*, this block
+     is deleted.
+
+     Nothing imports this file yet, and index.html declares these same
+     names in its own :root, so today these aliases change no pixel. They
+     take effect the moment unit 3 imports this stylesheet and drops the
+     literals. --accent is the accent reconciliation: #00d4ff resolves to
+     the one sd accent from here on. */
+  --bg: var(--sd-app);
+  --surface: var(--sd-box);
+  --fg: var(--sd-ink);
+  --muted: var(--sd-ink-faint);
+  --rule: var(--sd-line);
+  --accent: var(--sd-accent);
+  --amber: var(--ink-amber);
+  --err: var(--ink-coral);
+  --mono: var(--font-mono);
+  /* Neutralised rather than dropped: index.html sets --serif (EB Garamond) on
+     transcript turn text, which §16 bans and oracle ruling O1 kills. Pointing
+     it at the sans makes a stray consumer a no-op instead of a violation, so
+     unit 3 can remove the last `--serif` reference without a broken paint in
+     between. */
+  --serif: var(--font-sans);
+}

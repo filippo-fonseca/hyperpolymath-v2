@@ -12,8 +12,9 @@ import {
   Wind,
   type LucideIcon,
 } from "lucide-react";
+import { WeatherIcon } from "@hyperpolymath/ui-icons";
 
-import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import { SD_ACCENT, SD_FONT, SD_INK, SD_SURFACES } from "../tokens";
 import { fetchStudioWidget } from "./widget-fetch";
 
 interface Forecast {
@@ -50,6 +51,60 @@ function conditionGlyph(condition: string): LucideIcon {
   return CloudSun;
 }
 
+const shellStyle: React.CSSProperties = {
+  display: "flex",
+  height: "100%",
+  flexDirection: "column",
+  justifyContent: "space-between",
+  padding: 20,
+  background: SD_SURFACES.box,
+};
+
+/** Mono eyebrow + dull detail line — the shared empty/error voice (DS §9). */
+function WeatherNotice({ detail }: { detail: string }): React.ReactElement {
+  return (
+    <div
+      style={{
+        ...shellStyle,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        textAlign: "center",
+      }}
+    >
+      {/* Empty-state icon: 40px at 40% opacity (DS §9). The dimensional icons
+          take no style prop, so the opacity rides a wrapper. */}
+      <span style={{ opacity: 0.4, lineHeight: 0 }}>
+        <WeatherIcon size={40} />
+      </span>
+      <p
+        style={{
+          margin: 0,
+          color: SD_INK.faint,
+          fontFamily: SD_FONT.mono,
+          fontSize: 11,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+        }}
+      >
+        Weather unavailable
+      </p>
+      <p
+        style={{
+          margin: 0,
+          maxWidth: 240,
+          color: SD_INK.dull,
+          fontFamily: SD_FONT.sans,
+          fontSize: 12,
+          lineHeight: 1.5,
+        }}
+      >
+        {detail}
+      </p>
+    </div>
+  );
+}
+
 export default function WeatherWidget(): React.ReactElement {
   const { data, error, isLoading } = useQuery({
     queryKey: ["studio", "weather"],
@@ -58,48 +113,11 @@ export default function WeatherWidget(): React.ReactElement {
   });
 
   if (isLoading) {
-    return <div style={{ height: "100%", background: STUDIO_COLORS.surface }} />;
+    return <div style={{ height: "100%", background: SD_SURFACES.box }} />;
   }
 
   if (error || !data) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          height: "100%",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          padding: 20,
-          textAlign: "center",
-        }}
-      >
-        <p
-          style={{
-            margin: 0,
-            color: STUDIO_COLORS.text,
-            fontFamily: STUDIO_MONO,
-            fontSize: 10,
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-          }}
-        >
-          Weather unavailable
-        </p>
-        <p
-          style={{
-            margin: 0,
-            maxWidth: 240,
-            color: STUDIO_COLORS.muted,
-            fontSize: 11.5,
-            lineHeight: 1.5,
-          }}
-        >
-          {error?.message ?? "No reading returned"}
-        </p>
-      </div>
-    );
+    return <WeatherNotice detail={error?.message ?? "No reading returned"} />;
   }
 
   const weather = data.weather;
@@ -107,68 +125,78 @@ export default function WeatherWidget(): React.ReactElement {
   const forecast = weather.forecast?.filter((day) => Number.isFinite(day.highC));
 
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100%",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        padding: 16,
-      }}
-    >
-      <div>
-        <p
-          style={{
-            margin: 0,
-            color: STUDIO_COLORS.muted,
-            fontFamily: STUDIO_MONO,
-            fontSize: 9,
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-          }}
-        >
-          {weather.location}
-        </p>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            marginTop: 6,
-          }}
-        >
+    <div style={shellStyle}>
+      {/* Stat tile, icon-left (DS §8): dimensional icon in its optical box, then
+          the label / value / caption stack. */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <WeatherIcon size={40} title="Weather" />
+
+        <div style={{ minWidth: 0 }}>
+          <p
+            style={{
+              margin: 0,
+              overflow: "hidden",
+              color: SD_INK.faint,
+              fontFamily: SD_FONT.sans,
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              textOverflow: "ellipsis",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {weather.location}
+          </p>
+
           <div
             style={{
-              color: STUDIO_COLORS.text,
-              fontFamily: STUDIO_MONO,
-              fontSize: 52,
-              fontWeight: 300,
-              lineHeight: 1,
+              display: "flex",
+              alignItems: "baseline",
+              marginTop: 2,
+              color: SD_INK.base,
+              fontFamily: SD_FONT.sans,
+              fontSize: 34,
+              fontWeight: 800,
+              lineHeight: 1.1,
+              letterSpacing: "-0.01em",
               fontVariantNumeric: "tabular-nums",
             }}
           >
             {weather.tempF}°
+            {/* Unit on the value's baseline (DS §8), tight enough to read as
+                one token rather than a stray glyph. */}
+            <span
+              style={{
+                marginLeft: 2,
+                color: SD_INK.faint,
+                fontSize: 16,
+                fontWeight: 500,
+              }}
+            >
+              F
+            </span>
           </div>
-          <Glyph
-            size={38}
-            strokeWidth={1.4}
-            color={STUDIO_COLORS.accent}
-            aria-hidden
+
+          <p
             style={{
-              filter: `drop-shadow(0 0 10px color-mix(in srgb, ${STUDIO_COLORS.accent} 40%, transparent))`,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              margin: "4px 0 0",
+              color: SD_INK.dull,
+              fontFamily: SD_FONT.sans,
+              fontSize: 12,
+              textTransform: "capitalize",
             }}
-          />
+          >
+            {/* Quiet 14px lucide: the condition is data the caption already
+                names, so it stays a verb-register glyph and never competes with
+                the dimensional icon above. The old accent glow is gone (§16). */}
+            <Glyph size={14} strokeWidth={1.75} color={SD_INK.faint} aria-hidden />
+            {weather.condition}
+          </p>
         </div>
-        <p
-          style={{
-            margin: "8px 0 0",
-            color: STUDIO_COLORS.text,
-            fontSize: 12.5,
-            textTransform: "capitalize",
-          }}
-        >
-          {weather.condition}
-        </p>
       </div>
 
       {forecast && forecast.length > 0 ? (
@@ -178,23 +206,20 @@ export default function WeatherWidget(): React.ReactElement {
             gridTemplateColumns: `repeat(${Math.min(forecast.length, 4)}, minmax(0, 1fr))`,
             gap: 4,
             paddingTop: 12,
-            borderTop: `1px solid ${STUDIO_COLORS.rule}`,
+            borderTop: `1px solid ${SD_SURFACES.line}`,
           }}
         >
           {forecast.slice(0, 4).map((day, index) => (
             <div
               key={day.date}
               title={day.condition}
-              style={{
-                textAlign: "center",
-                fontFamily: STUDIO_MONO,
-                fontSize: 9,
-              }}
+              style={{ textAlign: "center", fontFamily: SD_FONT.mono, fontSize: 10 }}
             >
               <p
                 style={{
                   margin: 0,
-                  color: index === 0 ? STUDIO_COLORS.accent : STUDIO_COLORS.muted,
+                  color: index === 0 ? SD_ACCENT : SD_INK.faint,
+                  letterSpacing: "0.1em",
                 }}
               >
                 {index === 0
@@ -203,11 +228,15 @@ export default function WeatherWidget(): React.ReactElement {
                       .toLocaleDateString([], { weekday: "short" })
                       .toUpperCase()}
               </p>
-              <p style={{ margin: "5px 0 0", fontVariantNumeric: "tabular-nums" }}>
+              <p
+                style={{
+                  margin: "5px 0 0",
+                  color: SD_INK.base,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
                 {Math.round(day.highC)}°{" "}
-                <span style={{ color: STUDIO_COLORS.muted }}>
-                  {Math.round(day.lowC)}°
-                </span>
+                <span style={{ color: SD_INK.faint }}>{Math.round(day.lowC)}°</span>
               </p>
             </div>
           ))}
@@ -218,35 +247,25 @@ export default function WeatherWidget(): React.ReactElement {
             display: "flex",
             gap: 18,
             paddingTop: 12,
-            borderTop: `1px solid ${STUDIO_COLORS.rule}`,
-            color: STUDIO_COLORS.muted,
-            fontFamily: STUDIO_MONO,
+            borderTop: `1px solid ${SD_SURFACES.line}`,
+            color: SD_INK.faint,
+            fontFamily: SD_FONT.mono,
             fontSize: 10,
-            letterSpacing: "0.08em",
+            letterSpacing: "0.1em",
           }}
         >
           <span
             style={{ display: "flex", alignItems: "center", gap: 6 }}
             title="Wind speed"
           >
-            <Wind size={12} strokeWidth={1.6} aria-hidden />
-            <span
-              style={{
-                color: STUDIO_COLORS.text,
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
+            <Wind size={12} strokeWidth={1.75} aria-hidden />
+            <span style={{ color: SD_INK.base, fontVariantNumeric: "tabular-nums" }}>
               {weather.windKph}
             </span>
             km/h
           </span>
           <span title="Temperature in Celsius">
-            <span
-              style={{
-                color: STUDIO_COLORS.text,
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
+            <span style={{ color: SD_INK.base, fontVariantNumeric: "tabular-nums" }}>
               {weather.tempC}
             </span>
             °C

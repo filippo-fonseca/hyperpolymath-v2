@@ -1,7 +1,9 @@
 /**
- * Palm-click recognizer — the PRIMARY hand click, a pure state machine mirroring
- * the other recognizers here (`tap-click` — which it replaces — `pinch-bloom`,
- * `pinch-hold`).
+ * Palm-click recognizer — the SECONDARY hand click, a pure state machine
+ * mirroring the other recognizers here (`tap-click` — which it replaces —
+ * `pinch-bloom`, `pinch-hold`). The PRIMARY click is the quick-pinch tap
+ * (`pinch-bloom-recognizer.ts`); palm-click is the fist-family alternative and
+ * emits the same `tap` intent.
  *
  * A click is a PALM CLOSE-then-OPEN: the hand collapses into a fist and springs
  * back open within a short window. It replaces index-jab tap-to-click because a

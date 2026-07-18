@@ -1,5 +1,6 @@
-import { cn } from "@/lib/utils";
 import { useId, type ReactNode } from "react";
+
+import { cn } from "./cn";
 
 /**
  * Shared recipe for the app's dimensional icon family (extracted from the wiki

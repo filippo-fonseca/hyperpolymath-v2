@@ -10,6 +10,7 @@
 
 import { useSyncExternalStore } from "react";
 
+import { getHudSettings, hydrateHudSettings, setHandCursorEnabled } from "../state/hud-settings";
 import type { HandDriverStatus } from "./drivers/hand";
 
 export type HandTrackingState = {
@@ -19,7 +20,16 @@ export type HandTrackingState = {
   status: HandDriverStatus;
 };
 
-let state: HandTrackingState = { enabled: false, status: { state: "idle" } };
+// Seed from the persisted choice so the toggle survives a reload. Hydration is
+// idempotent and no-ops without localStorage, so it is safe at module scope
+// (same pattern as sound/studio-sfx). The default is OFF, and only an explicit
+// user choice is ever written, so this never opens the camera on its own.
+hydrateHudSettings();
+
+let state: HandTrackingState = {
+  enabled: getHudSettings().handCursorEnabled,
+  status: { state: "idle" },
+};
 
 const subscribers = new Set<() => void>();
 
@@ -38,10 +48,13 @@ export function subscribeHandTracking(cb: () => void): () => void {
   };
 }
 
-/** Sets the toggle slice. No-op (and no emit) when unchanged. */
+/** Sets the toggle slice and remembers it. No-op (and no emit) when unchanged.
+ *  Every toggle path — ⌘⇧H, the floating button, the settings surface — lands
+ *  here, so persistence lives here rather than at any one call site. */
 export function setHandEnabled(enabled: boolean): void {
   if (state.enabled === enabled) return;
   state = { ...state, enabled };
+  setHandCursorEnabled(enabled);
   emit();
 }
 

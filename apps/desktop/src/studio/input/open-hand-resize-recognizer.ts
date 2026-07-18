@@ -32,6 +32,7 @@
  * with synthetic openness streams.
  */
 
+import { clamp } from "./clamp";
 import type { StudioPhaseInput } from "./types";
 
 export type OpenHandResizeSample = {
@@ -81,9 +82,6 @@ export type OpenHandResizeRecognizer = {
   push(sample: OpenHandResizeSample): void;
   reset(): void;
 };
-
-const clamp = (v: number, lo: number, hi: number): number =>
-  v < lo ? lo : v > hi ? hi : v;
 
 /**
  * Creates an open-hand resize recognizer. `onEvent` receives a targetless

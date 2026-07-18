@@ -58,7 +58,7 @@ describe("open-hand resize recognizer", () => {
     const events = run([
       { t: 0, openness: 1.8, engaged: true },
       { t: armMs + 1, openness: 1.8, engaged: true }, // arm, baseline 1.8
-      // Move within the deadband (0.15): target stays 1, no further emit.
+      // Move within the deadband (0.12): target stays 1, no further emit.
       { t: armMs + 40, openness: 1.9, engaged: true },
     ]);
     expect(events).toEqual([
