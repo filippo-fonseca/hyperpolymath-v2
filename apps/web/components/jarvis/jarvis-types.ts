@@ -22,6 +22,13 @@ export interface ScrollbackUserTurn {
   id: string;
   text: string;
   createdAt: Date;
+  /**
+   * Issue #283 — monotonic client insertion sequence (see transcript-order.ts).
+   * Stamped when the turn first enters the client so a millisecond timestamp
+   * tie between two same-kind turns keeps a stable, true-creation order. Never
+   * persisted — display-ordering only.
+   */
+  seq?: number;
 }
 
 /**
@@ -47,6 +54,13 @@ export interface ScrollbackAssistantTurn {
   errorMessage?: string;
   /** Phase 5.1 D-A2 / JARVIS-19: inline clarification question, if this turn asked one. */
   clarification?: ScrollbackClarification;
+  /**
+   * Issue #283 — monotonic client insertion sequence (see transcript-order.ts).
+   * Stamped when the turn first enters the client so a millisecond timestamp
+   * tie between two same-kind turns keeps a stable, true-creation order. Never
+   * persisted — display-ordering only.
+   */
+  seq?: number;
 }
 
 export interface ScrollbackAction {
