@@ -15,8 +15,8 @@
  *     that begins over a widget's corner resize zone instead drives its resize
  *     handle (pinch-corner-resize), reusing the same pinch machine to resize;
  *   - a `tap`/`expand` intent (quick-pinch / palm-click) becomes a synthesized
- *     click at the reticle — summoning a drawer tile, restoring a stowed chip,
- *     or pressing a button (routed into a promoted child webview over IPC).
+ *     click at the reticle — summoning a drawer tile or pressing a button
+ *     (routed into a promoted child webview over IPC).
  *
  * We never edit the widget store or WidgetWindow: the windows are a read-only DOM
  * we hit-test against and dispatch into. Coordinates come from the frozen cursor

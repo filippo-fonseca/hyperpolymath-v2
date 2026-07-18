@@ -26,7 +26,6 @@ import {
   focusWidget,
   moveWidget,
   resizeWidget,
-  stowWidget,
   type WidgetWindowInstance,
 } from "../state/widget-windows";
 import { WIDGET_CATALOG } from "./catalog";
@@ -260,10 +259,14 @@ export function WidgetWindow({
     onElement(item.id, element);
   };
 
-  const stowFromHeader = (): void => {
+  // The header's minus control (and the drag-to-drawer / edge-burst gestures)
+  // no longer "stow" to a chip — the drawer is a static preset bank now
+  // (#307). They close the widget instead; the drawer glow just signals "drop
+  // here to close".
+  const closeFromHeader = (): void => {
     onDrawerTargetChange(item.id, true);
     requestAnimationFrame(() => {
-      stowWidget(item.id);
+      closeWidget(item.id);
       onDrawerTargetChange(item.id, false);
     });
   };
@@ -383,8 +386,9 @@ export function WidgetWindow({
     const dy = (event.clientY - session.startClientY) / stage.height;
     if (session.mode === "move") {
       const rawCenter = { x: session.start.x + dx, y: session.start.y + dy };
-      // Past the burst threshold → pop and stow (drawer-stow lifecycle: a chip
-      // appears in the drawer, restorable). The pop plays, then we stow.
+      // Past the burst threshold → pop and CLOSE the widget (#307: the drawer
+      // is a static preset bank, so there is no chip to return to). The pop
+      // plays, then we close.
       if (!cancelled && stowable && shouldBurst(widgetEdgeProgress(rawCenter))) {
         setBurst((current) =>
           current
@@ -395,7 +399,7 @@ export function WidgetWindow({
                 popping: true,
               },
         );
-        window.setTimeout(() => stowWidget(item.id), reduced ? 0 : 220);
+        window.setTimeout(() => closeWidget(item.id), reduced ? 0 : 220);
         return;
       }
       // Released before the threshold → deflate the bubble and let the widget
@@ -407,7 +411,7 @@ export function WidgetWindow({
         y: rawCenter.y,
       });
       if (!cancelled && stowable && widgetReachesDrawer(clampedRect, stage)) {
-        stowWidget(item.id);
+        closeWidget(item.id);
         return;
       }
       moveWidget(item.id, rawCenter.x, rawCenter.y);
@@ -567,10 +571,10 @@ export function WidgetWindow({
           {stowable ? (
             <button
               type="button"
-              aria-label="Stow window"
-              title="Stow"
+              aria-label="Close window"
+              title="Close"
               onPointerDown={(event) => event.stopPropagation()}
-              onClick={stowFromHeader}
+              onClick={closeFromHeader}
               className="studio-chrome-btn"
               style={chromeButtonStyle}
             >

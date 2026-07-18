@@ -147,7 +147,7 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
           ))}
         </AnimatePresence>
         <AnimatePresence>
-          {windows.filter((item) => !item.stowed).map((item) => (
+          {windows.map((item) => (
             <WidgetWindow
               key={item.id}
               window={item}
@@ -162,7 +162,6 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         targeted={drawerTargetId !== null}
-        windows={windows}
       />
 
       {/* TEMP: replaced by desktop-react-shell at merge. */}
