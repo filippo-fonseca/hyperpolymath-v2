@@ -112,7 +112,6 @@ function stageDropPosition(
 function summon(kind: WidgetKind, at?: { x: number; y: number }): void {
   const entry = WIDGET_CATALOG[kind];
   summonWidget(kind, {}, at, {
-    defaultSize: entry.defaultSize,
     singleton: entry.singleton,
   });
   playDropPop();
