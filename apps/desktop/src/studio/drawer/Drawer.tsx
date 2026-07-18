@@ -14,11 +14,7 @@ import {
   type DimensionalIconProps,
 } from "@hyperpolymath/ui-icons";
 
-import {
-  restoreWidget,
-  summonWidget,
-  type WidgetWindowInstance,
-} from "../state/widget-windows";
+import { summonWidget } from "../state/widget-windows";
 import {
   HUD_EASE_OUT_QUART,
   SD_ACCENT,
@@ -36,12 +32,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   targeted?: boolean;
-  windows: readonly WidgetWindowInstance[];
 }
 
 interface DrawerDrag {
   kind: WidgetKind;
-  stowedId?: string;
   pointerId: number;
   startX: number;
   startY: number;
@@ -122,29 +116,6 @@ function summon(kind: WidgetKind, at?: { x: number; y: number }): void {
     singleton: entry.singleton,
   });
   playDropPop();
-}
-
-function propsHint(item: WidgetWindowInstance): string {
-  const url = item.props.url;
-  if (typeof url === "string" && url) {
-    try {
-      return new URL(url).hostname.replace(/^www\./, "");
-    } catch {
-      return url;
-    }
-  }
-  for (const key of ["city", "title", "name", "query"]) {
-    const value = item.props[key];
-    if (typeof value === "string" && value) return value;
-  }
-  return "Saved";
-}
-
-function isStowable(item: WidgetWindowInstance): boolean {
-  const entry = WIDGET_CATALOG[item.kind] as
-    | ({ permanent?: boolean } & object)
-    | undefined;
-  return item.kind !== ("orb" as WidgetKind) && entry?.permanent !== true;
 }
 
 /**
@@ -301,7 +272,6 @@ export function Drawer({
   open,
   onOpenChange,
   targeted = false,
-  windows,
 }: Props): React.ReactElement {
   const reduced = useReducedMotion();
   const rootRef = useRef<HTMLElement | null>(null);
@@ -404,12 +374,10 @@ export function Drawer({
   const startDrag = (
     kind: WidgetKind,
     event: PointerEvent<HTMLButtonElement>,
-    stowedId?: string,
   ): void => {
     if (event.button !== 0) return;
     dragRef.current = {
       kind,
-      stowedId,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
@@ -459,15 +427,8 @@ export function Drawer({
       ? undefined
       : stageDropPosition(event.clientX, event.clientY);
     if (!at) return;
-    if (current.stowedId) {
-      restoreWidget(current.stowedId, at);
-      playDropPop();
-    } else {
-      summon(current.kind, at);
-    }
+    summon(current.kind, at);
   };
-
-  const stowedWidgets = windows.filter((item) => item.stowed && isStowable(item));
 
   return (
     <motion.aside
@@ -574,76 +535,6 @@ export function Drawer({
             }}
           >
             <DrawerStyleBlock />
-            {/* Stowed section on top — chip-restore for stowed widgets. */}
-            {stowedWidgets.length ? (
-              <section aria-labelledby="picker-stowed-label" style={{ flexShrink: 0, marginBottom: 12 }}>
-                <h2 id="picker-stowed-label" style={{ ...microLabelStyle, margin: "0 2px 8px" }}>
-                  Stowed
-                </h2>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                  {stowedWidgets.map((item) => {
-                    const entry = WIDGET_CATALOG[item.kind];
-                    return (
-                      <motion.button
-                        key={item.id}
-                        type="button"
-                        layoutId={`widget:${item.id}`}
-                        aria-label={`${entry.label}, ${propsHint(item)}`}
-                        title={`Restore ${entry.label}`}
-                        onPointerDown={(event) => startDrag(item.kind, event, item.id)}
-                        onPointerMove={moveDrag}
-                        onPointerUp={endDrag}
-                        onPointerCancel={(event) => endDrag(event, true)}
-                        onClick={() => {
-                          if (suppressClick.current) {
-                            suppressClick.current = false;
-                            return;
-                          }
-                          restoreWidget(item.id);
-                          playDropPop();
-                        }}
-                        className={TILE_CLASS}
-                        style={{
-                          display: "flex",
-                          minWidth: 108,
-                          // §10's chip is a 4px-radius, ~18px-tall label. This
-                          // one is also a hand-cursor drag target, and a jittery
-                          // synthetic pointer cannot land on 18px — so it takes
-                          // chip GRAMMAR (box surface, line hairline, dull ink,
-                          // sans at the tiny step) at the tile radius and the
-                          // hand-sized height it already had.
-                          height: 40,
-                          alignItems: "center",
-                          gap: 8,
-                          padding: "0 11px",
-                          borderRadius: SD_RADIUS.tile,
-                          color: SD_INK.dull,
-                          cursor: "grab",
-                          fontFamily: SD_FONT.sans,
-                          touchAction: "none",
-                        }}
-                      >
-                        <KindIcon kind={item.kind} size={24} />
-                        <span
-                          style={{
-                            minWidth: 0,
-                            overflow: "hidden",
-                            fontSize: 12,
-                            fontWeight: 500,
-                            letterSpacing: "0.025em",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {propsHint(item)}
-                        </span>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
-
             <h2 id="picker-catalog-label" style={{ ...microLabelStyle, margin: "0 2px 9px" }}>
               Widgets
             </h2>

@@ -10,8 +10,6 @@ import {
   moveWidget,
   rehydrateWidgetWindows,
   resizeWidget,
-  restoreWidget,
-  stowWidget,
   summonWidget,
 } from "./widget-windows";
 
@@ -111,83 +109,42 @@ describe("widget window store", () => {
       kind: "weather",
       x: 0.7,
       y: 0.6,
-      stowed: false,
     });
   });
 
-  it("stows and restores a widget without losing props or geometry", () => {
+  it("closing a widget removes the instance and persists the removal", () => {
     const id = summonWidget(
       "browser",
       { url: "https://example.com/path" },
       { x: 0.4, y: 0.4 },
     );
+    expect(getWidgetWindows()).toHaveLength(1);
 
-    stowWidget(id);
-    expect(getWidgetWindows()[0]).toMatchObject({
-      id,
-      stowed: true,
-      props: { url: "https://example.com/path" },
-      x: 0.4,
-      y: 0.4,
-    });
-
-    restoreWidget(id, { x: 0.7, y: 0.6 });
-    expect(getWidgetWindows()[0]).toMatchObject({
-      id,
-      stowed: false,
-      props: { url: "https://example.com/path" },
-      x: 0.7,
-      y: 0.6,
-    });
+    closeWidget(id);
+    expect(getWidgetWindows()).toHaveLength(0);
+    expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? "[]")).toHaveLength(0);
   });
 
-  it("defaults legacy persisted records to not stowed", () => {
-    const id = summonWidget("browser");
-    const legacy = JSON.parse(storage.getItem(STORAGE_KEY) ?? "[]") as Array<
+  it("drops legacy persisted stowed records on rehydrate (#307)", () => {
+    const kept = summonWidget("browser", {}, { x: 0.4, y: 0.4 });
+    const dropped = summonWidget("weather", {}, { x: 0.6, y: 0.6 });
+    const persisted = JSON.parse(storage.getItem(STORAGE_KEY) ?? "[]") as Array<
       Record<string, unknown>
     >;
-    delete legacy[0]?.stowed;
-    storage.setItem(STORAGE_KEY, JSON.stringify(legacy));
+    // Simulate a pre-#307 persisted layout where one instance was stowed.
+    for (const record of persisted) {
+      if (record.id === dropped) record.stowed = true;
+    }
+    storage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 
     __resetWidgetWindows();
     rehydrateWidgetWindows();
 
-    expect(getWidgetWindows()).toMatchObject([{ id, stowed: false }]);
-  });
-
-  it("restores an existing stowed singleton when summoned again", () => {
-    const id = summonWidget("weather", { city: "Paris" }, undefined, {
-      singleton: true,
-    });
-    stowWidget(id);
-
-    expect(
-      summonWidget("weather", {}, { x: 0.65, y: 0.55 }, { singleton: true }),
-    ).toBe(id);
-    expect(getWidgetWindows()).toMatchObject([
-      {
-        id,
-        stowed: false,
-        props: { city: "Paris" },
-        x: 0.65,
-        y: 0.55,
-      },
-    ]);
-  });
-
-  it("restores without a position at an available spawn point", () => {
-    const first = summonWidget("browser", {}, { x: 0.5, y: 0.48 });
-    const second = summonWidget("browser", {}, { x: 0.22, y: 0.22 });
-    stowWidget(second);
-
-    restoreWidget(second);
-
-    const restored = getWidgetWindows().find((item) => item.id === second)!;
-    expect(restored.stowed).toBe(false);
-    expect({ x: restored.x, y: restored.y }).not.toEqual({ x: 0.22, y: 0.22 });
-    expect(restored.z).toBeGreaterThan(
-      getWidgetWindows().find((item) => item.id === first)!.z,
-    );
+    const ids = getWidgetWindows().map((item) => item.id);
+    expect(ids).toContain(kept);
+    expect(ids).not.toContain(dropped);
+    // The surviving record no longer carries a stowed field.
+    expect(getWidgetWindows()[0]).not.toHaveProperty("stowed");
   });
 
   it("refuses every close path for permanent widgets", () => {

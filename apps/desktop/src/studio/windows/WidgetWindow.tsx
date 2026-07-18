@@ -26,11 +26,11 @@ import {
   focusWidget,
   moveWidget,
   resizeWidget,
-  stowWidget,
   type WidgetWindowInstance,
 } from "../state/widget-windows";
 import { WIDGET_CATALOG } from "./catalog";
-import { clampToStage } from "./layout";
+import { clampToStage, type WindowRect } from "./layout";
+import { shouldStowInDrawer, type EdgeRect } from "./drawer-stow";
 import { BurstBubble } from "./BurstBubble";
 import { playDropPop } from "../sound/studio-sfx";
 import {
@@ -155,21 +155,29 @@ const chromeButtonStyle: CSSProperties = {
   cursor: "pointer",
 };
 
-function isNearDrawer(clientX: number, clientY: number): boolean {
+/**
+ * Whether the widget's CLAMPED on-screen geometry would drop it into the closet
+ * drawer. `rect` is the normalized, stage-clamped window geometry the drag is
+ * applying; `stage` is the stage's client rect. We translate the widget into
+ * client pixels and hand both rects to the pure hit test — the RAW pointer
+ * never enters this decision, which is what fixes the large-widget mis-stow
+ * (#305): the clamp keeps a big widget's body on-stage while the synthetic hand
+ * pointer sails on into the drawer zone.
+ */
+function widgetReachesDrawer(
+  rect: WindowRect,
+  stage: { left: number; top: number; width: number; height: number },
+): boolean {
   const drawer = document.querySelector<HTMLElement>("[data-widget-drawer]");
-  const rect = drawer?.getBoundingClientRect();
-  // Position-agnostic proximity: a widget dragged within a generous margin of
-  // the drawer's box counts as "near" so the drawer highlights and a release
-  // stows it. The drawer now lives on the right edge, so this is intentionally
-  // symmetric rather than the old bottom-only test.
-  const MARGIN = 84;
-  return Boolean(
-    rect &&
-      clientX >= rect.left - MARGIN &&
-      clientX <= rect.right + MARGIN &&
-      clientY >= rect.top - MARGIN &&
-      clientY <= rect.bottom + MARGIN,
-  );
+  const drawerRect = drawer?.getBoundingClientRect();
+  if (!drawerRect) return false;
+  const widgetRect: EdgeRect = {
+    left: stage.left + (rect.x - rect.w / 2) * stage.width,
+    right: stage.left + (rect.x + rect.w / 2) * stage.width,
+    top: stage.top + (rect.y - rect.h / 2) * stage.height,
+    bottom: stage.top + (rect.y + rect.h / 2) * stage.height,
+  };
+  return shouldStowInDrawer(widgetRect, drawerRect);
 }
 
 export function WidgetWindow({
@@ -251,10 +259,14 @@ export function WidgetWindow({
     onElement(item.id, element);
   };
 
-  const stowFromHeader = (): void => {
+  // The header's minus control (and the drag-to-drawer / edge-burst gestures)
+  // no longer "stow" to a chip — the drawer is a static preset bank now
+  // (#307). They close the widget instead; the drawer glow just signals "drop
+  // here to close".
+  const closeFromHeader = (): void => {
     onDrawerTargetChange(item.id, true);
     requestAnimationFrame(() => {
-      stowWidget(item.id);
+      closeWidget(item.id);
       onDrawerTargetChange(item.id, false);
     });
   };
@@ -338,9 +350,11 @@ export function WidgetWindow({
       );
       // While the burst affordance is armed, the near-border pull owns the
       // gesture; don't also flag the drawer as a target (avoids a double cue).
+      // The drawer lights up only when the widget's own clamped geometry would
+      // actually stow — never merely because the pointer wandered into it.
       onDrawerTargetChange(
         item.id,
-        progress <= 0 && isNearDrawer(event.clientX, event.clientY),
+        progress <= 0 && widgetReachesDrawer(rect, stage),
       );
     }
   };
@@ -372,8 +386,9 @@ export function WidgetWindow({
     const dy = (event.clientY - session.startClientY) / stage.height;
     if (session.mode === "move") {
       const rawCenter = { x: session.start.x + dx, y: session.start.y + dy };
-      // Past the burst threshold → pop and stow (drawer-stow lifecycle: a chip
-      // appears in the drawer, restorable). The pop plays, then we stow.
+      // Past the burst threshold → pop and CLOSE the widget (#307: the drawer
+      // is a static preset bank, so there is no chip to return to). The pop
+      // plays, then we close.
       if (!cancelled && stowable && shouldBurst(widgetEdgeProgress(rawCenter))) {
         setBurst((current) =>
           current
@@ -384,14 +399,19 @@ export function WidgetWindow({
                 popping: true,
               },
         );
-        window.setTimeout(() => stowWidget(item.id), reduced ? 0 : 220);
+        window.setTimeout(() => closeWidget(item.id), reduced ? 0 : 220);
         return;
       }
       // Released before the threshold → deflate the bubble and let the widget
       // spring back to its clamped, safe position (the forgiving escape).
       setBurst(null);
-      if (!cancelled && stowable && isNearDrawer(event.clientX, event.clientY)) {
-        stowWidget(item.id);
+      const clampedRect = clampToStage({
+        ...session.start,
+        x: rawCenter.x,
+        y: rawCenter.y,
+      });
+      if (!cancelled && stowable && widgetReachesDrawer(clampedRect, stage)) {
+        closeWidget(item.id);
         return;
       }
       moveWidget(item.id, rawCenter.x, rawCenter.y);
@@ -551,10 +571,10 @@ export function WidgetWindow({
           {stowable ? (
             <button
               type="button"
-              aria-label="Stow window"
-              title="Stow"
+              aria-label="Close window"
+              title="Close"
               onPointerDown={(event) => event.stopPropagation()}
-              onClick={stowFromHeader}
+              onClick={closeFromHeader}
               className="studio-chrome-btn"
               style={chromeButtonStyle}
             >
