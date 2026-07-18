@@ -34,6 +34,13 @@ export class VadSilenceDetector {
   private buffer: Float32Array[];
   private totalSamples: number;
   private silentSamples: number;
+  // Whether ANY pushed chunk has crossed the RMS speech threshold since the
+  // last start(). Tracked on every chunk (including during the leading grace
+  // window) so a quick "hi" in the first 700ms still counts as speech. Drives
+  // the silence gate: a turn where this stayed false is pure silence and must
+  // never reach STT (Groq/Whisper hallucinate text — "I'm going to go to the
+  // next one." — from a silent WAV, which then fires a bogus agent turn).
+  private speechDetected: boolean;
   // Anchor for both the leading grace window and the hard cap. Set on the FIRST
   // pushed chunk, NOT in start(), so that the ~tens-of-ms-to-~100ms cpal input
   // device open latency does NOT eat into the grace. In standby the mic is now
@@ -49,6 +56,7 @@ export class VadSilenceDetector {
     this.buffer = [];
     this.totalSamples = 0;
     this.silentSamples = 0;
+    this.speechDetected = false;
     this.firstChunkMs = -1;
   }
 
@@ -57,8 +65,20 @@ export class VadSilenceDetector {
     this.buffer = [];
     this.totalSamples = 0;
     this.silentSamples = 0;
+    this.speechDetected = false;
     // Defer the clock anchor to the first pushed chunk (see firstChunkMs).
     this.firstChunkMs = -1;
+  }
+
+  /**
+   * True once any pushed chunk has crossed the RMS speech threshold this turn.
+   * The silence gate (capture.ts) reads this before POSTing to STT: a turn that
+   * never saw speech is dropped without an STT call, and the 10s no-speech
+   * watchdog uses it to auto-disengage a mic that was engaged but never spoken
+   * into.
+   */
+  hasSpeech(): boolean {
+    return this.speechDetected;
   }
 
   /**
@@ -77,6 +97,13 @@ export class VadSilenceDetector {
     }
 
     const elapsedMs = Date.now() - this.firstChunkMs;
+
+    // Speech-energy tracking runs on EVERY chunk (grace window included) so the
+    // silence gate and no-speech watchdog see speech that arrives before the
+    // grace period ends. Independent of the silence-end logic below.
+    if (computeRms(chunk) >= this.params.rmsThreshold) {
+      this.speechDetected = true;
+    }
 
     // Hard cap — unconditional stop.
     if (elapsedMs >= this.params.hardCapMs) {
