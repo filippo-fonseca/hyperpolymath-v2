@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { getHandTrackingState, setHandEnabled } from "../input/hand-status";
 import {
   __resetWidgetWindows,
   getWidgetWindows,
@@ -8,6 +9,7 @@ import { routeStudioAction } from "./studio-action-router";
 
 beforeEach(() => {
   __resetWidgetWindows();
+  setHandEnabled(false);
 });
 
 describe("routeStudioAction", () => {
@@ -47,6 +49,17 @@ describe("routeStudioAction", () => {
   it("ignores unknown widget kinds", () => {
     routeStudioAction({ action: "open", kind: "unknown" });
     expect(getWidgetWindows()).toHaveLength(0);
+  });
+
+  it("flips hand tracking on and off, spawning no widgets", () => {
+    expect(getHandTrackingState().enabled).toBe(false);
+
+    routeStudioAction({ action: "hand", enabled: true });
+    expect(getHandTrackingState().enabled).toBe(true);
+    expect(getWidgetWindows()).toHaveLength(0);
+
+    routeStudioAction({ action: "hand", enabled: false });
+    expect(getHandTrackingState().enabled).toBe(false);
   });
 
   it("pushes focus props onto an already-open singleton instead of duplicating it", () => {

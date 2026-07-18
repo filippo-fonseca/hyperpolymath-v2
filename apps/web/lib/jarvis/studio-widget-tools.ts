@@ -31,8 +31,15 @@ export const StudioCloseWidgetInputSchema = z
     message: "provide kind or set all=true",
   });
 
+export const StudioSetHandCursorInputSchema = z
+  .object({
+    enabled: z.boolean(),
+  })
+  .strict();
+
 export type StudioOpenWidgetInput = z.infer<typeof StudioOpenWidgetInputSchema>;
 export type StudioCloseWidgetInput = z.infer<typeof StudioCloseWidgetInputSchema>;
+export type StudioSetHandCursorInput = z.infer<typeof StudioSetHandCursorInputSchema>;
 
 function inputSchema(schema: z.ZodType): Record<string, unknown> {
   const json = z.toJSONSchema(schema, {
@@ -54,5 +61,11 @@ export const STUDIO_WIDGET_TOOL_DEFINITIONS = [
     description:
       "Close widgets in the Studio canvas. Pass kind to close widgets of that kind, or all=true to clear the canvas. This request is safe when Studio is not connected.",
     input_schema: inputSchema(StudioCloseWidgetInputSchema),
+  },
+  {
+    name: "studio_set_hand_cursor" as const,
+    description:
+      "Engage or disengage the Studio HUD's hand-tracking cursor (the webcam gesture pointer). Set enabled=true to ENGAGE it and enabled=false to DISENGAGE it. Use this whenever the user asks by voice to turn the hand cursor / hand tracking / gesture pointer on or off, in any phrasing (e.g. 'engage the hand cursor', 'turn on hand tracking', 'enable the gesture pointer', 'disengage the hand cursor', 'turn off the hand cursor', 'stop tracking my hand', 'kill the gesture pointer'). Engaging it turns on the webcam (the camera LED will light up) so the driver can track the hand, so confirm the change naturally in speech, in butler register (e.g. 'Hand cursor engaged, sir.' / 'Hand cursor disengaged, sir.'). The toggle persists like the ⌘⇧H hotkey and the HUD button. This request is safe when Studio is not connected; report that the request was sent, not that the camera is guaranteed on.",
+    input_schema: inputSchema(StudioSetHandCursorInputSchema),
   },
 ] as const;

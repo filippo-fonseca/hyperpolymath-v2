@@ -65,6 +65,15 @@ const StudioActionSchema = z.discriminatedUnion("action", [
       userId: z.string().min(1).optional(),
     })
     .strict(),
+  // Hand-cursor toggle — flips the Studio HUD's webcam gesture pointer on/off.
+  // Carries no widget kind; the desktop router maps enabled -> setHandEnabled.
+  z
+    .object({
+      action: z.literal("hand"),
+      enabled: z.boolean(),
+      userId: z.string().min(1).optional(),
+    })
+    .strict(),
 ]);
 
 type PhysicalEventName = (typeof PHYSICAL_EVENTS)[number];

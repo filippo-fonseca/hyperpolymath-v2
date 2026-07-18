@@ -71,6 +71,12 @@ export type PhysicalStudioAction =
       kind: PhysicalStudioWidgetKind | "all" | string;
       target?: "kind" | "id";
       userId?: string;
+    }
+  | {
+      // Toggle the Studio hand-tracking cursor. Carries no widget kind.
+      action: "hand";
+      enabled: boolean;
+      userId?: string;
     };
 
 export interface PhysicalJarvisResponseEnd {
