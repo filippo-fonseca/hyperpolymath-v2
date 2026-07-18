@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { APIUserAbortError } from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import { areas, captures, jarvisPersonalityConfig, projects, tasks, users } from "@/lib/db/schema";
 import { getAnthropicClient, JARVIS_MODEL } from "@/lib/jarvis/anthropic-client";
@@ -1210,8 +1211,20 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       },
     });
   } catch (err) {
-    const errName = (err as { name?: string })?.name;
-    if (errName !== "AbortError") {
+    // A deliberate turn abort (barge-in / stop button → upstream.abort()) is a
+    // CLEAN end, not an error. The Anthropic SDK throws APIUserAbortError, whose
+    // `.name` is "Error" (not "AbortError"), so a name check alone misses it and
+    // would persist a spurious status:"error" turn ("Request was aborted.") that
+    // renders as a failed bubble on reload. Detect the abort robustly: the turn's
+    // abort signal being set covers any error shape thrown mid-abort, and the
+    // instanceof catches the SDK's own abort error. On abort we skip onError
+    // entirely — the single response-end has already been emitted by the caller's
+    // abort listener, so the live turn ends cleanly with no ghost error turn.
+    const aborted =
+      upstream.signal.aborted ||
+      err instanceof APIUserAbortError ||
+      (err as { name?: string })?.name === "AbortError";
+    if (!aborted) {
       const message = (err as { message?: string })?.message ?? String(err);
       opts.onError(message);
 
