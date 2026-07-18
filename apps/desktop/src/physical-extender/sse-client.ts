@@ -88,6 +88,11 @@ export type StudioActionPayload =
       action: "close";
       kind: string;
       target?: "kind" | "id";
+    }
+  | {
+      // Toggle the hand-tracking cursor. Carries no widget kind.
+      action: "hand";
+      enabled: boolean;
     };
 
 interface JarvisResponseEndPayload {
@@ -399,7 +404,11 @@ export async function startPhysicalExtenderListener(): Promise<void> {
     const payload = parseJson<StudioActionPayload>(messageEvent.data);
     if (!payload) return;
     // eslint-disable-next-line no-console
-    console.log(`[studio] action=${payload.action} kind=${payload.kind}`);
+    console.log(
+      `[studio] action=${payload.action} ${
+        payload.action === "hand" ? `enabled=${payload.enabled}` : `kind=${payload.kind}`
+      }`
+    );
     for (const fn of studioActionListeners) fn(payload);
   });
 

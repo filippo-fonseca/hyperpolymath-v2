@@ -1,6 +1,7 @@
 import type { StudioActionPayload } from "@/physical-extender/sse-client";
 
 import { noteBrowserUrl } from "./browser-router";
+import { setHandEnabled } from "../input/hand-status";
 import {
   closeAll,
   closeWidget,
@@ -16,6 +17,14 @@ function isWidgetKind(value: string): value is WidgetKind {
 }
 
 export function routeStudioAction(payload: StudioActionPayload): void {
+  // Voice-commanded hand cursor. setHandEnabled owns persistence + the driver
+  // lifecycle (same chokepoint as ⌘⇧H and the HUD button), so a no-op when the
+  // toggle already matches is handled there.
+  if (payload.action === "hand") {
+    setHandEnabled(payload.enabled);
+    return;
+  }
+
   if (payload.action === "open") {
     if (!isWidgetKind(payload.kind)) return;
     const entry = WIDGET_CATALOG[payload.kind];
