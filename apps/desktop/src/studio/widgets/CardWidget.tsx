@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import { SD_FONT, SD_INK, SD_SURFACES } from "../tokens";
 import type { WidgetContentProps } from "../windows/catalog";
 
 function textProp(
@@ -22,19 +22,22 @@ export default function CardWidget({ props }: WidgetContentProps): React.ReactEl
         display: "flex",
         height: "100%",
         flexDirection: "column",
-        padding: 16,
-        background: `linear-gradient(145deg, color-mix(in srgb, ${STUDIO_COLORS.accent} 8%, transparent), transparent 55%)`,
+        // Card v2 body padding. The 14px radius, the frame border and the inset
+        // hairline all belong to WidgetWindow — a second bordered card in here
+        // would be the border-in-border nesting DS §9 bans.
+        padding: 20,
+        background: SD_SURFACES.box,
       }}
     >
       <header
         style={{
           paddingBottom: 10,
-          borderBottom: `1px solid ${STUDIO_COLORS.rule}`,
-          color: STUDIO_COLORS.accent,
-          fontFamily: STUDIO_MONO,
-          fontSize: 10,
+          borderBottom: `1px solid ${SD_SURFACES.line}`,
+          color: SD_INK.faint,
+          fontFamily: SD_FONT.mono,
+          fontSize: 11,
           fontWeight: 600,
-          letterSpacing: "0.16em",
+          letterSpacing: "0.1em",
           textTransform: "uppercase",
         }}
       >
@@ -44,7 +47,8 @@ export default function CardWidget({ props }: WidgetContentProps): React.ReactEl
         style={{
           margin: "12px 0 0",
           overflowY: "auto",
-          color: STUDIO_COLORS.text,
+          color: SD_INK.dull,
+          fontFamily: SD_FONT.sans,
           fontSize: 13,
           lineHeight: 1.55,
           whiteSpace: "pre-wrap",

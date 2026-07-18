@@ -10,8 +10,16 @@ import {
 } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, RotateCw } from "lucide-react";
+import { BrowserIcon } from "@hyperpolymath/ui-icons";
 
-import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import {
+  SD_ACCENT,
+  SD_DURATION,
+  SD_FONT,
+  SD_INK,
+  SD_RADIUS,
+  SD_SURFACES,
+} from "../tokens";
 import { studioFetch } from "../studio-fetch";
 import type { WidgetContentProps } from "../windows/catalog";
 import {
@@ -45,18 +53,94 @@ async function loadPreview(url: string): Promise<LinkPreviewResult> {
   return response.json() as Promise<LinkPreviewResult>;
 }
 
-const iconButtonStyle: CSSProperties = {
-  display: "grid",
-  width: 24,
-  height: 24,
-  flexShrink: 0,
-  placeItems: "center",
-  padding: 0,
-  border: 0,
-  color: STUDIO_COLORS.muted,
-  background: "transparent",
-  cursor: "pointer",
-};
+/* ── The sd register, hand-rolled ──────────────────────────────────────────
+ * No Tailwind in apps/desktop, so the contract's class strings cannot be
+ * emitted here; inline style is the sanctioned route (DS §23). These read the
+ * tokens.ts TS mirror rather than `var(--sd-*)` because only the debug harness
+ * imports sd-tokens.css today — index.html is unit 3's fence — so a `var()`
+ * lookup would resolve to nothing in the shipped Tauri app. Same values.
+ */
+
+const hairline = `1px solid ${SD_SURFACES.line}`;
+
+/** Chrome verbs take quiet lucide glyphs on ink; the accent is never chrome. */
+function IconButton({
+  label,
+  href,
+  onClick,
+  children,
+}: {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}): React.ReactElement {
+  const [hovered, setHovered] = useState(false);
+  const style: CSSProperties = {
+    display: "grid",
+    width: 24,
+    height: 24,
+    flexShrink: 0,
+    placeItems: "center",
+    padding: 0,
+    border: 0,
+    borderRadius: SD_RADIUS.chrome,
+    color: hovered ? SD_INK.base : SD_INK.faint,
+    background: hovered ? SD_SURFACES.hover : "transparent",
+    cursor: "pointer",
+    transition: `color ${SD_DURATION.micro}ms ease-out, background-color ${SD_DURATION.micro}ms ease-out`,
+  };
+  const handlers = {
+    onPointerEnter: () => setHovered(true),
+    onPointerLeave: () => setHovered(false),
+  };
+  return href ? (
+    <a href={href} target="_blank" rel="noreferrer" aria-label={label} style={style} {...handlers}>
+      {children}
+    </a>
+  ) : (
+    <button type="button" aria-label={label} onClick={onClick} style={style} {...handlers}>
+      {children}
+    </button>
+  );
+}
+
+/** The URL bar: a recessed --sd-input field carrying a mono URL, with the
+ *  focus ring the register specifies (accent ring struck against the canvas). */
+function UrlField({
+  draft,
+  onDraftChange,
+}: {
+  draft: string;
+  onDraftChange: (value: string) => void;
+}): React.ReactElement {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      value={draft}
+      onChange={(event) => onDraftChange(event.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      aria-label="Browser URL"
+      spellCheck={false}
+      style={{
+        minWidth: 0,
+        height: 24,
+        flex: 1,
+        padding: "0 8px",
+        borderRadius: SD_RADIUS.chrome,
+        border: hairline,
+        outline: 0,
+        color: focused ? SD_INK.base : SD_INK.dull,
+        background: SD_SURFACES.input,
+        fontFamily: SD_FONT.mono,
+        fontSize: 11,
+        boxShadow: focused ? `0 0 0 2px ${SD_SURFACES.box}, 0 0 0 3px ${SD_ACCENT}` : "none",
+        transition: `color ${SD_DURATION.micro}ms ease-out, box-shadow ${SD_DURATION.micro}ms ease-out`,
+      }}
+    />
+  );
+}
 
 function Bookmark({ url }: { url: string }): React.ReactElement {
   const { data, isLoading } = useQuery({
@@ -65,7 +149,7 @@ function Bookmark({ url }: { url: string }): React.ReactElement {
     staleTime: 24 * 60 * 60 * 1000,
   });
   if (isLoading) {
-    return <div style={{ height: "100%", background: STUDIO_COLORS.surface }} />;
+    return <div style={{ height: "100%", background: SD_SURFACES.app }} />;
   }
   return (
     <div
@@ -80,28 +164,64 @@ function Bookmark({ url }: { url: string }): React.ReactElement {
         textAlign: "center",
       }}
     >
+      {/* The site's own mark when it has one; otherwise the feature's
+          dimensional icon at the §9 empty-state weight (40px, 40% opacity). */}
       {data?.faviconUrl ? (
         <img src={data.faviconUrl} alt="" style={{ width: 32, height: 32 }} />
-      ) : null}
+      ) : (
+        <span style={{ opacity: 0.4, lineHeight: 0 }}>
+          <BrowserIcon size={40} />
+        </span>
+      )}
       <div>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
+        <p
+          style={{
+            margin: 0,
+            color: SD_INK.base,
+            fontSize: 15,
+            fontWeight: 600,
+            letterSpacing: "-0.01em",
+          }}
+        >
           {data?.title ?? linkDomain(url)}
         </p>
         {data?.description ? (
-          <p style={{ margin: "6px 0 0", color: STUDIO_COLORS.muted, fontSize: 12 }}>
+          <p style={{ margin: "6px 0 0", color: SD_INK.dull, fontSize: 12 }}>
             {data.description}
           </p>
         ) : null}
       </div>
-      <a
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        style={{ color: STUDIO_COLORS.accent, fontFamily: STUDIO_MONO, fontSize: 10 }}
-      >
-        Open externally <ExternalLink size={11} aria-hidden />
-      </a>
+      {/* ActionLink grammar (DS §9): uppercase micro-label, ink-faint → ink.
+          It was accent-coloured, and the accent is not chrome (§2). */}
+      <ExternalActionLink url={url} />
     </div>
+  );
+}
+
+function ExternalActionLink({ url }: { url: string }): React.ReactElement {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        color: hovered ? SD_INK.base : SD_INK.faint,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        textDecoration: "none",
+        transition: `color ${SD_DURATION.micro}ms ease-out`,
+      }}
+    >
+      Open externally <ExternalLink size={11} strokeWidth={1.75} aria-hidden />
+    </a>
   );
 }
 
@@ -251,7 +371,21 @@ export default function BrowserWidget({
   }
 
   return (
-    <div style={{ display: "flex", height: "100%", minHeight: 0, flexDirection: "column" }}>
+    <div
+      style={{
+        display: "flex",
+        height: "100%",
+        minHeight: 0,
+        flexDirection: "column",
+        color: SD_INK.base,
+        // Inner content goes SOLID (sealed D1): the glass belongs to the window
+        // chrome around this, not to the content inside it.
+        background: SD_SURFACES.box,
+        fontFamily: SD_FONT.sans,
+      }}
+    >
+      {/* Chrome bar: the URL sits in a recessed --sd-input field and the bar is
+          separated from the page by a hairline, not a border. */}
       <form
         onSubmit={navigate}
         style={{
@@ -260,47 +394,30 @@ export default function BrowserWidget({
           flexShrink: 0,
           alignItems: "center",
           gap: 4,
-          padding: "0 8px",
-          borderBottom: `1px solid ${STUDIO_COLORS.rule}`,
+          padding: "0 6px",
+          borderBottom: hairline,
         }}
       >
-        <input
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          aria-label="Browser URL"
-          style={{
-            minWidth: 0,
-            flex: 1,
-            border: 0,
-            outline: 0,
-            color: STUDIO_COLORS.muted,
-            background: "transparent",
-            fontFamily: STUDIO_MONO,
-            fontSize: 10,
-          }}
-        />
-        <button
-          type="button"
-          aria-label="Reload"
-          onClick={() => setReloadKey((value) => value + 1)}
-          style={iconButtonStyle}
-        >
-          <RotateCw size={12} aria-hidden />
-        </button>
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Open externally"
-          style={iconButtonStyle}
-        >
-          <ExternalLink size={12} aria-hidden />
-        </a>
+        <UrlField draft={draft} onDraftChange={setDraft} />
+        <IconButton label="Reload" onClick={() => setReloadKey((value) => value + 1)}>
+          <RotateCw size={12} strokeWidth={1.75} aria-hidden />
+        </IconButton>
+        <IconButton label="Open externally" href={url}>
+          <ExternalLink size={12} strokeWidth={1.75} aria-hidden />
+        </IconButton>
       </form>
       <div
         ref={setContentElement}
         data-native-webview-content={id}
-        style={{ position: "relative", minHeight: 0, flex: 1, overflow: "hidden" }}
+        // The page region is recessed one rung below the chrome bar, so the bar
+        // reads as chrome over content rather than a stripe on one flat plane.
+        style={{
+          position: "relative",
+          minHeight: 0,
+          flex: 1,
+          overflow: "hidden",
+          background: SD_SURFACES.app,
+        }}
       >
         {fallback ? (
           <Bookmark url={url} />
@@ -316,13 +433,13 @@ export default function BrowserWidget({
             // webview is not in this document. This marker (present only while
             // active) lets pointer-synth pick the native path.
             {...(nativeStatus === "active" ? { "data-native-webview-active": id } : {})}
-            style={{ position: "absolute", inset: 0, background: STUDIO_COLORS.surface }}
+            style={{ position: "absolute", inset: 0, background: SD_SURFACES.app }}
           />
         ) : (
           <>
             {!loaded ? (
               <div
-                style={{ position: "absolute", inset: 0, background: STUDIO_COLORS.surface }}
+                style={{ position: "absolute", inset: 0, background: SD_SURFACES.app }}
               />
             ) : null}
             <iframe

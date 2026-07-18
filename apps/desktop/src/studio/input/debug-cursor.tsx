@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { SD_ACCENT, SD_FONT, SD_FUNCTIONAL } from "../tokens";
 import { useStudioCursor, useStudioHover, useStudioIntent } from "./react";
 
 export function StudioDebugCursor(): React.JSX.Element {
@@ -31,7 +32,10 @@ export function StudioDebugCursor(): React.JSX.Element {
   }, []);
 
   const size = 12;
-  const color = hover ? "#4ade80" : "#38bdf8"; // green when hovering, cyan idle
+  // Sage when a hover target resolves, accent idle. It was #4ade80 / #38bdf8 —
+  // two off-ladder hexes. Dev-only, but the sd inks read the same at a glance
+  // and cost nothing.
+  const color = hover ? SD_FUNCTIONAL.sage : SD_ACCENT;
 
   return (
     <div
@@ -64,7 +68,10 @@ export function StudioDebugCursor(): React.JSX.Element {
             left: size + 6,
             top: -2,
             whiteSpace: "nowrap",
-            font: "10px/1 ui-monospace, monospace",
+            fontFamily: SD_FONT.mono,
+            fontSize: 11,
+            lineHeight: 1,
+            letterSpacing: "0.08em",
             color,
             textShadow: "0 1px 2px rgba(0,0,0,0.6)",
           }}

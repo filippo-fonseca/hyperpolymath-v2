@@ -17,7 +17,15 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { Hand } from "lucide-react";
 
-import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import {
+  SD_ACCENT,
+  SD_DURATION,
+  SD_FONT,
+  SD_FUNCTIONAL,
+  SD_INK,
+  SD_RADIUS,
+  SD_SURFACES,
+} from "../tokens";
 import { StudioHandReticle } from "../cursor/StudioHandReticle";
 import { ConfirmGesturePanel } from "../cursor/ConfirmGesturePanel";
 import { StudioInputProvider, useStudioInput } from "./react";
@@ -114,6 +122,21 @@ function HandTrackingInner(): React.JSX.Element {
   const errored = status.state === "error";
   const active = enabled && !errored;
 
+  /**
+   * The lamp. §2 gives a functional ink exactly one shape to take — a 5-6px
+   * status dot — and this toggle is the app's only camera-state readout, so it
+   * is worth spending precisely: sage while tracking, coral on error, amber
+   * while enabled but not yet live (loading the model / awaiting permission),
+   * and an empty hairline socket when off.
+   */
+  const dotInk = running
+    ? SD_FUNCTIONAL.sage
+    : errored
+      ? SD_FUNCTIONAL.coral
+      : enabled
+        ? SD_FUNCTIONAL.amber
+        : "transparent";
+
   const buttonStyle: CSSProperties = {
     position: "absolute",
     left: 12,
@@ -123,15 +146,21 @@ function HandTrackingInner(): React.JSX.Element {
     alignItems: "center",
     gap: 7,
     padding: "6px 10px",
-    border: `1px solid ${active ? STUDIO_COLORS.accent : STUDIO_COLORS.rule}`,
-    borderRadius: 8,
-    color: active ? STUDIO_COLORS.accent : STUDIO_COLORS.muted,
-    background: STUDIO_COLORS.surface,
-    fontFamily: STUDIO_MONO,
-    fontSize: 9,
-    letterSpacing: "0.08em",
+    // Chrome stays neutral in every state. It used to take an accent border and
+    // accent ink whenever active, which is an accent ring doing selection duty
+    // (§16) — the dot carries the state instead.
+    border: `1px solid ${SD_SURFACES.line}`,
+    borderRadius: SD_RADIUS.chrome,
+    color: active ? SD_INK.base : SD_INK.faint,
+    background: SD_SURFACES.box,
+    // Mono at its real spec (§3): this label IS a micro-caption, so it earns the
+    // instrument face — it was just two steps too small to read at 9px.
+    fontFamily: SD_FONT.mono,
+    fontSize: 11,
+    letterSpacing: "0.1em",
     textTransform: "uppercase",
     cursor: "pointer",
+    transition: `color ${SD_DURATION.micro}ms ease, border-color ${SD_DURATION.micro}ms ease`,
     pointerEvents: "auto",
   };
 
@@ -155,7 +184,7 @@ function HandTrackingInner(): React.JSX.Element {
           size={13}
           aria-hidden
           style={{
-            color: running ? STUDIO_COLORS.accent : "inherit",
+            color: running ? SD_ACCENT : "inherit",
             opacity: enabled && !running && !errored ? 0.7 : 1,
           }}
         />
@@ -165,16 +194,11 @@ function HandTrackingInner(): React.JSX.Element {
           style={{
             width: 6,
             height: 6,
-            borderRadius: "50%",
-            background: running
-              ? STUDIO_COLORS.accent
-              : errored
-                ? STUDIO_COLORS.danger
-                : enabled
-                  ? STUDIO_COLORS.accent
-                  : "transparent",
-            border: enabled ? "none" : `1px solid ${STUDIO_COLORS.rule}`,
-            boxShadow: running ? `0 0 8px ${STUDIO_COLORS.accent}` : "none",
+            borderRadius: SD_RADIUS.full,
+            background: dotInk,
+            border: enabled ? "none" : `1px solid ${SD_SURFACES.line}`,
+            // The running state used to add an 8px halo. A lit dot is already
+            // the loudest thing on a neutral chip; §16 takes the glow.
           }}
         />
       </button>

@@ -79,7 +79,10 @@ export interface DesktopSettings {
   whatsappBridgeUrl: string;
 }
 
-const DEFAULTS: DesktopSettings = {
+/** The baked-in defaults. Exported so a surface that cannot reach the tauri
+ *  store (the widget debug stage, tests) can still render real values instead
+ *  of blanks. Treat as read-only. */
+export const DEFAULT_SETTINGS: DesktopSettings = {
   ttsEnabled: true,
   ttsVoiceId: DEFAULT_VOICE_ID,
   ttsProvider: "elevenlabs",
@@ -127,17 +130,17 @@ async function getStore(): Promise<Store> {
     _store = await load(STORE_FILE, {
       autoSave: true,
       defaults: {
-        "tts.enabled": DEFAULTS.ttsEnabled,
-        "tts.voiceId": DEFAULTS.ttsVoiceId,
-        "tts.provider": DEFAULTS.ttsProvider,
-        "physicalExtender.enabled": DEFAULTS.physicalExtenderEnabled,
-        "vad.silenceMs": DEFAULTS.vadSilenceMs,
-        "capture.manualMode": DEFAULTS.manualMode,
-        "wake.enabled": DEFAULTS.wakeEnabled,
-        "startup.briefingEnabled": DEFAULTS.startupBriefingEnabled,
-        "startup.openOnStart": DEFAULTS.startupOpenOnStart,
-        "startup.shortcuts": DEFAULTS.startupShortcuts,
-        "whatsapp.bridgeUrl": DEFAULTS.whatsappBridgeUrl,
+        "tts.enabled": DEFAULT_SETTINGS.ttsEnabled,
+        "tts.voiceId": DEFAULT_SETTINGS.ttsVoiceId,
+        "tts.provider": DEFAULT_SETTINGS.ttsProvider,
+        "physicalExtender.enabled": DEFAULT_SETTINGS.physicalExtenderEnabled,
+        "vad.silenceMs": DEFAULT_SETTINGS.vadSilenceMs,
+        "capture.manualMode": DEFAULT_SETTINGS.manualMode,
+        "wake.enabled": DEFAULT_SETTINGS.wakeEnabled,
+        "startup.briefingEnabled": DEFAULT_SETTINGS.startupBriefingEnabled,
+        "startup.openOnStart": DEFAULT_SETTINGS.startupOpenOnStart,
+        "startup.shortcuts": DEFAULT_SETTINGS.startupShortcuts,
+        "whatsapp.bridgeUrl": DEFAULT_SETTINGS.whatsappBridgeUrl,
       },
     });
   }
@@ -185,23 +188,23 @@ export async function loadSettings(): Promise<DesktopSettings> {
   const whatsappBridgeUrl = await store.get<string>("whatsapp.bridgeUrl");
 
   return {
-    ttsEnabled: ttsEnabled ?? DEFAULTS.ttsEnabled,
-    ttsVoiceId: ttsVoiceId ?? DEFAULTS.ttsVoiceId,
-    ttsProvider: ttsProvider ?? DEFAULTS.ttsProvider,
-    physicalExtenderEnabled: physicalExtenderEnabled ?? DEFAULTS.physicalExtenderEnabled,
-    vadSilenceMs: vadSilenceMs ?? DEFAULTS.vadSilenceMs,
-    manualMode: manualMode ?? DEFAULTS.manualMode,
+    ttsEnabled: ttsEnabled ?? DEFAULT_SETTINGS.ttsEnabled,
+    ttsVoiceId: ttsVoiceId ?? DEFAULT_SETTINGS.ttsVoiceId,
+    ttsProvider: ttsProvider ?? DEFAULT_SETTINGS.ttsProvider,
+    physicalExtenderEnabled: physicalExtenderEnabled ?? DEFAULT_SETTINGS.physicalExtenderEnabled,
+    vadSilenceMs: vadSilenceMs ?? DEFAULT_SETTINGS.vadSilenceMs,
+    manualMode: manualMode ?? DEFAULT_SETTINGS.manualMode,
     // Opt-in: only honor a persisted wake.enabled that the user explicitly set
     // (marker present). Anything else — unset, or baked by an old defaults
     // map — resolves to the OFF default. See WAKE_EXPLICIT_KEY.
-    wakeEnabled: wakeExplicit === true ? (wakeEnabled ?? DEFAULTS.wakeEnabled) : DEFAULTS.wakeEnabled,
-    startupBriefingEnabled: startupBriefingEnabled ?? DEFAULTS.startupBriefingEnabled,
+    wakeEnabled: wakeExplicit === true ? (wakeEnabled ?? DEFAULT_SETTINGS.wakeEnabled) : DEFAULT_SETTINGS.wakeEnabled,
+    startupBriefingEnabled: startupBriefingEnabled ?? DEFAULT_SETTINGS.startupBriefingEnabled,
     startupOpenOnStart: sanitizeOpenItems(startupOpenOnStart),
     startupShortcuts: sanitizeShortcuts(startupShortcuts),
     whatsappBridgeUrl:
       typeof whatsappBridgeUrl === "string" && whatsappBridgeUrl.trim()
         ? whatsappBridgeUrl.trim()
-        : DEFAULTS.whatsappBridgeUrl,
+        : DEFAULT_SETTINGS.whatsappBridgeUrl,
   };
 }
 

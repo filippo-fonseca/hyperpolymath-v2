@@ -1,11 +1,7 @@
-export type { DimensionalIconProps } from "./shared";
-export { FolderIcon, type FolderIconVariant } from "./FolderIcon";
-export { PageIcon, type PageIconKind } from "./PageIcon";
-export { AreaIcon } from "./AreaIcon";
-export { TaskIcon } from "./TaskIcon";
-export { HabitIcon } from "./HabitIcon";
-export { CaptureIcon } from "./CaptureIcon";
-export { TrainingIcon } from "./TrainingIcon";
-export { InsightIcon } from "./InsightIcon";
-export { WidgetIcon } from "./WidgetIcon";
-export { JarvisIcon } from "./JarvisIcon";
+/**
+ * Re-export shim. The dimensional icon family and its shared recipe now live in
+ * `@hyperpolymath/ui-icons` so apps/web and apps/desktop compose the SAME recipe
+ * (UI-CONTRACT §13 bans forking it). This file keeps every existing
+ * `@/components/ui/icons` import in the web app working untouched.
+ */
+export * from "@hyperpolymath/ui-icons";

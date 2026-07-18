@@ -120,9 +120,30 @@ export type StudioIntentInput =
 
 // ---- Hover providers (THE seam for 3D + DOM) -------------------------------
 
+/**
+ * The hover-provider priority ladder. Higher wins; the hub sorts descending and
+ * takes the first non-null resolve, so ties resolve by sort stability — which is
+ * exactly the bug this exists to prevent. Register with one of these rather than
+ * a bare literal.
+ *
+ * The doc previously suggested "3D raycast = 10, DOM rects = 0" while
+ * pointer-synth's DOM hit-test registered at 10 (the raycast slot). Harmless
+ * only because no raycast provider has landed yet. These constants describe the
+ * ladder as it is actually built, and leave `raycast` a slot of its own above
+ * both DOM providers.
+ */
+export const HOVER_PRIORITY = {
+  /** 3D scene raycast. Reserved — no provider registers here yet. */
+  raycast: 20,
+  /** Live DOM hit-test under the reticle (pointer-synth). Beats the rect registry. */
+  domHitTest: 10,
+  /** The hub's built-in stage-rect registry. The floor: a fallback for everything. */
+  domRects: 0,
+} as const;
+
 export type HoverProvider = {
   id: string;
-  /** Higher wins. Suggested: 3D raycast = 10, DOM rects = 0. */
+  /** Higher wins. Use a {@link HOVER_PRIORITY} rung, not a bare literal. */
   priority: number;
   /**
    * Return the hovered target id, or null. Called on every cursor move

@@ -33,7 +33,7 @@ import {
   useStudioInput,
   useStudioPhase,
 } from "./react";
-import type { HoverProvider, StudioCursor } from "./types";
+import { HOVER_PRIORITY, type HoverProvider, type StudioCursor } from "./types";
 import { STUDIO_COLORS } from "../tokens";
 import {
   getWidgetWindows,
@@ -235,7 +235,8 @@ export function useHandPointerSynthesis(): void {
   const provider: HoverProvider = useMemo(
     () => ({
       id: "desktop-dom-hit",
-      priority: 10,
+      // Above the hub's built-in rect registry, below a future 3D raycast.
+      priority: HOVER_PRIORITY.domHitTest,
       resolve: (cursor: StudioCursor): string | null => {
         if (!cursor.active) return null;
         const rect = stageRect();

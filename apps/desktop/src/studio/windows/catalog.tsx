@@ -1,15 +1,15 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import {
-  Camera,
-  CircleDotDashed,
-  Clock,
-  CloudSun,
-  FileText,
-  Globe2,
-  MessageCircle,
-  Newspaper,
-  SlidersHorizontal,
-} from "lucide-react";
+  BrowserIcon,
+  CameraIcon,
+  ClockIcon,
+  JarvisIcon,
+  NewsIcon,
+  PageIcon,
+  SettingsIcon,
+  WeatherIcon,
+  WhatsappIcon,
+} from "@hyperpolymath/ui-icons";
 
 export type WidgetKind =
   | "browser"
@@ -29,6 +29,15 @@ export interface WidgetContentProps {
 
 export interface WidgetCatalogEntry {
   label: string;
+  /**
+   * The widget's motif, from the shared dimensional-icon family (sealed D3 —
+   * desktop's nouns, authored on the same recipe as the web's, never forked).
+   *
+   * These are 80x80 modelled SVGs, not line glyphs: they read from 24px and are
+   * meant to be seen at 40-48px. Do NOT render one below 16px — the body
+   * gradient and drop shadow collapse into a smudge, which is exactly the
+   * failure the lucide glyphs they replaced did not have. Give them room.
+   */
   icon: ComponentType<{ size?: number; className?: string }>;
   component: LazyExoticComponent<ComponentType<WidgetContentProps>>;
   defaultSize: { w: number; h: number };
@@ -39,61 +48,61 @@ export interface WidgetCatalogEntry {
 export const WIDGET_CATALOG: Record<WidgetKind, WidgetCatalogEntry> = {
   browser: {
     label: "Browser",
-    icon: Globe2,
+    icon: BrowserIcon,
     component: lazy(() => import("../widgets/BrowserWidget")),
     defaultSize: { w: 0.42, h: 0.5 },
   },
   whatsapp: {
     label: "WhatsApp",
-    icon: MessageCircle,
+    icon: WhatsappIcon,
     component: lazy(() => import("../widgets/WhatsAppWidget")),
     defaultSize: { w: 0.3, h: 0.46 },
     singleton: true,
   },
   weather: {
     label: "Weather",
-    icon: CloudSun,
+    icon: WeatherIcon,
     component: lazy(() => import("../widgets/WeatherWidget")),
     defaultSize: { w: 0.28, h: 0.31 },
     singleton: true,
   },
   news: {
     label: "News",
-    icon: Newspaper,
+    icon: NewsIcon,
     component: lazy(() => import("../widgets/NewsWidget")),
     defaultSize: { w: 0.34, h: 0.46 },
     singleton: true,
   },
   card: {
     label: "Card",
-    icon: FileText,
+    icon: PageIcon,
     component: lazy(() => import("../widgets/CardWidget")),
     defaultSize: { w: 0.27, h: 0.25 },
   },
   clock: {
     label: "Clock",
-    icon: Clock,
+    icon: ClockIcon,
     component: lazy(() => import("../widgets/ClockWidget")),
     defaultSize: { w: 0.26, h: 0.2 },
     singleton: true,
   },
   camera: {
     label: "Camera",
-    icon: Camera,
+    icon: CameraIcon,
     component: lazy(() => import("../widgets/CameraWidget")),
     defaultSize: { w: 0.3, h: 0.34 },
     singleton: true,
   },
   settings: {
     label: "Settings",
-    icon: SlidersHorizontal,
+    icon: SettingsIcon,
     component: lazy(() => import("../widgets/SettingsWidget")),
     defaultSize: { w: 0.3, h: 0.42 },
     singleton: true,
   },
   orb: {
     label: "JARVIS Orb",
-    icon: CircleDotDashed,
+    icon: JarvisIcon,
     component: lazy(() => import("../widgets/OrbWidget")),
     defaultSize: { w: 0.25, h: 0.4 },
     singleton: true,
