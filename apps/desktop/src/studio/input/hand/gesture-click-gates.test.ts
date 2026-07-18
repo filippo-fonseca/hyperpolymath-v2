@@ -4,7 +4,6 @@ import {
   createScrollCurlGate,
   computeIndexTipDepth,
   DEFAULT_HAND_GESTURE,
-  resizeEngageAllowed,
   type Pt,
 } from "./gesture-core";
 import { createFourFingerScrollRecognizer } from "../four-finger-scroll-recognizer";
@@ -107,32 +106,7 @@ describe("createScrollCurlGate (Job 1a)", () => {
   });
 });
 
-// ── (b) resize disarms during a click candidate ──────────────────────────────
-
-describe("resizeEngageAllowed (Job 1b)", () => {
-  it("allows resize for an open, non-pinching hand with no click in flight", () => {
-    expect(resizeEngageAllowed(true, false, false, 1.85, CLOSED)).toBe(true);
-  });
-
-  it("disarms while a palm-click candidate is in flight (closing)", () => {
-    expect(resizeEngageAllowed(true, false, true, 1.85, CLOSED)).toBe(false);
-  });
-
-  it("disarms once the hand curls into the closed band (pre-fist ramp)", () => {
-    expect(resizeEngageAllowed(true, false, false, CLOSED - 0.1, CLOSED)).toBe(false);
-  });
-
-  it("stays disarmed while pinching or not an open pose", () => {
-    expect(resizeEngageAllowed(true, true, false, 1.85, CLOSED)).toBe(false);
-    expect(resizeEngageAllowed(false, false, false, 1.85, CLOSED)).toBe(false);
-  });
-
-  it("does NOT fight a deliberate shrink (still well above the closed band)", () => {
-    expect(resizeEngageAllowed(true, false, false, 1.5, CLOSED)).toBe(true);
-  });
-});
-
-// ── (c) the index-jab is retired as a click source ───────────────────────────
+// ── (b) the index-jab is retired as a click source ───────────────────────────
 
 describe("index-jab tap retirement (Job 1c)", () => {
   it("keeps computeIndexTipDepth as a shared geometry helper", () => {

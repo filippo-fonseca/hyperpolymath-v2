@@ -77,15 +77,15 @@ export function nativeWebviewLocalPoint(
 
 /**
  * The window CustomEvent the hand pointer-synth fires at the START and END of a
- * widget-scoped grab (move) or resize, so an interested listener (U3) can react
- * to "the user is hand-manipulating this widget" without coupling to the input
+ * widget-scoped grab (a move drag), so an interested listener (U3) can react to
+ * "the user is hand-manipulating this widget" without coupling to the input
  * internals. Fire-and-forget; `detail.active` is true on start, false on end.
  */
 export const GESTURE_INTERACTION_EVENT = "studio:gesture-interaction";
 
 export type GestureInteractionDetail = {
   widgetId: string;
-  kind: "resize" | "drag";
+  kind: "drag";
   active: boolean;
 };
 

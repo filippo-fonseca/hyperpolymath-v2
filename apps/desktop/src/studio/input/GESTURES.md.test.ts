@@ -25,7 +25,6 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_FIST_SCROLL } from "./fist-scroll-recognizer";
 import { DEFAULT_FOUR_FINGER_SCROLL } from "./four-finger-scroll-recognizer";
 import { DEFAULT_INDEX_SCROLL } from "./index-scroll-recognizer";
-import { DEFAULT_OPEN_HAND_RESIZE } from "./open-hand-resize-recognizer";
 import { DEFAULT_OPEN_PALM_HALT } from "./open-palm-halt-recognizer";
 import { DEFAULT_PALM_CLICK } from "./palm-click-recognizer";
 import { DEFAULT_PINCH_BLOOM } from "./pinch-bloom-recognizer";
@@ -44,7 +43,6 @@ const LIVE: Record<string, Record<string, unknown>> = {
   DEFAULT_FOUR_FINGER_SCROLL,
   DEFAULT_HAND_GESTURE,
   DEFAULT_INDEX_SCROLL,
-  DEFAULT_OPEN_HAND_RESIZE,
   DEFAULT_OPEN_PALM_HALT,
   DEFAULT_PALM_CLICK,
   DEFAULT_PINCH_BLOOM,
@@ -94,7 +92,7 @@ describe("GESTURES.md is not drifting from the constants", () => {
   it("parses a threshold table at all (guards the parser itself)", () => {
     // If a formatting change silently stops matching rows, every other check in
     // this file would vacuously pass. Pin a floor instead.
-    expect(ROWS.length).toBeGreaterThanOrEqual(45);
+    expect(ROWS.length).toBeGreaterThanOrEqual(55);
   });
 
   it("cites only known config objects", () => {
@@ -189,7 +187,7 @@ describe("GESTURES.md invariants the prose asserts", () => {
   });
 
   it("a held pinch survives a dropout no longer than the cursor does", () => {
-    // Documented in §14: kept ≤ lostGraceMs so the cursor never de-activates first.
+    // Documented in §13: kept ≤ lostGraceMs so the cursor never de-activates first.
     expect(DEFAULT_HAND_GESTURE.pinchLostGraceMs).toBeLessThanOrEqual(
       DEFAULT_HAND_GESTURE.lostGraceMs,
     );
@@ -211,9 +209,8 @@ describe("GESTURES.md invariants the prose asserts", () => {
   });
 
   it("documents the known conflicts rather than quietly carrying them", () => {
-    // Conflict #1 is deliberately unfixed (a feel call). It must stay NAMED: an
-    // undocumented known bug is how it gets rediscovered from scratch.
-    expect(DOC).toContain("#1 — four-finger-scroll ∧ open-hand-resize");
+    // Known conflicts must stay NAMED: an undocumented known bug is how it gets
+    // rediscovered from scratch.
     expect(DOC).toContain("Known conflicts");
   });
 });

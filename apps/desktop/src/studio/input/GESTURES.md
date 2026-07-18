@@ -24,9 +24,9 @@ order. Order matters where one recognizer reads another's state from the same
 frame (noted per gesture):
 
 ```
-pinchDolly → pinchDrag → pinchHold → halt → pinchBloom → openHandResize →
-indexScroll → fistScroll → fourFingerScroll → palmClick → thumbConfirm →
-swipe → collapse → cursor
+pinchDolly → pinchDrag → pinchHold → halt → pinchBloom → indexScroll →
+fistScroll → fourFingerScroll → palmClick → thumbConfirm → swipe →
+collapse → cursor
 ```
 
 Recognizers before the `pinchActive` early-return run on every frame, so their
@@ -90,7 +90,7 @@ from the smoothed palm centroid) + dolly (dz from pinch-dolly).
 **Scope.** camera/world.
 
 **Arbitration.** Rides `pinchActive`. Survives a MediaPipe dropout up to
-`pinchLostGraceMs` without re-anchoring (see §14).
+`pinchLostGraceMs` without re-anchoring (see §13).
 
 **Tests.** `pinch-drag-recognizer.test.ts` (7).
 
@@ -113,7 +113,7 @@ release. A release before the threshold emits nothing.
 | `holdMs` | `350` | The recognizer's own default. NOT the live value: gesture-core always passes `grabHoldMs`. Kept in sync so the module doesn't misreport | `pinch-hold-recognizer.ts:DEFAULT_PINCH_HOLD` |
 
 **Effect.** `grabStart` (hub injects the hovered widget) / `grabMove{nx, ny}` /
-`grabEnd` → widget drag, drag-into-zone, or corner-resize via pointer-synth.
+`grabEnd` → widget drag or drag-into-zone via pointer-synth.
 
 **Scope.** widget (hub upgrades the targetless start from hover).
 
@@ -158,9 +158,6 @@ Any non-open frame fully resets (a flicker restarts from zero). Nothing starves
 it and it starves nothing — which is why the push + dwell + stillness gates carry
 the whole burden of not firing by accident.
 
-**Known conflict (#3).** Halting over a widget also emits a no-op resize
-lifecycle — see the arbitration map.
-
 **Tests.** `open-palm-halt-recognizer.test.ts` (13).
 
 ---
@@ -191,52 +188,13 @@ navigation only" falls out for free.
 
 **Arbitration.** Mutually exclusive with pinch-hold via the shared `grabHoldMs`.
 Emits the SAME bare `tap` as palm-click — nothing downstream can tell the two
-apart (see the arbitration map, ambiguity #4).
+apart (see the arbitration map, ambiguity #2).
 
 **Tests.** `pinch-bloom-recognizer.test.ts` (6).
 
 ---
 
-## 6. open-hand-resize — grow / shrink a widget
-
-**Trigger.** Hold an open hand over a widget for a beat, then open or close it
-further. The widget follows.
-
-**Phases.** ARM (candidate held `armMs` continuously; captures the openness
-BASELINE, emits `resizeStart` + `resizeMove{scale: 1}`) → APPLY (`resizeMove`
-per frame, rate-limited) → DISARM (`resizeEnd`, only if a start actually fired).
-
-**Thresholds.**
-
-| Constant | Value | Gates | Source |
-|---|---|---|---|
-| `armMs` | `220` | Candidate dwell before resize arms. The main anti-twitch guard: a hand that flashes open for a frame never arms | `open-hand-resize-recognizer.ts:DEFAULT_OPEN_HAND_RESIZE` |
-| `deadband` | `0.12` | \|openness − baseline\| below this emits scale 1.0, so a steady hand never drifts the widget | `open-hand-resize-recognizer.ts:DEFAULT_OPEN_HAND_RESIZE` |
-| `gain` | `0.9` | Multiplier on the past-deadband openness delta | `open-hand-resize-recognizer.ts:DEFAULT_OPEN_HAND_RESIZE` |
-| `minScale` | `0.4` | Lower clamp on the emitted scale | `open-hand-resize-recognizer.ts:DEFAULT_OPEN_HAND_RESIZE` |
-| `maxScale` | `2.5` | Upper clamp — one gesture can't fling a widget past a sane range | `open-hand-resize-recognizer.ts:DEFAULT_OPEN_HAND_RESIZE` |
-| `maxScaleStepPerMs` | `0.01` | Rate limit, so the applied size eases rather than snaps | `open-hand-resize-recognizer.ts:DEFAULT_OPEN_HAND_RESIZE` |
-| `emitEpsilon` | `0.003` | Skip emitting below this change (frame-rate quiet) | `open-hand-resize-recognizer.ts:DEFAULT_OPEN_HAND_RESIZE` |
-
-**Effect.** `resizeStart` / `resizeMove{scale}` (CUMULATIVE from the baseline, not
-incremental) / `resizeEnd`.
-
-**Scope.** widget via hover.
-
-**Arbitration.** `resizeEngageAllowed` (gesture-core) requires open pose, not
-pinching, no palm-click candidate in flight, and openness at/above the closed
-band. It reads palm-click's state from the PREVIOUS frame (resize is pushed
-before palmClick), which is fine for a multi-frame candidate.
-
-**Known conflict (#1) — this is the live one.** Four-finger-scroll and resize can
-be armed and emitting simultaneously, on the same widget, from the same curl. See
-the arbitration map.
-
-**Tests.** `open-hand-resize-recognizer.test.ts` (9).
-
----
-
-## 7. index-scroll — fingertip scroll (demoted)
+## 6. index-scroll — fingertip scroll (demoted)
 
 **Trigger.** Point at a surface and flick your fingertip up or down.
 
@@ -265,7 +223,7 @@ contends.
 
 ---
 
-## 8. fist-scroll — fist-drag scroll (PRIMARY scroll)
+## 7. fist-scroll — fist-drag scroll (PRIMARY scroll)
 
 **Trigger.** Make a fist and drag it up or down.
 
@@ -293,14 +251,14 @@ scrolls content DOWN.
 swipe, collapse, and palm-click. Latching (not per-frame re-classification) is
 what stops a scroll flickering into a swipe mid-drag.
 
-**Known asymmetry (#2).** `fistScrolling` is `mode === "scroll"` ONLY, so a
+**Known asymmetry (#1).** `fistScrolling` is `mode === "scroll"` ONLY, so a
 `swipe`-latched fist starves nothing. See the arbitration map.
 
 **Tests.** `fist-scroll-recognizer.test.ts` (8).
 
 ---
 
-## 9. four-finger-scroll — beckon scroll
+## 8. four-finger-scroll — beckon scroll
 
 **Trigger.** Palm to the camera, curl and uncurl your four fingers together, like
 beckoning. Curl scrolls down, uncurl scrolls up.
@@ -334,15 +292,12 @@ a click's ~600ms round trip is far shorter than the 250ms sustain plus the trave
 so a close-open click yields ZERO scroll deltas. This is a fix for a conflict that
 already bit once, and it is the model the others should follow.
 
-**Known conflict (#1).** It is NOT separated from **open-hand-resize**, which
-shares the same openness scalar. See the arbitration map.
-
 **Tests.** `four-finger-scroll-recognizer.test.ts` (9), plus the gate in
 `hand/gesture-click-gates.test.ts`.
 
 ---
 
-## 10. palm-click — close-then-open (SECONDARY click)
+## 9. palm-click — close-then-open (SECONDARY click)
 
 **Trigger.** Close your hand into a fist and open it again, quickly.
 
@@ -373,14 +328,14 @@ already collapsed must not also click on release), and on `fistScrolling`. `clos
 requires BOTH `pose === "fist"` AND the openness scalar below its threshold —
 belt-and-suspenders, so a partial curl never reads as a click.
 
-**Known asymmetry (#2).** Palm-click is NOT gated on `swipeFired`, though collapse
+**Known asymmetry (#1).** Palm-click is NOT gated on `swipeFired`, though collapse
 is. See the arbitration map.
 
 **Tests.** `palm-click-recognizer.test.ts` (18).
 
 ---
 
-## 11. thumb-confirm — 👍 / 👎
+## 10. thumb-confirm — 👍 / 👎
 
 **Trigger.** A sustained thumbs-up approves a pending send; thumbs-down cancels.
 
@@ -412,7 +367,7 @@ hand and a sent message.
 
 ---
 
-## 12. swipe — navigation
+## 11. swipe — navigation
 
 **Trigger.** Make a fist and move it sideways. (Mouse driver: Shift+drag.)
 
@@ -436,14 +391,14 @@ the current view; nothing about the gesture is undone by releasing.
 
 **Arbitration.** `engaged = pose === "fist" && !fistScrolling`. Starved by
 fist-scroll's `scroll` mode. Fires `swipeFired`, which gates collapse — but NOT
-palm-click (#2). Shared with the mouse driver, so thresholds stay consistent
+palm-click (#1). Shared with the mouse driver, so thresholds stay consistent
 across input sources.
 
 **Tests.** `swipe-recognizer.test.ts` (11).
 
 ---
 
-## 13. collapse — stow
+## 12. collapse — stow
 
 **Trigger.** Make a fist and hold it still.
 
@@ -463,7 +418,7 @@ recognizer module.
 
 **Arbitration.** Requires `pose === "fist" && fistStart !== null && !swipeFired &&
 !collapseFired && !fistScrolling`. The most heavily gated gesture in the set —
-and the reference for what palm-click's gating is missing (#2). `collapseFired`
+and the reference for what palm-click's gating is missing (#1). `collapseFired`
 in turn gates palm-click, so one fist can't both collapse and click; that works
 because palm-click's `cancelMs` (700) outlasts this `holdMs` (500).
 
@@ -471,7 +426,7 @@ because palm-click's `cancelMs` (700) outlasts this `holdMs` (500).
 
 ---
 
-## 14. Shared classification (not a gesture)
+## 13. Shared classification (not a gesture)
 
 The pose/pinch machinery every gesture above reads. Retuning anything here moves
 several gestures at once.
@@ -493,7 +448,7 @@ several gestures at once.
 | `pinchAnchorLeadMs` | `110` | How far back the pre-pinch aim is recovered on engage (the Vision-Pro aim-before-onset pattern) | `hand/gesture-core.ts:DEFAULT_HAND_GESTURE` |
 | `cursorHistoryMs` | `220` | Ring-buffer retention for the cursor history both aim leads read | `hand/gesture-core.ts:DEFAULT_HAND_GESTURE` |
 
-**Note on `pinchMinNonPinchFingerRatio` (#5).** It is `1.35`, exactly
+**Note on `pinchMinNonPinchFingerRatio` (#3).** It is `1.35`, exactly
 `curlThreshold`. The pinch-shape guard's decision boundary sits precisely on the
 per-finger hysteresis boundary — zero margin. It works (hysteresis + the 3-frame
 debounce absorb it), but the two numbers being equal is coincidence, not design.
@@ -507,7 +462,7 @@ debounce absorb it), but the two numbers being equal is coincidence, not design.
 1. **Pose is the top-level split.** open/point, pinch, and fist are mutually
    exclusive. Most "conflicts" can't happen because the poses can't coexist.
 2. **`pinchActive` starves nearly everything.** It gates off palm-click,
-   four-finger-scroll, thumb-confirm, resize, index-scroll, fist-scroll, and
+   four-finger-scroll, thumb-confirm, index-scroll, fist-scroll, and
    halt; and it clears the fist anchors outright. Swipe/collapse/cursor are
    skipped by an early return.
 3. **`fistScroll.mode` arbitrates the fist.** The first axis past `activateDist`
@@ -516,7 +471,7 @@ debounce absorb it), but the two numbers being equal is coincidence, not design.
 5. **`collapseFired` gates palm-click**, so one fist can't both collapse and click.
 6. **`swipeFired` gates collapse** — but not palm-click.
 7. **Hover gates the widget-scoped lifecycles.** The hub drops a targetless
-   `grabStart` / `resizeStart` / `scrollStart` and its whole lifecycle over empty
+   `grabStart` / `scrollStart` and its whole lifecycle over empty
    space. "Only over a widget" falls out of one mechanism, not four.
 
 **What is global.** `halt` and `swipe` bypass hover entirely and are the two
@@ -525,54 +480,26 @@ reversible.
 
 ### Known conflicts
 
-**#1 — four-finger-scroll ∧ open-hand-resize. NOT mutually exclusive. Live.**
-Both ride the same smoothed openness scalar, both want an open pose over a widget.
-`resizeEngageAllowed` disarms resize once openness enters the closed band
-(< `palmClickOpennessThreshold` = 1.35), but the four-finger scroll band is
-`[1.35, 1.6)` — entirely ABOVE that floor. So: hold an open palm over a widget for
-`armMs` (220ms; resize arms, baseline captured) → curl to scroll → after
-`scrollCurlSustainMs` (250ms) scroll arms and emits `scrollMove`, while the same
-curl has already carried openness past resize's `deadband` (0.12) and resize emits
-`resizeMove`, shrinking the widget. **Both fire, from one motion, on one target.**
-
-The code comment used to claim the two "separate by dynamics" (scroll's velocity
-deadband vs resize's arm dwell). Nothing enforces that: the dwell completes while
-the hand is still held open, BEFORE the curl starts, so the guard it describes
-never runs. Likelihood: high — any deliberate scroll after a pause.
-
-**Deliberately not fixed.** The defect is real; the fix is a feel call (hard
-interlock, raise resize's floor above the scroll band, or accept the overlap).
-Which gesture should win a curl over a widget is Filippo's decision, not a
-silent retune.
-
-**#2 — palm-click stays armed through a swipe-latched fist. Asymmetric gate.**
+**#1 — palm-click stays armed through a swipe-latched fist. Asymmetric gate.**
 `fistScrolling` is `mode === "scroll"` only, so a `swipe`-latched fist starves
 nothing. Collapse IS gated on `swipeFired`; palm-click is NOT. So a lateral fist
 drag fires `swipeLeft`, and opening the hand within `reopenWindowMs` (600ms) then
 fires `tap` on whatever the reticle now sits over — post-navigation. The asymmetry
 has no stated reason. Open question: bug, or a wanted chord?
 
-**#3 — halt over a widget emits a no-op resize lifecycle.**
-Halt needs an open pose held 1200ms; resize arms on an open pose over a widget in
-220ms. Palm *size* changes during the shove, but openness is palm-normalized, so
-resize sits in its deadband and emits `resizeStart` + `resizeMove{scale: 1}` +
-`resizeEnd`. No geometry changes, but it dispatches `studio:gesture-interaction`
-and paints the accent outline. Certain whenever halt is used over a widget.
-Cosmetic.
-
-**#4 — two gestures, one indistinguishable intent.**
+**#2 — two gestures, one indistinguishable intent.**
 pinch-bloom and palm-click both emit a bare `{type: "tap"}`. Not a misfire, an
 ambiguity: nothing downstream (or in a log) can tell which gesture produced a
-click — which is also what makes #2 hard to debug.
+click — which is also what makes #1 hard to debug.
 
-**#5 — pinch vs fist share a threshold boundary.** See §14.
+**#3 — pinch vs fist share a threshold boundary.** See §13.
 
 ### Well-solved, for reference
 
 - **tap vs grab** — one shared `grabHoldMs`, exact exclusion, no race.
 - **palm-click vs four-finger-scroll** — disjoint openness bands PLUS the 250ms
   sustain gate. This is the fix for a conflict that already bit once, and the
-  pattern #1 wants.
+  pattern to follow when two gestures must share the openness scalar.
 - **collapse then click** — `cancelMs` (700) > collapse `holdMs` (500), so
   `collapseFired` reliably suppresses the click on the same fist.
 
@@ -581,11 +508,11 @@ click — which is also what makes #2 hard to debug.
 ## Shared-signal index
 
 Which recognizers ride which signal. **Two gestures on one signal is where
-conflicts come from** — #1 is visible on sight in the openness row.
+conflicts come from** — the openness row is the one to watch.
 
 | Signal | Computed by | Smoothing | Read by |
 |---|---|---|---|
-| **openness** (mean tip/palm ratio) | `computeHandOpenness` | one-euro `{0.6, 0.008, 1.0}` — deliberately heavier than the cursor, so resize is calm | **open-hand-resize** (delta from baseline), **four-finger-scroll** (velocity), **palm-click** (`closed` test), the **scroll-curl gate** ⚠️ **#1 lives here** |
+| **openness** (mean tip/palm ratio) | `computeHandOpenness` | one-euro `{0.6, 0.008, 1.0}` — deliberately heavier than the cursor, so the scroll stays calm | **four-finger-scroll** (velocity), **palm-click** (`closed` test), the **scroll-curl gate** |
 | **palm centroid** | `computePalmCentroid(Normalized)` | one-euro `{1.0, 0.02, 1.0}` (smoothed for pinch-drag/hold; **raw** for fist-scroll + swipe, so the two agree on the fist's motion) | **pinch-drag** (pan), **pinch-hold** (grabMove), **halt** (drift gate), **fist-scroll** (arbitration), **swipe** |
 | **palm size** (wrist↔middle-MCP) | `computePalmSizeRaw` | one-euro `{1.0, 0.02, 1.0}` | **pinch-dolly** (dolly, ratio to engage baseline), **halt** (push gate, ratio to relaxed baseline) — disjoint: they never run in the same pose |
 | **index fingertip** | `computeCursorTarget` | one-euro `{1.0, 0.02, 1.0}` | **cursor steering**, **index-scroll**. Frozen while fist/pinch — which is exactly why palm-click and pinch-bloom are safe to click with, and why the retired index-jab was not |
@@ -623,7 +550,6 @@ bare literal.
 | pinch-hold | 8 |
 | open-palm-halt | 13 |
 | pinch-bloom | 6 |
-| open-hand-resize | 9 |
 | index-scroll | 9 |
 | fist-scroll | 8 |
 | four-finger-scroll | 9 (+ the curl gate) |

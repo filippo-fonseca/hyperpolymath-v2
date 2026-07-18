@@ -5,6 +5,7 @@ import {
   __resetWidgetWindows,
   getWidgetWindows,
 } from "../state/widget-windows";
+import { currentViewport, widgetSizeFor } from "../windows/size-ladder";
 import { routeStudioAction } from "./studio-action-router";
 
 beforeEach(() => {
@@ -21,12 +22,13 @@ describe("routeStudioAction", () => {
     });
 
     expect(getWidgetWindows()).toHaveLength(1);
+    const size = widgetSizeFor(currentViewport(), "browser");
     expect(getWidgetWindows()[0]).toMatchObject({
       kind: "browser",
       props: { url: "https://example.com" },
-      w: 0.42,
-      h: 0.5,
     });
+    expect(getWidgetWindows()[0]!.w).toBeCloseTo(size.w);
+    expect(getWidgetWindows()[0]!.h).toBeCloseTo(size.h);
   });
 
   it("closes widgets by kind, id, or all", () => {
