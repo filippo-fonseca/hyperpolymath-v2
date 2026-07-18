@@ -105,7 +105,11 @@ export function JarvisListener() {
   // listening. Prevents the bubble from glowing forever after an accidental
   // tap or a Porcupine misfire that the user doesn't follow up on.
   const noSpeechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const NO_SPEECH_TIMEOUT_MS = 8000;
+  // ~10s no-speech auto-disengage (#315). On web this is the PRIMARY silent-
+  // turn guard: Silero VAD never fires onSpeechEnd for pure silence, so a mic
+  // engaged into silence would otherwise sit in "recording" forever. Fires
+  // quietly — ERROR → listening, no message, no TTS.
+  const NO_SPEECH_TIMEOUT_MS = 10_000;
 
   // True while VAD is currently detecting speech (between onSpeechStart and
   // onSpeechEnd). Gates the clap detector: plosive consonants ('t', 'p', 'k',
@@ -154,7 +158,7 @@ export function JarvisListener() {
     prevMicStateRef.current = micState;
   }, [micState]);
 
-  // Start an 8s no-speech timer on every entry into "recording" — that's
+  // Start a ~10s no-speech timer on every entry into "recording" — that's
   // the state press-to-talk, clap, and the follow-up speech-start all land
   // in. If VAD detects speech before the timer fires, onSpeechStart clears
   // it. Otherwise the system ERRORs back to "listening" — bubble fades,
@@ -167,7 +171,7 @@ export function JarvisListener() {
     if (micState === "recording") {
       noSpeechTimeoutRef.current = setTimeout(() => {
         // eslint-disable-next-line no-console
-        console.log("[jarvis] auto-shutoff: no speech within 8s");
+        console.log("[jarvis] auto-shutoff: no speech within 10s");
         dispatch({ type: "ERROR", reason: "no-speech-timeout" });
         noSpeechTimeoutRef.current = null;
       }, NO_SPEECH_TIMEOUT_MS);
@@ -567,6 +571,18 @@ export function JarvisListener() {
           command = stripped;
         }
         // Press-to-talk / clap: transcript IS the command, no preprocessing.
+
+        // Empty-STT gate (#315): Silero fired speech-start/-end (so this wasn't
+        // pure silence), but STT came back empty/whitespace — a cough, a knock,
+        // a mis-detected noise. Send NOTHING. Return to listening quietly; no
+        // agent turn, no bubble. The wake/follow-up branches above already
+        // guard their own empty results; this covers the direct channels.
+        if (!command.trim()) {
+          // eslint-disable-next-line no-console
+          console.log("[jarvis] empty STT on direct channel — no turn sent");
+          dispatch({ type: "ERROR", reason: "no-speech" });
+          return;
+        }
 
         window.dispatchEvent(
           new CustomEvent("jarvis-voice-transcript", {
