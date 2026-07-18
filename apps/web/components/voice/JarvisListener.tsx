@@ -653,6 +653,16 @@ export function JarvisListener() {
   // CRITICAL_PHASE7_CONCERNS #10: gated on pressToTalkActive (voiceEnabled only),
   // NOT on wakeWordActive — this fires EVEN in Discreet mode.
   const onPressToTalk = useCallback(() => {
+    // Barge-in from the shortcut while JARVIS is working or talking: fire the
+    // SAME interrupt as the stop button (jarvis-cancel) so playback halts, the
+    // in-flight server turn is aborted (submit owners abort /api/jarvis), and
+    // any mid-utterance STT is cancelled — THEN open a fresh mic below. This
+    // makes "playback stops and the mic opens" a single keypress, matching the
+    // desktop ⌘⌃J barge-in.
+    const s = micStateRef.current;
+    if (s === "thinking" || s === "speaking") {
+      window.dispatchEvent(new CustomEvent("jarvis-cancel"));
+    }
     // Same anticipatory burst as the wake-word path so the visual response
     // is identical regardless of activation channel.
     activationSourceRef.current = "press-to-talk";
