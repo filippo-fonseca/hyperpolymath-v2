@@ -26,6 +26,7 @@ import {
   type CaptureState,
 } from "@/audio/capture";
 import { onJarvisResponseComplete, ttsPlayer } from "@/jarvis-response";
+import { cancelServerTurns } from "@/physical-extender/cancel-turn";
 import { onJarvisResponseEnd, onJarvisResponseStart } from "@/physical-extender/sse-client";
 import { maybeRunStartupSequence, skipStartupBriefing } from "@/startup/sequencer";
 import { resumeWakeLoopIfIdle, stopWakeLoop } from "@/wake/wake-probe";
@@ -265,6 +266,10 @@ export async function startConversation(): Promise<void> {
   if (state === "speaking" || startupInFlight) {
     skipStartupBriefing(); // no-op if no briefing drain is in flight
     ttsPlayer.stop(); // stop audio + clear the queue (text stays on screen)
+    // Real interrupt: also abort the SERVER turn so it stops streaming/thinking
+    // mid-flight (not just local audio). Fire-and-forget — never gate the mic
+    // open on the network round-trip.
+    void cancelServerTurns();
     clearThinkingGrace();
     clearStateCap();
     clearConvTimer();

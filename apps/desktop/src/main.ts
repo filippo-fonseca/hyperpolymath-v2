@@ -49,6 +49,7 @@ import {
   ttsPlayer,
   type JarvisResponseComplete,
 } from "@/jarvis-response";
+import { cancelServerTurns } from "@/physical-extender/cancel-turn";
 import type { VoiceStatus } from "@/audio/tts-player";
 import { loadSettings } from "@/settings";
 import { describeAction, handleAction, parseAction, routeOpenUrl } from "@/actions/dispatcher";
@@ -561,6 +562,8 @@ function wireStopButton(): void {
   if (!btn) return;
   btn.addEventListener("click", () => {
     ttsPlayer.stop();
+    // Real interrupt: also abort the running server turn, not just local audio.
+    void cancelServerTurns();
     paintTtsState(false);
   });
 }

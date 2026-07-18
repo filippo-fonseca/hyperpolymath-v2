@@ -95,6 +95,18 @@ interface JarvisResponseEndPayload {
   at: number;
 }
 
+/**
+ * A spoken tool-latency acknowledgement for a turn ("I'll fetch the news for
+ * you, sir."). Arrives on its own `jarvis-ack` event — NOT a response-chunk —
+ * so it is spoken through the per-turn TTS queue (serialized before the answer)
+ * but never rendered into the transcript bubble or persisted.
+ */
+interface JarvisAckPayload {
+  turnId: string;
+  text: string;
+  at: number;
+}
+
 // --- Routine progress (produced by the web progress-bus; consumed by the HUD
 // loader). Desktop-local mirror of PhysicalJarvisRoutineProgress — the desktop
 // app does not import web/server code, so every payload is mirrored here. The
@@ -140,6 +152,7 @@ type ResponseChunkListener = (payload: JarvisResponseChunkPayload) => void;
 type ToolCallListener = (payload: JarvisToolCallPayload) => void;
 type StudioActionListener = (payload: StudioActionPayload) => void;
 type ResponseEndListener = (payload: JarvisResponseEndPayload) => void;
+type AckListener = (payload: JarvisAckPayload) => void;
 type RoutineProgressListener = (payload: JarvisRoutineProgressPayload) => void;
 
 const physicalTranscriptListeners = new Set<PhysicalTranscriptListener>();
@@ -148,6 +161,7 @@ const responseChunkListeners = new Set<ResponseChunkListener>();
 const toolCallListeners = new Set<ToolCallListener>();
 const studioActionListeners = new Set<StudioActionListener>();
 const responseEndListeners = new Set<ResponseEndListener>();
+const ackListeners = new Set<AckListener>();
 const routineProgressListeners = new Set<RoutineProgressListener>();
 
 // ── Per-turn repeated-sentence dedupe (desktop-only render/speak guard) ──────
@@ -284,6 +298,16 @@ export function onJarvisResponseEnd(fn: ResponseEndListener): () => void {
   return () => responseEndListeners.delete(fn);
 }
 
+/**
+ * Subscribe to spoken tool-latency acks. Consumed by jarvis-response.ts, which
+ * enqueues the line into the TtsPlayer for its turnId ahead of the answer so it
+ * speaks first. Not routed through the transcript/render path.
+ */
+export function onJarvisAck(fn: AckListener): () => void {
+  ackListeners.add(fn);
+  return () => ackListeners.delete(fn);
+}
+
 export function onJarvisRoutineProgress(fn: RoutineProgressListener): () => void {
   routineProgressListeners.add(fn);
   return () => routineProgressListeners.delete(fn);
@@ -401,6 +425,15 @@ export async function startPhysicalExtenderListener(): Promise<void> {
     // eslint-disable-next-line no-console
     console.log(`[studio] action=${payload.action} kind=${payload.kind}`);
     for (const fn of studioActionListeners) fn(payload);
+  });
+
+  source.addEventListener("jarvis-ack", (e) => {
+    const messageEvent = e as MessageEvent<string>;
+    const payload = parseJson<JarvisAckPayload>(messageEvent.data);
+    if (!payload) return;
+    // eslint-disable-next-line no-console
+    console.log(`[jarvis] ack turnId=${payload.turnId}`);
+    for (const fn of ackListeners) fn(payload);
   });
 
   source.addEventListener("jarvis-response-end", (e) => {
