@@ -616,6 +616,27 @@ export function JarvisConsole({
               );
             }
           },
+          // Phase 5.1 D-P3 (voice) — spoken tool-latency ack. Fires once at the
+          // first tool_use block (voice turns with no preamble text). Route it
+          // straight to TTS via the same per-sentence dispatch, at the next seq
+          // so it speaks BEFORE the answer sentences — never rendered into the
+          // transcript (no setTurns).
+          onAck: (text) => {
+            if (!turnIsVoice) return;
+            const cleaned = stripSystemTags(text).trim();
+            if (!cleaned) return;
+            const seq = ttsSeq++;
+            window.dispatchEvent(
+              new CustomEvent("jarvis-voice-speak-sentence", {
+                detail: {
+                  text: cleaned,
+                  seq,
+                  voiceId: voiceSettings.voiceId,
+                  isVoice: turnIsVoice,
+                },
+              })
+            );
+          },
           // Phase 5.1 D-P3: pre-push a queued placeholder when the route
           // acknowledges a tool_use block (before executor resolves). The
           // onAction handler below upgrades the same toolUseId to done.
