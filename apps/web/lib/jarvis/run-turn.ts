@@ -6,13 +6,16 @@ import {
   createServerExecutor,
   executeStudioCloseWidget,
   executeStudioOpenWidget,
+  executeStudioSetHandCursor,
 } from "@/lib/jarvis/executor";
 import {
   STUDIO_WIDGET_TOOL_DEFINITIONS,
   StudioCloseWidgetInputSchema,
   StudioOpenWidgetInputSchema,
+  StudioSetHandCursorInputSchema,
   type StudioCloseWidgetInput,
   type StudioOpenWidgetInput,
+  type StudioSetHandCursorInput,
 } from "@/lib/jarvis/studio-widget-tools";
 import { detectStudioBackstop } from "@/lib/jarvis/studio-intent-backstop";
 import { ackPhraseForTool } from "@/lib/jarvis/ack-phrases";
@@ -227,6 +230,7 @@ function buildToolValidators(voiceActive: boolean) {
     get_weather: GetWeatherInputSchema,
     studio_open_widget: StudioOpenWidgetInputSchema,
     studio_close_widget: StudioCloseWidgetInputSchema,
+    studio_set_hand_cursor: StudioSetHandCursorInputSchema,
     // Server-side data tools (Gmail read + Guardian news)
     read_gmail: ReadGmailInputSchema,
     get_news: GetNewsInputSchema,
@@ -946,6 +950,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "studio_close_widget") {
               result = await executeStudioCloseWidget(
                 parsed.data as StudioCloseWidgetInput,
+                ctx.userId
+              );
+            } else if (toolName === "studio_set_hand_cursor") {
+              result = await executeStudioSetHandCursor(
+                parsed.data as StudioSetHandCursorInput,
                 ctx.userId
               );
             } else if (toolName === "read_gmail") {
