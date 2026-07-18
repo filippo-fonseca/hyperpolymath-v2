@@ -35,6 +35,15 @@ import { computeRms, VAD_DEFAULTS, VadSilenceDetector } from "@/audio/vad";
 // normal conversational path VAD always ends the turn first.
 const SAFETY_CAP_MS = 20_000;
 
+// No-speech watchdog. If the mic is engaged but no chunk ever crosses the RMS
+// speech threshold for this long, the turn is auto-disengaged QUIETLY — no STT
+// call, no transcript, no butler line, no TTS. Covers the case the VAD's own
+// silence-end can't: manual/extend mode (where silence-end is suppressed) and,
+// belt-and-braces, any path where the mic sits open on pure silence. In normal
+// mode the VAD silence-end (~1.5s) ends a silent turn well before this fires,
+// and the silence gate in finishTurn drops it. ~10s per issue #315.
+const NO_SPEECH_CAP_MS = 10_000;
+
 // Rolling-tail probe geometry (shared with the idle wake listener).
 const PROBE_TAIL_SAMPLES = 16_000 * 5; // transcribe only the last ~5s
 const PROBE_MIN_SAMPLES = 16_000; // need ~1s of audio before probing
@@ -78,11 +87,16 @@ export function isCaptureActive(): boolean {
 }
 
 let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+let noSpeechTimer: ReturnType<typeof setTimeout> | null = null;
 
 function teardownTurnTimers(): void {
   if (safetyTimer) {
     clearTimeout(safetyTimer);
     safetyTimer = null;
+  }
+  if (noSpeechTimer) {
+    clearTimeout(noSpeechTimer);
+    noSpeechTimer = null;
   }
 }
 
@@ -309,6 +323,36 @@ export async function startCaptureTurn(): Promise<void> {
       void finishTurn(activeVad);
     }
   }, SAFETY_CAP_MS);
+
+  // No-speech watchdog — if nothing was ever spoken into the mic within ~10s,
+  // disengage QUIETLY (no STT, no message). Unlike the safety cap, this does
+  // NOT finish the turn (which would flush to STT); it discards the turn like a
+  // user cancel but without any butler feedback.
+  noSpeechTimer = setTimeout(() => {
+    if (!activeTurnFinished && activeVad && !activeVad.hasSpeech()) {
+      // eslint-disable-next-line no-console
+      console.log("[capture] no speech within 10s — disengaging quietly");
+      void disengageQuietly();
+    }
+  }, NO_SPEECH_CAP_MS);
+}
+
+/**
+ * Quietly abandon the active turn: stop the cpal stream, discard the buffer,
+ * reset to idle. No transcript POST, no noSpeech signal, no TTS — a subtle
+ * return to rest, per issue #315's "no message, no error, no TTS" contract.
+ * Used by the no-speech watchdog. Distinct from cancelCaptureTurn (user-driven,
+ * sets `cancelled`) and finishTurn (which flushes to STT).
+ */
+async function disengageQuietly(): Promise<void> {
+  if (currentState === "idle" || activeTurnFinished) return;
+  activeTurnFinished = true;
+  teardownTurnTimers();
+  extended = false;
+  emitExtended(false);
+  await stopCaptureTurn();
+  activeVad = null;
+  setState("idle");
 }
 
 /**
@@ -402,6 +446,21 @@ async function finishTurn(vad: VadSilenceDetector): Promise<void> {
   if (samples.length === 0) {
     // eslint-disable-next-line no-console
     console.log("[capture] no audio captured — silent drop");
+    activeVad = null;
+    extended = false;
+    emitExtended(false);
+    setState("idle");
+    return;
+  }
+
+  // Silence gate — the turn captured audio but no chunk ever crossed the RMS
+  // speech threshold. Sending this silent buffer to STT is exactly what makes
+  // Groq/Whisper hallucinate a phantom command ("I'm going to go to the next
+  // one.") that then fires a bogus agent turn (#315). Drop it QUIETLY: no STT,
+  // no noSpeech butler line, no TTS — just return to rest.
+  if (!vad.hasSpeech()) {
+    // eslint-disable-next-line no-console
+    console.log("[capture] no speech energy in buffer — silent drop (no STT)");
     activeVad = null;
     extended = false;
     emitExtended(false);
