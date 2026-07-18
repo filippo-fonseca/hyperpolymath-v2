@@ -241,12 +241,10 @@ export function attachNativeWebviewInteraction(id: string): () => void {
     const frame = widgetFrame(event.target);
     if (!frame) return;
     const target = event.target instanceof Element ? event.target : null;
-    const onResizeHandle =
-      target?.closest('button[aria-label="Resize window"]')?.parentElement === frame;
     const onHeader =
       target?.closest("header")?.parentElement === frame &&
       !target?.closest("button, a, input, select, textarea");
-    if (!onHeader && !onResizeHandle) return;
+    if (!onHeader) return;
     pointerId = event.pointerId;
     void hideNativeWebview(id).catch(() => undefined);
   };

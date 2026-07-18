@@ -304,20 +304,15 @@ export function useHandPointerSynthesis(): void {
           break;
         }
         const hit = hitTest(vp.x, vp.y);
-        // Pinch-corner-resize: when the frozen reticle sits in a widget's resize
-        // zone, drive the grab onto its resize HANDLE (running the widget's own
-        // resize logic) instead of the header — the same trusted pinch machine
-        // resizes rather than moves. Otherwise it's a normal move drag.
-        const target = hit?.resizeTarget ?? hit?.dragTarget ?? null;
+        const target = hit?.dragTarget ?? null;
         if (hit && target) {
-          const kind: "resize" | "drag" = hit.resizeTarget ? "resize" : "drag";
           grab.current = {
             dragTarget: target,
             pendingDown: true,
             lastX: vp.x,
             lastY: vp.y,
             widgetId: hit.id,
-            kind,
+            kind: "drag",
           };
         } else {
           grab.current = null;

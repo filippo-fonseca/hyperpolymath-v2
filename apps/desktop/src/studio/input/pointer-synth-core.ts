@@ -18,21 +18,7 @@ export type Hit = {
   pressTarget: Element;
   /** Element a pointer-drag begins on (a widget header / orb root / drawer tile). */
   dragTarget: Element | null;
-  /**
-   * The widget's resize-handle element when the reticle sits in its bottom-right
-   * resize zone, else null. A pinch-grab that begins here is a RESIZE drag (it
-   * dispatches onto this handle, which runs the widget's own resize logic)
-   * rather than a move — the pinch-corner-resize, reusing the trusted pinch
-   * machine end-to-end with no separate gesture.
-   */
-  resizeTarget: Element | null;
 };
-
-/**
- * The bottom-right resize hot-zone (px), a touch larger than the 20px handle so
- * a frozen reticle needn't land pixel-perfect on it.
- */
-export const RESIZE_ZONE_PX = 28;
 
 /** Hit-test the real widget DOM at a viewport point. Returns null over empty space. */
 export function hitTest(vx: number, vy: number): Hit | null {
@@ -42,30 +28,16 @@ export function hitTest(vx: number, vy: number): Hit | null {
   if (widget) {
     // Normal widgets drag by their header; the permanent orb has none → drag root.
     const header = widget.querySelector(":scope > header");
-    // Resize handle (bottom-right). Present on non-permanent widgets only. Treat
-    // the reticle as "on the handle" when it is within RESIZE_ZONE_PX of the
-    // widget's bottom-right corner, so a pinch-grab there resizes.
-    const resizeBtn = widget.querySelector<HTMLElement>(
-      'button[aria-label="Resize window"]',
-    );
-    let resizeTarget: Element | null = null;
-    if (resizeBtn) {
-      const wr = widget.getBoundingClientRect();
-      if (vx >= wr.right - RESIZE_ZONE_PX && vy >= wr.bottom - RESIZE_ZONE_PX) {
-        resizeTarget = resizeBtn;
-      }
-    }
     return {
       id: widget.getAttribute("data-widget-window") ?? "widget",
       pressTarget: el,
       dragTarget: header ?? widget,
-      resizeTarget,
     };
   }
   const drawer = el.closest("[data-widget-drawer]");
   if (drawer) {
     const button = el.closest("button");
-    return { id: "drawer", pressTarget: button ?? el, dragTarget: button, resizeTarget: null };
+    return { id: "drawer", pressTarget: button ?? el, dragTarget: button };
   }
   return null;
 }
