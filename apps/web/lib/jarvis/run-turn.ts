@@ -15,6 +15,7 @@ import {
   type StudioOpenWidgetInput,
 } from "@/lib/jarvis/studio-widget-tools";
 import { detectStudioBackstop } from "@/lib/jarvis/studio-intent-backstop";
+import { ackPhraseForTool } from "@/lib/jarvis/ack-phrases";
 import { logJarvisEvent } from "@/lib/jarvis/log-event";
 import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
 import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
@@ -171,9 +172,22 @@ export interface RunTurnOptions {
     suggestedAction: unknown
   ) => void;
   onAction: (toolUseId: string, name: string, result: unknown) => void;
+  /**
+   * Spoken tool-latency acknowledgement. Fired ONCE per turn, the instant the
+   * model chooses its first tool with no spoken preamble, so a voice turn never
+   * goes silent while a (possibly slow) tool runs. The caller routes it through
+   * a DEDICATED channel (desktop `jarvis-ack` bus event / browser `ack` SSE
+   * event) so it speaks BEFORE the answer without polluting the persisted
+   * transcript or the visual bubble. Only fired on spoken turns (isVoice).
+   */
+  onAck?: (text: string) => void;
   onDone: (usage: RunTurnUsage) => void;
   onError: (message: string) => void;
 }
+
+// Process-lifetime rotation so consecutive tool turns get varied ack lines
+// (acceptance: repeated tool turns must not repeat the same canned ack).
+let ackRotation = 0;
 
 function buildToolValidators(voiceActive: boolean) {
   return {
@@ -569,6 +583,10 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
   const actionTypes: string[] = [];
   let anyTextEmitted = false;
+  // Spoken tool-latency ack: fire at most once per turn, and only when the model
+  // went straight to a tool with NO spoken preamble (if it already said "Let me
+  // check.", that IS the ack — a second one would double-speak).
+  let ackEmitted = false;
   // Accumulated text actually streamed to the bus this turn — used by the
   // trailing-block dedupe (Unit 5) to drop a final-message ack the stream
   // already spoke ("Noted, sir — I'll remember that.Duly updated, sir.").
@@ -715,6 +733,17 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
           input?: unknown;
         };
         if (b.type !== "tool_use") return;
+
+        // Spoken tool-latency ack. The model just chose a tool; if it hasn't
+        // spoken anything yet this turn, emit an immediate acknowledgement so
+        // JARVIS isn't silent while the tool runs. Fired once per turn, only on
+        // spoken turns, and never when a preamble already streamed (that IS the
+        // ack). The caller serializes it before the answer via the turn's TTS
+        // queue and keeps it out of the persisted/visual transcript.
+        if (opts.onAck && speakingTurn && !ackEmitted && !anyTextEmitted) {
+          ackEmitted = true;
+          opts.onAck(ackPhraseForTool(b.name ?? "", ackRotation++));
+        }
 
         if (opts.onQueued) {
           opts.onQueued(b.id ?? "", b.name ?? "");
