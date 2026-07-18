@@ -9,6 +9,10 @@ import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 import { JarvisScrollback } from "./JarvisScrollback";
 import { JarvisInput, type JarvisInputHandle, type JarvisInputPayload } from "./JarvisInput";
 import type { ScrollbackAction, ScrollbackClarification, ScrollbackTurn } from "./jarvis-types";
+// Issue #283 — deterministic turn ordering. compareTurns never inverts a
+// same-instant user↔assistant pair; nextTurnSeq stamps a monotonic client
+// sequence at insertion so same-kind ms ties stay in true creation order.
+import { compareTurns, nextTurnSeq } from "./transcript-order";
 import { undoJarvisAction } from "@/app/actions/jarvis";
 import { searchPeopleForCurrentUser } from "@/app/actions/people";
 import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
@@ -99,6 +103,7 @@ function mapTurnRow(r: JarvisTurnRow): ScrollbackTurn {
       id: r.id,
       text: r.text ?? "",
       createdAt: new Date(r.createdAt),
+      seq: nextTurnSeq(),
     };
   }
   const rawStatus = r.status === "streaming" ? "done" : r.status;
@@ -111,6 +116,7 @@ function mapTurnRow(r: JarvisTurnRow): ScrollbackTurn {
     errorMessage: r.errorMessage ?? undefined,
     clarification: (r.clarification as ScrollbackClarification | null) ?? undefined,
     createdAt: new Date(r.createdAt),
+    seq: nextTurnSeq(),
   };
 }
 
@@ -279,7 +285,10 @@ export function JarvisConsole({
         }
         next[existingIdx] = turn;
       }
-      next.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      // Issue #283 — compareTurns keeps a same-instant user↔assistant pair in
+      // logical order (user first) instead of the old createdAt-only sort that
+      // inverted tied pairs on every realtime refresh.
+      next.sort(compareTurns);
       return next;
     }
 
@@ -493,6 +502,7 @@ export function JarvisConsole({
         id: crypto.randomUUID(),
         text: payload.input,
         createdAt: new Date(),
+        seq: nextTurnSeq(),
       };
       const assistantId = crypto.randomUUID();
       // Phase 5.1 (D-A2 / JARVIS-19): When the user submits any new message,
@@ -515,6 +525,7 @@ export function JarvisConsole({
         actions: [],
         createdAt: new Date(),
         status: "streaming",
+        seq: nextTurnSeq(),
       };
 
       // Read prior turns from the ref BEFORE adding new ones so history
@@ -831,6 +842,7 @@ export function JarvisConsole({
           id: crypto.randomUUID(),
           text: detail.transcript,
           createdAt: new Date(),
+          seq: nextTurnSeq(),
         };
         setTurns((prev) => {
           const next = [...prev, userTurn];
@@ -879,6 +891,7 @@ export function JarvisConsole({
         actions: [],
         createdAt: new Date(),
         status: "streaming",
+        seq: nextTurnSeq(),
       };
       setTurns((prev) => [...prev, assistantTurn]);
       setStreaming(true);
