@@ -8,6 +8,7 @@
 // Wired by main.ts to the SSE client listeners.
 
 import {
+  onJarvisAck,
   onJarvisResponseChunk,
   onJarvisResponseEnd,
   onJarvisResponseStart,
@@ -61,6 +62,23 @@ export function startJarvisResponseListener(): void {
     // past them and permanently wedge the turn.
     if (turnBuffers.has(turnId)) return;
     turnBuffers.set(turnId, { text: "", toolCalls: [], ttsBuffer: "", ttsSeq: 0 });
+  });
+
+  // Spoken tool-latency ack. Enqueue it into the SAME turn's TTS queue at the
+  // next seq so it plays BEFORE the answer (it arrives during the tool round,
+  // before any answer sentence streams). Deliberately NOT appended to buf.text:
+  // the transcript bubble + receipt panel stay clean — the ack is speech-only.
+  // Get-or-create the buffer so an ack that races ahead of response-start still
+  // lands; response-start's own handler is first-seen-wins, so it won't reset it.
+  onJarvisAck(({ turnId, text }) => {
+    const cleaned = text.trim();
+    if (!cleaned) return;
+    let buf = turnBuffers.get(turnId);
+    if (!buf) {
+      buf = { text: "", toolCalls: [], ttsBuffer: "", ttsSeq: 0 };
+      turnBuffers.set(turnId, buf);
+    }
+    ttsPlayer.enqueueSentence(turnId, cleaned, buf.ttsSeq++);
   });
 
   onJarvisResponseChunk(({ turnId, delta }) => {

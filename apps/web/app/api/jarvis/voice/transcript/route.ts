@@ -2,12 +2,14 @@ import Groq from "groq-sdk";
 import { after, type NextRequest } from "next/server";
 
 import {
+  emitJarvisAck,
   emitJarvisResponseChunk,
   emitJarvisResponseEnd,
   emitJarvisResponseStart,
   emitJarvisToolCall,
   emitPhysicalTranscript,
 } from "@/lib/voice/physical-extension/bus";
+import { registerTurnAbort, unregisterTurnAbort } from "@/lib/jarvis/turn-abort-registry";
 import { phraseMatches } from "@hyperpolymath/jarvis-core/routines";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
 import {
@@ -280,6 +282,19 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   emitJarvisResponseStart({ turnId, at: Date.now() });
 
+  // Real interrupt support for this persistent-SSE path: register an abort
+  // controller keyed by turnId so /api/jarvis/voice/cancel can stop the running
+  // model turn (not just client-side audio). On abort we emit response-end once
+  // so the desktop/browser retire the turn cleanly.
+  const turnController = registerTurnAbort(turnId);
+  let responseEnded = false;
+  const endResponseOnce = (): void => {
+    if (responseEnded) return;
+    responseEnded = true;
+    emitJarvisResponseEnd({ turnId, at: Date.now() });
+  };
+  turnController.signal.addEventListener("abort", endResponseOnce, { once: true });
+
   // Accumulate assistant response for DB persistence on completion.
   let assistantText = "";
   const assistantActions: Array<{ toolUseId: string; name: string; result: unknown }> = [];
@@ -308,16 +323,23 @@ export async function POST(req: NextRequest): Promise<Response> {
       mode: jarvisMode,
       sttDoneAt,
       vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
+      abortSignal: turnController.signal,
       onTextDelta: (delta) => {
         assistantText += delta;
         emitJarvisResponseChunk({ turnId, delta, at: Date.now() });
+      },
+      // Spoken tool-latency ack — its own event so it speaks before the answer
+      // (same turnId ⇒ the desktop TTS queue serializes it first) without ever
+      // landing in `assistantText`, the persisted turn, or the visual bubble.
+      onAck: (text) => {
+        emitJarvisAck({ turnId, text, at: Date.now() });
       },
       onAction: (toolUseId, name, result) => {
         assistantActions.push({ toolUseId, name, result });
         emitJarvisToolCall({ turnId, toolUseId, name, result, at: Date.now() });
       },
       onDone: () => {
-        emitJarvisResponseEnd({ turnId, at: Date.now() });
+        endResponseOnce();
         // Persist the completed assistant turn so browser chat history shows
         // desktop-originated turns on next page load.
         void db
@@ -348,7 +370,7 @@ export async function POST(req: NextRequest): Promise<Response> {
           });
       },
       onError: (message) => {
-        emitJarvisResponseEnd({ turnId, at: Date.now() });
+        endResponseOnce();
         // Persist the error turn so the browser shows failed turns on reload.
         void db
           .insert(jarvisTurns)
@@ -378,6 +400,10 @@ export async function POST(req: NextRequest): Promise<Response> {
           });
       },
     });
+
+  // Retire the abort registration once the turn settles (done / error / abort),
+  // whichever path resolves runJarvisTurnStream.
+  void turnPromise.finally(() => unregisterTurnAbort(turnId));
 
   // Keep the serverless function alive until the turn completes (Vercel drains
   // pending work registered via `after`); does not gate the response.

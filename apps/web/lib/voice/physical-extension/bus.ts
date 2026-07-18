@@ -4,6 +4,8 @@ import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import type {
+  PhysicalJarvisAck,
+  PhysicalJarvisCancel,
   PhysicalJarvisResponseChunk,
   PhysicalJarvisResponseEnd,
   PhysicalJarvisResponseStart,
@@ -33,6 +35,10 @@ const PHYSICAL_EVENTS = [
   "studio-action",
   "jarvis-response-end",
   "jarvis-routine-progress",
+  // Spoken tool-latency ack (played before the answer; never persisted).
+  "jarvis-ack",
+  // Real interrupt for the persistent-SSE voice path (cross-instance abort).
+  "jarvis-cancel",
 ] as const;
 
 // MAJOR-6 — `userId` is threaded through so SSE subscribers can filter
@@ -186,6 +192,24 @@ export function emitStudioAction(payload: PhysicalStudioAction): void {
 
 export function emitJarvisResponseEnd(payload: PhysicalJarvisResponseEnd): void {
   emitEverywhere("jarvis-response-end", payload);
+}
+
+/**
+ * Emit a spoken tool-latency ack. Routed on its own event so downstream TTS
+ * speaks it (serialized before the answer by turnId) while it stays out of the
+ * persisted transcript and the visual bubble.
+ */
+export function emitJarvisAck(payload: PhysicalJarvisAck): void {
+  emitEverywhere("jarvis-ack", payload);
+}
+
+/**
+ * Emit a cancel signal for the persistent-SSE voice path. Fans out cross-
+ * instance (the turn may run in a different lambda than the cancel POST) so the
+ * turn-abort registry on the turn's instance aborts the in-flight run.
+ */
+export function emitJarvisCancel(payload: PhysicalJarvisCancel): void {
+  emitEverywhere("jarvis-cancel", payload);
 }
 
 export function emitJarvisRoutineProgress(payload: PhysicalJarvisRoutineProgress): void {
