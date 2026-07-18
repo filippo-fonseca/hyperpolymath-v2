@@ -48,7 +48,6 @@ export function routeStudioAction(payload: StudioActionPayload): void {
       if (typeof url === "string" && url.length > 0) noteBrowserUrl(url);
     }
     summonWidget(payload.kind, payload.props, undefined, {
-      defaultSize: entry.defaultSize,
       singleton: entry.singleton,
     });
     return;

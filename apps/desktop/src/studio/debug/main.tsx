@@ -57,6 +57,7 @@ import { createRoot } from "react-dom/client";
 
 import { SD_FONT, SD_SURFACES, STUDIO_COLORS } from "../tokens";
 import { WIDGET_CATALOG, type WidgetKind } from "../windows/catalog";
+import { widgetSizeFor } from "../windows/size-ladder";
 import { WidgetWindowLayer } from "../windows/WidgetWindowLayer";
 
 // The sd vocabulary. Imported here rather than linked from index.html so Vite
@@ -126,7 +127,8 @@ function Stage(): React.ReactElement {
   const fill = params.get("fill") === "1";
 
   // Widgets are authored to fill their window, so give each one a box the size
-  // its catalog entry asks for and let it lay out inside that.
+  // the size-ladder would spawn it at for this stage, and let it lay out inside.
+  const size = widgetSizeFor({ w: STAGE_WIDTH, h: STAGE_HEIGHT }, widgetParam);
   const box: React.CSSProperties = fill
     ? { position: "absolute", inset: 0 }
     : {
@@ -134,8 +136,8 @@ function Stage(): React.ReactElement {
         top: "50%",
         left: "50%",
         transform: "translate(-50%, -50%)",
-        width: Math.round(entry.defaultSize.w * STAGE_WIDTH),
-        height: Math.round(entry.defaultSize.h * STAGE_HEIGHT),
+        width: Math.round(size.w * STAGE_WIDTH),
+        height: Math.round(size.h * STAGE_HEIGHT),
         overflow: "hidden",
       };
 

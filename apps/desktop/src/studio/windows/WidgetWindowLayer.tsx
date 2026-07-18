@@ -16,6 +16,7 @@ import {
 import {
   getWidgetWindows,
   rehydrateWidgetWindows,
+  resyncWidgetSizes,
   summonWidget,
   useWidgetWindows,
 } from "../state/widget-windows";
@@ -39,7 +40,6 @@ const layerStyle: CSSProperties = {
 function summon(kind: WidgetKind): void {
   const entry = WIDGET_CATALOG[kind];
   summonWidget(kind, {}, undefined, {
-    defaultSize: entry.defaultSize,
     singleton: entry.singleton,
   });
 }
@@ -62,19 +62,31 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
     // compose the idle-home; any persisted layout is left untouched.
     const freshBoot = getWidgetWindows().length === 0;
     if (!getWidgetWindows().some((item) => item.kind === "orb")) {
-      const entry = WIDGET_CATALOG.orb;
       summonWidget("orb", {}, { x: 0.5, y: 0.5 }, {
-        defaultSize: entry.defaultSize,
-        singleton: entry.singleton,
+        singleton: WIDGET_CATALOG.orb.singleton,
       });
     }
     if (freshBoot) {
-      const clock = WIDGET_CATALOG.clock;
       summonWidget("clock", {}, { x: 0.5, y: 0.15 }, {
-        defaultSize: clock.defaultSize,
-        singleton: clock.singleton,
+        singleton: WIDGET_CATALOG.clock.singleton,
       });
     }
+  }, []);
+
+  // Fixed per-kind sizes are viewport-relative, so re-derive them when the
+  // window resizes (moved to a bigger monitor, OS zoom change, projector). rAF-
+  // coalesced so a drag-resize storm collapses to one recompute per frame.
+  useEffect(() => {
+    let frame = 0;
+    const onResize = (): void => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => resyncWidgetSizes());
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   useEffect(() => {
