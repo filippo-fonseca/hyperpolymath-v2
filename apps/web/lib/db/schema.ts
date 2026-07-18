@@ -1732,8 +1732,9 @@ export const jarvisPersonalityConfig = pgTable(
 // startup config shape (apps/desktop/src/settings.ts): whether the morning
 // briefing runs on launch, plus the URLs/apps to open and Shortcuts to run at
 // startup. Web is the source of truth; the desktop reads this via the bearer-auth
-// GET route. Migration 0025 (RLS + unique index). DEFAULTS (briefing on, empty
-// lists) reproduce today's behavior.
+// GET route. Migration 0025 (RLS + unique index); 0037 flips the briefing
+// default OFF (opt-in). DEFAULTS: briefing OFF (no unsolicited wake greeting),
+// empty open/shortcut lists.
 export const jarvisStartupConfig = pgTable(
   "jarvis_startup_config",
   {
@@ -1742,7 +1743,7 @@ export const jarvisStartupConfig = pgTable(
       .notNull()
       .unique()
       .references(() => users.id, { onDelete: "cascade" }),
-    briefingEnabled: boolean("briefing_enabled").notNull().default(true),
+    briefingEnabled: boolean("briefing_enabled").notNull().default(false),
     // Array<{ type: "url" | "app"; value: string }>
     openOnStart: jsonb("open_on_start")
       .$type<Array<{ type: "url" | "app"; value: string }>>()
