@@ -425,7 +425,13 @@ export interface StartupConfig {
 }
 
 export const DEFAULT_STARTUP_CONFIG: StartupConfig = {
-  briefingEnabled: true,
+  // OPT-IN. An unrequested spoken "Good morning, sir" briefing on every wake
+  // reads as the app talking to itself, so the briefing is OFF unless the user
+  // explicitly turns it on in the StartupEditor. This is the load-bearing
+  // default: the web GET route (/api/jarvis/config/startup) and getStartupConfig
+  // both fall back to it when the user has no jarvis_startup_config row, and the
+  // desktop treats the web value as the source of truth.
+  briefingEnabled: false,
   openOnStart: [],
   startupShortcuts: [],
 };
