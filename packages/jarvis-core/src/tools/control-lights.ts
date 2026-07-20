@@ -1,10 +1,16 @@
 // Server-side control tool: control_lights
 //
-// Drives a registered Govee light via a Zod-validated discriminated LightCommand.
+// Drives a registered Govee light via a Zod-validated LightCommand.
 // Never accept raw Govee capability envelopes from the model — only these
 // command shapes. Device resolution (name / single / default) is server-side.
 //
 // NON-strict (grammar budget): server-side Zod validation covers this.
+//
+// Anthropic requires `input_schema.type === "object"`. Zod's
+// `discriminatedUnion` emits `oneOf` without a top-level `type`, which 400s
+// the Messages API (`tools.N.custom.input_schema.type: Field required`).
+// So the *tool* schema is a flat object; runtime still re-validates with the
+// discriminated LightCommandSchema.
 
 import { z } from "zod";
 import { toJsonSchema } from "./_schema-utils";
@@ -81,7 +87,9 @@ const LightSegmentColorCommand = z
     segments: z
       .array(z.number().int().min(0))
       .min(1)
-      .describe("1-based or 0-based segment indices as returned by the device (non-negative integers)."),
+      .describe(
+        "1-based or 0-based segment indices as returned by the device (non-negative integers).",
+      ),
     red: rgbChannel,
     green: rgbChannel,
     blue: rgbChannel,
@@ -169,10 +177,91 @@ export const LightCommandSchema = z.discriminatedUnion("type", [
 
 export type LightCommand = z.infer<typeof LightCommandSchema>;
 
-/** Tool input is the command itself (discriminated on `type`). */
-export const ControlLightsInputSchema = LightCommandSchema;
+const LIGHT_COMMAND_TYPES = [
+  "power",
+  "brightness",
+  "color",
+  "temperature",
+  "gradient",
+  "segmentColor",
+  "segmentBrightness",
+  "scene",
+  "music",
+  "diy",
+] as const;
 
-export type ControlLightsInput = LightCommand;
+/**
+ * Flat object schema for the Anthropic tool definition (must emit
+ * `type: "object"`). Runtime validation still goes through LightCommandSchema.
+ */
+export const ControlLightsInputSchema = z
+  .object({
+    type: z
+      .enum(LIGHT_COMMAND_TYPES)
+      .describe(
+        "Command kind: power, brightness, color, temperature, gradient, segmentColor, segmentBrightness, scene, music, or diy.",
+      ),
+    on: z
+      .boolean()
+      .optional()
+      .describe("For power/gradient: true = on, false = off."),
+    percent: z
+      .number()
+      .int()
+      .optional()
+      .describe("Brightness percent (whole-strip 1–100 or segment 0–100)."),
+    red: rgbChannel.optional(),
+    green: rgbChannel.optional(),
+    blue: rgbChannel.optional(),
+    kelvin: z
+      .number()
+      .int()
+      .optional()
+      .describe("Color temperature in Kelvin (2000–9000)."),
+    segments: z
+      .array(z.number().int().min(0))
+      .min(1)
+      .optional()
+      .describe("Segment indices for segmentColor / segmentBrightness."),
+    name: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("Scene or DIY name (matched case-insensitively)."),
+    mode: z
+      .number()
+      .int()
+      .optional()
+      .describe("Govee musicMode option value."),
+    sensitivity: z
+      .number()
+      .int()
+      .optional()
+      .describe("Music mic sensitivity 0–100."),
+    autoColor: z
+      .boolean()
+      .optional()
+      .describe("Music mode: auto color when true."),
+    device: deviceField,
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const cleaned = Object.fromEntries(
+      Object.entries(value).filter(([, v]) => v !== undefined),
+    );
+    const parsed = LightCommandSchema.safeParse(cleaned);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: issue.message,
+          path: issue.path,
+        });
+      }
+    }
+  });
+
+export type ControlLightsInput = z.infer<typeof ControlLightsInputSchema>;
 
 export const controlLightsTool = {
   name: "control_lights" as const,
