@@ -64,6 +64,12 @@ describe("routeStudioAction", () => {
     expect(getHandTrackingState().enabled).toBe(false);
   });
 
+  it("opens the home singleton widget", () => {
+    routeStudioAction({ action: "open", kind: "home" });
+    expect(getWidgetWindows()).toHaveLength(1);
+    expect(getWidgetWindows()[0]).toMatchObject({ kind: "home" });
+  });
+
   it("pushes focus props onto an already-open singleton instead of duplicating it", () => {
     // First open: no focus props.
     routeStudioAction({ action: "open", kind: "whatsapp" });

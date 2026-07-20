@@ -11,6 +11,7 @@ import {
   SettingsIcon,
   WeatherIcon,
   WhatsappIcon,
+  WidgetIcon,
   type DimensionalIconProps,
 } from "@hyperpolymath/ui-icons";
 
@@ -132,6 +133,7 @@ const DIMENSIONAL_ICONS: Partial<Record<WidgetKind, React.ComponentType<Dimensio
   whatsapp: WhatsappIcon,
   weather: WeatherIcon,
   news: NewsIcon,
+  home: WidgetIcon,
   clock: ClockIcon,
   camera: CameraIcon,
   settings: SettingsIcon,

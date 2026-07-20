@@ -9,6 +9,7 @@ import {
   SettingsIcon,
   WeatherIcon,
   WhatsappIcon,
+  WidgetIcon,
 } from "@hyperpolymath/ui-icons";
 
 export type WidgetKind =
@@ -16,6 +17,7 @@ export type WidgetKind =
   | "whatsapp"
   | "weather"
   | "news"
+  | "home"
   | "card"
   | "clock"
   | "camera"
@@ -66,6 +68,12 @@ export const WIDGET_CATALOG: Record<WidgetKind, WidgetCatalogEntry> = {
     label: "News",
     icon: NewsIcon,
     component: lazy(() => import("../widgets/NewsWidget")),
+    singleton: true,
+  },
+  home: {
+    label: "Home",
+    icon: WidgetIcon,
+    component: lazy(() => import("../widgets/HomeWidget")),
     singleton: true,
   },
   card: {
