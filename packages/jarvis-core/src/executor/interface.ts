@@ -21,6 +21,8 @@ import type {
   FindTasksAction,
   GetNewsAction,
   GetWeatherAction,
+  ListLightsAction,
+  ControlLightsAction,
   LinkPeopleAction,
   ReadGmailAction,
   OpenAppAction,
@@ -159,6 +161,11 @@ export interface ActionExecutor {
   // iMessage read — fully server-side (queries synced imessage_messages);
   // returns a grouped receipt for the agent to narrate. No DesktopAction.
   readImessage(input: ReadImessageAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+
+  // Govee lights — fully server-side (BYOK govee → GOVEE_API_KEY fallback);
+  // list from user_govee_devices; control via GoveeClient. No DesktopAction.
+  listLights(input: ListLightsAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  controlLights(input: ControlLightsAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 
   // Computer Use fallback — mints a session_id and returns the computer_use
   // DesktopAction; the desktop drives the step loop against

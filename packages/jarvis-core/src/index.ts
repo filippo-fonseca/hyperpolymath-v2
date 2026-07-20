@@ -127,6 +127,9 @@ export type {
   ReadWhatsappAction,
   // iMessage — server-side read of synced messages
   ReadImessageAction,
+  // Govee lights — server-side list + control
+  ListLightsAction,
+  ControlLightsAction,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseAction,
   // JARVIS management — per-user personality + startup config contracts

@@ -93,5 +93,10 @@ export function invalidateAfterJarvisAction(
     return;
   }
 
+  if (toolName === "control_lights" || toolName === "list_lights") {
+    void qc.invalidateQueries({ queryKey: ["home-lights-state"] });
+    return;
+  }
+
   // find_*, ask_clarification, unknown — nothing to invalidate.
 }

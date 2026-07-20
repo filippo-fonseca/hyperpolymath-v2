@@ -49,6 +49,15 @@ const BY_TOOL: Readonly<Record<string, readonly string[]>> = {
     "Let me look that up, sir.",
     "One moment while I search, sir.",
   ],
+  list_lights: [
+    "Checking your lights, sir.",
+    "Let me see which lights you have, sir.",
+  ],
+  control_lights: [
+    "Adjusting the lights, sir.",
+    "On it — lights, sir.",
+    "Setting the lights now, sir.",
+  ],
   find_: [
     "Let me look that up, sir.",
     "Searching your records now, sir.",

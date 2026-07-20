@@ -20,6 +20,7 @@ import {
 } from "@/lib/jarvis/studio-widget-tools";
 import { detectStudioBackstop } from "@/lib/jarvis/studio-intent-backstop";
 import { ackPhraseForTool } from "@/lib/jarvis/ack-phrases";
+import { joinStreamTextChunks } from "@/lib/jarvis/join-stream-text";
 import { logJarvisEvent } from "@/lib/jarvis/log-event";
 import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
 import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
@@ -87,6 +88,9 @@ import {
   ReadWhatsappInputSchema,
   // iMessage — server-side read of synced messages
   ReadImessageInputSchema,
+  // Govee lights
+  ListLightsInputSchema,
+  ControlLightsInputSchema,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
@@ -239,6 +243,8 @@ function buildToolValidators(voiceActive: boolean) {
     read_whatsapp: ReadWhatsappInputSchema,
     // iMessage — server-side read of synced messages
     read_imessage: ReadImessageInputSchema,
+    list_lights: ListLightsInputSchema,
+    control_lights: ControlLightsInputSchema,
     // Computer Use fallback — catch-all agentic desktop loop
     computer_use: ComputerUseInputSchema,
   } as const;
@@ -978,6 +984,16 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
                 parsed.data as Parameters<typeof executor.readImessage>[0],
                 ctx
               );
+            } else if (toolName === "list_lights") {
+              result = await executor.listLights(
+                parsed.data as Parameters<typeof executor.listLights>[0],
+                ctx
+              );
+            } else if (toolName === "control_lights") {
+              result = await executor.controlLights(
+                parsed.data as Parameters<typeof executor.controlLights>[0],
+                ctx
+              );
             } else if (toolName === "computer_use") {
               result = await executor.computerUse(
                 parsed.data as Parameters<typeof executor.computerUse>[0],
@@ -1010,7 +1026,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
           firstTokenAt_d = new Date();
         }
         lastTokenAt_d = new Date();
-        const s = String(delta);
+        // Separate text blocks around tool_use often arrive with no space
+        // ("sir.Bedroom"). Bridge sentence boundaries before emitting.
+        const s = joinStreamTextChunks(streamedText, String(delta));
         if (s.trim().length > 0) {
           anyTextEmitted = true;
           streamedText += s;

@@ -1033,6 +1033,36 @@ export const desktopDevices = pgTable(
   ],
 );
 
+// user_govee_devices — per-user Govee light registrations. sku + device_id come
+// from Govee discovery; name is user-facing (defaults to the discovery label).
+// capabilities_cache stores the last-fetched capabilities payload (nullable until
+// first sync). is_default marks the preferred light for Jarvis one-shot commands.
+// Migration 0038 (RLS + unique user_id/device_id).
+export const userGoveeDevices = pgTable(
+  "user_govee_devices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sku: text("sku").notNull(),
+    deviceId: text("device_id").notNull(),
+    name: text("name").notNull(),
+    isDefault: boolean("is_default").notNull().default(false),
+    capabilitiesCache: jsonb("capabilities_cache"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("user_govee_devices_user_device_uniq").on(t.userId, t.deviceId),
+    index("user_govee_devices_user_idx").on(t.userId),
+  ],
+);
+
 // claude_code_usage — daily Claude Code token totals.
 // Populated by a local cron (tools/claude-code-sync.mjs) that runs ccusage
 // on the user's laptop and POSTs to /api/integrations/claude-code/sync.
