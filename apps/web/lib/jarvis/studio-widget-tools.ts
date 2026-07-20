@@ -47,6 +47,10 @@ function inputSchema(schema: z.ZodType): Record<string, unknown> {
     target: "openapi-3.1",
   }) as Record<string, unknown>;
   json.additionalProperties = false;
+  // Anthropic requires input_schema.type (refined schemas can omit it).
+  if (typeof json.type !== "string") {
+    json.type = "object";
+  }
   return json;
 }
 
