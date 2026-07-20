@@ -80,6 +80,12 @@ export const WIDGET_SIZE_LADDER: Record<WidgetKind, WidgetSizeSpec> = {
     minPx: { w: 400, h: 440 },
     maxPx: { w: 680, h: 900 },
   },
+  // Content: registered smart lights with live state.
+  home: {
+    ideal: { w: 0.3, h: 0.42 },
+    minPx: { w: 340, h: 360 },
+    maxPx: { w: 520, h: 720 },
+  },
   // Compact utility: an answer card.
   card: {
     ideal: { w: 0.26, h: 0.24 },

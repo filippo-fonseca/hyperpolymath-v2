@@ -54,6 +54,7 @@ const StudioActionSchema = z.discriminatedUnion("action", [
         "whatsapp",
         "weather",
         "news",
+        "home",
         "card",
         "clock",
         "camera",

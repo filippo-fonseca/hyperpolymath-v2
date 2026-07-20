@@ -64,6 +64,15 @@ describe("studio-action physical bus", () => {
     expect(listener).toHaveBeenCalledWith({ action: "open", kind: "weather" });
   });
 
+  it("accepts the home widget kind", () => {
+    const listener = vi.fn();
+    physicalBus.on("studio-action", listener);
+
+    emitStudioAction({ action: "open", kind: "home" });
+
+    expect(listener).toHaveBeenCalledWith({ action: "open", kind: "home" });
+  });
+
   it("refuses malformed actions before emitting", () => {
     const listener = vi.fn();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);

@@ -48,6 +48,7 @@ export type PhysicalStudioWidgetKind =
   | "whatsapp"
   | "weather"
   | "news"
+  | "home"
   | "card"
   | "clock"
   | "camera"
