@@ -20,6 +20,7 @@ import {
 } from "@/lib/jarvis/studio-widget-tools";
 import { detectStudioBackstop } from "@/lib/jarvis/studio-intent-backstop";
 import { ackPhraseForTool } from "@/lib/jarvis/ack-phrases";
+import { joinStreamTextChunks } from "@/lib/jarvis/join-stream-text";
 import { logJarvisEvent } from "@/lib/jarvis/log-event";
 import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
 import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
@@ -1025,7 +1026,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
           firstTokenAt_d = new Date();
         }
         lastTokenAt_d = new Date();
-        const s = String(delta);
+        // Separate text blocks around tool_use often arrive with no space
+        // ("sir.Bedroom"). Bridge sentence boundaries before emitting.
+        const s = joinStreamTextChunks(streamedText, String(delta));
         if (s.trim().length > 0) {
           anyTextEmitted = true;
           streamedText += s;

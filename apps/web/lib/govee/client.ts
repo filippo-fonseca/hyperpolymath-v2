@@ -261,8 +261,16 @@ export class GoveeClient {
   private async request<T>(path: string, init: RequestInit): Promise<GoveeApiEnvelope<T>> {
     let response: Response;
     try {
+      // Bound every Govee call so a hung cloud socket cannot eat the whole
+      // /api/jarvis maxDuration (60s) and leave the UI stuck on "thinking".
+      const signal =
+        init.signal ??
+        (typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+          ? AbortSignal.timeout(12_000)
+          : undefined);
       response = await this.fetcher(`${this.baseUrl}${path}`, {
         ...init,
+        signal,
         headers: {
           "Content-Type": "application/json",
           "Govee-API-Key": this.apiKey,
