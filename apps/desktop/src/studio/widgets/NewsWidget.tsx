@@ -6,7 +6,6 @@ import { NewsIcon } from "@hyperpolymath/ui-icons";
 
 import { SD_FONT, SD_INK, SD_SURFACES } from "../tokens";
 import { summonWidget } from "../state/widget-windows";
-import { WIDGET_CATALOG } from "../windows/catalog";
 import { fetchStudioWidget } from "./widget-fetch";
 
 interface Article {
@@ -52,10 +51,7 @@ function NewsRow({ article }: { article: Article }): React.ReactElement {
 
   const open = (): void => {
     if (!article.url) return;
-    const browser = WIDGET_CATALOG.browser;
-    summonWidget("browser", { url: article.url }, undefined, {
-      defaultSize: browser.defaultSize,
-    });
+    summonWidget("browser", { url: article.url });
   };
 
   return (

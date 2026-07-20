@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { getHandTrackingState, setHandEnabled } from "../input/hand-status";
 import {
   __resetWidgetWindows,
   getWidgetWindows,
 } from "../state/widget-windows";
+import { currentViewport, widgetSizeFor } from "../windows/size-ladder";
 import { routeStudioAction } from "./studio-action-router";
 
 beforeEach(() => {
   __resetWidgetWindows();
+  setHandEnabled(false);
 });
 
 describe("routeStudioAction", () => {
@@ -19,12 +22,13 @@ describe("routeStudioAction", () => {
     });
 
     expect(getWidgetWindows()).toHaveLength(1);
+    const size = widgetSizeFor(currentViewport(), "browser");
     expect(getWidgetWindows()[0]).toMatchObject({
       kind: "browser",
       props: { url: "https://example.com" },
-      w: 0.42,
-      h: 0.5,
     });
+    expect(getWidgetWindows()[0]!.w).toBeCloseTo(size.w);
+    expect(getWidgetWindows()[0]!.h).toBeCloseTo(size.h);
   });
 
   it("closes widgets by kind, id, or all", () => {
@@ -47,6 +51,17 @@ describe("routeStudioAction", () => {
   it("ignores unknown widget kinds", () => {
     routeStudioAction({ action: "open", kind: "unknown" });
     expect(getWidgetWindows()).toHaveLength(0);
+  });
+
+  it("flips hand tracking on and off, spawning no widgets", () => {
+    expect(getHandTrackingState().enabled).toBe(false);
+
+    routeStudioAction({ action: "hand", enabled: true });
+    expect(getHandTrackingState().enabled).toBe(true);
+    expect(getWidgetWindows()).toHaveLength(0);
+
+    routeStudioAction({ action: "hand", enabled: false });
+    expect(getHandTrackingState().enabled).toBe(false);
   });
 
   it("pushes focus props onto an already-open singleton instead of duplicating it", () => {

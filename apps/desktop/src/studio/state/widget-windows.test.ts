@@ -10,8 +10,10 @@ import {
   moveWidget,
   rehydrateWidgetWindows,
   resizeWidget,
+  resyncWidgetSizes,
   summonWidget,
 } from "./widget-windows";
+import { currentViewport, widgetSizeFor } from "../windows/size-ladder";
 
 const STORAGE_KEY = "studio:widget-windows:v1";
 
@@ -61,10 +63,8 @@ describe("widget window store", () => {
       "browser",
       { url: "https://example.com" },
       { x: 0.5, y: 0.48 },
-      { defaultSize: { w: 0.42, h: 0.5 } },
     );
     const weatherId = summonWidget("weather", {}, undefined, {
-      defaultSize: { w: 0.28, h: 0.31 },
       singleton: true,
     });
 
@@ -74,7 +74,10 @@ describe("widget window store", () => {
     expect(browser.w).toBeCloseTo(0.976);
     expect(browser.h).toBe(0.16);
     expect(browser.x).toBeCloseTo(0.5);
-    expect(browser.y).toBeCloseTo(0.738);
+    // y was pushed to the stage floor by the earlier move at the widget's
+    // ladder-derived spawn height (h≈0.6), then the resize shrank h without
+    // moving the already-clamped center: 1 - 0.6/2 - 0.012 = 0.688.
+    expect(browser.y).toBeCloseTo(0.688);
 
     const browserZ = browser.z;
     focusWidget(browserId);
@@ -90,11 +93,9 @@ describe("widget window store", () => {
   it("reuses singleton widgets and restores persisted geometry", () => {
     const first = summonWidget("weather", {}, undefined, {
       singleton: true,
-      defaultSize: { w: 0.28, h: 0.31 },
     });
     const second = summonWidget("weather", { ignored: true }, undefined, {
       singleton: true,
-      defaultSize: { w: 0.28, h: 0.31 },
     });
     expect(second).toBe(first);
     expect(getWidgetWindows()).toHaveLength(1);
@@ -147,10 +148,58 @@ describe("widget window store", () => {
     expect(getWidgetWindows()[0]).not.toHaveProperty("stowed");
   });
 
+  it("spawns each kind at its ladder size for the current viewport", () => {
+    const browserId = summonWidget("browser", {}, { x: 0.5, y: 0.5 });
+    const clockId = summonWidget("clock", {}, { x: 0.5, y: 0.5 });
+    const browser = getWidgetWindows().find((item) => item.id === browserId)!;
+    const clock = getWidgetWindows().find((item) => item.id === clockId)!;
+    const expectBrowser = widgetSizeFor(currentViewport(), "browser");
+    expect(browser.w).toBeCloseTo(expectBrowser.w);
+    expect(browser.h).toBeCloseTo(expectBrowser.h);
+    // The media widget is larger than the utility one on the same viewport.
+    expect(browser.w).toBeGreaterThan(clock.w);
+  });
+
+  it("resyncWidgetSizes re-derives non-orb sizes and leaves the orb", () => {
+    const orbId = summonWidget("orb", {}, { x: 0.5, y: 0.5 }, {
+      singleton: true,
+    });
+    const browserId = summonWidget("browser", {}, { x: 0.5, y: 0.5 });
+    // Simulate stale free-form geometry from a pre-#316 persisted layout.
+    resizeWidget(browserId, 0.9, 0.85);
+    const orbBefore = getWidgetWindows().find((item) => item.id === orbId)!;
+
+    resyncWidgetSizes();
+
+    const browser = getWidgetWindows().find((item) => item.id === browserId)!;
+    const expected = widgetSizeFor(currentViewport(), "browser");
+    expect(browser.w).toBeCloseTo(expected.w);
+    expect(browser.h).toBeCloseTo(expected.h);
+    // The orb owns its own geometry, so resync must not touch it.
+    const orbAfter = getWidgetWindows().find((item) => item.id === orbId)!;
+    expect(orbAfter.w).toBe(orbBefore.w);
+    expect(orbAfter.h).toBe(orbBefore.h);
+  });
+
+  it("re-derives fixed sizes on rehydrate, ignoring stale persisted w/h", () => {
+    // Centered so a stale oversized w/h can't shift x when it's clamped in.
+    const browserId = summonWidget("browser", {}, { x: 0.5, y: 0.5 });
+    // Persist a stale free-form size the way a pre-#316 build would have.
+    resizeWidget(browserId, 0.92, 0.9);
+    __resetWidgetWindows();
+    rehydrateWidgetWindows();
+
+    const browser = getWidgetWindows().find((item) => item.id === browserId)!;
+    const expected = widgetSizeFor(currentViewport(), "browser");
+    expect(browser.w).toBeCloseTo(expected.w);
+    expect(browser.h).toBeCloseTo(expected.h);
+    // Position is preserved across the rehydrate.
+    expect(browser.x).toBeCloseTo(0.5);
+  });
+
   it("refuses every close path for permanent widgets", () => {
     const orbId = summonWidget("orb", {}, { x: 0.5, y: 0.5 }, {
       singleton: true,
-      defaultSize: { w: 0.25, h: 0.4 },
     });
     const browserId = summonWidget("browser");
 

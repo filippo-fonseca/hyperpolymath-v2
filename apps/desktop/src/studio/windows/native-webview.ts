@@ -18,19 +18,18 @@ interface ContentRect {
 
 /**
  * Detail of the `studio:gesture-interaction` window CustomEvent, dispatched by
- * the hand-gesture pipeline (unit U4) around a gesture-driven resize/drag. The
- * gesture path mutates the widget-windows store directly (via pointer-synth
- * `resizeWidget`/`moveWidget`), so it never fires the real header/resize-handle
- * PointerEvents the pointerdown guard watches. This event lets the native
- * webview hide during the gesture and re-show once bounds settle.
+ * the hand-gesture pipeline (unit U4) around a gesture-driven drag. The gesture
+ * path drives the widget's own pointer handlers via pointer-synth, so it never
+ * fires the real header PointerEvents the pointerdown guard watches. This event
+ * lets the native webview hide during the drag and re-show once bounds settle.
  */
 export interface GestureInteractionDetail {
   widgetId: string;
-  kind: "resize" | "drag";
+  kind: "drag";
   active: boolean;
 }
 
-/** Window event name for gesture-driven widget resize/drag interactions. */
+/** Window event name for gesture-driven widget drag interactions. */
 export const GESTURE_INTERACTION_EVENT = "studio:gesture-interaction";
 
 export function toPhysicalWebviewBounds(
@@ -174,10 +173,10 @@ export function useNativeWebviewSync(
  * `id`. Two interaction sources hide the native webview so it can't trail its
  * DOM frame while geometry changes:
  *
- *  1. Real header/resize-handle PointerEvents (mouse/touch drags).
+ *  1. Real header PointerEvents (mouse/touch drags).
  *  2. The `studio:gesture-interaction` window event dispatched by the hand-
- *     gesture pipeline (U4), which mutates the store directly via pointer-synth
- *     and so never fires the PointerEvents above.
+ *     gesture pipeline (U4), which drives the drag via pointer-synth and so
+ *     never fires the PointerEvents above.
  *
  * On the way out (pointerup/cancel, or gesture `active:false`) it re-measures
  * the placeholder rect and re-shows the webview after a double-rAF settle, but
@@ -241,12 +240,10 @@ export function attachNativeWebviewInteraction(id: string): () => void {
     const frame = widgetFrame(event.target);
     if (!frame) return;
     const target = event.target instanceof Element ? event.target : null;
-    const onResizeHandle =
-      target?.closest('button[aria-label="Resize window"]')?.parentElement === frame;
     const onHeader =
       target?.closest("header")?.parentElement === frame &&
       !target?.closest("button, a, input, select, textarea");
-    if (!onHeader && !onResizeHandle) return;
+    if (!onHeader) return;
     pointerId = event.pointerId;
     void hideNativeWebview(id).catch(() => undefined);
   };
@@ -257,10 +254,10 @@ export function attachNativeWebviewInteraction(id: string): () => void {
     settleAndShow();
   };
 
-  // Gesture-driven resize/drag never fires the header/resize-handle
-  // PointerEvents above (pointer-synth mutates the store directly), so the child
-  // webview would trail the frame by a frame or more. U4's gesture pipeline
-  // dispatches this event; hide on active, re-show once settled.
+  // A gesture-driven drag never fires the header PointerEvents above
+  // (pointer-synth drives the widget's handlers directly), so the child webview
+  // would trail the frame by a frame or more. U4's gesture pipeline dispatches
+  // this event; hide on active, re-show once settled.
   const onGestureInteraction = (event: Event): void => {
     const detail = (event as CustomEvent<GestureInteractionDetail>).detail;
     if (!detail || detail.widgetId !== id) return;

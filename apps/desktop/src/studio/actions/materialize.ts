@@ -48,7 +48,6 @@ function validHttpUrl(value: unknown): string | null {
 function summon(kind: "browser" | "card", props: Record<string, unknown>): void {
   const entry = WIDGET_CATALOG[kind];
   summonWidget(kind, props, undefined, {
-    defaultSize: entry.defaultSize,
     singleton: entry.singleton,
   });
 }

@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { APIUserAbortError } from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import { areas, captures, jarvisPersonalityConfig, projects, tasks, users } from "@/lib/db/schema";
 import { getAnthropicClient, JARVIS_MODEL } from "@/lib/jarvis/anthropic-client";
@@ -6,15 +7,19 @@ import {
   createServerExecutor,
   executeStudioCloseWidget,
   executeStudioOpenWidget,
+  executeStudioSetHandCursor,
 } from "@/lib/jarvis/executor";
 import {
   STUDIO_WIDGET_TOOL_DEFINITIONS,
   StudioCloseWidgetInputSchema,
   StudioOpenWidgetInputSchema,
+  StudioSetHandCursorInputSchema,
   type StudioCloseWidgetInput,
   type StudioOpenWidgetInput,
+  type StudioSetHandCursorInput,
 } from "@/lib/jarvis/studio-widget-tools";
 import { detectStudioBackstop } from "@/lib/jarvis/studio-intent-backstop";
+import { ackPhraseForTool } from "@/lib/jarvis/ack-phrases";
 import { logJarvisEvent } from "@/lib/jarvis/log-event";
 import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
 import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
@@ -171,9 +176,22 @@ export interface RunTurnOptions {
     suggestedAction: unknown
   ) => void;
   onAction: (toolUseId: string, name: string, result: unknown) => void;
+  /**
+   * Spoken tool-latency acknowledgement. Fired ONCE per turn, the instant the
+   * model chooses its first tool with no spoken preamble, so a voice turn never
+   * goes silent while a (possibly slow) tool runs. The caller routes it through
+   * a DEDICATED channel (desktop `jarvis-ack` bus event / browser `ack` SSE
+   * event) so it speaks BEFORE the answer without polluting the persisted
+   * transcript or the visual bubble. Only fired on spoken turns (isVoice).
+   */
+  onAck?: (text: string) => void;
   onDone: (usage: RunTurnUsage) => void;
   onError: (message: string) => void;
 }
+
+// Process-lifetime rotation so consecutive tool turns get varied ack lines
+// (acceptance: repeated tool turns must not repeat the same canned ack).
+let ackRotation = 0;
 
 function buildToolValidators(voiceActive: boolean) {
   return {
@@ -213,6 +231,7 @@ function buildToolValidators(voiceActive: boolean) {
     get_weather: GetWeatherInputSchema,
     studio_open_widget: StudioOpenWidgetInputSchema,
     studio_close_widget: StudioCloseWidgetInputSchema,
+    studio_set_hand_cursor: StudioSetHandCursorInputSchema,
     // Server-side data tools (Gmail read + Guardian news)
     read_gmail: ReadGmailInputSchema,
     get_news: GetNewsInputSchema,
@@ -569,6 +588,10 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
   const actionTypes: string[] = [];
   let anyTextEmitted = false;
+  // Spoken tool-latency ack: fire at most once per turn, and only when the model
+  // went straight to a tool with NO spoken preamble (if it already said "Let me
+  // check.", that IS the ack — a second one would double-speak).
+  let ackEmitted = false;
   // Accumulated text actually streamed to the bus this turn — used by the
   // trailing-block dedupe (Unit 5) to drop a final-message ack the stream
   // already spoke ("Noted, sir — I'll remember that.Duly updated, sir.").
@@ -715,6 +738,17 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
           input?: unknown;
         };
         if (b.type !== "tool_use") return;
+
+        // Spoken tool-latency ack. The model just chose a tool; if it hasn't
+        // spoken anything yet this turn, emit an immediate acknowledgement so
+        // JARVIS isn't silent while the tool runs. Fired once per turn, only on
+        // spoken turns, and never when a preamble already streamed (that IS the
+        // ack). The caller serializes it before the answer via the turn's TTS
+        // queue and keeps it out of the persisted/visual transcript.
+        if (opts.onAck && speakingTurn && !ackEmitted && !anyTextEmitted) {
+          ackEmitted = true;
+          opts.onAck(ackPhraseForTool(b.name ?? "", ackRotation++));
+        }
 
         if (opts.onQueued) {
           opts.onQueued(b.id ?? "", b.name ?? "");
@@ -917,6 +951,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "studio_close_widget") {
               result = await executeStudioCloseWidget(
                 parsed.data as StudioCloseWidgetInput,
+                ctx.userId
+              );
+            } else if (toolName === "studio_set_hand_cursor") {
+              result = await executeStudioSetHandCursor(
+                parsed.data as StudioSetHandCursorInput,
                 ctx.userId
               );
             } else if (toolName === "read_gmail") {
@@ -1172,8 +1211,20 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       },
     });
   } catch (err) {
-    const errName = (err as { name?: string })?.name;
-    if (errName !== "AbortError") {
+    // A deliberate turn abort (barge-in / stop button → upstream.abort()) is a
+    // CLEAN end, not an error. The Anthropic SDK throws APIUserAbortError, whose
+    // `.name` is "Error" (not "AbortError"), so a name check alone misses it and
+    // would persist a spurious status:"error" turn ("Request was aborted.") that
+    // renders as a failed bubble on reload. Detect the abort robustly: the turn's
+    // abort signal being set covers any error shape thrown mid-abort, and the
+    // instanceof catches the SDK's own abort error. On abort we skip onError
+    // entirely — the single response-end has already been emitted by the caller's
+    // abort listener, so the live turn ends cleanly with no ghost error turn.
+    const aborted =
+      upstream.signal.aborted ||
+      err instanceof APIUserAbortError ||
+      (err as { name?: string })?.name === "AbortError";
+    if (!aborted) {
       const message = (err as { message?: string })?.message ?? String(err);
       opts.onError(message);
 

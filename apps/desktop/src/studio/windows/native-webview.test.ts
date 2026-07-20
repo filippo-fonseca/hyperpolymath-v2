@@ -144,7 +144,7 @@ describe("attachNativeWebviewInteraction gesture guard", () => {
   it("hides the child webview when a gesture for its id becomes active", async () => {
     detach = attachNativeWebviewInteraction("widget-a");
     invokeMock.mockClear();
-    shim.dispatchGesture({ widgetId: "widget-a", kind: "resize", active: true });
+    shim.dispatchGesture({ widgetId: "widget-a", kind: "drag", active: true });
     await Promise.resolve();
     expect(commands()).toContain("studio_webview_hide");
   });
@@ -160,8 +160,8 @@ describe("attachNativeWebviewInteraction gesture guard", () => {
   it("re-shows the child webview after the gesture settles", async () => {
     detach = attachNativeWebviewInteraction("widget-a");
     invokeMock.mockClear();
-    shim.dispatchGesture({ widgetId: "widget-a", kind: "resize", active: true });
-    shim.dispatchGesture({ widgetId: "widget-a", kind: "resize", active: false });
+    shim.dispatchGesture({ widgetId: "widget-a", kind: "drag", active: true });
+    shim.dispatchGesture({ widgetId: "widget-a", kind: "drag", active: false });
     // Flush the settle promise chain (finally re-shows).
     await Promise.resolve();
     await Promise.resolve();
@@ -181,7 +181,7 @@ describe("attachNativeWebviewInteraction gesture guard", () => {
     detach();
     detach = undefined;
     invokeMock.mockClear();
-    shim.dispatchGesture({ widgetId: "widget-a", kind: "resize", active: true });
+    shim.dispatchGesture({ widgetId: "widget-a", kind: "drag", active: true });
     await Promise.resolve();
     expect(commands()).not.toContain("studio_webview_hide");
   });

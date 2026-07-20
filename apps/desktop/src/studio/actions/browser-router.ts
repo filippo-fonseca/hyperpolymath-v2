@@ -169,7 +169,6 @@ export function openBrowserUrl(url: string, turnId?: string): boolean {
   markRecent(key);
   const entry = WIDGET_CATALOG.browser;
   summonWidget("browser", { url }, undefined, {
-    defaultSize: entry.defaultSize,
     singleton: entry.singleton,
   });
   return true;

@@ -83,13 +83,6 @@ export class StudioInputHub implements StudioInputBus {
   private dragSuppressed = false;
 
   /**
-   * Symmetric to {@link grabSuppressed} for the open-hand resize lifecycle: a
-   * `resizeStart` with no widget under the reticle is dropped along with its
-   * `resizeMove`/`resizeEnd`. Cleared on `resizeEnd` or the next `resizeStart`.
-   */
-  private resizeSuppressed = false;
-
-  /**
    * Symmetric to {@link grabSuppressed} for the index-scroll lifecycle: a
    * `scrollStart` over empty space is dropped along with its
    * `scrollMove`/`scrollEnd`. Cleared on `scrollEnd` or the next `scrollStart`.
@@ -325,20 +318,6 @@ export class StudioInputHub implements StudioInputBus {
       if (this.dragSuppressed) {
         if (input.type === "dragEnd") this.dragSuppressed = false;
         return; // suppressed drag lifecycle (pinch began over a card)
-      }
-      event = input;
-    } else if (input.type === "resizeStart") {
-      const targetId = this.snapshot.hoverTargetId;
-      if (targetId === null) {
-        this.resizeSuppressed = true; // resize with no widget under the reticle
-        return;
-      }
-      this.resizeSuppressed = false;
-      event = { type: "resizeStart", targetId };
-    } else if (input.type === "resizeMove" || input.type === "resizeEnd") {
-      if (this.resizeSuppressed) {
-        if (input.type === "resizeEnd") this.resizeSuppressed = false;
-        return; // orphaned lifecycle from a dropped resizeStart
       }
       event = input;
     } else if (input.type === "scrollStart") {

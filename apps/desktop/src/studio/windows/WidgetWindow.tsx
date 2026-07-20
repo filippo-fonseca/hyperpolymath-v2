@@ -25,7 +25,6 @@ import {
   closeWidget,
   focusWidget,
   moveWidget,
-  resizeWidget,
   type WidgetWindowInstance,
 } from "../state/widget-windows";
 import { WIDGET_CATALOG } from "./catalog";
@@ -53,7 +52,6 @@ interface Props {
 }
 
 interface PointerSession {
-  mode: "move" | "resize";
   pointerId: number;
   startClientX: number;
   startClientY: number;
@@ -271,14 +269,10 @@ export function WidgetWindow({
     });
   };
 
-  const startPointer = (
-    mode: PointerSession["mode"],
-    event: PointerEvent<HTMLElement>,
-  ): void => {
+  const startPointer = (event: PointerEvent<HTMLElement>): void => {
     if (event.button !== 0) return;
     focusWidget(item.id);
     sessionRef.current = {
-      mode,
       pointerId: event.pointerId,
       startClientX: event.clientX,
       startClientY: event.clientY,
@@ -310,21 +304,15 @@ export function WidgetWindow({
     // The RAW (unclamped) center drives the edge-burst affordance so pushing
     // a widget INTO / past the border is expressible even though the applied
     // geometry is clamped to stay on-stage.
-    const rawCenter =
-      session.mode === "move"
-        ? {
-            x: session.start.x + dxPx / stage.width,
-            y: session.start.y + dyPx / stage.height,
-          }
-        : { x: session.start.x, y: session.start.y };
-    const rect =
-      session.mode === "move"
-        ? clampToStage({ ...session.start, x: rawCenter.x, y: rawCenter.y })
-        : clampToStage({
-            ...session.start,
-            w: session.start.w + dxPx / stage.width,
-            h: session.start.h + dyPx / stage.height,
-          });
+    const rawCenter = {
+      x: session.start.x + dxPx / stage.width,
+      y: session.start.y + dyPx / stage.height,
+    };
+    const rect = clampToStage({
+      ...session.start,
+      x: rawCenter.x,
+      y: rawCenter.y,
+    });
     // Permanent widgets are motion-value driven: set the values directly (no
     // spring) so the orb tracks the pointer 1:1. Everything else keeps the
     // imperative geometry path (its `animate` re-applies committed state on
@@ -337,7 +325,7 @@ export function WidgetWindow({
     } else {
       applyWindowGeometry(root, rect);
     }
-    if (session.mode === "move" && stowable) {
+    if (stowable) {
       const progress = widgetEdgeProgress(rawCenter);
       setBurst(
         progress > 0
@@ -384,42 +372,38 @@ export function WidgetWindow({
     }
     const dx = (event.clientX - session.startClientX) / stage.width;
     const dy = (event.clientY - session.startClientY) / stage.height;
-    if (session.mode === "move") {
-      const rawCenter = { x: session.start.x + dx, y: session.start.y + dy };
-      // Past the burst threshold → pop and CLOSE the widget (#307: the drawer
-      // is a static preset bank, so there is no chip to return to). The pop
-      // plays, then we close.
-      if (!cancelled && stowable && shouldBurst(widgetEdgeProgress(rawCenter))) {
-        setBurst((current) =>
-          current
-            ? { ...current, progress: 1, popping: true }
-            : {
-                progress: 1,
-                direction: edgeOutwardDirection(rawCenter),
-                popping: true,
-              },
-        );
-        window.setTimeout(() => closeWidget(item.id), reduced ? 0 : 220);
-        return;
-      }
-      // Released before the threshold → deflate the bubble and let the widget
-      // spring back to its clamped, safe position (the forgiving escape).
-      setBurst(null);
-      const clampedRect = clampToStage({
-        ...session.start,
-        x: rawCenter.x,
-        y: rawCenter.y,
-      });
-      if (!cancelled && stowable && widgetReachesDrawer(clampedRect, stage)) {
-        closeWidget(item.id);
-        return;
-      }
-      moveWidget(item.id, rawCenter.x, rawCenter.y);
-      // Soft pop as the widget settles under the release point.
-      if (!cancelled) playDropPop();
-    } else {
-      resizeWidget(item.id, session.start.w + dx, session.start.h + dy);
+    const rawCenter = { x: session.start.x + dx, y: session.start.y + dy };
+    // Past the burst threshold → pop and CLOSE the widget (#307: the drawer
+    // is a static preset bank, so there is no chip to return to). The pop
+    // plays, then we close.
+    if (!cancelled && stowable && shouldBurst(widgetEdgeProgress(rawCenter))) {
+      setBurst((current) =>
+        current
+          ? { ...current, progress: 1, popping: true }
+          : {
+              progress: 1,
+              direction: edgeOutwardDirection(rawCenter),
+              popping: true,
+            },
+      );
+      window.setTimeout(() => closeWidget(item.id), reduced ? 0 : 220);
+      return;
     }
+    // Released before the threshold → deflate the bubble and let the widget
+    // spring back to its clamped, safe position (the forgiving escape).
+    setBurst(null);
+    const clampedRect = clampToStage({
+      ...session.start,
+      x: rawCenter.x,
+      y: rawCenter.y,
+    });
+    if (!cancelled && stowable && widgetReachesDrawer(clampedRect, stage)) {
+      closeWidget(item.id);
+      return;
+    }
+    moveWidget(item.id, rawCenter.x, rawCenter.y);
+    // Soft pop as the widget settles under the release point.
+    if (!cancelled) playDropPop();
   };
 
   return (
@@ -429,7 +413,7 @@ export function WidgetWindow({
       role="dialog"
       aria-label={entry.label}
       onPointerDown={(event) => {
-        if (permanent) startPointer("move", event);
+        if (permanent) startPointer(event);
         else focusWidget(item.id);
       }}
       onPointerMove={permanent ? movePointer : undefined}
@@ -535,7 +519,7 @@ export function WidgetWindow({
             borderBottom: `1px solid ${SD_SURFACES.line}`,
             cursor: "grab",
           }}
-          onPointerDown={(event) => startPointer("move", event)}
+          onPointerDown={(event) => startPointer(event)}
           onPointerMove={movePointer}
           onPointerUp={endPointer}
           onPointerCancel={(event) => endPointer(event, true)}
@@ -607,35 +591,6 @@ export function WidgetWindow({
           <Content id={item.id} props={item.props} />
         </Suspense>
       </div>
-
-      {permanent ? null : (
-        <button
-          type="button"
-          aria-label="Resize window"
-          title="Resize"
-          style={{
-            position: "absolute",
-            right: 0,
-            bottom: 0,
-            width: 20,
-            height: 20,
-            touchAction: "none",
-            border: 0,
-            // The grip is an affordance, not a signal: it reads as a faint ink
-            // corner rather than the accent bracket it used to be, which fought
-            // the header for attention on every window at once.
-            borderRight: `2px solid ${SD_INK.faint}`,
-            borderBottom: `2px solid ${SD_INK.faint}`,
-            borderBottomRightRadius: SD_RADIUS.card - 1,
-            background: "transparent",
-            cursor: "nwse-resize",
-          }}
-          onPointerDown={(event) => startPointer("resize", event)}
-          onPointerMove={movePointer}
-          onPointerUp={endPointer}
-          onPointerCancel={(event) => endPointer(event, true)}
-        />
-      )}
     </motion.div>
   );
 }

@@ -6,7 +6,6 @@ import {
   hitTest,
   nativeWebviewLabelAt,
   nativeWebviewLocalPoint,
-  RESIZE_ZONE_PX,
   type GestureInteractionDetail,
 } from "./pointer-synth-core";
 
@@ -68,7 +67,7 @@ afterEach(() => {
 });
 
 describe("hitTest — target discrimination", () => {
-  it("returns a widget hit with header dragTarget and no resize when not in the corner", () => {
+  it("returns a widget hit with header dragTarget", () => {
     const header = el({ selectors: [":scope > header"] });
     const widget = el({
       selectors: ["[data-widget-window]"],
@@ -76,32 +75,13 @@ describe("hitTest — target discrimination", () => {
       rect: { left: 0, top: 0, right: 300, bottom: 200, width: 300, height: 200 },
       children: {
         ":scope > header": header,
-        'button[aria-label="Resize window"]': el({}),
       },
     });
     elementFromPointReturn = widget;
-    const hit = hitTest(50, 50); // top-left, far from bottom-right corner
+    const hit = hitTest(50, 50);
     expect(hit).not.toBeNull();
     expect(hit!.id).toBe("w1");
     expect(hit!.dragTarget).toBe(header);
-    expect(hit!.resizeTarget).toBeNull();
-  });
-
-  it("returns the resize handle when the reticle is inside the bottom-right zone", () => {
-    const resizeBtn = el({});
-    const widget = el({
-      selectors: ["[data-widget-window]"],
-      attrs: { "data-widget-window": "w1" },
-      rect: { left: 0, top: 0, right: 300, bottom: 200, width: 300, height: 200 },
-      children: {
-        ":scope > header": el({ selectors: [":scope > header"] }),
-        'button[aria-label="Resize window"]': resizeBtn,
-      },
-    });
-    elementFromPointReturn = widget;
-    // Within RESIZE_ZONE_PX of (300,200).
-    const hit = hitTest(300 - RESIZE_ZONE_PX + 2, 200 - RESIZE_ZONE_PX + 2);
-    expect(hit!.resizeTarget).toBe(resizeBtn);
   });
 
   it("returns a drawer hit", () => {
@@ -122,7 +102,6 @@ describe("hitTest — target discrimination", () => {
     // The enclosing button (not the hit element) is the press + drag target.
     expect(hit!.pressTarget).toBe(button);
     expect(hit!.dragTarget).toBe(button);
-    expect(hit!.resizeTarget).toBeNull();
   });
 
   it("falls back to the hit element when a drawer hit has no enclosing button", () => {
@@ -136,34 +115,16 @@ describe("hitTest — target discrimination", () => {
     expect(hit!.dragTarget).toBeNull();
   });
 
-  it("leaves resizeTarget null just OUTSIDE the bottom-right zone", () => {
-    const resizeBtn = el({});
-    const widget = el({
-      selectors: ["[data-widget-window]"],
-      attrs: { "data-widget-window": "w1" },
-      rect: { left: 0, top: 0, right: 300, bottom: 200, width: 300, height: 200 },
-      children: {
-        ":scope > header": el({ selectors: [":scope > header"] }),
-        'button[aria-label="Resize window"]': resizeBtn,
-      },
-    });
-    elementFromPointReturn = widget;
-    // One px shy of the zone on both axes → not a resize grab.
-    const hit = hitTest(300 - RESIZE_ZONE_PX - 1, 200 - RESIZE_ZONE_PX - 1);
-    expect(hit!.resizeTarget).toBeNull();
-  });
-
   it("drags a widget by its root when it has no header (the permanent orb)", () => {
     const widget = el({
       selectors: ["[data-widget-window]"],
       attrs: { "data-widget-window": "orb" },
-      // No ':scope > header' child, no resize button (permanent orb).
+      // No ':scope > header' child (permanent orb).
       children: {},
     });
     elementFromPointReturn = widget;
     const hit = hitTest(10, 10);
     expect(hit!.dragTarget).toBe(widget);
-    expect(hit!.resizeTarget).toBeNull();
   });
 
   it("returns null over empty space", () => {
@@ -221,11 +182,11 @@ describe("dispatchGestureInteraction — the U3 seam", () => {
 
     // Grab (drag) start, then end — the two edges of a widget-scoped manipulation.
     dispatchGestureInteraction({ widgetId: "w9", kind: "drag", active: true });
-    dispatchGestureInteraction({ widgetId: "w9", kind: "resize", active: false });
+    dispatchGestureInteraction({ widgetId: "w9", kind: "drag", active: false });
     expect(dispatchEvent).toHaveBeenCalledTimes(2);
     expect(dispatchEvent.mock.calls[0]![0]!.type).toBe(GESTURE_INTERACTION_EVENT);
     expect(received[0]).toEqual({ widgetId: "w9", kind: "drag", active: true });
-    expect(received[1]).toEqual({ widgetId: "w9", kind: "resize", active: false });
+    expect(received[1]).toEqual({ widgetId: "w9", kind: "drag", active: false });
 
     delete (globalThis as unknown as { window?: unknown }).window;
   });

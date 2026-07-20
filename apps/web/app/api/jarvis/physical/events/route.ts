@@ -1,5 +1,6 @@
 import { ensurePhysicalRealtimeBridge, physicalBus } from "@/lib/voice/physical-extension/bus";
 import type {
+  PhysicalJarvisAck,
   PhysicalJarvisResponseChunk,
   PhysicalJarvisResponseEnd,
   PhysicalJarvisResponseStart,
@@ -160,6 +161,10 @@ export async function GET(req: Request): Promise<Response> {
       };
       const responseEndHandler = (data: PhysicalJarvisResponseEnd) =>
         send("jarvis-response-end", data);
+      // Spoken tool-latency ack — forwarded to the desktop TTS queue. It is NOT
+      // a response-chunk, so it never reaches the transcript bubble or the
+      // persisted turn.
+      const ackHandler = (data: PhysicalJarvisAck) => send("jarvis-ack", data);
       const routineProgressHandler = (data: PhysicalJarvisRoutineProgress) =>
         send("jarvis-routine-progress", data);
 
@@ -170,6 +175,7 @@ export async function GET(req: Request): Promise<Response> {
       physicalBus.on("jarvis-tool-call", toolCallHandler);
       physicalBus.on("studio-action", studioActionHandler);
       physicalBus.on("jarvis-response-end", responseEndHandler);
+      physicalBus.on("jarvis-ack", ackHandler);
       physicalBus.on("jarvis-routine-progress", routineProgressHandler);
 
       const heartbeat = setInterval(() => {
@@ -195,6 +201,7 @@ export async function GET(req: Request): Promise<Response> {
         physicalBus.off("jarvis-tool-call", toolCallHandler);
         physicalBus.off("studio-action", studioActionHandler);
         physicalBus.off("jarvis-response-end", responseEndHandler);
+        physicalBus.off("jarvis-ack", ackHandler);
         physicalBus.off("jarvis-routine-progress", routineProgressHandler);
         clearInterval(heartbeat);
         try {

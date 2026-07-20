@@ -6,6 +6,7 @@ import {
   nextStackOrder,
   pickSpawnPosition,
 } from "../windows/layout";
+import { currentViewport, widgetSizeFor } from "../windows/size-ladder";
 
 export interface WidgetWindowInstance {
   id: string;
@@ -87,7 +88,15 @@ export function rehydrateWidgetWindows(): void {
       })
       .map((item) => ({
         ...item,
-        ...clampToStage(item),
+        // Widgets no longer resize, so any persisted free-form w/h from before
+        // is stale. Re-derive the fixed per-kind size from the ladder and keep
+        // only the saved POSITION. The orb owns its own geometry (OrbWidget
+        // re-sizes it every frame), so its persisted size is left untouched.
+        ...clampToStage(
+          item.kind === "orb"
+            ? item
+            : { ...item, ...widgetSizeFor(currentViewport(), item.kind) },
+        ),
         props: item.props ?? {},
       }));
     emit();
@@ -109,7 +118,6 @@ export function summonWidget(
   props: Record<string, unknown> = {},
   at?: { x: number; y: number },
   options?: {
-    defaultSize?: { w: number; h: number };
     singleton?: boolean;
   },
 ): string {
@@ -120,7 +128,10 @@ export function summonWidget(
     focusWidget(existing.id);
     return existing.id;
   }
-  const size = options?.defaultSize ?? { w: 0.34, h: 0.38 };
+  // Fixed per-kind size, derived from the live viewport at spawn (the ladder
+  // brackets the proportional ideal with px min/max). Widgets don't resize, so
+  // this is the widget's size for its whole life bar a window-resize resync.
+  const size = widgetSizeFor(currentViewport(), kind);
   const spawn = at ?? pickSpawnPosition(windows, size);
   const rect = clampToStage({ ...spawn, ...size });
   const id = crypto.randomUUID();
@@ -148,6 +159,11 @@ export function moveWidget(id: string, x: number, y: number): void {
   );
 }
 
+/**
+ * Set a widget's geometry directly. No longer a user affordance (the resize
+ * gestures/handle are gone); the ONLY caller now is OrbWidget, which drives the
+ * permanent orb's dock/expand geometry from `getOrbTargetGeometry`.
+ */
 export function resizeWidget(id: string, w: number, h: number): void {
   write(
     windows.map((item) =>
@@ -156,6 +172,28 @@ export function resizeWidget(id: string, w: number, h: number): void {
         : item,
     ),
   );
+}
+
+/**
+ * Re-derive every widget's fixed per-kind size from the ladder for the current
+ * viewport, keeping each widget's position. Called on window resize so a widget
+ * that was adequate on a laptop stays adequate when the window jumps to a
+ * monitor (and vice versa). The orb is skipped — OrbWidget owns its geometry.
+ * A no-op write is avoided so an idle resize storm doesn't churn subscribers.
+ */
+export function resyncWidgetSizes(): void {
+  const viewport = currentViewport();
+  let changed = false;
+  const next = windows.map((item) => {
+    if (item.kind === "orb") return item;
+    const rect = clampToStage({ ...item, ...widgetSizeFor(viewport, item.kind) });
+    if (rect.w === item.w && rect.h === item.h && rect.x === item.x && rect.y === item.y) {
+      return item;
+    }
+    changed = true;
+    return { ...item, ...rect };
+  });
+  if (changed) write(next);
 }
 
 export function updateWidgetProps(
