@@ -94,7 +94,26 @@ export function invalidateAfterJarvisAction(
   }
 
   if (toolName === "control_lights" || toolName === "list_lights") {
-    void qc.invalidateQueries({ queryKey: ["home-lights-state"] });
+    // Sidebar strip + Studio HOME widget (desktop shares the studio key shape).
+    // Refetch immediately, then again shortly after — Govee cloud state can lag
+    // the control ACK by a few hundred ms, so one read often shows the old value.
+    const keys = [["home-lights-state"], ["studio", "home"]] as const;
+    for (const queryKey of keys) {
+      void qc.invalidateQueries({ queryKey });
+      void qc.refetchQueries({ queryKey, type: "active" });
+    }
+    if (toolName === "control_lights" && typeof window !== "undefined") {
+      window.setTimeout(() => {
+        for (const queryKey of keys) {
+          void qc.refetchQueries({ queryKey, type: "active" });
+        }
+      }, 700);
+      window.setTimeout(() => {
+        for (const queryKey of keys) {
+          void qc.refetchQueries({ queryKey, type: "active" });
+        }
+      }, 1600);
+    }
     return;
   }
 

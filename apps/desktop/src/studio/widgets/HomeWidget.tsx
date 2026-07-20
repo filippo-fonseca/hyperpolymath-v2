@@ -1,10 +1,11 @@
-import * as React from "react";
+import * as React, { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "motion/react";
 import { Lightbulb, RefreshCw } from "lucide-react";
 import { WidgetIcon } from "@hyperpolymath/ui-icons";
 
 import { SD_ACCENT, SD_FONT, SD_INK, SD_SURFACES } from "../tokens";
+import { onJarvisToolCall } from "../../physical-extender/sse-client";
 import { fetchStudioWidget } from "./widget-fetch";
 
 interface HomeLight {
@@ -258,8 +259,29 @@ export default function HomeWidget(): React.ReactElement {
     queryFn: () => fetchStudioWidget<Receipt>("/api/studio/home"),
     staleTime: 0,
     refetchOnMount: "always",
-    refetchInterval: 8_000,
+    refetchInterval: 3_000,
   });
+
+  // Burst refetch after mount — Govee state trails the control ACK.
+  useEffect(() => {
+    const t1 = window.setTimeout(() => void refetch(), 500);
+    const t2 = window.setTimeout(() => void refetch(), 1200);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [refetch]);
+
+  // When Jarvis finishes a lights tool (SSE), refresh immediately + again after
+  // Govee cloud state catches up — don't wait for the 3s poll.
+  useEffect(() => {
+    return onJarvisToolCall((payload) => {
+      if (payload.name !== "control_lights" && payload.name !== "list_lights") return;
+      void refetch();
+      window.setTimeout(() => void refetch(), 700);
+      window.setTimeout(() => void refetch(), 1600);
+    });
+  }, [refetch]);
 
   if (isLoading) {
     return (

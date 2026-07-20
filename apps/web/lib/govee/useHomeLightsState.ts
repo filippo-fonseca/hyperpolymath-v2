@@ -29,7 +29,8 @@ export function useHomeLightsState(options?: { enabled?: boolean }) {
       return body.receipt;
     },
     staleTime: 0,
-    refetchInterval: 12_000,
+    refetchOnMount: "always",
+    refetchInterval: 3_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     enabled: options?.enabled ?? true,
