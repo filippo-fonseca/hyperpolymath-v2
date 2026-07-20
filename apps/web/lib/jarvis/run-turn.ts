@@ -87,6 +87,9 @@ import {
   ReadWhatsappInputSchema,
   // iMessage — server-side read of synced messages
   ReadImessageInputSchema,
+  // Govee lights
+  ListLightsInputSchema,
+  ControlLightsInputSchema,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
@@ -239,6 +242,8 @@ function buildToolValidators(voiceActive: boolean) {
     read_whatsapp: ReadWhatsappInputSchema,
     // iMessage — server-side read of synced messages
     read_imessage: ReadImessageInputSchema,
+    list_lights: ListLightsInputSchema,
+    control_lights: ControlLightsInputSchema,
     // Computer Use fallback — catch-all agentic desktop loop
     computer_use: ComputerUseInputSchema,
   } as const;
@@ -976,6 +981,16 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "read_imessage") {
               result = await executor.readImessage(
                 parsed.data as Parameters<typeof executor.readImessage>[0],
+                ctx
+              );
+            } else if (toolName === "list_lights") {
+              result = await executor.listLights(
+                parsed.data as Parameters<typeof executor.listLights>[0],
+                ctx
+              );
+            } else if (toolName === "control_lights") {
+              result = await executor.controlLights(
+                parsed.data as Parameters<typeof executor.controlLights>[0],
                 ctx
               );
             } else if (toolName === "computer_use") {
