@@ -90,6 +90,8 @@ import { readGmailTool } from "./read-gmail";
 import { getNewsTool } from "./get-news";
 import { readWhatsappTool } from "./read-whatsapp";
 import { readImessageTool } from "./read-imessage";
+import { listLightsTool } from "./list-lights";
+import { controlLightsTool } from "./control-lights";
 import { computerUseTool } from "./computer-use";
 
 export { zCreateTask } from "./create-task";
@@ -134,6 +136,8 @@ export interface JarvisToolDefinition {
     | "get_news"
     | "read_whatsapp"
     | "read_imessage"
+    | "list_lights"
+    | "control_lights"
     | "computer_use";
   description: string;
   input_schema: Record<string, unknown>;
@@ -262,6 +266,10 @@ export function buildToolDefinitions(
     // sync worker; the executor gracefully returns a friendly setup hint if
     // the table is empty (worker not running / not yet synced).
     { ...readImessageTool, strict: false as const },
+    // Govee lights — server-side list + control (BYOK govee → GOVEE_API_KEY).
+    // NON-strict (grammar budget): server-side Zod validation covers these.
+    { ...listLightsTool, strict: false as const },
+    { ...controlLightsTool, strict: false as const },
     {
       // Computer Use fallback — the catch-all when no named tool fits.
       // NON-strict (grammar budget): server-side Zod validation covers this.
@@ -317,6 +325,14 @@ export { GetNewsInputSchema } from "./get-news";
 export { ReadWhatsappInputSchema } from "./read-whatsapp";
 // iMessage: re-export input schema for run-turn.ts validation.
 export { ReadImessageInputSchema } from "./read-imessage";
+// Govee lights: re-export input schemas for run-turn.ts validation.
+export { ListLightsInputSchema } from "./list-lights";
+export {
+  ControlLightsInputSchema,
+  LightCommandSchema,
+  type LightCommand,
+  type ControlLightsInput,
+} from "./control-lights";
 // Computer Use fallback: re-export input schema for run-turn.ts validation.
 export { ComputerUseInputSchema } from "./computer-use";
 

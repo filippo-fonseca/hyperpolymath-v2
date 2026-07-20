@@ -48,6 +48,13 @@ import {
   whatsappMessages,
   imessageMessages,
 } from "@/lib/db/schema";
+import {
+  loadUserGoveeDevices,
+  packRgb,
+  resolveGoveeClient,
+  resolveTargetDevice,
+} from "@/lib/govee/resolve";
+import { GoveeApiError } from "@/lib/govee/client";
 import { upsertHashtag } from "@/app/actions/hashtags";
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
 import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
@@ -91,6 +98,8 @@ import type {
   FindTasksAction,
   GetNewsAction,
   GetWeatherAction,
+  ListLightsAction,
+  ControlLightsAction,
   LinkPeopleAction,
   ReadGmailAction,
   OpenAppAction,
@@ -1961,6 +1970,159 @@ export function createServerExecutor(): ActionExecutor {
           kind: "internal",
           error: err instanceof Error ? err.message : String(err),
         };
+      }
+    },
+
+
+    async listLights(input: ListLightsAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      const devices = await loadUserGoveeDevices(ctx.userId);
+      const filter = input.filter?.trim().toLowerCase();
+      const filtered = filter
+        ? devices.filter((d) => d.name.toLowerCase().includes(filter))
+        : devices;
+
+      return {
+        ok: true,
+        id: `list_lights:${filtered.length}`,
+        receipt: {
+          lights: filtered.map((d) => ({
+            name: d.name,
+            sku: d.sku,
+            deviceId: d.deviceId,
+            isDefault: d.isDefault,
+          })),
+          count: filtered.length,
+          ...(filter ? { filter: input.filter?.trim() } : {}),
+          ...(devices.length === 0
+            ? {
+                hint: "No lights registered — open Settings → Lights to discover devices.",
+              }
+            : {}),
+        },
+      };
+    },
+
+    async controlLights(input: ControlLightsAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      const client = await resolveGoveeClient(ctx.userId);
+      if (!client) {
+        return {
+          ok: false,
+          kind: "not_connected",
+          error:
+            "No Govee API key configured — add one in Settings (developer.govee.com) or set GOVEE_API_KEY.",
+        };
+      }
+
+      const devices = await loadUserGoveeDevices(ctx.userId);
+      const resolved = resolveTargetDevice(devices, input.device);
+      if (!resolved.ok) {
+        return {
+          ok: false,
+          kind:
+            resolved.kind === "empty" || resolved.kind === "not_found"
+              ? "not_found"
+              : "validation",
+          error: resolved.error,
+        };
+      }
+
+      const device = resolved.device;
+      const ref = { sku: device.sku, device: device.deviceId };
+
+      try {
+        let summary: string;
+        switch (input.type) {
+          case "power":
+            await client.setPower(ref, input.on);
+            summary = input.on ? "turned on" : "turned off";
+            break;
+          case "brightness":
+            await client.setBrightness(ref, input.percent);
+            summary = `brightness set to ${input.percent}%`;
+            break;
+          case "color": {
+            const rgb = packRgb(input.red, input.green, input.blue);
+            await client.setColor(ref, rgb);
+            summary = `color set to rgb(${input.red},${input.green},${input.blue})`;
+            break;
+          }
+          case "temperature":
+            await client.setColorTemperature(ref, input.kelvin);
+            summary = `color temperature set to ${input.kelvin}K`;
+            break;
+          case "gradient":
+            await client.setGradient(ref, input.on);
+            summary = input.on ? "gradient enabled" : "gradient disabled";
+            break;
+          case "segmentColor": {
+            const rgb = packRgb(input.red, input.green, input.blue);
+            await client.setSegmentColor(ref, input.segments, rgb);
+            summary = `segments [${input.segments.join(",")}] colored rgb(${input.red},${input.green},${input.blue})`;
+            break;
+          }
+          case "segmentBrightness":
+            await client.setSegmentBrightness(ref, input.segments, input.percent);
+            summary = `segments [${input.segments.join(",")}] brightness ${input.percent}%`;
+            break;
+          case "scene":
+            await client.activateScene(ref, input.name);
+            summary = `scene "${input.name}" activated`;
+            break;
+          case "music": {
+            const value: {
+              musicMode: number;
+              sensitivity: number;
+              autoColor?: number;
+              rgb?: number;
+            } = {
+              musicMode: input.mode,
+              sensitivity: input.sensitivity,
+            };
+            if (typeof input.autoColor === "boolean") {
+              value.autoColor = input.autoColor ? 1 : 0;
+            }
+            if (
+              typeof input.red === "number" &&
+              typeof input.green === "number" &&
+              typeof input.blue === "number"
+            ) {
+              value.rgb = packRgb(input.red, input.green, input.blue);
+            }
+            await client.setMusicMode(ref, value);
+            summary = `music mode ${input.mode} (sensitivity ${input.sensitivity})`;
+            break;
+          }
+          case "diy":
+            await client.activateDiy(ref, input.name);
+            summary = `DIY scene "${input.name}" activated`;
+            break;
+          default: {
+            const _exhaustive: never = input;
+            return {
+              ok: false,
+              kind: "validation",
+              error: `Unknown light command: ${JSON.stringify(_exhaustive)}`,
+            };
+          }
+        }
+
+        return {
+          ok: true,
+          id: `control_lights:${device.deviceId}:${input.type}`,
+          receipt: {
+            device: device.name,
+            sku: device.sku,
+            command: input.type,
+            summary,
+            message: `${device.name} ${summary}.`,
+          },
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (err instanceof GoveeApiError) {
+          return { ok: false, kind: "network", error: message };
+        }
+        return { ok: false, kind: "internal", error: message };
       }
     },
 
