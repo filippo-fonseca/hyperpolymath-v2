@@ -16,6 +16,7 @@ interface HomeLight {
   brightness: number | null;
   rgb: number | null;
   kelvin: number | null;
+  mode?: string | null;
   stateError?: string;
 }
 

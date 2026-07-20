@@ -8,28 +8,14 @@
 import "server-only";
 
 import { getCapability } from "./device";
+import { rgbToCss, type HomeLightDeviceView, type HomeLightsReceiptView } from "./home-display";
 import { loadUserGoveeDevices, resolveGoveeClient } from "./resolve";
 import type { GoveeCapability } from "./types";
 import type { ExecutorResult } from "@hyperpolymath/jarvis-core";
 
-export interface HomeLightDevice {
-  name: string;
-  sku: string;
-  deviceId: string;
-  isDefault: boolean;
-  on: boolean | null;
-  brightness: number | null;
-  rgb: number | null;
-  kelvin: number | null;
-  stateError?: string;
-}
-
-export interface HomeLightsReceipt {
-  devices: HomeLightDevice[];
-  count: number;
-  connected: boolean;
-  hint?: string;
-}
+export type HomeLightDevice = HomeLightDeviceView;
+export type HomeLightsReceipt = HomeLightsReceiptView;
+export { rgbToCss };
 
 function capabilityValue(
   capabilities: GoveeCapability[],
@@ -39,9 +25,61 @@ function capabilityValue(
   return getCapability(capabilities, type, instance)?.state?.value;
 }
 
+function formatModeLabel(
+  value: unknown,
+  kind: "scene" | "music" | "diy" | "snapshot",
+): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "string" && value.trim()) return `${kind}: ${value.trim()}`;
+  if (typeof value === "number" && Number.isFinite(value)) return `${kind} #${value}`;
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const name =
+      (typeof record.name === "string" && record.name) ||
+      (typeof record.sceneName === "string" && record.sceneName) ||
+      null;
+    if (name) return `${kind}: ${name}`;
+    if (typeof record.id === "number" || typeof record.id === "string") {
+      return `${kind} #${record.id}`;
+    }
+    if (typeof record.paramId === "number" || typeof record.paramId === "string") {
+      return `${kind} #${record.paramId}`;
+    }
+  }
+  return null;
+}
+
+function parseMode(capabilities: GoveeCapability[]): string | null {
+  const candidates: Array<{
+    type: string;
+    instance: string;
+    kind: "scene" | "music" | "diy" | "snapshot";
+  }> = [
+    { type: "devices.capabilities.dynamic_scene", instance: "lightScene", kind: "scene" },
+    { type: "devices.capabilities.diy_color_setting", instance: "diyScene", kind: "diy" },
+    { type: "devices.capabilities.dynamic_scene", instance: "snapshot", kind: "snapshot" },
+    { type: "devices.capabilities.music_setting", instance: "musicMode", kind: "music" },
+  ];
+  for (const candidate of candidates) {
+    const raw = capabilityValue(capabilities, candidate.type, candidate.instance);
+    const label = formatModeLabel(raw, candidate.kind);
+    if (label) return label;
+  }
+  const music = capabilityValue(
+    capabilities,
+    "devices.capabilities.music_setting",
+    "musicMode",
+  );
+  if (music && typeof music === "object" && music !== null) {
+    const mode = (music as { musicMode?: unknown }).musicMode;
+    if (typeof mode === "number") return `music #${mode}`;
+  }
+  return null;
+}
+
 function parseLightState(
   capabilities: GoveeCapability[],
-): Pick<HomeLightDevice, "on" | "brightness" | "rgb" | "kelvin"> {
+): Pick<HomeLightDevice, "on" | "brightness" | "rgb" | "kelvin" | "mode"> {
   const power = capabilityValue(capabilities, "devices.capabilities.on_off", "powerSwitch");
   const brightness = capabilityValue(capabilities, "devices.capabilities.range", "brightness");
   const rgb = capabilityValue(capabilities, "devices.capabilities.color_setting", "colorRgb");
@@ -56,6 +94,7 @@ function parseLightState(
     brightness: typeof brightness === "number" ? brightness : null,
     rgb: typeof rgb === "number" ? rgb : null,
     kelvin: typeof kelvin === "number" ? kelvin : null,
+    mode: parseMode(capabilities),
   };
 }
 
@@ -82,10 +121,11 @@ export async function fetchHomeLightsState(userId: string): Promise<ExecutorResu
     sku: device.sku,
     deviceId: device.deviceId,
     isDefault: device.isDefault,
-    on: null,
-    brightness: null,
-    rgb: null,
-    kelvin: null,
+    on: null as boolean | null,
+    brightness: null as number | null,
+    rgb: null as number | null,
+    kelvin: null as number | null,
+    mode: null as string | null,
   }));
 
   if (!client) {
@@ -120,6 +160,7 @@ export async function fetchHomeLightsState(userId: string): Promise<ExecutorResu
           brightness: null,
           rgb: null,
           kelvin: null,
+          mode: null,
           stateError: err instanceof Error ? err.message : String(err),
         };
       }
@@ -135,10 +176,4 @@ export async function fetchHomeLightsState(userId: string): Promise<ExecutorResu
       connected: true,
     } satisfies HomeLightsReceipt,
   };
-}
-
-/** Convert a packed Govee RGB integer to a CSS hex color. */
-export function rgbToCss(rgb: number): string {
-  const clamped = Math.max(0, Math.min(0xffffff, Math.floor(rgb)));
-  return `#${clamped.toString(16).padStart(6, "0")}`;
 }

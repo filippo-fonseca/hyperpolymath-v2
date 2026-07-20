@@ -42,6 +42,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useOptimistic, useRef, useState } from "react";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
 import { PersistentNav, SidebarStatusRow, SidebarSystemNav } from "./PersistentNav";
+import { SidebarHomeDevicesStrip } from "./SidebarHomeDevicesStrip";
 import { SidebarTree } from "./SidebarTree";
 import { deriveSidebarLayout, planToggle, useIsBelowMd } from "./use-sidebar-breakpoint";
 
@@ -340,6 +341,7 @@ export function Sidebar({
           </section>
 
           <SidebarStatusRow collapsed={effectiveCollapsed} />
+          <SidebarHomeDevicesStrip collapsed={effectiveCollapsed} />
           <IdentityBlock collapsed={effectiveCollapsed} profile={profile} />
           <UtilityStrip
             collapsed={effectiveCollapsed}
