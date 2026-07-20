@@ -10,6 +10,7 @@ const ENTRIES: ReadonlyArray<{ id: string; label: string }> = [
   { id: "api-keys", label: "API keys" },
   { id: "voice", label: "Voice" },
   { id: "devices", label: "Devices" },
+  { id: "govee-lights", label: "Lights" },
   { id: "tokens", label: "Tokens" },
   { id: "account", label: "Account" },
 ];

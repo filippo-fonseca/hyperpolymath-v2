@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { KeyRound, Laptop } from "lucide-react";
+import { KeyRound, Laptop, Lightbulb } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
@@ -28,6 +28,9 @@ import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
 import { PagesBackupSection } from "@/components/settings/PagesBackupSection";
 import { getPagesBackupSettings } from "@/lib/db/queries/pages-backup";
 import { listUserKeyStatus } from "@/lib/byok/keys";
+import { GoveeDevicesSection } from "@/components/settings/GoveeDevicesSection";
+import { listGoveeDevices } from "@/app/actions/govee-devices";
+import { resolveGoveeApiKey } from "@/lib/govee/service";
 import {
   getValidGcalToken,
   GcalNotConnectedError,
@@ -39,18 +42,29 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await requireOnboarded();
-  const [gcalStatus, oauthAvatar, distanceUnitRow, apiKeyStatus, backupSettings] =
-    await Promise.all([
-      getGcalConnectionStatus(user.id),
-      getAuthAvatar(),
-      db
-        .select({ unit: users.distanceUnit })
-        .from(users)
-        .where(eq(users.id, user.id))
-        .limit(1),
-      listUserKeyStatus(user.id),
-      getPagesBackupSettings(user.id),
-    ]);
+  const [
+    gcalStatus,
+    oauthAvatar,
+    distanceUnitRow,
+    apiKeyStatus,
+    backupSettings,
+    goveeDevicesResult,
+    goveeApiKey,
+  ] = await Promise.all([
+    getGcalConnectionStatus(user.id),
+    getAuthAvatar(),
+    db
+      .select({ unit: users.distanceUnit })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1),
+    listUserKeyStatus(user.id),
+    getPagesBackupSettings(user.id),
+    listGoveeDevices(),
+    resolveGoveeApiKey(user.id),
+  ]);
+  const goveeDevices = goveeDevicesResult.ok ? goveeDevicesResult.data : [];
+  const hasGoveeApiKey = goveeApiKey !== null;
   const currentDistanceUnit: "km" | "mi" =
     distanceUnitRow[0]?.unit === "mi" ? "mi" : "km";
 
@@ -242,6 +256,24 @@ export default async function SettingsPage() {
                 Manage devices →
               </Link>
             </SettingsCard>
+
+            <div id="govee-lights" className="scroll-mt-24">
+              <SettingsCard className="space-y-4">
+                <div>
+                  <CardTitle icon={<Lightbulb className="h-4 w-4" />}>
+                    Govee lights
+                  </CardTitle>
+                  <CardDescription className="mt-2">
+                    Discover and name your Govee smart lights so JARVIS knows
+                    which device to control. Requires a Govee API key.
+                  </CardDescription>
+                </div>
+                <GoveeDevicesSection
+                  initialDevices={goveeDevices}
+                  hasApiKey={hasGoveeApiKey}
+                />
+              </SettingsCard>
+            </div>
           </section>
 
           {/* TOKENS */}
