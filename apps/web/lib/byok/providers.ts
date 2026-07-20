@@ -15,7 +15,8 @@ export type ByokProvider =
   | "anthropic_admin"
   | "groq"
   | "elevenlabs"
-  | "guardian";
+  | "guardian"
+  | "govee";
 
 export interface ByokProviderMeta {
   id: ByokProvider;
@@ -79,6 +80,15 @@ export const BYOK_PROVIDERS: Record<ByokProvider, ByokProviderMeta> = {
       "News briefings — JARVIS's get_news tool reads Guardian headlines on demand",
     consoleUrl: "https://open-platform.theguardian.com/access/",
     // Guardian keys are free-tier UUIDs with no fixed prefix.
+    keyPrefix: "",
+    required: false,
+  },
+  govee: {
+    id: "govee",
+    label: "Govee",
+    powers: "Smart lights — JARVIS can control your Govee devices on demand",
+    consoleUrl: "https://developer.govee.com/reference/apply-you-govee-api-key",
+    // Govee keys are issued by email with no fixed prefix.
     keyPrefix: "",
     required: false,
   },
