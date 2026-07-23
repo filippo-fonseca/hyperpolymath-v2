@@ -249,7 +249,7 @@ export function localDateString(offsetDays = 0): string {
   return `${y}-${m}-${day}`;
 }
 
-// ── Projects / Areas (read-only) ──────────────────────────────────────────────
+// ── Projects / Areas ─────────────────────────────────────────────────────────
 
 export interface DeviceProject {
   id: string;
@@ -269,6 +269,69 @@ export interface DeviceArea {
 export async function getProjects(): Promise<DeviceArea[] | null> {
   const data = await call<{ areas: DeviceArea[] }>("/api/device/projects");
   return data?.areas ?? null;
+}
+
+export async function createArea(input: {
+  name: string;
+  emoji?: string | null;
+}): Promise<string | null> {
+  const data = await call<{ id: string }>("/api/device/projects", {
+    method: "POST",
+    body: { type: "area", ...input },
+  });
+  return data?.id ?? null;
+}
+
+export async function updateArea(input: {
+  id: string;
+  name?: string;
+  emoji?: string | null;
+  archived?: boolean;
+}): Promise<boolean> {
+  const data = await call<{ ok: boolean }>("/api/device/projects", {
+    method: "PATCH",
+    body: { type: "area", ...input },
+  });
+  return data?.ok === true;
+}
+
+export async function deleteArea(id: string): Promise<boolean> {
+  const data = await call<{ ok: boolean }>(`/api/device/projects?type=area&id=${id}`, {
+    method: "DELETE",
+  });
+  return data?.ok === true;
+}
+
+export async function createProject(input: {
+  areaId: string;
+  name: string;
+  icon?: string | null;
+}): Promise<string | null> {
+  const data = await call<{ id: string }>("/api/device/projects", {
+    method: "POST",
+    body: { type: "project", ...input },
+  });
+  return data?.id ?? null;
+}
+
+export async function updateProject(input: {
+  id: string;
+  name?: string;
+  icon?: string | null;
+  archived?: boolean;
+}): Promise<boolean> {
+  const data = await call<{ ok: boolean }>("/api/device/projects", {
+    method: "PATCH",
+    body: { type: "project", ...input },
+  });
+  return data?.ok === true;
+}
+
+export async function deleteProject(id: string): Promise<boolean> {
+  const data = await call<{ ok: boolean }>(`/api/device/projects?type=project&id=${id}`, {
+    method: "DELETE",
+  });
+  return data?.ok === true;
 }
 
 // ── Training ────────────────────────────────────────────────────────────────
