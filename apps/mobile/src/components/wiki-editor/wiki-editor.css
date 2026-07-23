@@ -33,6 +33,7 @@ body,
   /* Let content flow so the WebView (scrollEnabled) owns a single scroll axis;
      an inner overflow container would trap iOS scroll and fight the WebView. */
   min-height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
   background: var(--sd-app);
@@ -40,11 +41,59 @@ body,
   -webkit-tap-highlight-color: transparent;
 }
 
+html,
+body {
+  height: 100%;
+}
+
+/*
+ * Expo's DOM-component HTML template injects `#root { display: flex; flex: 1 }`
+ * — a ROW flex container — which makes the single BlockNote child shrink to its
+ * intrinsic content width (the ~28%-wide column bug) and stops it filling the
+ * viewport height. Flip the axis to a column and stretch children so the editor
+ * fills the full device width and defaults tall, like the web editor. Content
+ * grows downward and the native WebView owns the scroll.
+ */
+#root {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 100vh;
+  width: 100%;
+}
+
 body {
   color: var(--sd-ink);
   font-family: var(--sd-sans);
   /* iOS: keep the caret and last lines clear of the on-screen keyboard. */
   overscroll-behavior: none;
+}
+
+/* The single scrollable document: in-page header stacked above the blocks, the
+   editor flexing to fill (and overflow) the remaining height. */
+.wiki-doc {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* BlockNote's own root (bn-root/bn-container) must fill the width and grow to
+   fill the tall document, so the empty canvas below the text stays tappable. */
+.wiki-doc .bn-root,
+.wiki-doc .bn-container {
+  flex: 1 1 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.wiki-doc .bn-editor,
+.wiki-doc .ProseMirror {
+  flex: 1 1 auto;
+  width: 100%;
 }
 
 /* Map BlockNote's design tokens onto the sd ladder. `[data-color-scheme]` is
@@ -97,4 +146,71 @@ pre {
 /* Accent the selection + check state with the one cyan. */
 ::selection {
   background: rgba(34, 211, 238, 0.28);
+}
+
+/*
+ * No focus box. iOS WKWebView draws a blue focus ring / tap-highlight on the
+ * focused contenteditable (the "blue border that resizes while typing"). We
+ * want the caret only, exactly like the web editor. Kill every outline and the
+ * tap-highlight; the caret is unaffected.
+ */
+*:focus,
+*:focus-visible {
+  outline: none !important;
+}
+
+.bn-editor,
+.ProseMirror,
+[contenteditable],
+.wiki-page-title {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * In-document page header — mirrors the web reader's title block, in the sd
+ * register: big Space Grotesk title, optional emoji, hairline divider. Lives
+ * inside the scroll area above the blocks. Left inset aligns with BlockNote's
+ * block text (editor padding 18px + the block's own gutter).
+ */
+.wiki-page-header {
+  padding: 22px 20px 0 24px;
+}
+
+.wiki-page-emoji {
+  font-size: 34px;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.wiki-page-title {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  color: var(--sd-ink);
+  font-family: var(--sd-sans);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+  padding: 0;
+  margin: 0;
+}
+
+.wiki-page-title::placeholder {
+  color: var(--sd-ink-faint);
+}
+
+.wiki-page-title:disabled {
+  color: var(--sd-ink);
+  -webkit-text-fill-color: var(--sd-ink);
+  opacity: 1;
+}
+
+.wiki-page-divider {
+  height: 1px;
+  background: var(--sd-line);
+  margin: 16px 0 4px 0;
 }
