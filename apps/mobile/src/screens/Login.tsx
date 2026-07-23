@@ -1,5 +1,6 @@
 /**
- * Sign-in gate — Google OAuth primary, optional server URL for LAN/dev.
+ * Sign-in gate — Google OAuth, one tap. The server is auto-resolved
+ * (Metro host in dev, production site otherwise); no manual URL entry.
  * Spacedrive register: solid canvas, hairline chrome, Space Grotesk, cyan CTA.
  */
 
@@ -9,18 +10,16 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { resolveServerUrl } from "../lib/server";
 import { signInWithGoogle } from "../lib/supabase";
-import { getSettings, updateSettings } from "../lib/settings";
 import { font, sd } from "../theme";
 
 export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const insets = useSafeAreaInsets();
-  const [serverUrl, setServerUrl] = useState(getSettings().serverUrl);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,9 +27,12 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const trimmed = serverUrl.trim().replace(/\/$/, "") || getSettings().serverUrl;
-      await updateSettings({ serverUrl: trimmed });
-      const result = await signInWithGoogle(trimmed);
+      const server = await resolveServerUrl();
+      if (!server) {
+        setError("Could not reach a Hyperpolymath server.");
+        return;
+      }
+      const result = await signInWithGoogle(server);
       if (!result.ok) {
         if (result.error !== "cancelled") setError(result.error);
         return;
@@ -48,19 +50,6 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
       <Text style={styles.lede}>
         Sign in with the same Google account you use on the web. No device codes.
       </Text>
-
-      <Text style={styles.label}>SERVER</Text>
-      <TextInput
-        style={styles.input}
-        value={serverUrl}
-        onChangeText={setServerUrl}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-        placeholder="https://hyperpolymath.com"
-        placeholderTextColor={sd.inkFaint}
-        editable={!busy}
-      />
 
       <Pressable
         onPress={onGoogle}
@@ -84,7 +73,8 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
 
       <View style={{ flex: 1 }} />
       <Text style={styles.footnote}>
-        Advanced device-token pairing remains available in Settings after sign-in.
+        Advanced device-token pairing and server override remain available in
+        Settings after sign-in.
       </Text>
     </View>
   );
@@ -118,27 +108,8 @@ const styles = StyleSheet.create({
     color: sd.inkDull,
     maxWidth: 340,
   },
-  label: {
-    marginTop: 36,
-    fontFamily: font.mono,
-    fontSize: 11,
-    letterSpacing: 1.6,
-    color: sd.inkFaint,
-  },
-  input: {
-    marginTop: 8,
-    height: 46,
-    borderRadius: sd.radius.pillInset,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: sd.line,
-    backgroundColor: sd.input,
-    color: sd.ink,
-    paddingHorizontal: 14,
-    fontFamily: font.sans,
-    fontSize: 15,
-  },
   cta: {
-    marginTop: 20,
+    marginTop: 36,
     height: 48,
     borderRadius: sd.radius.full,
     backgroundColor: sd.accent,

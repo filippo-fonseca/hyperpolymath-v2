@@ -22,6 +22,7 @@ const CHUNK = 1800;
 type Listener = (session: Session | null) => void;
 
 let client: SupabaseClient | null = null;
+let clientServerBase: string | null = null;
 let cachedSession: Session | null = null;
 let bootstrapped = false;
 const listeners = new Set<Listener>();
@@ -79,10 +80,19 @@ export interface BootstrapConfig {
 
 export async function fetchBootstrap(
   serverUrl?: string,
+  opts?: { timeoutMs?: number },
 ): Promise<BootstrapConfig | null> {
   const base = (serverUrl ?? getSettings().serverUrl).replace(/\/$/, "");
   try {
-    const res = await fetch(`${base}/api/mobile/bootstrap`);
+    const controller = new AbortController();
+    const timer = opts?.timeoutMs
+      ? setTimeout(() => controller.abort(), opts.timeoutMs)
+      : null;
+    const res = await fetch(`${base}/api/mobile/bootstrap`, {
+      signal: controller.signal,
+    }).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as Partial<BootstrapConfig>;
     if (!data.supabaseUrl || !data.supabaseAnonKey) return null;
@@ -98,9 +108,11 @@ export async function fetchBootstrap(
 export async function ensureSupabaseClient(
   serverUrl?: string,
 ): Promise<SupabaseClient | null> {
-  if (client) return client;
-  const cfg = await fetchBootstrap(serverUrl);
+  const base = (serverUrl ?? getSettings().serverUrl).replace(/\/$/, "");
+  if (client && clientServerBase === base) return client;
+  const cfg = await fetchBootstrap(base, { timeoutMs: 6000 });
   if (!cfg) return null;
+  clientServerBase = base;
 
   client = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
     auth: {
