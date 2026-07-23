@@ -1,0 +1,100 @@
+/*
+ * sd-dark theme for the BlockNote editor rendered inside the Expo DOM
+ * component. Mirrors apps/mobile/src/theme.ts (which mirrors the desktop sd
+ * tokens). Loaded only in the 'use dom' web bundle, never in native RN.
+ *
+ * Goals: a SOLID canvas (no transparency — the WebView sits on sd.app), Space
+ * Grotesk body / JetBrains Mono code, the one cyan accent, and comfortable
+ * touch spacing for a phone.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  /* sd surface + ink ladder (see theme.ts) */
+  --sd-app: hsl(235, 15%, 13%);
+  --sd-box: hsl(235, 15%, 18%);
+  --sd-line: hsl(235, 15%, 23%);
+  --sd-hover: hsl(235, 15%, 25%);
+  --sd-selected: hsl(235, 15%, 26%);
+  --sd-menu: hsl(235, 15%, 10%);
+  --sd-ink: hsl(235, 35%, 92%);
+  --sd-ink-dull: hsl(235, 10%, 70%);
+  --sd-ink-faint: hsl(235, 10%, 55%);
+  --sd-accent: #22d3ee;
+
+  --sd-sans: "Space Grotesk", -apple-system, system-ui, sans-serif;
+  --sd-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+html,
+body,
+#root {
+  /* Let content flow so the WebView (scrollEnabled) owns a single scroll axis;
+     an inner overflow container would trap iOS scroll and fight the WebView. */
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--sd-app);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  color: var(--sd-ink);
+  font-family: var(--sd-sans);
+  /* iOS: keep the caret and last lines clear of the on-screen keyboard. */
+  overscroll-behavior: none;
+}
+
+/* Map BlockNote's design tokens onto the sd ladder. `[data-color-scheme]` is
+   how @blocknote/mantine scopes its dark theme; override both to be safe. */
+.bn-container,
+.bn-container[data-color-scheme="dark"],
+[data-color-scheme="dark"] {
+  --bn-colors-editor-text: var(--sd-ink);
+  --bn-colors-editor-background: var(--sd-app);
+  --bn-colors-menu-text: var(--sd-ink);
+  --bn-colors-menu-background: var(--sd-menu);
+  --bn-colors-tooltip-text: var(--sd-ink);
+  --bn-colors-tooltip-background: var(--sd-menu);
+  --bn-colors-hovered-text: var(--sd-ink);
+  --bn-colors-hovered-background: var(--sd-hover);
+  --bn-colors-selected-text: var(--sd-ink);
+  --bn-colors-selected-background: var(--sd-selected);
+  --bn-colors-disabled-text: var(--sd-ink-faint);
+  --bn-colors-disabled-background: var(--sd-box);
+  --bn-colors-border: var(--sd-line);
+  --bn-colors-side-menu: var(--sd-ink-faint);
+  --bn-colors-highlights-gray-background: var(--sd-box);
+  --bn-colors-shadow: rgba(0, 0, 0, 0.4);
+  --bn-font-family: var(--sd-sans);
+  --bn-border-radius: 8px;
+
+  background: var(--sd-app);
+  font-family: var(--sd-sans);
+}
+
+/* Content flows naturally; the native WebView scrolls it. Generous bottom
+   padding so the last lines clear the iOS keyboard. */
+.bn-editor {
+  padding: 16px 18px 260px 18px;
+  font-family: var(--sd-sans);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+/* Placeholder + code in the sd register. */
+.bn-inline-content code,
+pre {
+  font-family: var(--sd-mono);
+}
+
+.bn-editor [data-placeholder]::before {
+  color: var(--sd-ink-faint);
+}
+
+/* Accent the selection + check state with the one cyan. */
+::selection {
+  background: rgba(34, 211, 238, 0.28);
+}
