@@ -18,7 +18,7 @@ import type { DOMProps } from "expo/dom";
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
 import type { Block, PartialBlock } from "@blocknote/core";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { sanitizeBlocks } from "./sanitize";
 
@@ -42,10 +42,18 @@ type Props = {
   editable?: boolean;
   /** Drop the caret into the body once content is applied (daily quick entry). */
   autoFocus?: boolean;
+  /** Page title, rendered as the in-document header above the blocks. */
+  title?: string;
+  /** Page emoji, shown above the title when set. */
+  emoji?: string | null;
+  /** Whether the in-document title can be edited (false for locked pages). */
+  titleEditable?: boolean;
   /** Fired once the editor is mounted — native then delivers `content`. */
   onReady?: () => Promise<void>;
   /** Debounced by native; carries the full document JSON on every edit. */
   onChange?: (doc: Block[]) => Promise<void>;
+  /** Bridged on every title keystroke; native owns the debounce + PATCH. */
+  onTitleChange?: (title: string) => Promise<void>;
 };
 
 export default function WikiEditorDom({
@@ -54,10 +62,25 @@ export default function WikiEditorDom({
   contentKey,
   editable = true,
   autoFocus = false,
+  title,
+  emoji,
+  titleEditable = true,
   onReady,
   onChange,
+  onTitleChange,
 }: Props) {
   const editor = useCreateBlockNote({});
+
+  // The in-document title. Kept as local state so typing never fights a prop
+  // echo from native; re-seeded only when a NEW page loads (contentKey change).
+  const [titleValue, setTitleValue] = useState(title ?? "");
+  const titleKey = useRef<string | null>(null);
+  useEffect(() => {
+    const key = contentKey ?? "";
+    if (titleKey.current === key) return;
+    titleKey.current = key;
+    setTitleValue(title ?? "");
+  }, [contentKey, title]);
 
   // Which contentKey we've already applied — so we seed exactly once per page
   // and later native re-renders can't clobber live edits.
@@ -112,14 +135,32 @@ export default function WikiEditorDom({
   }, [content, markdownFallback, contentKey, autoFocus, editor]);
 
   return (
-    <BlockNoteView
-      editor={editor}
-      editable={editable}
-      theme="dark"
-      onChange={() => {
-        if (applying.current) return;
-        void onChange?.(editor.document);
-      }}
-    />
+    <div className="wiki-doc">
+      <div className="wiki-page-header">
+        {emoji ? <div className="wiki-page-emoji">{emoji}</div> : null}
+        <input
+          className="wiki-page-title"
+          value={titleValue}
+          placeholder="Untitled"
+          disabled={!titleEditable}
+          spellCheck={false}
+          onChange={(e) => {
+            const next = e.target.value;
+            setTitleValue(next);
+            void onTitleChange?.(next);
+          }}
+        />
+        <div className="wiki-page-divider" />
+      </div>
+      <BlockNoteView
+        editor={editor}
+        editable={editable}
+        theme="dark"
+        onChange={() => {
+          if (applying.current) return;
+          void onChange?.(editor.document);
+        }}
+      />
+    </div>
   );
 }
