@@ -30,7 +30,9 @@
 html,
 body,
 #root {
-  height: 100%;
+  /* Let content flow so the WebView (scrollEnabled) owns a single scroll axis;
+     an inner overflow container would trap iOS scroll and fight the WebView. */
+  min-height: 100%;
   margin: 0;
   padding: 0;
   background: var(--sd-app);
@@ -73,21 +75,13 @@ body {
   font-family: var(--sd-sans);
 }
 
-/* Editor fills the WebView and owns its own vertical scroll. Generous bottom
+/* Content flows naturally; the native WebView scrolls it. Generous bottom
    padding so the last lines clear the iOS keyboard. */
-.bn-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
 .bn-editor {
-  flex: 1;
-  padding: 16px 18px 240px 18px;
+  padding: 16px 18px 260px 18px;
   font-family: var(--sd-sans);
   font-size: 16px;
   line-height: 1.55;
-  overflow-y: auto;
 }
 
 /* Placeholder + code in the sd register. */
