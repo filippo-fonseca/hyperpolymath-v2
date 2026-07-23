@@ -20,6 +20,7 @@ import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { isAuthed } from "./src/lib/auth-token";
+import { maybeDevAutoSignIn } from "./src/lib/dev-auth";
 import { loadSettings } from "./src/lib/settings";
 import { initAuth, onAuthChange } from "./src/lib/supabase";
 import { LoginScreen } from "./src/screens/Login";
@@ -49,6 +50,7 @@ export default function App() {
     (async () => {
       await loadSettings();
       await initAuth();
+      if (!isAuthed()) await maybeDevAutoSignIn();
       if (cancelled) return;
       setSignedIn(isAuthed());
       setReady(true);
