@@ -17,9 +17,12 @@ import { font, sd } from "../../theme";
 export function WikiBrowse({
   active,
   onOpenPage,
+  onOpenDaily,
 }: {
   active: boolean;
   onOpenPage: (pageId: string) => void;
+  /** Opens today's daily page in the editor (get-or-create). */
+  onOpenDaily: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const { data, loading, refresh } = useCollection<WikiTree>(getWikiTree, active);
@@ -70,6 +73,19 @@ export function WikiBrowse({
         paddingTop={insets.top + 8}
       />
       <SearchBar value={query} onChangeText={setQuery} placeholder="Search pages…" />
+
+      {!searching ? (
+        <Pressable
+          onPress={onOpenDaily}
+          style={({ pressed }) => [styles.dailyBtn, pressed && { opacity: 0.72 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Write today's note"
+        >
+          <Text style={styles.dailyGlyph}>✎</Text>
+          <Text style={styles.dailyLabel}>Today&apos;s note</Text>
+          <Text style={styles.dailyHint}>WRITE</Text>
+        </Pressable>
+      ) : null}
 
       {!searching && stack.length > 0 ? (
         <ScrollView
@@ -272,6 +288,37 @@ const styles = StyleSheet.create({
   loader: {
     paddingTop: 80,
     alignItems: "center",
+  },
+  dailyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    borderRadius: sd.radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.accent,
+    backgroundColor: sd.selected,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  dailyGlyph: {
+    color: sd.accent,
+    fontSize: 16,
+    width: 22,
+    textAlign: "center",
+  },
+  dailyLabel: {
+    flex: 1,
+    color: sd.ink,
+    fontFamily: font.sansSemiBold,
+    fontSize: 15,
+  },
+  dailyHint: {
+    color: sd.accent,
+    fontFamily: font.mono,
+    fontSize: 10,
+    letterSpacing: 1,
   },
   crumbRow: {
     maxHeight: 34,
