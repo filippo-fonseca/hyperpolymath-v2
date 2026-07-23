@@ -5,7 +5,8 @@
 **Scale:** feature  
 **Branch:** `cursor/mobile-sd-overhaul-d8ce`  
 **Base / integration:** `next`  
-**Epic:** #319
+**Epic:** #319  
+**PR:** #326 → `next`
 
 ## Assumptions (plane / uninterrupted)
 
@@ -17,17 +18,23 @@
 
 ## Units
 
-| id | issue | status |
-|----|-------|--------|
-| u1-theme | TBD | pending |
-| u2-dual-auth | TBD | pending |
-| u3-google-auth | TBD | pending |
-| u4-shell | TBD | pending |
-| u5-jarvis | TBD | pending |
-| u6-features | TBD | pending |
+| id | issue | status | notes |
+|----|-------|--------|-------|
+| u1-theme | #320 | done | `bec2255d` |
+| u2-dual-auth | #321 | done | `e2585c5d` |
+| u3-google-auth | #322 | done | `c6ac7142` |
+| u4-shell | #323 | done | `e0407bb3` + `5b77d675` |
+| u5-jarvis | #324 | done | `bd88b30d` |
+| u6-features | #325 | done | calendar/today/more + areas CRUD + search |
 
 ## Reference
 
 - `apps/desktop/src/styles/sd-tokens.css`
 - `apps/desktop/src/studio/tokens.ts`
 - `docs/DESIGN-SYSTEM.md`
+
+## Follow-ups / human setup
+
+- Add Supabase Auth redirect: `jarvis://auth/callback`
+- EAS rebuild to pick up scheme + new native deps
+- Deferred: wiki, nutrition, insights, full screen-by-screen sd polish on Tasks/Habits/Captures row chrome
