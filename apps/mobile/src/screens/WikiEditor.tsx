@@ -23,6 +23,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import WikiEditorDom from "../components/wiki-editor/WikiEditorDom";
+import { hasUnknownNodes } from "../components/wiki-editor/sanitize";
 import {
   createPage,
   getDailyPage,
@@ -109,11 +110,18 @@ export function WikiEditorScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetKey]);
 
+  // Data-loss guard (Conductor amendment): a page whose contentJson carries
+  // nodes the default schema can't render would be silently stripped by a
+  // save. Such pages open READ-ONLY in v1 — no edits, no saves — so web-only
+  // blocks (callout, linkEmbed, mentions, receipts) are never destroyed from
+  // the phone. New / daily / plain / legacy-markdown pages lock nothing.
+  const locked = page !== null && hasUnknownNodes(page.contentJson);
+
   // Persist the current title + latest document. `immediate` bypasses the
   // debounce (used by "Done"). Returns true on success.
   const doSave = useCallback(async (): Promise<boolean> => {
     const current = page;
-    if (!current) return false;
+    if (!current || locked) return false;
     setSaveState("saving");
     try {
       const patch: Parameters<typeof patchPage>[1] = { title };
@@ -127,7 +135,7 @@ export function WikiEditorScreen({
       if (mounted.current) setSaveState("error");
       return false;
     }
-  }, [page, title]);
+  }, [page, title, locked]);
 
   const scheduleSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -188,11 +196,19 @@ export function WikiEditorScreen({
           onChangeText={handleTitleChange}
           placeholder="Untitled"
           placeholderTextColor={sd.inkFaint}
-          editable={page !== null}
+          editable={page !== null && !locked}
           returnKeyType="done"
         />
-        <SaveBadge state={saveState} />
+        <SaveBadge state={locked ? "idle" : saveState} />
       </View>
+
+      {locked ? (
+        <View style={styles.lockBanner}>
+          <Text style={styles.lockText}>
+            This page uses blocks mobile can&apos;t edit yet — read-only.
+          </Text>
+        </View>
+      ) : null}
 
       <KeyboardAvoidingView
         style={styles.body}
@@ -207,8 +223,8 @@ export function WikiEditorScreen({
             contentKey={page?.id}
             content={deliver ? (page?.contentJson ?? null) : null}
             markdownFallback={deliver ? (page?.content ?? undefined) : undefined}
-            editable
-            autoFocus={autoFocus}
+            editable={!locked}
+            autoFocus={autoFocus && !locked}
             onReady={handleReady}
             onChange={handleDomChange}
             dom={{
@@ -282,6 +298,19 @@ const styles = StyleSheet.create({
     fontFamily: font.mono,
     fontSize: 10,
     letterSpacing: 0.6,
+  },
+  lockBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: sd.darkBox,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: sd.line,
+  },
+  lockText: {
+    color: sd.amber,
+    fontFamily: font.mono,
+    fontSize: 11,
+    letterSpacing: 0.4,
   },
   body: {
     flex: 1,
