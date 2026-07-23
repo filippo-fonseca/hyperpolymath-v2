@@ -7,17 +7,30 @@
 // Not referenced by production nav. Kept in the editor's fenced dir purely as a
 // verification harness.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { setDeviceToken, updateSettings } from "../../lib/settings";
 import { WikiEditorScreen, dailyQuickEntryTarget, type WikiEditorTarget } from "../../screens/WikiEditor";
 import { font, sd } from "../../theme";
+
+/**
+ * Dev-only: point the client at the local mock wiki server (the sealed
+ * API-CONTRACT stand-in used for verification). Override via
+ * EXPO_PUBLIC_WIKI_MOCK_URL if the simulator can't reach localhost.
+ */
+const MOCK_SERVER_URL = process.env.EXPO_PUBLIC_WIKI_MOCK_URL ?? "http://localhost:3215";
 
 export function WikiEditorDevHarness() {
   const insets = useSafeAreaInsets();
   const [target, setTarget] = useState<WikiEditorTarget | null>(null);
   const [pageId, setPageId] = useState("");
+
+  useEffect(() => {
+    void updateSettings({ serverUrl: MOCK_SERVER_URL });
+    void setDeviceToken("hpd_devharness");
+  }, []);
 
   if (target) {
     return <WikiEditorScreen target={target} onClose={() => setTarget(null)} />;
