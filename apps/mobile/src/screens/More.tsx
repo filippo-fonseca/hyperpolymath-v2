@@ -8,7 +8,7 @@ import { SettingsSheet } from "../components/SettingsSheet";
 import { ScreenHeader } from "../components/shell";
 import { font, sd } from "../theme";
 
-export type MoreDestination = "habits" | "training" | "calendar" | "search";
+export type MoreDestination = "wiki" | "habits" | "training" | "calendar" | "search";
 
 const ITEMS: Array<{
   label: string;
@@ -57,7 +57,21 @@ export function MoreScreen({
     <View style={styles.root}>
       <ScreenHeader title="More" paddingTop={insets.top + 8} />
       <ScrollView contentContainerStyle={styles.list}>
-        <Text style={styles.kicker}>SECONDARY SURFACES</Text>
+        <Text style={styles.kicker}>WIKI</Text>
+        <Pressable
+          onPress={() => choose("wiki")}
+          style={({ pressed }) => [styles.item, styles.wikiItem, pressed && { opacity: 0.72 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Wiki"
+        >
+          <View style={styles.itemBody}>
+            <Text style={styles.itemTitle}>Wiki</Text>
+            <Text style={styles.itemDescription}>Browse and read your pages and daily notes</Text>
+          </View>
+          <Text style={styles.chevron}>OPEN</Text>
+        </Pressable>
+
+        <Text style={[styles.kicker, styles.kickerLower]}>SECONDARY SURFACES</Text>
         {ITEMS.map((item) => (
           <Pressable
             key={item.destination}
@@ -136,6 +150,10 @@ const styles = StyleSheet.create({
     backgroundColor: sd.box,
     padding: 15,
     marginBottom: 10,
+  },
+  wikiItem: {
+    borderColor: "rgba(34, 211, 238, 0.35)",
+    backgroundColor: sd.darkBox,
   },
   itemBody: {
     flex: 1,

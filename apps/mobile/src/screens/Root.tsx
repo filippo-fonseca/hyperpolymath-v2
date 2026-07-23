@@ -18,6 +18,7 @@ import { SearchScreen } from "./Search";
 import { TasksScreen } from "./Tasks";
 import { TodayScreen } from "./Today";
 import { TrainingScreen } from "./Training";
+import { WikiScreen } from "./Wiki";
 
 type PrimaryTab = "today" | "tasks" | "jarvis" | "captures" | "more";
 type Tab = PrimaryTab | MoreDestination;
@@ -122,6 +123,7 @@ export function Root() {
         {screen("training", <TrainingScreen active={tab === "training"} />)}
         {screen("calendar", <CalendarScreen active={tab === "calendar"} />)}
         {screen("search", <SearchScreen active={tab === "search"} />)}
+        {screen("wiki", <WikiScreen active={tab === "wiki"} />)}
       </View>
 
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
