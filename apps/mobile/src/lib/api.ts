@@ -1,9 +1,6 @@
 // HTTP client for the JARVIS server — mirrors apps/desktop/src/api/client.ts.
-// Auth is the device bearer token minted at /settings/desktop (hpd_...);
-// validateDesktopBearer on the server maps it to a userId.
-//
-// Uses expo/fetch (WinterCG-compliant) so typed-array bodies and
-// arrayBuffer() responses behave correctly on iOS.
+// Auth is a Supabase access JWT (Google OAuth) or a legacy `hpd_…` device
+// token. Server validateDesktopBearer accepts both.
 
 import { fetch } from "expo/fetch";
 
