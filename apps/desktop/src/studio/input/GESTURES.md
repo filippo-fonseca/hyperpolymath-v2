@@ -64,12 +64,21 @@ lurch) → armed once the change clears `deadzone` → eases back to 0 below
 **Effect.** An absolute scalar `z ∈ [-1, +1]` into pinch-drag's `depth` channel →
 `dragMove.dz` → camera dolly. Palm grows (hand nearer) ⇒ positive ⇒ dolly in.
 
-**Scope.** camera/world.
+**Scope.** camera/world **only**. The dolly rides the palm-size signal that used
+to drive the removed widget-resize (#316), so it is deliberately world-scoped: a
+pinch begun over a WIDGET is fully suppressed at the hub (§ grab, and
+`hub-phase-suppression.test.ts`), which drops the entire `drag*` lifecycle — pan
+AND this dolly `dz` with it. So the depth signal can never zoom the canvas under a
+grabbed widget (which would read as the widget resizing). On **desktop** it is
+doubly inert: `pointer-synth.ts` has no camera consumer, so every `drag*` phase
+(and its `dz`) hits the `default` no-op — a hand gesture cannot change a widget's
+real or apparent size. Only the web 3D scene consumes the dolly today.
 
 **Arbitration.** Rides `pinchActive`; nothing else contends for palm size. Frozen
 while `unpinchSince` is set, so opening the hand can't lurch the camera.
 
-**Tests.** `pinch-dolly.test.ts` (16).
+**Tests.** `pinch-dolly.test.ts` (16); the widget-suppression guarantee in
+`hub-phase-suppression.test.ts` (5).
 
 ---
 
@@ -502,6 +511,12 @@ click — which is also what makes #1 hard to debug.
   pattern to follow when two gestures must share the openness scalar.
 - **collapse then click** — `cancelMs` (700) > collapse `holdMs` (500), so
   `collapseFired` reliably suppresses the click on the same fist.
+- **widgets never resize** — resize was removed (#316); the freed palm-size
+  signal now drives only the world dolly, which the hub suppresses whenever a
+  pinch begins over a widget. Grab moves a widget by dispatching a header
+  pointer-drag (position only — `moveWidget`, never `resizeWidget`), so no
+  gesture path reaches a `w`/`h` mutation. `resizeWidget` survives for exactly
+  one non-gesture caller: `OrbWidget`'s intentional dock/expand.
 
 ---
 
@@ -557,6 +572,7 @@ bare literal.
 | thumb-confirm | 8 (+ geometry) |
 | swipe | 11 |
 | collapse | partial (gates only) |
+| hub phase suppression (widget-pinch never pans/dollies) | 5 |
 
 **Discoverability is the biggest open gap.** Roughly twelve gestures ship and two
 are ever named on screen: the HUD toggle, and `ConfirmGesturePanel` teaching 👍/👎
