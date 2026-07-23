@@ -21,6 +21,7 @@ import type { Block, PartialBlock } from "@blocknote/core";
 import { useEffect, useRef, useState } from "react";
 
 import { sanitizeBlocks } from "./sanitize";
+import { EditorAccessory } from "./EditorAccessory";
 
 type Props = {
   /** Injected by Expo — WebView config (style, scroll, …). */
@@ -152,15 +153,25 @@ export default function WikiEditorDom({
         />
         <div className="wiki-page-divider" />
       </div>
+      {/*
+       * Phone UX: kill BlockNote's desktop affordances. `slashMenu={false}`
+       * suppresses the typed-`/` floating dropdown (EditorAccessory re-binds `/`
+       * to the bottom-sheet picker); `formattingToolbar={false}` drops the
+       * selection bubble that collides with the iOS selection menu (the bar
+       * carries bold/italic/underline/strike + list/indent instead).
+       */}
       <BlockNoteView
         editor={editor}
         editable={editable}
         theme="dark"
+        slashMenu={false}
+        formattingToolbar={false}
         onChange={() => {
           if (applying.current) return;
           void onChange?.(editor.document);
         }}
       />
+      {editable ? <EditorAccessory editor={editor} /> : null}
     </div>
   );
 }
