@@ -1,8 +1,12 @@
 import "server-only";
 
-import { ServerBlockNoteEditor } from "@blocknote/server-util";
-
 import { blocksWithReferenceTokens } from "@/lib/references/page-mirror";
+
+// `@blocknote/server-util` transitively imports React (createContext), which
+// blows up Next's build-time page-data collection when statically imported into
+// a route bundle (the RSC/react-server React has no createContext). It runs fine
+// under the plain Node runtime, so we defer the import to call time — the module
+// graph the build traces never evaluates it. See contentJsonToMarkdown below.
 
 /**
  * Server-side regeneration of a page's lossy markdown mirror (`pages.content`)
@@ -96,6 +100,7 @@ export async function contentJsonToMarkdown(contentJson: unknown): Promise<strin
   if (!Array.isArray(contentJson)) return "";
   if (contentJson.length === 0) return "";
 
+  const { ServerBlockNoteEditor } = await import("@blocknote/server-util");
   const editor = ServerBlockNoteEditor.create();
   const knownBlocks = new Set(Object.keys(editor.editor.schema.blockSchema));
   const knownInline = new Set(Object.keys(editor.editor.schema.inlineContentSchema));
