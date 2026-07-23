@@ -319,7 +319,7 @@ export default function BrowserWidget({
           `[BrowserWidget] promoting ${id} url=${url} bounds`,
           bounds,
         );
-        return createNativeWebview(id, url, bounds);
+        return createNativeWebview(id, url, bounds, SD_RADIUS.card);
       })
       .then(() => {
         if (nativeGeneration.current === generation) setNativeStatus("active");
