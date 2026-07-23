@@ -1,6 +1,7 @@
 // Native host for the BlockNote 'use dom' editor. Loads a wiki page (by id, or
 // the get-or-create daily page, or a fresh blank page), renders the native
-// chrome (title TextInput + save-state affordance in the sd register), and
+// chrome (breadcrumb + save-state affordance in the sd register; the editable
+// title lives in-document inside the DOM editor), and
 // hosts <WikiEditorDom> inside a KeyboardAvoidingView. Edits and the title
 // autosave on a debounce; "Done" flushes immediately and closes.
 //
@@ -17,7 +18,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -144,8 +144,10 @@ export function WikiEditorScreen({
     }, SAVE_DEBOUNCE_MS);
   }, [doSave]);
 
+  // Bridged from the DOM editor's in-document title on every keystroke; async
+  // to satisfy the DOM component's Promise-returning callback contract.
   const handleTitleChange = useCallback(
-    (next: string) => {
+    async (next: string) => {
       setTitle(next);
       scheduleSave();
     },
@@ -189,16 +191,12 @@ export function WikiEditorScreen({
         >
           <Text style={styles.doneLabel}>Done</Text>
         </Pressable>
-        {page?.emoji ? <Text style={styles.emoji}>{page.emoji}</Text> : null}
-        <TextInput
-          style={styles.titleInput}
-          value={title}
-          onChangeText={handleTitleChange}
-          placeholder="Untitled"
-          placeholderTextColor={sd.inkFaint}
-          editable={page !== null && !locked}
-          returnKeyType="done"
-        />
+        {/* The editable title now lives in-document (WikiEditorDom); the native
+            header keeps only a small, read-only breadcrumb of the page name. */}
+        <Text style={styles.breadcrumb} numberOfLines={1}>
+          {page?.emoji ? `${page.emoji}  ` : ""}
+          {title.trim() || "Untitled"}
+        </Text>
         <SaveBadge state={locked ? "idle" : saveState} />
       </View>
 
@@ -225,8 +223,12 @@ export function WikiEditorScreen({
             markdownFallback={deliver ? (page?.content ?? undefined) : undefined}
             editable={!locked}
             autoFocus={autoFocus && !locked}
+            title={title}
+            emoji={page?.emoji ?? null}
+            titleEditable={page !== null && !locked}
             onReady={handleReady}
             onChange={handleDomChange}
+            onTitleChange={handleTitleChange}
             dom={{
               scrollEnabled: true,
               style: { flex: 1, backgroundColor: sd.app },
@@ -279,15 +281,12 @@ const styles = StyleSheet.create({
     fontFamily: font.sansSemiBold,
     fontSize: 15,
   },
-  emoji: {
-    fontSize: 18,
-  },
-  titleInput: {
+  breadcrumb: {
     flex: 1,
-    color: sd.ink,
-    fontFamily: font.sansSemiBold,
-    fontSize: 19,
-    letterSpacing: -0.2,
+    color: sd.inkDull,
+    fontFamily: font.sans,
+    fontSize: 13,
+    letterSpacing: 0.1,
     paddingVertical: 2,
   },
   badgeSlot: {
