@@ -1,8 +1,5 @@
-// Tab shell. JARVIS (the orb screen) is the literal center of the bottom
-// bar — two icon tabs on each side (Tasks, Habits ◉ Training, Captures) for
-// symmetry. All five screens stay MOUNTED — inactive ones are display:none —
-// so the JARVIS SSE stream, TTS queue, and any in-flight dictation survive
-// tab switches.
+// Tab shell. JARVIS is the center tab — Tasks, Habits ◉ Training, Captures.
+// All five screens stay mounted (display:none when inactive) so SSE/TTS survive.
 
 import * as Haptics from "expo-haptics";
 import { useCallback, useRef, useState } from "react";
@@ -11,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CelebrationOverlay } from "../components/celebrate";
 import { KiwiMark, TabIcon } from "../components/icons";
-import { colors, mono } from "../theme";
+import { font, sd } from "../theme";
 import { CapturesScreen } from "./Captures";
 import { HabitsScreen } from "./Habits";
 import { Home } from "./Home";
@@ -26,7 +23,6 @@ export function Root() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>("jarvis");
   const orbPulse = useRef(new Animated.Value(1)).current;
-  // Voice trigger registered by <Home> — the nav kiwi button activates dictation.
   const voicePressRef = useRef<(() => void) | null>(null);
 
   const switchTab = useCallback((next: Tab) => {
@@ -34,11 +30,6 @@ export function Root() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  // Horizontal swipe to navigate tabs.
-  // Gesture is only claimed when it is clearly horizontal:
-  //   |dx| > ~16px AND |dx| > 2.5 × |dy|  →  prevents hijacking vertical
-  //   scrolling or horizontal sub-scrolls inside screens.
-  // On release, switch if |dx| > 60px or velocity > 0.3.
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gs) => {
@@ -51,14 +42,12 @@ export function Root() {
           setTab((current) => {
             const idx = TAB_ORDER.indexOf(current);
             if (dx < 0) {
-              // left swipe → next tab
               const next = TAB_ORDER[Math.min(idx + 1, TAB_ORDER.length - 1)];
               if (next && next !== current) {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 return next;
               }
             } else {
-              // right swipe → previous tab
               const prev = TAB_ORDER[Math.max(idx - 1, 0)];
               if (prev && prev !== current) {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -79,13 +68,11 @@ export function Root() {
     ]).start();
   }, [orbPulse]);
 
-  // Single tap: just go to the JARVIS tab — never auto-record.
   const handleJarvisNavPress = useCallback(() => {
     switchTab("jarvis");
     pulseOrb();
   }, [pulseOrb, switchTab]);
 
-  // Long press: haptic, then start dictation (the kiwi IS the voice button).
   const handleJarvisNavLongPress = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     switchTab("jarvis");
@@ -118,9 +105,6 @@ export function Root() {
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <TabButton icon="tasks" label="TASKS" active={tab === "tasks"} onPress={() => switchTab("tasks")} />
         <TabButton icon="habits" label="HABITS" active={tab === "habits"} onPress={() => switchTab("habits")} />
-        {/* Fixed-width gap reserves the orb's slot; the orb itself is
-            absolutely centered over the bar so flex rounding can never
-            nudge it off-center. */}
         <View style={styles.orbGap} />
         <TabButton
           icon="training"
@@ -150,7 +134,7 @@ export function Root() {
                 { transform: [{ scale: orbPulse }] },
               ]}
             >
-              <KiwiMark size={26} color={tab === "jarvis" ? colors.accent : colors.textDim} />
+              <KiwiMark size={26} color={tab === "jarvis" ? sd.accent : sd.inkFaint} />
             </Animated.View>
           </Pressable>
         </View>
@@ -178,11 +162,15 @@ function TabButton({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.tab, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.tab,
+        active && styles.tabActive,
+        pressed && { opacity: 0.7 },
+      ]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <TabIcon name={icon} size={21} color={active ? colors.accent : colors.textDim} />
+      <TabIcon name={icon} size={20} color={active ? sd.ink : sd.inkFaint} />
       <Text
         style={[styles.tabLabel, active && styles.tabLabelActive]}
         numberOfLines={1}
@@ -197,7 +185,7 @@ function TabButton({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: sd.app,
   },
   stage: {
     flex: 1,
@@ -215,25 +203,30 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 10,
-    paddingHorizontal: 4,
+    paddingTop: 8,
+    paddingHorizontal: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    backgroundColor: "#070d12",
+    borderTopColor: sd.line,
+    backgroundColor: sd.darkerBox,
   },
   tab: {
     flex: 1,
     alignItems: "center",
     gap: 3,
+    paddingVertical: 4,
+    borderRadius: sd.radius.chrome,
+  },
+  tabActive: {
+    backgroundColor: sd.selected,
   },
   tabLabel: {
-    color: colors.textDim,
-    fontFamily: mono,
+    color: sd.inkFaint,
+    fontFamily: font.mono,
     fontSize: 8,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   tabLabelActive: {
-    color: colors.text,
+    color: sd.ink,
   },
   orbGap: {
     width: 70,
@@ -247,20 +240,17 @@ const styles = StyleSheet.create({
   },
   orbTab: {},
   orbCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#0a1218",
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: sd.box,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
   },
   orbCircleActive: {
-    borderColor: colors.accent,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
+    borderColor: sd.accent,
+    backgroundColor: sd.selected,
   },
 });
