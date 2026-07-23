@@ -8,7 +8,7 @@ import { SettingsSheet } from "../components/SettingsSheet";
 import { ScreenHeader } from "../components/shell";
 import { font, sd } from "../theme";
 
-export type MoreDestination = "habits" | "training" | "calendar";
+export type MoreDestination = "habits" | "training" | "calendar" | "search";
 
 const ITEMS: Array<{
   label: string;
@@ -24,6 +24,11 @@ const ITEMS: Array<{
     label: "Training",
     description: "Weekly activity planner",
     destination: "training",
+  },
+  {
+    label: "Search",
+    description: "Find tasks and captures",
+    destination: "search",
   },
   {
     label: "Calendar",

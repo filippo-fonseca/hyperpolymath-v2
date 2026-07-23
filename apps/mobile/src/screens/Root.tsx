@@ -14,6 +14,7 @@ import { CapturesScreen } from "./Captures";
 import { HabitsScreen } from "./Habits";
 import { Home } from "./Home";
 import { MoreScreen, type MoreDestination } from "./More";
+import { SearchScreen } from "./Search";
 import { TasksScreen } from "./Tasks";
 import { TodayScreen } from "./Today";
 import { TrainingScreen } from "./Training";
@@ -120,6 +121,7 @@ export function Root() {
         {screen("habits", <HabitsScreen active={tab === "habits"} />)}
         {screen("training", <TrainingScreen active={tab === "training"} />)}
         {screen("calendar", <CalendarScreen active={tab === "calendar"} />)}
+        {screen("search", <SearchScreen active={tab === "search"} />)}
       </View>
 
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
