@@ -15,9 +15,14 @@ import {
   useFonts as useSpaceGrotesk,
 } from "@expo-google-fonts/space-grotesk";
 import { StatusBar } from "expo-status-bar";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { isAuthed } from "./src/lib/auth-token";
+import { loadSettings } from "./src/lib/settings";
+import { initAuth, onAuthChange } from "./src/lib/supabase";
+import { LoginScreen } from "./src/screens/Login";
 import { Root } from "./src/screens/Root";
 import { sd } from "./src/theme";
 
@@ -36,14 +41,39 @@ export default function App() {
     EBGaramond_600SemiBold,
   });
 
-  if (!spaceLoaded || !monoLoaded || !logoLoaded) {
+  const [ready, setReady] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await loadSettings();
+      await initAuth();
+      if (cancelled) return;
+      setSignedIn(isAuthed());
+      setReady(true);
+    })();
+    const off = onAuthChange(() => {
+      setSignedIn(isAuthed());
+    });
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, []);
+
+  if (!spaceLoaded || !monoLoaded || !logoLoaded || !ready) {
     return <View style={{ flex: 1, backgroundColor: sd.app }} />;
   }
 
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <Root />
+      {signedIn ? (
+        <Root />
+      ) : (
+        <LoginScreen onSignedIn={() => setSignedIn(true)} />
+      )}
     </SafeAreaProvider>
   );
 }

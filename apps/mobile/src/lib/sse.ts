@@ -4,7 +4,8 @@
 
 import EventSource from "react-native-sse";
 
-import { getDeviceToken, getSettings } from "./settings";
+import { getAuthBearer } from "./auth-token";
+import { getSettings } from "./settings";
 
 export interface JarvisResponseStart {
   turnId: string;
@@ -71,7 +72,7 @@ function parseJson<T>(data: string | null): T | undefined {
  */
 export function subscribeJarvisEvents(handlers: JarvisSseHandlers): () => void {
   const base = getSettings().serverUrl.replace(/\/$/, "");
-  const token = getDeviceToken();
+  const token = getAuthBearer();
 
   const es = new EventSource<JarvisEvent>(`${base}/api/jarvis/physical/events`, {
     headers: token ? { authorization: `Bearer ${token}` } : {},

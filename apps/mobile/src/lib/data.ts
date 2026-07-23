@@ -4,17 +4,17 @@
 
 import { fetch } from "expo/fetch";
 
-import { getDeviceToken, getSettings } from "./settings";
+import { authHeaders } from "./auth-token";
+import { getSettings } from "./settings";
 
 function base(): string {
   return getSettings().serverUrl.replace(/\/$/, "");
 }
 
 function headers(): Record<string, string> {
-  const token = getDeviceToken();
   return {
     "content-type": "application/json",
-    ...(token ? { authorization: `Bearer ${token}` } : {}),
+    ...authHeaders(),
   };
 }
 

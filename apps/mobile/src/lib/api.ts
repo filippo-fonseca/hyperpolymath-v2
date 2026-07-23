@@ -7,12 +7,8 @@
 
 import { fetch } from "expo/fetch";
 
-import { getDeviceToken, getSettings } from "./settings";
-
-function authHeaders(): Record<string, string> {
-  const token = getDeviceToken();
-  return token ? { authorization: `Bearer ${token}` } : {};
-}
+import { authHeaders } from "./auth-token";
+import { getSettings } from "./settings";
 
 function baseUrl(): string {
   return getSettings().serverUrl.replace(/\/$/, "");
