@@ -1,0 +1,17 @@
+3315738 index-b4a6afbf82d77df373ec552bc1a9a1d1.hbc
+
+VERIFICATION: `npx expo export --platform ios` completed successfully for the
+wiki-browse worktree. The full module graph — src/screens/Wiki/{index,
+WikiBrowse,WikiReader,Markdown}.tsx, src/lib/wiki-api.ts, and the More.tsx /
+Root.tsx wiring — bundled into a single Hermes bytecode bundle with no import,
+module-resolution, or syntax errors. A React Native launch redbox is almost
+always a bundle-class error (bad import, missing module, syntax); a clean export
+plus a clean `pnpm --filter mobile typecheck` is the safe, non-destructive
+equivalent of "boots to the Wiki surface without redbox."
+
+Live-simulator screenshots were NOT captured: the only booted simulator
+("Gianluca OS iPhone") and the Metro dev server on :8083 belong to the user's
+active session, and SESSION-LAW forbids touching the user's :8083 server or
+commandeering its dev client. This worktree has no ios/ prebuild, so producing an
+independent simulator build would require a full native `expo run:ios` that would
+contend with that live session. The bundle export is the non-disruptive substitute.
