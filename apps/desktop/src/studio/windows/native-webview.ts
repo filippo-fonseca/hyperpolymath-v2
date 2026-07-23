@@ -72,8 +72,12 @@ export function createNativeWebview(
   label: string,
   url: string,
   bounds: NativeWebviewBounds,
+  radius: number,
 ): Promise<void> {
-  return invoke("studio_webview_create", { label, url, ...bounds });
+  // `radius` is the widget frame's logical corner radius (SD_RADIUS.card). The
+  // native child webview is composited above the HUD DOM, so CSS `overflow`
+  // can't clip it; the Rust side rounds the webview's own layer to this radius.
+  return invoke("studio_webview_create", { label, url, ...bounds, radius });
 }
 
 export function setNativeWebviewBounds(
