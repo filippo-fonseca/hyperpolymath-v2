@@ -202,6 +202,43 @@ export async function deleteCapture(id: string): Promise<boolean> {
   return data?.ok === true;
 }
 
+// ── Calendar (read-only; Google Calendar remains source of truth) ───────────
+
+export type CalendarStatus = "connected" | "not_connected" | "revoked";
+
+export interface CalendarEvent {
+  id: string;
+  calendarId: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  description: string | null;
+  colorId: string | null;
+  recurringEventId: string | null;
+  htmlLink: string;
+}
+
+export interface CalendarMeta {
+  id: string;
+  summary: string;
+  backgroundColor: string;
+  foregroundColor: string;
+  primary: boolean;
+  accessRole: string;
+}
+
+export interface CalendarData {
+  status: CalendarStatus;
+  events: CalendarEvent[];
+  calendars: CalendarMeta[];
+  error?: string;
+}
+
+export async function getCalendarEvents(limit = 25): Promise<CalendarData | null> {
+  return call<CalendarData>(`/api/device/calendar?limit=${limit}`);
+}
+
 /** Local YYYY-MM-DD for the user's current day. */
 export function localDateString(offsetDays = 0): string {
   const d = new Date();

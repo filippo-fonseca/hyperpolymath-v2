@@ -1,27 +1,35 @@
-// Tab shell. JARVIS is the center tab — Tasks, Habits ◉ Training, Captures.
+// Tab shell. JARVIS is the center tab — Today, Tasks ◉ Captures, More.
 // All five screens stay mounted (display:none when inactive) so SSE/TTS survive.
 
 import * as Haptics from "expo-haptics";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CelebrationOverlay } from "../components/celebrate";
 import { KiwiMark, TabIcon } from "../components/icons";
 import { font, sd } from "../theme";
+import { CalendarScreen } from "./Calendar";
 import { CapturesScreen } from "./Captures";
 import { HabitsScreen } from "./Habits";
 import { Home } from "./Home";
+import { MoreScreen, type MoreDestination } from "./More";
 import { TasksScreen } from "./Tasks";
+import { TodayScreen } from "./Today";
 import { TrainingScreen } from "./Training";
 
-type Tab = "tasks" | "habits" | "jarvis" | "training" | "captures";
+type PrimaryTab = "today" | "tasks" | "jarvis" | "captures" | "more";
+type Tab = PrimaryTab | MoreDestination;
 
-const TAB_ORDER: Tab[] = ["tasks", "habits", "jarvis", "training", "captures"];
+const TAB_ORDER: PrimaryTab[] = ["today", "tasks", "jarvis", "captures", "more"];
+
+function primaryTab(tab: Tab): PrimaryTab {
+  return TAB_ORDER.includes(tab as PrimaryTab) ? (tab as PrimaryTab) : "more";
+}
 
 export function Root() {
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<Tab>("jarvis");
+  const [tab, setTab] = useState<Tab>("today");
   const orbPulse = useRef(new Animated.Value(1)).current;
   const voicePressRef = useRef<(() => void) | null>(null);
 
@@ -40,7 +48,7 @@ export function Root() {
         const { dx, vx } = gs;
         if (Math.abs(dx) > 60 || Math.abs(vx) > 0.3) {
           setTab((current) => {
-            const idx = TAB_ORDER.indexOf(current);
+            const idx = TAB_ORDER.indexOf(primaryTab(current));
             if (dx < 0) {
               const next = TAB_ORDER[Math.min(idx + 1, TAB_ORDER.length - 1)];
               if (next && next !== current) {
@@ -80,7 +88,7 @@ export function Root() {
     pulseOrb();
   }, [pulseOrb, switchTab]);
 
-  const screen = (key: Tab, node: React.ReactNode) => (
+  const screen = (key: Tab, node: ReactNode) => (
     <View
       style={[styles.screen, tab !== key && styles.hidden]}
       pointerEvents={tab === key ? "auto" : "none"}
@@ -89,35 +97,42 @@ export function Root() {
     </View>
   );
 
+  const moreActive = primaryTab(tab) === "more";
+
   return (
     <View style={styles.root}>
       <View style={styles.stage} {...panResponder.panHandlers}>
+        {screen("today", <TodayScreen active={tab === "today"} />)}
         {screen("tasks", <TasksScreen active={tab === "tasks"} />)}
-        {screen("habits", <HabitsScreen active={tab === "habits"} />)}
         {screen(
           "jarvis",
-          <Home onRegisterVoicePress={(fn) => { voicePressRef.current = fn; }} />,
+          <Home
+            onRegisterVoicePress={(fn) => {
+              voicePressRef.current = fn;
+            }}
+          />,
         )}
-        {screen("training", <TrainingScreen active={tab === "training"} />)}
         {screen("captures", <CapturesScreen active={tab === "captures"} />)}
+        {screen(
+          "more",
+          <MoreScreen active={tab === "more"} onNavigate={(destination) => switchTab(destination)} />,
+        )}
+        {screen("habits", <HabitsScreen active={tab === "habits"} />)}
+        {screen("training", <TrainingScreen active={tab === "training"} />)}
+        {screen("calendar", <CalendarScreen active={tab === "calendar"} />)}
       </View>
 
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+        <TabButton icon="today" label="TODAY" active={tab === "today"} onPress={() => switchTab("today")} />
         <TabButton icon="tasks" label="TASKS" active={tab === "tasks"} onPress={() => switchTab("tasks")} />
-        <TabButton icon="habits" label="HABITS" active={tab === "habits"} onPress={() => switchTab("habits")} />
         <View style={styles.orbGap} />
-        <TabButton
-          icon="training"
-          label="TRAINING"
-          active={tab === "training"}
-          onPress={() => switchTab("training")}
-        />
         <TabButton
           icon="captures"
           label="CAPTURES"
           active={tab === "captures"}
           onPress={() => switchTab("captures")}
         />
+        <TabButton icon="more" label="MORE" active={moreActive} onPress={() => switchTab("more")} />
         <View style={styles.orbOverlay} pointerEvents="box-none">
           <Pressable
             onPress={handleJarvisNavPress}
@@ -154,7 +169,7 @@ function TabButton({
   active,
   onPress,
 }: {
-  icon: "tasks" | "habits" | "training" | "captures";
+  icon: "today" | "tasks" | "captures" | "more";
   label: string;
   active: boolean;
   onPress: () => void;
