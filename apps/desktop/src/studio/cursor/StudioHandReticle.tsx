@@ -2,10 +2,10 @@
  * StudioHandReticle — the on-brand brass hand cursor for the Studio (desktop port).
  *
  * In hand mode there is no OS cursor over the stage, so this is the ONLY thing
- * telling the user where they're aiming. It renders a candlelit brass ring +
- * parchment dot that follows the shared input cursor at 60fps, snaps larger when
- * it hovers a hittable target, and fires one-shot pulses on expand / collapse /
- * swipe intents.
+ * telling the user where they're aiming. It renders an accent ring + bright ink
+ * dot that follows the shared input cursor at 60fps, snaps larger when it hovers
+ * a hittable target, and fires one-shot pulses on expand / collapse / swipe
+ * intents.
  *
  * Visibility gate (the key design decision): the reticle shows its visuals only
  * while the hand driver is running AND the cursor is active —
@@ -16,8 +16,15 @@
  * path and is never transitioned (a transition here would rubber-band the
  * cursor). All easing lives on the inner ring / one-shot pulse child.
  *
- * Palette is inlined (matches the overlay convention) so this DOM overlay drags
- * in no token module.
+ * Palette: one accent, from the sd ladder. It used to be candlelit brass
+ * (#C9A227 / #E8C46B / #F2E9D8) — a whole second hue living on the one element
+ * that sits over every surface in the app, which is the last place a second hue
+ * belongs (§2). Rest reads --sd-accent, a hover snap brightens to the faint
+ * step, and the aim dot is bright ink.
+ *
+ * The halo stays. §16 bans glow rings on content surfaces, and this is not one:
+ * it is the cursor, and it has to stay legible over a widget, over the drawer's
+ * glass, and over the near-black canvas alike. It is retinted, not removed.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -26,11 +33,16 @@ import { useReducedMotion } from "motion/react";
 import { useStudioCursor, useStudioHover, useStudioIntent } from "../input/react";
 import type { StudioIntentType } from "../input/types";
 import { useHandStatus } from "../input/hand-status";
+import { SD_ACCENT, SD_ACCENT_FAINT, SD_DURATION, SD_INK } from "../tokens";
 
-// ── Brand palette (inlined; see header) ──────────────────────────────────────
-const BRASS = "#C9A227";
-const FLAME = "#E8C46B";
-const PARCHMENT = "#F2E9D8";
+/** Rest / hover ring inks, and the precise aim dot. */
+const RING_REST = SD_ACCENT;
+const RING_LIVE = SD_ACCENT_FAINT;
+const AIM_DOT = SD_INK.base;
+
+/** The accent at an alpha, safe for oklch (rgba() cannot take an oklch value). */
+const accentAlpha = (percent: number): string =>
+  `color-mix(in srgb, ${SD_ACCENT} ${percent}%, transparent)`;
 
 // ── Geometry ─────────────────────────────────────────────────────────────────
 const RING = 18; // px diameter of the aim ring
@@ -82,11 +94,11 @@ export function StudioHandReticle(): React.JSX.Element {
   // reduced motion a feedback pulse becomes a color-only flash on this ring.
   const ringActive = hovering || (reduced && feedback !== null);
   const ringScale = hovering ? 1.35 : 1;
-  const ringBorder = ringActive ? FLAME : BRASS;
+  const ringBorder = ringActive ? RING_LIVE : RING_REST;
   const ringGlow = hovering
-    ? `0 0 14px rgba(232,196,107,0.6), 0 0 32px rgba(201,162,39,0.28)`
-    : `0 0 10px rgba(201,162,39,0.45), 0 0 24px rgba(201,162,39,0.18)`;
-  const ringEase = reduced ? "0ms" : "140ms";
+    ? `0 0 14px ${accentAlpha(60)}, 0 0 32px ${accentAlpha(28)}`
+    : `0 0 10px ${accentAlpha(45)}, 0 0 24px ${accentAlpha(18)}`;
+  const ringEase = reduced ? "0ms" : `${SD_DURATION.micro}ms`;
 
   return (
     <div
@@ -130,7 +142,11 @@ export function StudioHandReticle(): React.JSX.Element {
           border: `1.5px solid ${ringBorder}`,
           boxShadow: ringGlow,
           transform: `translate(-50%, -50%) scale(${ringScale})`,
-          transition: `transform ${ringEase} cubic-bezier(.2,.9,.3,1.2), border-color ${ringEase} ease, box-shadow ${ringEase} ease`,
+          // The snap was a spring (overshoot 1.2). §14 reserves overshoot for
+          // success and confirm moments, so it settles on ease-out-quart. The
+          // 1.35 magnetic snap itself is behaviour — it is how the reticle says
+          // "this is hittable" — and stays.
+          transition: `transform ${ringEase} cubic-bezier(0.25, 1, 0.5, 1), border-color ${ringEase} ease, box-shadow ${ringEase} ease`,
         }}
       >
         {/* Precise aim dot. */}
@@ -143,7 +159,9 @@ export function StudioHandReticle(): React.JSX.Element {
             height: DOT,
             borderRadius: "9999px",
             transform: "translate(-50%, -50%)",
-            backgroundColor: hovering ? PARCHMENT : "rgba(242,233,216,0.85)",
+            backgroundColor: hovering
+              ? AIM_DOT
+              : `color-mix(in srgb, ${AIM_DOT} 85%, transparent)`,
             transition: `background-color ${ringEase} ease`,
           }}
         />
@@ -160,10 +178,9 @@ export function StudioHandReticle(): React.JSX.Element {
 function Pulse({ type }: { type: StudioIntentType }): React.JSX.Element {
   if (type === "swipeLeft" || type === "swipeRight") {
     const x = type === "swipeLeft" ? "-14px" : "14px";
-    const gradient =
-      type === "swipeLeft"
-        ? "linear-gradient(to left, rgba(201,162,39,0), rgba(201,162,39,0.7))"
-        : "linear-gradient(to right, rgba(201,162,39,0), rgba(201,162,39,0.7))";
+    const gradient = `linear-gradient(to ${
+      type === "swipeLeft" ? "left" : "right"
+    }, ${accentAlpha(0)}, ${accentAlpha(70)})`;
     return (
       <span
         aria-hidden
@@ -200,7 +217,7 @@ function Pulse({ type }: { type: StudioIntentType }): React.JSX.Element {
         width: RING,
         height: RING,
         borderRadius: "9999px",
-        border: isPop ? `1.5px solid ${FLAME}` : `1.5px solid rgba(201,162,39,0.7)`,
+        border: `1.5px solid ${isPop ? RING_LIVE : accentAlpha(70)}`,
         transform: "translate(-50%, -50%)",
         animation: isPop
           ? "studio-reticle-expand 380ms ease-out forwards"

@@ -13,6 +13,12 @@ export interface SidebarArea {
   emoji: string | null;
   orderIndex: number;
   archivedAt: Date | null;
+  /**
+   * The tie-breaker in this query's own ORDER BY, exposed because the projects
+   * timeline groups areas by the same (orderIndex, createdAt) rule and cannot
+   * re-derive it from a pre-sorted array.
+   */
+  createdAt: Date;
   projects: SidebarProject[];
 }
 
@@ -41,6 +47,7 @@ export async function getSidebarTree(
       emoji: areas.emoji,
       orderIndex: areas.orderIndex,
       archivedAt: areas.archivedAt,
+      createdAt: areas.createdAt,
     })
     .from(areas)
     .where(

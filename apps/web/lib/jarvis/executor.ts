@@ -48,6 +48,13 @@ import {
   whatsappMessages,
   imessageMessages,
 } from "@/lib/db/schema";
+import {
+  loadUserGoveeDevices,
+  packRgb,
+  resolveGoveeClient,
+  resolveTargetDevice,
+} from "@/lib/govee/resolve";
+import { GoveeApiError } from "@/lib/govee/client";
 import { upsertHashtag } from "@/app/actions/hashtags";
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
 import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
@@ -91,6 +98,8 @@ import type {
   FindTasksAction,
   GetNewsAction,
   GetWeatherAction,
+  ListLightsAction,
+  ControlLightsAction,
   LinkPeopleAction,
   ReadGmailAction,
   OpenAppAction,
@@ -113,7 +122,16 @@ import type {
   WebSearchAction,
 } from "@hyperpolymath/jarvis-core";
 import { validateCalendarId, validateProjectIds } from "./validate-references";
-import type { StudioCloseWidgetInput, StudioOpenWidgetInput } from "./studio-widget-tools";
+import {
+  captureRefToken,
+  personRefToken,
+  taskRefToken,
+} from "./reference-tokens";
+import type {
+  StudioCloseWidgetInput,
+  StudioOpenWidgetInput,
+  StudioSetHandCursorInput,
+} from "./studio-widget-tools";
 import { emitStudioAction } from "@/lib/voice/physical-extension/bus";
 
 // MAJOR-6 — tag every studio-action emit with the invoking user's id so
@@ -139,6 +157,35 @@ export async function executeStudioOpenWidget(
       kind: input.kind,
       ...(input.url ? { url: input.url } : {}),
       message: `Sent a request to open the ${input.kind} widget.`,
+    },
+  };
+}
+
+/**
+ * Voice-commanded hand cursor — flip the Studio HUD's webcam gesture pointer
+ * on or off. Mirrors executeStudioOpenWidget: emit a studio-action onto the
+ * physical bus (userId-tagged for the SSE filter) and return a receipt. The
+ * desktop router maps `{action:"hand",enabled}` -> setHandEnabled, which drives
+ * the driver lifecycle and persists the choice like the ⌘⇧H hotkey.
+ */
+export async function executeStudioSetHandCursor(
+  input: StudioSetHandCursorInput,
+  userId?: string
+): Promise<ExecutorResult> {
+  const ts = Date.now();
+  emitStudioAction({
+    action: "hand",
+    enabled: input.enabled,
+    ...(userId ? { userId } : {}),
+  });
+  return {
+    ok: true,
+    id: `studio_set_hand_cursor:${input.enabled}:${ts}`,
+    receipt: {
+      enabled: input.enabled,
+      message: input.enabled
+        ? "Sent a request to engage the hand cursor."
+        : "Sent a request to disengage the hand cursor.",
     },
   };
 }
@@ -437,6 +484,9 @@ export function createServerExecutor(): ActionExecutor {
           receipt: {
             id: taskId,
             title: input.title,
+            // Canonical S1 token — the model echoes this verbatim when it names
+            // the task in its reply, so the transcript renders a live pill.
+            ref: taskRefToken(taskId, input.title),
             priority: input.priority ?? "P3",
             // No-date → Inbox (D-02 / I-7): an undated task carries NO due on
             // the receipt and sets `inbox: true` so the formatter renders
@@ -528,6 +578,9 @@ export function createServerExecutor(): ActionExecutor {
           receipt: {
             id: captureId,
             content: input.content,
+            // Canonical S1 token (label = synthesized first line, as captures
+            // have no title) so the model can render the capture as a pill.
+            ref: captureRefToken(captureId, input.content),
             hashtags: input.hashtags ?? [],
             project_ids: projectCheck.ids,
             resurface_at: input.resurface_at ?? null,
@@ -931,7 +984,13 @@ export function createServerExecutor(): ActionExecutor {
         .where(and(...conditions))
         .limit(10);
 
-      return { ok: true, id: "find_tasks", receipt: { matches: rows } };
+      // Attach the canonical S1 token to each match so the model can name any
+      // discovered task as a live pill (rather than inventing a token from id).
+      const matches = rows.map((r) => ({
+        ...r,
+        ref: taskRefToken(r.id, r.title),
+      }));
+      return { ok: true, id: "find_tasks", receipt: { matches } };
     },
 
     async findCaptures(input: FindCapturesAction, ctx: ExecutionContext): Promise<ExecutorResult> {
@@ -954,7 +1013,13 @@ export function createServerExecutor(): ActionExecutor {
         .where(and(...conditions))
         .limit(10);
 
-      return { ok: true, id: "find_captures", receipt: { matches: rows } };
+      // Attach the canonical S1 token (label = synthesized first line from the
+      // preview) so the model can name a discovered capture as a live pill.
+      const matches = rows.map((r) => ({
+        ...r,
+        ref: captureRefToken(r.id, r.preview),
+      }));
+      return { ok: true, id: "find_captures", receipt: { matches } };
     },
 
     async updateEvent(input: UpdateEventAction, ctx: ExecutionContext): Promise<ExecutorResult> {
@@ -1118,6 +1183,8 @@ export function createServerExecutor(): ActionExecutor {
           receipt: {
             id: row.id,
             name: row.name,
+            // Canonical S1 token so the model can render the person as a pill.
+            ref: personRefToken(row.id, row.name),
             email: input.email?.trim() || undefined,
             phone: input.phone?.trim() || undefined,
             tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean),
@@ -1150,6 +1217,8 @@ export function createServerExecutor(): ActionExecutor {
         name: person.name,
         tags: person.tags,
         reference_count: person.referenceCount,
+        // Canonical S1 token so the model can name a person as a live pill.
+        ref: personRefToken(person.id, person.name),
       }));
       return { ok: true, id: "find_people", receipt: { matches } };
     },
@@ -1901,6 +1970,159 @@ export function createServerExecutor(): ActionExecutor {
           kind: "internal",
           error: err instanceof Error ? err.message : String(err),
         };
+      }
+    },
+
+
+    async listLights(input: ListLightsAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      const devices = await loadUserGoveeDevices(ctx.userId);
+      const filter = input.filter?.trim().toLowerCase();
+      const filtered = filter
+        ? devices.filter((d) => d.name.toLowerCase().includes(filter))
+        : devices;
+
+      return {
+        ok: true,
+        id: `list_lights:${filtered.length}`,
+        receipt: {
+          lights: filtered.map((d) => ({
+            name: d.name,
+            sku: d.sku,
+            deviceId: d.deviceId,
+            isDefault: d.isDefault,
+          })),
+          count: filtered.length,
+          ...(filter ? { filter: input.filter?.trim() } : {}),
+          ...(devices.length === 0
+            ? {
+                hint: "No lights registered — open Settings → Lights to discover devices.",
+              }
+            : {}),
+        },
+      };
+    },
+
+    async controlLights(input: ControlLightsAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      const client = await resolveGoveeClient(ctx.userId);
+      if (!client) {
+        return {
+          ok: false,
+          kind: "not_connected",
+          error:
+            "No Govee API key configured — add one in Settings (developer.govee.com) or set GOVEE_API_KEY.",
+        };
+      }
+
+      const devices = await loadUserGoveeDevices(ctx.userId);
+      const resolved = resolveTargetDevice(devices, input.device);
+      if (!resolved.ok) {
+        return {
+          ok: false,
+          kind:
+            resolved.kind === "empty" || resolved.kind === "not_found"
+              ? "not_found"
+              : "validation",
+          error: resolved.error,
+        };
+      }
+
+      const device = resolved.device;
+      const ref = { sku: device.sku, device: device.deviceId };
+
+      try {
+        let summary: string;
+        switch (input.type) {
+          case "power":
+            await client.setPower(ref, input.on);
+            summary = input.on ? "turned on" : "turned off";
+            break;
+          case "brightness":
+            await client.setBrightness(ref, input.percent);
+            summary = `brightness set to ${input.percent}%`;
+            break;
+          case "color": {
+            const rgb = packRgb(input.red, input.green, input.blue);
+            await client.setColor(ref, rgb);
+            summary = `color set to rgb(${input.red},${input.green},${input.blue})`;
+            break;
+          }
+          case "temperature":
+            await client.setColorTemperature(ref, input.kelvin);
+            summary = `color temperature set to ${input.kelvin}K`;
+            break;
+          case "gradient":
+            await client.setGradient(ref, input.on);
+            summary = input.on ? "gradient enabled" : "gradient disabled";
+            break;
+          case "segmentColor": {
+            const rgb = packRgb(input.red, input.green, input.blue);
+            await client.setSegmentColor(ref, input.segments, rgb);
+            summary = `segments [${input.segments.join(",")}] colored rgb(${input.red},${input.green},${input.blue})`;
+            break;
+          }
+          case "segmentBrightness":
+            await client.setSegmentBrightness(ref, input.segments, input.percent);
+            summary = `segments [${input.segments.join(",")}] brightness ${input.percent}%`;
+            break;
+          case "scene":
+            await client.activateScene(ref, input.name);
+            summary = `scene "${input.name}" activated`;
+            break;
+          case "music": {
+            const value: {
+              musicMode: number;
+              sensitivity: number;
+              autoColor?: number;
+              rgb?: number;
+            } = {
+              musicMode: input.mode,
+              sensitivity: input.sensitivity,
+            };
+            if (typeof input.autoColor === "boolean") {
+              value.autoColor = input.autoColor ? 1 : 0;
+            }
+            if (
+              typeof input.red === "number" &&
+              typeof input.green === "number" &&
+              typeof input.blue === "number"
+            ) {
+              value.rgb = packRgb(input.red, input.green, input.blue);
+            }
+            await client.setMusicMode(ref, value);
+            summary = `music mode ${input.mode} (sensitivity ${input.sensitivity})`;
+            break;
+          }
+          case "diy":
+            await client.activateDiy(ref, input.name);
+            summary = `DIY scene "${input.name}" activated`;
+            break;
+          default: {
+            const _exhaustive: never = input;
+            return {
+              ok: false,
+              kind: "validation",
+              error: `Unknown light command: ${JSON.stringify(_exhaustive)}`,
+            };
+          }
+        }
+
+        return {
+          ok: true,
+          id: `control_lights:${device.deviceId}:${input.type}`,
+          receipt: {
+            device: device.name,
+            sku: device.sku,
+            command: input.type,
+            summary,
+            message: `${device.name} ${summary}.`,
+          },
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (err instanceof GoveeApiError) {
+          return { ok: false, kind: "network", error: message };
+        }
+        return { ok: false, kind: "internal", error: message };
       }
     },
 

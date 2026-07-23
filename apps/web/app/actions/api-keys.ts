@@ -83,7 +83,17 @@ async function probeKey(
         method: "GET",
         headers: { Authorization: `Bearer ${key}` },
       });
-    } else {
+    } else if (provider === "guardian") {
+      res = await fetch(
+        `https://content.guardianapis.com/search?api-key=${encodeURIComponent(key)}&q=test&page-size=1`,
+        { method: "GET" },
+      );
+    } else if (provider === "govee") {
+      res = await fetch("https://openapi.api.govee.com/router/api/v1/user/devices", {
+        method: "GET",
+        headers: { "Govee-API-Key": key },
+      });
+    } else if (provider === "elevenlabs") {
       res = await fetch("https://api.elevenlabs.io/v1/user", {
         method: "GET",
         headers: { "xi-api-key": key },
@@ -104,6 +114,9 @@ async function probeKey(
         return status === "missing_permissions" ? "valid" : "invalid";
       }
       return "valid";
+    } else {
+      // Provider has no live probe yet — save without blocking.
+      return "unknown";
     }
     if (res.status === 401 || res.status === 403) return "invalid";
     return "valid";

@@ -12,16 +12,31 @@
  * (App|URL, value, optional label, fullscreen toggle). This block's params
  * carry the list of items to open; the block has no NL directive.
  *
+ * For `control_lights`, the directive is REPLACED by On/Off + which HOME
+ * light(s) to target (all registered, or a multi-select of nicknames).
+ *
  * On confirm it emits a RoutineBlock (fresh uuid, chosen tool, directive OR
- * params.items). Used both to add a new block and to edit an existing one
+ * params). Used both to add a new block and to edit an existing one
  * (prefilled). The editor sits on a recessed --sd-darker-box plate so it reads
  * as an inset within the routine's --sd-box card.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ArrowLeft, Check, Plus, X } from "lucide-react";
 import type { RoutineBlock } from "@hyperpolymath/jarvis-core";
 import type { JarvisToolName } from "@hyperpolymath/jarvis-core";
+import {
+  listGoveeDevices,
+  type GoveeDeviceRow,
+} from "@/app/actions/govee-devices";
+import {
+  defaultLightsParams,
+  lightsBlockIsReady,
+  lightsParamsForStorage,
+  readLightsParams,
+  type LightsBlockParams,
+} from "@/lib/jarvis/lights-block-params";
 import { BLOCK_CATALOG, catalogEntry, type BlockCatalogEntry } from "./block-catalog";
 
 interface Props {
@@ -77,8 +92,15 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
   const [directive, setDirective] = useState(initial?.nlDirective ?? "");
   const initialRows = useMemo(() => readWorkspaceRows(initial), [initial]);
   const [workspaceRows, setWorkspaceRows] = useState<WorkspaceRow[]>(initialRows);
+  const [lightsParams, setLightsParams] = useState<LightsBlockParams>(() =>
+    initial?.tool === "control_lights" ? readLightsParams(initial) : defaultLightsParams(),
+  );
+  const [goveeDevices, setGoveeDevices] = useState<GoveeDeviceRow[] | null>(null);
+  const [goveeLoadError, setGoveeLoadError] = useState<string | null>(null);
 
   const isWorkspace = selected?.tool === "open_workspace";
+  const isLights = selected?.tool === "control_lights";
+  const isParamsBlock = isWorkspace || isLights;
 
   // Per-block loading chatter: a spoken filler line the runner interprets while
   // the block gathers. Optional and off by default; toggle reveals the textarea.
@@ -89,10 +111,32 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
     initial?.loadingInstruction ?? "",
   );
 
+  useEffect(() => {
+    if (!isLights) return;
+    let cancelled = false;
+    void (async () => {
+      const res = await listGoveeDevices();
+      if (cancelled) return;
+      if (!res.ok) {
+        setGoveeLoadError(res.error);
+        setGoveeDevices([]);
+        return;
+      }
+      setGoveeLoadError(null);
+      setGoveeDevices(res.data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLights]);
+
   function choose(entry: BlockCatalogEntry) {
     setSelected(entry);
     // Prefill the directive from the catalog default when adding fresh.
     if (!initial) setDirective(entry.defaultDirective ?? "");
+    if (entry.tool === "control_lights" && !initial) {
+      setLightsParams(defaultLightsParams());
+    }
   }
 
   function updateRow(idx: number, patch: Partial<WorkspaceRow>) {
@@ -108,6 +152,16 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
 
   function removeRow(idx: number) {
     setWorkspaceRows((rows) => (rows.length <= 1 ? rows : rows.filter((_, i) => i !== idx)));
+  }
+
+  function toggleLightDevice(name: string) {
+    setLightsParams((prev) => {
+      const has = prev.devices.some((d) => d.toLowerCase() === name.toLowerCase());
+      const devices = has
+        ? prev.devices.filter((d) => d.toLowerCase() !== name.toLowerCase())
+        : [...prev.devices, name];
+      return { ...prev, allDevices: false, devices };
+    });
   }
 
   const cleanedWorkspaceItems = useMemo(() => {
@@ -129,21 +183,30 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
   function confirm() {
     if (!selected) return;
     if (isWorkspace && cleanedWorkspaceItems.length === 0) return;
+    if (isLights && !lightsBlockIsReady(lightsParams)) return;
     const trimmedChatter = loadingInstruction.trim();
+    const params = isWorkspace
+      ? { items: cleanedWorkspaceItems }
+      : isLights
+        ? lightsParamsForStorage(lightsParams)
+        : (initial?.params ?? {});
     onConfirm({
       id: initial?.id ?? crypto.randomUUID(),
       tool: selected.tool as JarvisToolName,
-      params: isWorkspace ? { items: cleanedWorkspaceItems } : (initial?.params ?? {}),
-      // open_workspace carries no directive; the params list IS the block.
-      nlDirective: isWorkspace ? undefined : directive.trim() ? directive.trim() : undefined,
-      // Loading chatter is a gather-block concept; action (workspace) blocks skip it.
-      loadingInstruction: isWorkspace
+      params,
+      // Params-driven blocks carry no freeform directive.
+      nlDirective: isParamsBlock ? undefined : directive.trim() ? directive.trim() : undefined,
+      loadingInstruction: isParamsBlock
         ? undefined
         : chatterEnabled && trimmedChatter
           ? trimmedChatter
           : undefined,
     });
   }
+
+  const confirmDisabled =
+    (isWorkspace && cleanedWorkspaceItems.length === 0) ||
+    (isLights && !lightsBlockIsReady(lightsParams));
 
   // --- Directive step ------------------------------------------------------
   if (selected) {
@@ -259,6 +322,119 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
               name (Arc, WhatsApp, Warp, Spark). Fullscreen is best-effort.
             </p>
           </div>
+        ) : isLights ? (
+          <div className="space-y-4">
+            <div>
+              <label className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+                Power
+              </label>
+              <div className="mt-2 inline-flex overflow-hidden rounded-[8px] border border-[var(--sd-line)]">
+                {(
+                  [
+                    { on: true, label: "On" },
+                    { on: false, label: "Off" },
+                  ] as const
+                ).map((opt) => {
+                  const active = lightsParams.on === opt.on;
+                  return (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => setLightsParams((p) => ({ ...p, on: opt.on }))}
+                      style={
+                        active
+                          ? { background: "color-mix(in oklch, var(--sd-accent) 16%, transparent)" }
+                          : undefined
+                      }
+                      className={`font-mono text-[11px] uppercase tracking-[0.06em] px-3 py-1.5 transition-colors duration-[140ms] ${
+                        active
+                          ? "text-[var(--sd-accent)]"
+                          : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+                Which lights
+              </label>
+              <div className="mt-2 space-y-2">
+                <label className="flex cursor-pointer items-center gap-2 rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2 text-[14px] text-[var(--sd-ink)]">
+                  <input
+                    type="checkbox"
+                    checked={lightsParams.allDevices}
+                    onChange={(e) => {
+                      const all = e.target.checked;
+                      setLightsParams((p) => ({
+                        ...p,
+                        allDevices: all,
+                        devices: all ? [] : p.devices,
+                      }));
+                    }}
+                    className="h-3.5 w-3.5 accent-[var(--sd-accent)]"
+                  />
+                  All registered lights
+                </label>
+
+                {!lightsParams.allDevices ? (
+                  <div className="space-y-1.5 rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-2">
+                    {goveeDevices === null ? (
+                      <p className="px-1 py-1 text-[13px] text-[var(--sd-ink-dull)]">Loading…</p>
+                    ) : goveeLoadError ? (
+                      <p className="px-1 py-1 text-[13px] text-[var(--sd-ink-dull)]">
+                        {goveeLoadError}
+                      </p>
+                    ) : goveeDevices.length === 0 ? (
+                      <p className="px-1 py-1 text-[13px] text-[var(--sd-ink-dull)]">
+                        No lights yet.{" "}
+                        <Link
+                          href="/settings#govee-lights"
+                          className="underline underline-offset-2 hover:text-[var(--sd-ink)]"
+                        >
+                          Add them in Settings
+                        </Link>
+                        .
+                      </p>
+                    ) : (
+                      goveeDevices.map((d) => {
+                        const checked = lightsParams.devices.some(
+                          (n) => n.toLowerCase() === d.name.toLowerCase(),
+                        );
+                        return (
+                          <label
+                            key={d.id}
+                            className="flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-1.5 text-[14px] text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleLightDevice(d.name)}
+                              className="h-3.5 w-3.5 accent-[var(--sd-accent)]"
+                            />
+                            <span className="min-w-0 flex-1 truncate">{d.name}</span>
+                            {d.isDefault ? (
+                              <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+                                default
+                              </span>
+                            ) : null}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              <p className="mt-2 text-[12px] leading-[1.5] text-[var(--sd-ink-dull)]">
+                Runs when the routine fires — e.g. Daddy&apos;s Home can brief
+                you and flip the bedroom on in the same sequence.
+              </p>
+            </div>
+          </div>
         ) : (
           <div>
             <label className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
@@ -281,34 +457,36 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
           </div>
         )}
 
-        <div>
-          <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
-            <input
-              type="checkbox"
-              checked={chatterEnabled}
-              onChange={(e) => setChatterEnabled(e.target.checked)}
-              className="h-3.5 w-3.5 accent-[var(--sd-accent)]"
-            />
-            Speak while loading
-          </label>
-          {chatterEnabled ? (
-            <>
-              <textarea
-                value={loadingInstruction}
-                onChange={(e) => setLoadingInstruction(e.target.value)}
-                placeholder="what jarvis says while this block fetches — e.g. 'let sir know you're checking the inbox for anything urgent'"
-                rows={2}
-                maxLength={2000}
-                style={FIELD_STYLE}
-                className="mt-2 w-full resize-y rounded-[9px] border border-[var(--sd-line)] px-3 py-2 text-[14px] leading-[1.5] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]"
+        {!isParamsBlock ? (
+          <div>
+            <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+              <input
+                type="checkbox"
+                checked={chatterEnabled}
+                onChange={(e) => setChatterEnabled(e.target.checked)}
+                className="h-3.5 w-3.5 accent-[var(--sd-accent)]"
               />
-              <p className="mt-1.5 text-[12px] leading-[1.5] text-[var(--sd-ink-dull)]">
-                Instructions, not a script. JARVIS interprets these into a fresh
-                spoken line every run so it never sounds canned.
-              </p>
-            </>
-          ) : null}
-        </div>
+              Speak while loading
+            </label>
+            {chatterEnabled ? (
+              <>
+                <textarea
+                  value={loadingInstruction}
+                  onChange={(e) => setLoadingInstruction(e.target.value)}
+                  placeholder="what jarvis says while this block fetches — e.g. 'let sir know you're checking the inbox for anything urgent'"
+                  rows={2}
+                  maxLength={2000}
+                  style={FIELD_STYLE}
+                  className="mt-2 w-full resize-y rounded-[9px] border border-[var(--sd-line)] px-3 py-2 text-[14px] leading-[1.5] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]"
+                />
+                <p className="mt-1.5 text-[12px] leading-[1.5] text-[var(--sd-ink-dull)]">
+                  Instructions, not a script. JARVIS interprets these into a fresh
+                  spoken line every run so it never sounds canned.
+                </p>
+              </>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="flex items-center justify-end gap-2">
           <button
@@ -321,7 +499,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
           <button
             type="button"
             onClick={confirm}
-            disabled={isWorkspace && cleanedWorkspaceItems.length === 0}
+            disabled={confirmDisabled}
             className="sd-btn-solid inline-flex items-center gap-1.5 rounded-[8px] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity duration-100"
           >
             <Check size={14} />

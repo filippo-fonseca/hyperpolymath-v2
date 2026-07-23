@@ -16,5 +16,12 @@ export function toJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
   >;
   // Belt-and-braces: ensure additionalProperties is explicitly false.
   json.additionalProperties = false;
+  // Anthropic Messages API requires `input_schema.type` (almost always
+  // "object"). Zod discriminated unions / some refined schemas emit `oneOf`
+  // without a top-level `type`, which 400s as:
+  //   tools.N.custom.input_schema.type: Field required
+  if (typeof json.type !== "string") {
+    json.type = "object";
+  }
   return json;
 }

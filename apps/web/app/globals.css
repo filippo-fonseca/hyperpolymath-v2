@@ -1014,6 +1014,22 @@ select,
   margin: 0 1px;
 }
 
+/* Inline entity-reference chips (.entity-chip-inline lives on the entityMention
+   node in the editor) — the universal `@` chip, pointing at one entity by id.
+   Third sibling to .hashtag-chip-inline (sage) and .person-chip-inline (amber);
+   blue is the register left over, and it reads as "this points at a thing in
+   the app" rather than at a tag or a name. */
+.entity-chip-inline {
+  display: inline-block;
+  background: color-mix(in oklch, var(--ink-blue) 18%, transparent);
+  color: var(--ink);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  margin: 0 1px;
+}
+
 /* Live hashtag decoration (closes #41) — applied by HashtagDecorations
    extension to plain `#word` text in the editor so the styling lands the
    moment the tag is recognised, not only after the popover commits a Mention
@@ -1057,6 +1073,22 @@ select,
 .jarvis-input-content p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
 }
+/* Lite JARVIS composer (LifeOsQuickSend + the Cmd+K GlobalJarvisDialog).
+   Same soft serif-italic prompt as the full console input — the two composers
+   are the same affordance at two sizes and should read that way. The textarea
+   this replaced got its placeholder for free; a TipTap doc needs the rule. */
+.lite-jarvis-content[data-placeholder] p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: color-mix(in oklch, var(--ink-muted) 70%, transparent);
+  font-style: italic;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
 /* Inline $project chips — sibling to .hashtag-chip-inline, distinct color */
 .project-chip-inline {
   display: inline-block;
@@ -1069,7 +1101,71 @@ select,
   margin: 0 1px;
 }
 
+/* Inline entity-reference pills — the render half of the universal @-mention
+   token (@[label](ref://type/uuid)). Deliberately the same cyan register as
+   .bn-entity-ref in page-block-editor.css, so a reference to a project reads
+   identically whether it sits in a wiki page, a capture, or a JARVIS bubble.
+   That rule lives in the editor's stylesheet, which only the wiki loads; these
+   pills render everywhere, so the register is restated here rather than making
+   every surface import the editor's CSS. Keep the two in sync. */
+.entity-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  margin: 0 1px;
+  padding: 0.08em 0.5em;
+  border-radius: 7px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.82em;
+  line-height: 1.4;
+  vertical-align: baseline;
+  user-select: none;
+  text-decoration: none;
+  color: var(--ink);
+  background: color-mix(in oklch, var(--hud-cyan) 9%, var(--surface-raised));
+  border: 1px solid color-mix(in oklch, var(--hud-cyan) 28%, var(--sd-line));
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.entity-pill-glyph {
+  flex-shrink: 0;
+  color: var(--hud-cyan);
+  font-weight: 600;
+}
+
+/* Interactive only when the target still exists. */
+button.entity-pill {
+  cursor: pointer;
+}
+
+button.entity-pill:hover {
+  background: color-mix(in oklch, var(--hud-cyan) 16%, var(--surface-raised));
+  border-color: color-mix(in oklch, var(--hud-cyan) 44%, transparent);
+}
+
+button.entity-pill:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--hud-cyan) 60%, transparent);
+  outline-offset: 1px;
+}
+
+/* Tombstone — the target was deleted, but per S3 the token stays in the source
+   text. It keeps its snapshot label and drops off the cyan ladder entirely so
+   it reads as inert history rather than a link that quietly does nothing.
+   Not struck through: the words are still what the author wrote. */
+.entity-pill-tombstone {
+  color: var(--sd-ink-faint);
+  background: var(--sd-input);
+  border-color: var(--sd-line);
+  border-style: dashed;
+  cursor: default;
+}
+
+.entity-pill-tombstone .entity-pill-glyph {
+  color: var(--sd-ink-faint);
+}
+
 /* react-big-calendar styles removed — CalendarGrid is now hand-rolled. */
+
 
 /* ─── Phase 6.1 Plan 06.1-01 — Focus-visible ring system (UI-SPEC §11a) ─────────
    Applied via focus-visible: only — keyboard navigation surfaces rings;
@@ -1664,6 +1760,72 @@ select:focus-visible,
   mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
 }
 
+/* Projects timeline — the horizontal analogue of .mask-fade-out. Columns and
+   bars dissolve at the scroller's trailing edge instead of hard-clipping
+   mid-column. Real classes rather than inline gradient overlays (§23): an
+   arbitrary one-off utility can be dropped by the Oxide scan, and these are
+   load-bearing, not decoration. All static — nothing animates, so no
+   reduced-motion guard is needed.
+
+   Trailing edge only, deliberately. The leading edge is where the sticky area
+   labels ride, and fading those would dissolve the one anchor telling you which
+   area you are looking at while scrolled deep into the canvas. */
+.timeline-edge-fade {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 28px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+}
+
+/* Bar terminus fades. `-r` is the open-ended / clamped-end affordance (the bar
+   runs on past what we know or past the window); `-l` is a start that predates
+   the window; `-lr` is both. The fade is capped at 40% of the bar so a short
+   bar fades proportionally instead of vanishing entirely. */
+.timeline-bar-fade-r {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+}
+
+.timeline-bar-fade-l {
+  -webkit-mask-image: linear-gradient(
+    to left,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to left,
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+}
+
+.timeline-bar-fade-lr {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black min(32px, 40%),
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black min(32px, 40%),
+    black calc(100% - min(32px, 40%)),
+    transparent 100%
+  );
+}
+
 /* Scrollbar stays invisible until the pointer is actually in the column
    (§1.8). The gutter is reserved at all times so revealing the thumb never
    reflows the rows. Class specificity beats the global `*::-webkit-scrollbar`
@@ -1689,53 +1851,11 @@ select:focus-visible,
   background: var(--sd-selected);
 }
 
-/* Collapsed-rail hover wordmark (sd3 unit-fix-people-sidebar). When the 56px
-   rail is hovered, its top logo zone reveals the full EB Garamond wordmark as
-   a floating plate anchored at the rail's top-left. Opacity + 4px translate
-   only, never a width/layout change — the plate is absolutely positioned and
-   the aside width stays tied to the real collapsed state, so nothing reflows.
-   The reveal is gated to a fine pointer so a touch tap can never strand the
-   plate open; reduced-motion collapses the transition to an instant cut. */
-.sidebar-logo-flyout {
-  display: flex;
-  align-items: center;
-  height: 2.25rem;
-  padding: 0 0.625rem;
-  border-radius: 8px;
-  border: 1px solid var(--sd-line);
-  background: var(--sd-box);
-  font-size: 16px;
-  line-height: 1;
-  white-space: nowrap;
-  box-shadow: 6px 0 20px color-mix(in oklch, var(--ink) 14%, transparent);
-  opacity: 0;
-  transform: translateX(-4px);
-  transition:
-    opacity 140ms ease-out,
-    transform 140ms ease-out;
-  pointer-events: none;
-  z-index: 60;
-}
-/* The collapsed "H" monogram cross-fades out under the revealed wordmark so
-   the hover state reads as a single mark, not an "H" beside the plate. */
-.sidebar-logo-mono {
-  transition: opacity 140ms ease-out;
-}
-@media (pointer: fine) {
-  .group\/sidebar:hover .sidebar-logo-flyout {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  .group\/sidebar:hover .sidebar-logo-mono {
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sidebar-logo-flyout,
-  .sidebar-logo-mono {
-    transition: none;
-  }
-}
+/* The collapsed-rail hover wordmark (.sidebar-logo-flyout / .sidebar-logo-mono)
+   used to live here: a floating plate that revealed the wordmark beside the 56px
+   rail on hover. The hover-peek overlay now expands to the full 230px and renders
+   the real lockup in its header, so the plate had become a second wordmark
+   floating over the first. SidebarHeader owns all three brand states now. */
 
 /* --- 6. Lit-from-above buttons -------------------------------------- */
 /* Accent fill + ambient glow tied to --sd-accent (cyan per D1b/D6, not

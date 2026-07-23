@@ -11,12 +11,10 @@
  *     hub's grab/expand upgrades never drop, and the reticle snaps on hittables);
  *   - `grabStart/grabMove/grabEnd` become a pointerdown→move→up drag on the
  *     grabbed widget's header (or the orb root, or a drawer tile) — moving the
- *     widget or drag-placing a tile through the window's OWN handlers. A grab
- *     that begins over a widget's corner resize zone instead drives its resize
- *     handle (pinch-corner-resize), reusing the same pinch machine to resize;
+ *     widget or drag-placing a tile through the window's OWN handlers;
  *   - a `tap`/`expand` intent (quick-pinch / palm-click) becomes a synthesized
- *     click at the reticle — summoning a drawer tile, restoring a stowed chip,
- *     or pressing a button (routed into a promoted child webview over IPC).
+ *     click at the reticle — summoning a drawer tile or pressing a button
+ *     (routed into a promoted child webview over IPC).
  *
  * We never edit the widget store or WidgetWindow: the windows are a read-only DOM
  * we hit-test against and dispatch into. Coordinates come from the frozen cursor
@@ -33,12 +31,8 @@ import {
   useStudioInput,
   useStudioPhase,
 } from "./react";
-import type { HoverProvider, StudioCursor } from "./types";
+import { HOVER_PRIORITY, type HoverProvider, type StudioCursor } from "./types";
 import { STUDIO_COLORS } from "../tokens";
-import {
-  getWidgetWindows,
-  resizeWidget,
-} from "../state/widget-windows";
 import { clickNativeWebview, scrollNativeWebview } from "../windows/native-webview";
 import { confirmPendingSend, cancelPendingSend } from "@/actions/confirm-gate";
 import {
@@ -161,32 +155,6 @@ function dispatchWheel(target: Element, vx: number, vy: number, dy: number): voi
   );
 }
 
-/** The live widget-window frame element for an id, or null. */
-function widgetElement(id: string): HTMLElement | null {
-  return document.querySelector<HTMLElement>(`[data-widget-window="${CSS.escape(id)}"]`);
-}
-
-/**
- * Toggle the "resize armed" affordance on a widget frame: a bright accent ring so
- * the user SEES which widget an open-hand resize is driving. Applied imperatively
- * (no React state) so it never churns the hot path; cleared on `resizeEnd`.
- */
-function setResizeAffordance(id: string, armed: boolean): void {
-  const el = widgetElement(id);
-  if (!el) return;
-  if (armed) {
-    el.dataset.resizeArmed = "true";
-    el.style.outline = `2px solid ${STUDIO_COLORS.accent}`;
-    el.style.outlineOffset = "2px";
-    el.style.boxShadow = `0 0 0 1px ${STUDIO_COLORS.accent}, 0 20px 56px color-mix(in srgb, ${STUDIO_COLORS.shadow} 78%, transparent)`;
-  } else {
-    delete el.dataset.resizeArmed;
-    el.style.outline = "";
-    el.style.outlineOffset = "";
-    el.style.boxShadow = "";
-  }
-}
-
 type GrabState = {
   dragTarget: Element | null;
   /** True until the first grabMove dispatches the pointerdown at the palm origin. */
@@ -195,15 +163,8 @@ type GrabState = {
   lastY: number;
   /** The widget this grab drives (for the U3 gesture-interaction seam event). */
   widgetId: string;
-  /** "resize" when the grab landed on the corner handle, else "drag" (a move). */
-  kind: "resize" | "drag";
-};
-
-type ResizeState = {
-  id: string;
-  /** Widget w/h captured at arm time; the emitted scale multiplies these. */
-  w0: number;
-  h0: number;
+  /** Always "drag" now — widgets no longer resize; kept for the seam detail. */
+  kind: "drag";
 };
 
 type ScrollState = {
@@ -223,7 +184,6 @@ type ScrollState = {
 export function useHandPointerSynthesis(): void {
   const bus = useStudioInput();
   const grab = useRef<GrabState | null>(null);
-  const resize = useRef<ResizeState | null>(null);
   const scroll = useRef<ScrollState | null>(null);
 
   useEffect(() => {
@@ -235,7 +195,8 @@ export function useHandPointerSynthesis(): void {
   const provider: HoverProvider = useMemo(
     () => ({
       id: "desktop-dom-hit",
-      priority: 10,
+      // Above the hub's built-in rect registry, below a future 3D raycast.
+      priority: HOVER_PRIORITY.domHitTest,
       resolve: (cursor: StudioCursor): string | null => {
         if (!cursor.active) return null;
         const rect = stageRect();
@@ -303,20 +264,15 @@ export function useHandPointerSynthesis(): void {
           break;
         }
         const hit = hitTest(vp.x, vp.y);
-        // Pinch-corner-resize: when the frozen reticle sits in a widget's resize
-        // zone, drive the grab onto its resize HANDLE (running the widget's own
-        // resize logic) instead of the header — the same trusted pinch machine
-        // resizes rather than moves. Otherwise it's a normal move drag.
-        const target = hit?.resizeTarget ?? hit?.dragTarget ?? null;
+        const target = hit?.dragTarget ?? null;
         if (hit && target) {
-          const kind: "resize" | "drag" = hit.resizeTarget ? "resize" : "drag";
           grab.current = {
             dragTarget: target,
             pendingDown: true,
             lastX: vp.x,
             lastY: vp.y,
             widgetId: hit.id,
-            kind,
+            kind: "drag",
           };
         } else {
           grab.current = null;
@@ -356,47 +312,6 @@ export function useHandPointerSynthesis(): void {
             active: false,
           });
         }
-        break;
-      }
-
-      // Open-hand resize → live widget resize via the existing store setter.
-      // Gated OFF while a grab-drag is active (belt-and-suspenders: the gesture
-      // layer already makes pinch/open mutually exclusive) so a stray resize
-      // never fights a drag. Scale is cumulative from the arm baseline, so we
-      // multiply the widget's arm-time w/h; clampToStage floors it at 0.16.
-      case "resizeStart": {
-        if (grab.current) {
-          resize.current = null;
-          break;
-        }
-        const w = getWidgetWindows().find((item) => item.id === phase.targetId);
-        resize.current = w ? { id: w.id, w0: w.w, h0: w.h } : null;
-        if (resize.current) {
-          setResizeAffordance(resize.current.id, true);
-          dispatchGestureInteraction({
-            widgetId: resize.current.id,
-            kind: "resize",
-            active: true,
-          });
-        }
-        break;
-      }
-      case "resizeMove": {
-        const r = resize.current;
-        if (!r) break;
-        resizeWidget(r.id, r.w0 * phase.scale, r.h0 * phase.scale);
-        break;
-      }
-      case "resizeEnd": {
-        if (resize.current) {
-          setResizeAffordance(resize.current.id, false);
-          dispatchGestureInteraction({
-            widgetId: resize.current.id,
-            kind: "resize",
-            active: false,
-          });
-        }
-        resize.current = null;
         break;
       }
 

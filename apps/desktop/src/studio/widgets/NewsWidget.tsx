@@ -2,10 +2,10 @@ import * as React from "react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "motion/react";
+import { NewsIcon } from "@hyperpolymath/ui-icons";
 
-import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import { SD_FONT, SD_INK, SD_SURFACES } from "../tokens";
 import { summonWidget } from "../state/widget-windows";
-import { WIDGET_CATALOG } from "../windows/catalog";
 import { fetchStudioWidget } from "./widget-fetch";
 
 interface Article {
@@ -38,17 +38,20 @@ function formatAge(published?: string): string | null {
   return `${days}d`;
 }
 
+const shellStyle: React.CSSProperties = {
+  height: "100%",
+  background: SD_SURFACES.box,
+};
+
 function NewsRow({ article }: { article: Article }): React.ReactElement {
   const [active, setActive] = useState(false);
   const age = formatAge(article.published);
   const clickable = Boolean(article.url);
+  const lit = active && clickable;
 
   const open = (): void => {
     if (!article.url) return;
-    const browser = WIDGET_CATALOG.browser;
-    summonWidget("browser", { url: article.url }, undefined, {
-      defaultSize: browser.defaultSize,
-    });
+    summonWidget("browser", { url: article.url });
   };
 
   return (
@@ -65,16 +68,15 @@ function NewsRow({ article }: { article: Article }): React.ReactElement {
         width: "100%",
         padding: "10px 12px",
         border: 0,
-        borderLeft: `2px solid ${active && clickable ? STUDIO_COLORS.accent : "transparent"}`,
-        borderBottom: `1px solid ${STUDIO_COLORS.rule}`,
-        color: STUDIO_COLORS.text,
-        background:
-          active && clickable
-            ? `color-mix(in srgb, ${STUDIO_COLORS.accent} 9%, transparent)`
-            : "transparent",
+        borderBottom: `1px solid ${SD_SURFACES.line}`,
+        color: SD_INK.base,
+        // Two-tier law (DS §4): hover is a NEUTRAL backplate. The old accent
+        // tint + accent left bar was an accent-filled row, which §16 bans.
+        background: lit ? SD_SURFACES.hover : "transparent",
+        fontFamily: SD_FONT.sans,
         textAlign: "left",
         cursor: clickable ? "pointer" : "default",
-        transition: "background 0.15s ease, border-color 0.15s ease",
+        transition: "background-color 0.15s ease",
         outline: "none",
       }}
     >
@@ -84,11 +86,12 @@ function NewsRow({ article }: { article: Article }): React.ReactElement {
           alignItems: "center",
           gap: 8,
           marginBottom: 5,
-          color: STUDIO_COLORS.muted,
-          fontFamily: STUDIO_MONO,
-          fontSize: 8.5,
-          letterSpacing: "0.12em",
+          color: lit ? SD_INK.dull : SD_INK.faint,
+          fontFamily: SD_FONT.mono,
+          fontSize: 10,
+          letterSpacing: "0.1em",
           textTransform: "uppercase",
+          transition: "color 0.15s ease",
         }}
       >
         <span
@@ -97,7 +100,6 @@ function NewsRow({ article }: { article: Article }): React.ReactElement {
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
-            color: active && clickable ? STUDIO_COLORS.accent : STUDIO_COLORS.muted,
           }}
         >
           {article.section ?? "The Guardian"}
@@ -105,15 +107,16 @@ function NewsRow({ article }: { article: Article }): React.ReactElement {
         {age ? (
           <>
             <span aria-hidden style={{ opacity: 0.5 }}>·</span>
-            <span style={{ flexShrink: 0 }}>{age}</span>
+            <span style={{ flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{age}</span>
           </>
         ) : null}
       </div>
       <p
         style={{
           margin: 0,
-          fontSize: 12.5,
+          fontSize: 13,
           lineHeight: "17px",
+          letterSpacing: "-0.01em",
           display: "-webkit-box",
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
@@ -135,7 +138,7 @@ function NewsSkeleton(): React.ReactElement {
           key={index}
           style={{
             padding: "12px",
-            borderBottom: `1px solid ${STUDIO_COLORS.rule}`,
+            borderBottom: `1px solid ${SD_SURFACES.line}`,
           }}
         >
           {[9, "72%", "90%"].map((width, row) => (
@@ -146,7 +149,7 @@ function NewsSkeleton(): React.ReactElement {
                 width: typeof width === "number" ? 96 : width,
                 marginBottom: row === 2 ? 0 : 7,
                 borderRadius: 3,
-                background: `color-mix(in srgb, ${STUDIO_COLORS.muted} 22%, transparent)`,
+                background: SD_SURFACES.input,
               }}
               animate={reduced ? undefined : { opacity: [0.4, 0.8, 0.4] }}
               transition={{
@@ -163,6 +166,62 @@ function NewsSkeleton(): React.ReactElement {
   );
 }
 
+/** Mono eyebrow over a 40px dimensional icon — the DS §9 empty/error voice. */
+function NewsNotice({
+  headline,
+  detail,
+}: {
+  headline: string;
+  detail?: string;
+}): React.ReactElement {
+  return (
+    <div
+      style={{
+        ...shellStyle,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        padding: 20,
+        textAlign: "center",
+      }}
+    >
+      {/* 40px at 40% opacity (DS §9); the icons take no style prop, so the
+          opacity rides a wrapper. */}
+      <span style={{ opacity: 0.4, lineHeight: 0 }}>
+        <NewsIcon size={40} />
+      </span>
+      <p
+        style={{
+          margin: 0,
+          color: SD_INK.faint,
+          fontFamily: SD_FONT.mono,
+          fontSize: 11,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+        }}
+      >
+        {headline}
+      </p>
+      {detail ? (
+        <p
+          style={{
+            margin: 0,
+            maxWidth: 260,
+            color: SD_INK.dull,
+            fontFamily: SD_FONT.sans,
+            fontSize: 12,
+            lineHeight: 1.5,
+          }}
+        >
+          {detail}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function NewsWidget(): React.ReactElement {
   const { data, error, isLoading } = useQuery({
     queryKey: ["studio", "news"],
@@ -172,78 +231,24 @@ export default function NewsWidget(): React.ReactElement {
 
   if (isLoading) {
     return (
-      <div style={{ height: "100%", overflow: "hidden" }}>
+      <div style={{ ...shellStyle, overflow: "hidden" }}>
         <NewsSkeleton />
       </div>
     );
   }
 
   if (error) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          height: "100%",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          padding: 20,
-          textAlign: "center",
-        }}
-      >
-        <p
-          style={{
-            margin: 0,
-            color: STUDIO_COLORS.text,
-            fontFamily: STUDIO_MONO,
-            fontSize: 10,
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-          }}
-        >
-          News unavailable
-        </p>
-        <p
-          style={{
-            margin: 0,
-            maxWidth: 260,
-            color: STUDIO_COLORS.muted,
-            fontSize: 11.5,
-            lineHeight: 1.5,
-          }}
-        >
-          {error.message}
-        </p>
-      </div>
-    );
+    return <NewsNotice headline="News unavailable" detail={error.message} />;
   }
 
   const articles = (data?.articles ?? []).slice(0, MAX_ITEMS);
 
   if (articles.length === 0) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          height: "100%",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 20,
-          color: STUDIO_COLORS.muted,
-          fontFamily: STUDIO_MONO,
-          fontSize: 10,
-          letterSpacing: "0.16em",
-          textTransform: "uppercase",
-        }}
-      >
-        No stories right now
-      </div>
-    );
+    return <NewsNotice headline="No stories right now" />;
   }
 
   return (
-    <div style={{ height: "100%", overflowY: "auto" }}>
+    <div style={{ ...shellStyle, overflowY: "auto" }}>
       {articles.map((article, index) => (
         <NewsRow key={article.url ?? `${article.title}:${index}`} article={article} />
       ))}

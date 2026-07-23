@@ -57,12 +57,15 @@ import {
   GetNewsInputSchema,
   ReadWhatsappInputSchema,
   ReadImessageInputSchema,
+  ListLightsInputSchema,
+  ControlLightsInputSchema,
   ComputerUseInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
 import type { ZodType } from "zod";
 
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 import { generateBlockFillerLine } from "@/lib/jarvis/routine-filler";
+import { expandLightsBlocks } from "@/lib/jarvis/expand-lights-blocks";
 
 // --- Public contract -------------------------------------------------------
 
@@ -232,6 +235,8 @@ function buildParamValidators(voiceActive: boolean): Record<JarvisToolName, ZodT
     get_news: GetNewsInputSchema,
     read_whatsapp: ReadWhatsappInputSchema,
     read_imessage: ReadImessageInputSchema,
+    list_lights: ListLightsInputSchema,
+    control_lights: ControlLightsInputSchema,
     computer_use: ComputerUseInputSchema,
   };
 }
@@ -483,6 +488,9 @@ export async function runRoutine(
   ctx: RoutineRunContext,
   handlers: RoutineRunHandlers,
 ): Promise<BlockRunResult[]> {
+  // Fan out Lights blocks (allDevices / devices[]) into one control_lights
+  // call per nickname before gather/sequence so multi-light routines are reliable.
+  const expandedBlocks = await expandLightsBlocks(blocks, ctx.userId);
   const runId = ctx.runId ?? (globalThis.crypto?.randomUUID?.() ?? `run-${Date.now()}`);
   const threaded: ThreadMsg[] = [];
   const results: BlockRunResult[] = [];
@@ -530,14 +538,14 @@ export async function runRoutine(
   // we run them non-voice so no spoken shaping is wasted on data we'll re-narrate.
   const gatherVoice = synth ? false : ctx.isVoice;
 
-  const parallelGather = synth && ctx.parallel === true && blocks.length > 1;
+  const parallelGather = synth && ctx.parallel === true && expandedBlocks.length > 1;
 
   if (parallelGather) {
     // Independent gathers: EMPTY thread per block (no cross-block threading —
     // that reasoning moves to the synthesis turn), a bounded work-stealing
     // worker pool, and results pinned to `slots[i]` so receipts keep authored
     // block order even when block 3 settles before block 0.
-    const total = blocks.length;
+    const total = expandedBlocks.length;
     const slots: BlockRunResult[] = new Array(total);
     let next = 0;
     const worker = async (): Promise<void> => {
@@ -546,7 +554,7 @@ export async function runRoutine(
         if (i >= total) return;
         // `next++` in single-threaded JS is atomic work-stealing; no lock needed.
         slots[i] = await runBlock(
-          blocks[i],
+          expandedBlocks[i],
           i,
           total,
           [], // empty thread — parallel gathers do not see siblings
@@ -562,11 +570,11 @@ export async function runRoutine(
     await Promise.all(Array.from({ length: width }, () => worker()));
     results.push(...slots);
   } else {
-    for (let i = 0; i < blocks.length; i++) {
+    for (let i = 0; i < expandedBlocks.length; i++) {
       const result = await runBlock(
-        blocks[i],
+        expandedBlocks[i],
         i,
-        blocks.length,
+        expandedBlocks.length,
         threaded,
         runId,
         synth,
@@ -592,7 +600,7 @@ export async function runRoutine(
     }
   }
   if (synth) {
-    await runSynthesisTurn(runId, blocks, results, ctx, handlers);
+    await runSynthesisTurn(runId, expandedBlocks, results, ctx, handlers);
   }
 
   handlers.onRoutineDone(results);

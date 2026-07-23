@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { APIUserAbortError } from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import { areas, captures, jarvisPersonalityConfig, projects, tasks, users } from "@/lib/db/schema";
 import { getAnthropicClient, JARVIS_MODEL } from "@/lib/jarvis/anthropic-client";
@@ -6,15 +7,20 @@ import {
   createServerExecutor,
   executeStudioCloseWidget,
   executeStudioOpenWidget,
+  executeStudioSetHandCursor,
 } from "@/lib/jarvis/executor";
 import {
   STUDIO_WIDGET_TOOL_DEFINITIONS,
   StudioCloseWidgetInputSchema,
   StudioOpenWidgetInputSchema,
+  StudioSetHandCursorInputSchema,
   type StudioCloseWidgetInput,
   type StudioOpenWidgetInput,
+  type StudioSetHandCursorInput,
 } from "@/lib/jarvis/studio-widget-tools";
 import { detectStudioBackstop } from "@/lib/jarvis/studio-intent-backstop";
+import { ackPhraseForTool } from "@/lib/jarvis/ack-phrases";
+import { joinStreamTextChunks } from "@/lib/jarvis/join-stream-text";
 import { logJarvisEvent } from "@/lib/jarvis/log-event";
 import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
 import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
@@ -42,6 +48,8 @@ import {
   reconstructSessionEntitiesFromHistory,
   entityFromToolResult,
 } from "@/lib/jarvis/session-entities";
+import { buildReferencedEntitiesBlock } from "@/lib/jarvis/resolve-references";
+import { REFERENCE_GUIDANCE } from "@/lib/jarvis/reference-guidance";
 import type { SessionEntity, JarvisToolName } from "@hyperpolymath/jarvis-core";
 // Phase 16 tool validators (via tools subpath export from jarvis-core)
 import {
@@ -80,6 +88,9 @@ import {
   ReadWhatsappInputSchema,
   // iMessage — server-side read of synced messages
   ReadImessageInputSchema,
+  // Govee lights
+  ListLightsInputSchema,
+  ControlLightsInputSchema,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
@@ -169,9 +180,22 @@ export interface RunTurnOptions {
     suggestedAction: unknown
   ) => void;
   onAction: (toolUseId: string, name: string, result: unknown) => void;
+  /**
+   * Spoken tool-latency acknowledgement. Fired ONCE per turn, the instant the
+   * model chooses its first tool with no spoken preamble, so a voice turn never
+   * goes silent while a (possibly slow) tool runs. The caller routes it through
+   * a DEDICATED channel (desktop `jarvis-ack` bus event / browser `ack` SSE
+   * event) so it speaks BEFORE the answer without polluting the persisted
+   * transcript or the visual bubble. Only fired on spoken turns (isVoice).
+   */
+  onAck?: (text: string) => void;
   onDone: (usage: RunTurnUsage) => void;
   onError: (message: string) => void;
 }
+
+// Process-lifetime rotation so consecutive tool turns get varied ack lines
+// (acceptance: repeated tool turns must not repeat the same canned ack).
+let ackRotation = 0;
 
 function buildToolValidators(voiceActive: boolean) {
   return {
@@ -211,6 +235,7 @@ function buildToolValidators(voiceActive: boolean) {
     get_weather: GetWeatherInputSchema,
     studio_open_widget: StudioOpenWidgetInputSchema,
     studio_close_widget: StudioCloseWidgetInputSchema,
+    studio_set_hand_cursor: StudioSetHandCursorInputSchema,
     // Server-side data tools (Gmail read + Guardian news)
     read_gmail: ReadGmailInputSchema,
     get_news: GetNewsInputSchema,
@@ -218,6 +243,8 @@ function buildToolValidators(voiceActive: boolean) {
     read_whatsapp: ReadWhatsappInputSchema,
     // iMessage — server-side read of synced messages
     read_imessage: ReadImessageInputSchema,
+    list_lights: ListLightsInputSchema,
+    control_lights: ControlLightsInputSchema,
     // Computer Use fallback — catch-all agentic desktop loop
     computer_use: ComputerUseInputSchema,
   } as const;
@@ -507,6 +534,12 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     mode: opts.mode,
   });
 
+  // Static entity-reference contract. Pushed here (web-side) rather than into
+  // jarvis-core's cache-critical prompt-builder: it's a byte-stable constant, so
+  // folding it into the prefix ahead of the state snapshot keeps the cache
+  // intact and leaves the jarvis-core purity/stability tests untouched.
+  system.push({ type: "text", text: REFERENCE_GUIDANCE });
+
   const stateVersion = userRow?.stateVersion ?? 1n;
   const todayDate = formatTodayDateInTimezone(userRow?.timezone ?? "America/New_York");
   const activeProjectsForSnapshot: SnapshotInputs["projectsActive"] = [];
@@ -561,6 +594,10 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
   const actionTypes: string[] = [];
   let anyTextEmitted = false;
+  // Spoken tool-latency ack: fire at most once per turn, and only when the model
+  // went straight to a tool with NO spoken preamble (if it already said "Let me
+  // check.", that IS the ack — a second one would double-speak).
+  let ackEmitted = false;
   // Accumulated text actually streamed to the bus this turn — used by the
   // trailing-block dedupe (Unit 5) to drop a final-message ack the stream
   // already spoke ("Noted, sir — I'll remember that.Duly updated, sir.").
@@ -623,6 +660,22 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   // can reference entities created in earlier turns without a find call.
   const sessionEntities: SessionEntity[] = reconstructSessionEntitiesFromHistory(anthropicMessages);
 
+  // Inbound reference resolution (S9). Parse the S1 tokens the user @-mentioned
+  // this turn (and in recent history), resolve them to compact summaries, and
+  // build the <referenced_entities> block. Built ONCE here — its content is
+  // stable across the agentic loop's passes — and injected uncached below.
+  // Fail-open: resolution never blocks a turn, it only enriches context.
+  let referencedEntitiesBlock = "";
+  try {
+    referencedEntitiesBlock = await buildReferencedEntitiesBlock({
+      userId: opts.userId,
+      input: opts.input,
+      messages: anthropicMessages,
+    });
+  } catch (err) {
+    console.error("[jarvis] buildReferencedEntitiesBlock failed", err);
+  }
+
   const totalUsage: RunTurnUsage = {
     input_tokens: 0,
     output_tokens: 0,
@@ -646,6 +699,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       const passSystem = [
         ...system,
         { type: "text" as const, text: temporalText },
+        ...(referencedEntitiesBlock
+          ? [{ type: "text" as const, text: referencedEntitiesBlock }]
+          : []),
         ...(scratchpadText ? [{ type: "text" as const, text: scratchpadText }] : []),
       ];
 
@@ -688,6 +744,17 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
           input?: unknown;
         };
         if (b.type !== "tool_use") return;
+
+        // Spoken tool-latency ack. The model just chose a tool; if it hasn't
+        // spoken anything yet this turn, emit an immediate acknowledgement so
+        // JARVIS isn't silent while the tool runs. Fired once per turn, only on
+        // spoken turns, and never when a preamble already streamed (that IS the
+        // ack). The caller serializes it before the answer via the turn's TTS
+        // queue and keeps it out of the persisted/visual transcript.
+        if (opts.onAck && speakingTurn && !ackEmitted && !anyTextEmitted) {
+          ackEmitted = true;
+          opts.onAck(ackPhraseForTool(b.name ?? "", ackRotation++));
+        }
 
         if (opts.onQueued) {
           opts.onQueued(b.id ?? "", b.name ?? "");
@@ -892,6 +959,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
                 parsed.data as StudioCloseWidgetInput,
                 ctx.userId
               );
+            } else if (toolName === "studio_set_hand_cursor") {
+              result = await executeStudioSetHandCursor(
+                parsed.data as StudioSetHandCursorInput,
+                ctx.userId
+              );
             } else if (toolName === "read_gmail") {
               result = await executor.readGmail(
                 parsed.data as Parameters<typeof executor.readGmail>[0],
@@ -910,6 +982,16 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "read_imessage") {
               result = await executor.readImessage(
                 parsed.data as Parameters<typeof executor.readImessage>[0],
+                ctx
+              );
+            } else if (toolName === "list_lights") {
+              result = await executor.listLights(
+                parsed.data as Parameters<typeof executor.listLights>[0],
+                ctx
+              );
+            } else if (toolName === "control_lights") {
+              result = await executor.controlLights(
+                parsed.data as Parameters<typeof executor.controlLights>[0],
                 ctx
               );
             } else if (toolName === "computer_use") {
@@ -944,7 +1026,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
           firstTokenAt_d = new Date();
         }
         lastTokenAt_d = new Date();
-        const s = String(delta);
+        // Separate text blocks around tool_use often arrive with no space
+        // ("sir.Bedroom"). Bridge sentence boundaries before emitting.
+        const s = joinStreamTextChunks(streamedText, String(delta));
         if (s.trim().length > 0) {
           anyTextEmitted = true;
           streamedText += s;
@@ -1145,8 +1229,20 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       },
     });
   } catch (err) {
-    const errName = (err as { name?: string })?.name;
-    if (errName !== "AbortError") {
+    // A deliberate turn abort (barge-in / stop button → upstream.abort()) is a
+    // CLEAN end, not an error. The Anthropic SDK throws APIUserAbortError, whose
+    // `.name` is "Error" (not "AbortError"), so a name check alone misses it and
+    // would persist a spurious status:"error" turn ("Request was aborted.") that
+    // renders as a failed bubble on reload. Detect the abort robustly: the turn's
+    // abort signal being set covers any error shape thrown mid-abort, and the
+    // instanceof catches the SDK's own abort error. On abort we skip onError
+    // entirely — the single response-end has already been emitted by the caller's
+    // abort listener, so the live turn ends cleanly with no ghost error turn.
+    const aborted =
+      upstream.signal.aborted ||
+      err instanceof APIUserAbortError ||
+      (err as { name?: string })?.name === "AbortError";
+    if (!aborted) {
       const message = (err as { message?: string })?.message ?? String(err);
       opts.onError(message);
 

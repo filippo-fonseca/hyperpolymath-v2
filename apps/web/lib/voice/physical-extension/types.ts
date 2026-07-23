@@ -48,6 +48,7 @@ export type PhysicalStudioWidgetKind =
   | "whatsapp"
   | "weather"
   | "news"
+  | "home"
   | "card"
   | "clock"
   | "camera"
@@ -71,10 +72,47 @@ export type PhysicalStudioAction =
       kind: PhysicalStudioWidgetKind | "all" | string;
       target?: "kind" | "id";
       userId?: string;
+    }
+  | {
+      // Toggle the Studio hand-tracking cursor. Carries no widget kind.
+      action: "hand";
+      enabled: boolean;
+      userId?: string;
     };
 
 export interface PhysicalJarvisResponseEnd {
   turnId: string;
+  at: number;
+}
+
+/**
+ * A spoken tool-latency acknowledgement ("I'll fetch the news for you, sir.").
+ * Emitted server-side the instant the model chooses a tool with no spoken
+ * preamble, so JARVIS speaks immediately instead of going silent while the tool
+ * runs. Carried on a DEDICATED event (not a response-chunk) so it plays through
+ * the same per-turn TTS queue — serialized BEFORE the real answer by turnId —
+ * WITHOUT ever landing in the persisted assistant text or the visual bubble.
+ */
+export interface PhysicalJarvisAck {
+  turnId: string;
+  /** The spoken ack line. Speech-ready (no markdown). */
+  text: string;
+  at: number;
+}
+
+/**
+ * A real interrupt for the persistent-SSE voice path. Emitted by the cancel
+ * endpoint (/api/jarvis/voice/cancel) when the user stops JARVIS mid-speech,
+ * mid-processing, or mid-utterance. The turn-abort registry listens on the bus
+ * and aborts the matching in-flight `runJarvisTurnStream` (Anthropic stream +
+ * remaining tool rounds). `all` cancels every in-flight turn for the owner —
+ * used by the desktop barge-in, which does not track the live turnId.
+ */
+export interface PhysicalJarvisCancel {
+  /** Cancel one turn by id. Omitted when `all` is set. */
+  turnId?: string;
+  /** Cancel every in-flight turn (owner-gated single-user bus). */
+  all?: boolean;
   at: number;
 }
 

@@ -1,24 +1,29 @@
 {
-  "unit_id": "unit-sidebar-overhaul-s1d1",
-  "run_id": "sesh-sd2-overhaul",
+  "unit_id": "unit-u4-timeline-drag-full-drag-inter-6e38",
+  "run_id": "sesh-1784257742502",
   "scale": "feature",
-  "title": "unit-sidebar-overhaul-s1d1",
-  "scope": "See .planning/fable-plan.md + UI-CONTRACT",
+  "title": "u4-timeline-drag: full drag interactions on timeline bars",
+  "scope": "Pointer-capture drag on bars (move both dates) and edge handles (resize start/end; dragging an open-ended terminus sets a real end date), per-zoom snapping from the u1 drag math, drag preview via direct style updates (no transitions), Escape cancels, drag-vs-click threshold (click still opens the popover), auto-scroll at window edges, commits through u3's existing onCommitDates/handleCommitDates seam (deferred-commit undo toast), archive-trap confirm when a drag would newly expire a project, touch policy per seed (long-press to drag; native panning wins otherwise), reduced-motion + a11y (popover remains the keyboard path), tests for snap/commit/cancel logic. Also closes verifier FINDING 1: the populated-state toolbar row in ProjectsTimeline.tsx gets the same flex-wrap treatment as the empty state.",
   "criteria": [
-    "contract sections implemented exactly",
-    "iter-1 screenshot for Conductor review",
-    "both themes",
-    "zero jank"
+    "Bar drag moves both dates; edge handles resize start/end; open-ended terminus drag sets a real end date; per-zoom snapping uses pxToSnappedDayDelta from the engine (no new date math)",
+    "Drag-vs-click threshold preserved: a plain click still opens the popover; Escape cancels an in-flight drag with full visual revert",
+    "Commits reuse u3's onCommitDates/handleCommitDates deferred-commit undo path; a drag that newly expires a project triggers the archive-trap confirm before committing",
+    "Auto-scroll engages near scroller edges during drag; touch: long-press initiates drag, otherwise native horizontal panning is untouched",
+    "No width/position transitions during drag (direct style updates only); reduced motion respected; both themes; §14/§16 canon on every changed line",
+    "Populated-state toolbar row wraps at narrow widths (verifier FINDING 1 closed)",
+    "Scoped tests green (drag logic: snap, commit, cancel, threshold, archive-trap) plus u3's test files and the 71 engine tests; npx tsc --noEmit clean"
   ],
-  "touched": [],
+  "touched": ["apps/web/components/projects/timeline/"],
   "model": "claude-opus-4-8",
   "model_assignment": {
     "tier": "heavy",
-    "effort": "high",
-    "reason": "design-critical overhaul unit"
+    "effort": "xhigh",
+    "reason": "fixed routing: user contract pins every build lane to Opus 4.8"
   },
-  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2/.bgsd/runs/sesh-sd2-overhaul/advisor/unit-sidebar-overhaul-s1d1.md",
+  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/advisor/unit-u4-timeline-drag-full-drag-inter-6e38.md",
+  "control_report_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-projects-timeline/.bgsd/runs/sesh-1784257742502/control/u4-timeline-drag.report.md",
   "advisor_checkpoints": [
+    "before implementation",
     "after planning",
     "after every commit",
     "on blocker or assumption",

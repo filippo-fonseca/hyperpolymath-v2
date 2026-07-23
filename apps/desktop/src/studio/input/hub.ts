@@ -26,6 +26,8 @@ import type {
   StudioPhaseInput,
   StudioStageRect,
 } from "./types";
+import { HOVER_PRIORITY } from "./types";
+import { clamp01 } from "./clamp";
 
 export type StudioInputHubOptions = {
   /** Reads the current stage rect (viewport coords). Defaults to a 0×0 rect. */
@@ -35,8 +37,6 @@ export type StudioInputHubOptions = {
   /** Resolve hover synchronously instead of coalescing via rAF (tests). */
   sync?: boolean;
 };
-
-const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 const ZERO_RECT: StudioStageRect = { left: 0, top: 0, width: 0, height: 0 };
 
@@ -83,20 +83,13 @@ export class StudioInputHub implements StudioInputBus {
   private dragSuppressed = false;
 
   /**
-   * Symmetric to {@link grabSuppressed} for the open-hand resize lifecycle: a
-   * `resizeStart` with no widget under the reticle is dropped along with its
-   * `resizeMove`/`resizeEnd`. Cleared on `resizeEnd` or the next `resizeStart`.
-   */
-  private resizeSuppressed = false;
-
-  /**
    * Symmetric to {@link grabSuppressed} for the index-scroll lifecycle: a
    * `scrollStart` over empty space is dropped along with its
    * `scrollMove`/`scrollEnd`. Cleared on `scrollEnd` or the next `scrollStart`.
    */
   private scrollSuppressed = false;
 
-  /** Built-in rect-based DOM hover provider (priority 0). */
+  /** Built-in rect-based DOM hover provider (HOVER_PRIORITY.domRects — the floor). */
   private readonly domRects = new Map<string, () => DOMRect>();
 
   private hoverScheduled = false;
@@ -184,7 +177,7 @@ export class StudioInputHub implements StudioInputBus {
   private buildDomProvider(): HoverProvider {
     return {
       id: "dom-rects",
-      priority: 0,
+      priority: HOVER_PRIORITY.domRects,
       resolve: (cursor) => {
         if (!cursor.active) return null;
         const rect = this.getStageRect();
@@ -325,20 +318,6 @@ export class StudioInputHub implements StudioInputBus {
       if (this.dragSuppressed) {
         if (input.type === "dragEnd") this.dragSuppressed = false;
         return; // suppressed drag lifecycle (pinch began over a card)
-      }
-      event = input;
-    } else if (input.type === "resizeStart") {
-      const targetId = this.snapshot.hoverTargetId;
-      if (targetId === null) {
-        this.resizeSuppressed = true; // resize with no widget under the reticle
-        return;
-      }
-      this.resizeSuppressed = false;
-      event = { type: "resizeStart", targetId };
-    } else if (input.type === "resizeMove" || input.type === "resizeEnd") {
-      if (this.resizeSuppressed) {
-        if (input.type === "resizeEnd") this.resizeSuppressed = false;
-        return; // orphaned lifecycle from a dropped resizeStart
       }
       event = input;
     } else if (input.type === "scrollStart") {

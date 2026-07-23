@@ -21,8 +21,8 @@ const CORS = {
  * Bearer-auth (paired-device) read of the user's JARVIS startup config —
  * briefing-on-launch flag, URLs/apps to open, and Shortcuts to run at startup.
  * The desktop reads this at boot to drive its startup sequence. Web is the
- * source of truth; returns DEFAULT_STARTUP_CONFIG (briefing on, empty lists)
- * when the user has no row. Auth mirrors /api/jarvis/voice/context.
+ * source of truth; returns DEFAULT_STARTUP_CONFIG (briefing OFF / opt-in, empty
+ * lists) when the user has no row. Auth mirrors /api/jarvis/voice/context.
  */
 export async function GET(req: NextRequest): Promise<Response> {
   const userId = await validateDesktopBearer(req);

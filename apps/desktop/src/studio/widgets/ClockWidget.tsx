@@ -1,8 +1,9 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "motion/react";
+import { ClockIcon } from "@hyperpolymath/ui-icons";
 
-import { STUDIO_COLORS, STUDIO_MONO, STUDIOLO } from "../tokens";
+import { SD_ACCENT, SD_FONT, SD_INK, SD_SURFACES } from "../tokens";
 
 /** Two-digit, zero-padded string for a clock field. */
 function pad(value: number): string {
@@ -56,101 +57,102 @@ export default function ClockWidget(): React.ReactElement {
       style={{
         display: "flex",
         height: "100%",
-        flexDirection: "column",
-        justifyContent: "center",
-        gap: 14,
+        alignItems: "center",
+        gap: 16,
         padding: 20,
+        background: SD_SURFACES.box,
       }}
     >
-      <p
-        style={{
-          margin: 0,
-          color: STUDIO_COLORS.muted,
-          fontFamily: STUDIO_MONO,
-          fontSize: 10,
-          letterSpacing: "0.22em",
-          textTransform: "uppercase",
-        }}
-      >
-        {dateLine}
-      </p>
+      {/* Icon-left stat-tile grammar (DS §8): the dimensional icon carries the
+          feature identity, the ring below stays for the live seconds. */}
+      <ClockIcon size={40} title="Clock" />
 
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ display: "flex", minWidth: 0, flex: 1, flexDirection: "column", gap: 8 }}>
+        <p
+          style={{
+            margin: 0,
+            overflow: "hidden",
+            color: SD_INK.faint,
+            fontFamily: SD_FONT.mono,
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            textOverflow: "ellipsis",
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {dateLine}
+        </p>
+
+        {/* Space Grotesk, not mono: DS §3 keeps mono for micro-labels only, and
+            a 52px display value is the stat-strip value, not a caption. */}
         <div
           style={{
             display: "flex",
             alignItems: "baseline",
-            color: STUDIO_COLORS.text,
-            fontFamily: STUDIO_MONO,
-            fontWeight: 200,
-            fontSize: 64,
+            color: SD_INK.base,
+            fontFamily: SD_FONT.sans,
+            fontWeight: 800,
+            fontSize: 52,
             lineHeight: 1,
-            letterSpacing: "0.02em",
+            letterSpacing: "-0.01em",
             fontVariantNumeric: "tabular-nums",
           }}
         >
           {hours}
-          <span style={{ margin: "0 2px", color: STUDIO_COLORS.muted }}>:</span>
+          <span style={{ margin: "0 3px", color: SD_INK.faint }}>:</span>
           {minutes}
         </div>
+      </div>
 
-        <div
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <svg viewBox="0 0 40 40" width={40} height={40} aria-hidden="true">
+          <circle
+            cx="20"
+            cy="20"
+            r={RING_RADIUS}
+            fill="none"
+            stroke={SD_SURFACES.line}
+            strokeWidth="1.4"
+          />
+          <circle
+            cx="20"
+            cy="20"
+            r={RING_RADIUS}
+            fill="none"
+            stroke={SD_ACCENT}
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeDasharray={RING_CIRCUMFERENCE}
+            strokeDashoffset={RING_CIRCUMFERENCE * (1 - progress)}
+            transform="rotate(-90 20 20)"
+            style={{
+              transition:
+                reduced || seconds === 0
+                  ? undefined
+                  : "stroke-dashoffset 0.3s linear",
+            }}
+          />
+          <circle cx={dotX} cy={dotY} r="2.1" fill={SD_ACCENT} />
+        </svg>
+        <span
           style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 6,
+            color: SD_INK.faint,
+            fontFamily: SD_FONT.mono,
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            fontVariantNumeric: "tabular-nums",
           }}
         >
-          <svg
-            viewBox="0 0 40 40"
-            width={40}
-            height={40}
-            aria-hidden="true"
-            style={{
-              transition: reduced ? undefined : "transform 0.3s ease",
-            }}
-          >
-            <circle
-              cx="20"
-              cy="20"
-              r={RING_RADIUS}
-              fill="none"
-              stroke={STUDIO_COLORS.rule}
-              strokeWidth="1.4"
-            />
-            <circle
-              cx="20"
-              cy="20"
-              r={RING_RADIUS}
-              fill="none"
-              stroke={STUDIO_COLORS.accent}
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeDasharray={RING_CIRCUMFERENCE}
-              strokeDashoffset={RING_CIRCUMFERENCE * (1 - progress)}
-              transform="rotate(-90 20 20)"
-              style={{
-                transition:
-                  reduced || seconds === 0
-                    ? undefined
-                    : "stroke-dashoffset 0.3s linear",
-              }}
-            />
-            <circle cx={dotX} cy={dotY} r="2.1" fill={STUDIOLO.fireflyCyan} />
-          </svg>
-          <span
-            style={{
-              color: STUDIO_COLORS.accent,
-              fontFamily: STUDIO_MONO,
-              fontSize: 11,
-              letterSpacing: "0.1em",
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {pad(seconds)}
-          </span>
-        </div>
+          {pad(seconds)}
+        </span>
       </div>
     </div>
   );

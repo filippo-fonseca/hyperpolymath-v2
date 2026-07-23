@@ -1,4 +1,13 @@
 <!doctype html>
+<!--
+  Debug stage entry. Served by the repo-root vite config (`pnpm --filter desktop
+  debug:stage`) so the `@`/`@studio` aliases and apps/desktop/public resolve the
+  same way they do in the real app — which is what lets /fonts/*.woff2 load here.
+
+  Usage and query params are documented at the top of ./main.tsx.
+  The script path is relative on purpose: vite's root is apps/desktop, so a
+  leading-slash path would resolve to apps/desktop/main.tsx and 404.
+-->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -7,6 +16,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/main.tsx"></script>
+    <script type="module" src="./main.tsx"></script>
   </body>
 </html>

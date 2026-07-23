@@ -29,6 +29,9 @@ export type JarvisToolName =
   | "read_whatsapp"
   // iMessage — server-side read of synced messages
   | "read_imessage"
+  // Govee lights — server-side list + control
+  | "list_lights"
+  | "control_lights"
   // Computer Use fallback — catch-all agentic desktop loop
   | "computer_use";
 
@@ -310,6 +313,17 @@ export interface GetNewsAction {
   maxResults?: number;
 }
 
+/** list_lights — registered Govee devices from user_govee_devices. */
+export interface ListLightsAction {
+  filter?: string;
+}
+
+/**
+ * control_lights — discriminated LightCommand. Re-exported action type aliases
+ * the Zod-inferred command; see tools/control-lights.ts for the full union.
+ */
+export type { LightCommand as ControlLightsAction } from "./tools/control-lights";
+
 // WhatsApp — server-side read. No DesktopAction; the executor queries the
 // synced whatsapp_messages table and returns a grouped receipt for the agent
 // to narrate. See tools/read-whatsapp.ts for schema.
@@ -425,7 +439,13 @@ export interface StartupConfig {
 }
 
 export const DEFAULT_STARTUP_CONFIG: StartupConfig = {
-  briefingEnabled: true,
+  // OPT-IN. An unrequested spoken "Good morning, sir" briefing on every wake
+  // reads as the app talking to itself, so the briefing is OFF unless the user
+  // explicitly turns it on in the StartupEditor. This is the load-bearing
+  // default: the web GET route (/api/jarvis/config/startup) and getStartupConfig
+  // both fall back to it when the user has no jarvis_startup_config row, and the
+  // desktop treats the web value as the source of truth.
+  briefingEnabled: false,
   openOnStart: [],
   startupShortcuts: [],
 };

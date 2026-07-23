@@ -15,6 +15,7 @@ import {
   unique,
   uniqueIndex,
   jsonb,
+  vector,
   customType,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
@@ -1032,6 +1033,36 @@ export const desktopDevices = pgTable(
   ],
 );
 
+// user_govee_devices — per-user Govee light registrations. sku + device_id come
+// from Govee discovery; name is user-facing (defaults to the discovery label).
+// capabilities_cache stores the last-fetched capabilities payload (nullable until
+// first sync). is_default marks the preferred light for Jarvis one-shot commands.
+// Migration 0038 (RLS + unique user_id/device_id).
+export const userGoveeDevices = pgTable(
+  "user_govee_devices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sku: text("sku").notNull(),
+    deviceId: text("device_id").notNull(),
+    name: text("name").notNull(),
+    isDefault: boolean("is_default").notNull().default(false),
+    capabilitiesCache: jsonb("capabilities_cache"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("user_govee_devices_user_device_uniq").on(t.userId, t.deviceId),
+    index("user_govee_devices_user_idx").on(t.userId),
+  ],
+);
+
 // claude_code_usage — daily Claude Code token totals.
 // Populated by a local cron (tools/claude-code-sync.mjs) that runs ccusage
 // on the user's laptop and POSTs to /api/integrations/claude-code/sync.
@@ -1508,6 +1539,82 @@ export const peopleReferences = pgTable(
   ],
 );
 
+// entity_references — one row per (source entity → target entity) reference,
+// the general form of people_references: instead of a person-shaped far end it
+// stores a (targetType, targetId) pair, so any entity can reference any other.
+// Neither end carries a hard FK because both are polymorphic; userId is
+// denormalized for RLS like every other junction table here. Rows are
+// reconciled on save (parse the source's text for @[label](ref://type/uuid)
+// tokens, diff against existing rows — see lib/references/reconcile.ts), which
+// makes this the queryable projection of tokens that otherwise only exist
+// inside free text: it powers backlinks, reference counts, and the captures
+// graph's co_reference edges.
+export const entityReferences = pgTable(
+  "entity_references",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "capture" | "task" | "page" | "jarvis_turn"
+    sourceType: text("source_type").notNull(),
+    sourceId: uuid("source_id").notNull(),
+    // "capture" | "task" | "page" | "project" | "area" | "person"
+    targetType: text("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // At most one reference per (source, target) — a source naming the same
+    // target twice collapses to one row, which is what lets the reconcile diff
+    // stay idempotent.
+    unique("entity_references_source_target_uniq").on(
+      t.sourceType,
+      t.sourceId,
+      t.targetType,
+      t.targetId,
+    ),
+    // "what references this entity" — backlinks, counts, graph.
+    index("entity_references_target_idx").on(t.targetType, t.targetId),
+    index("entity_references_user_idx").on(t.userId),
+    // "what does this entity reference" — the reconcile read, on every save.
+    index("entity_references_source_idx").on(t.sourceType, t.sourceId),
+  ],
+);
+
+// entity_embeddings — one gte-small (384-dim) vector per referenceable entity,
+// backing the STAGED semantic reference search (U7). The exact @-mention search
+// (searchEntityMentions, S4) does not touch this; it powers a second, flag-gated
+// "Related" section that finds entities a literal query would miss. Vectors are
+// produced by the embed-entity edge function's built-in Supabase.ai inference
+// (no external vendor). contentHash is sha256 of the normalized (title + body)
+// the embedding was built from — an unchanged hash on save lets the enqueue
+// short-circuit the embed round trip. userId denormalized for RLS; entityId
+// carries no FK because the target is polymorphic, same as entity_references.
+export const entityEmbeddings = pgTable(
+  "entity_embeddings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "capture" | "task" | "page" | "project" | "area" | "person"
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    contentHash: text("content_hash").notNull(),
+    embedding: vector("embedding", { dimensions: 384 }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // One embedding per entity; the enqueue upserts on this constraint.
+    unique("entity_embeddings_entity_uniq").on(t.entityType, t.entityId),
+    // Cosine ANN index — HNSW over IVFFlat at single-user scale (see 0036).
+    index("entity_embeddings_embedding_hnsw_idx")
+      .using("hnsw", t.embedding.op("vector_cosine_ops")),
+    index("entity_embeddings_user_idx").on(t.userId),
+  ],
+);
+
 // whatsapp_messages — messages synced from the local lharries/whatsapp-mcp
 // Go bridge (which owns the whatsmeow session and its own SQLite mirror).
 // A small local sync worker (tools/whatsapp-sync/sync.mjs) reads new rows
@@ -1655,8 +1762,9 @@ export const jarvisPersonalityConfig = pgTable(
 // startup config shape (apps/desktop/src/settings.ts): whether the morning
 // briefing runs on launch, plus the URLs/apps to open and Shortcuts to run at
 // startup. Web is the source of truth; the desktop reads this via the bearer-auth
-// GET route. Migration 0025 (RLS + unique index). DEFAULTS (briefing on, empty
-// lists) reproduce today's behavior.
+// GET route. Migration 0025 (RLS + unique index); 0037 flips the briefing
+// default OFF (opt-in). DEFAULTS: briefing OFF (no unsolicited wake greeting),
+// empty open/shortcut lists.
 export const jarvisStartupConfig = pgTable(
   "jarvis_startup_config",
   {
@@ -1665,7 +1773,7 @@ export const jarvisStartupConfig = pgTable(
       .notNull()
       .unique()
       .references(() => users.id, { onDelete: "cascade" }),
-    briefingEnabled: boolean("briefing_enabled").notNull().default(true),
+    briefingEnabled: boolean("briefing_enabled").notNull().default(false),
     // Array<{ type: "url" | "app"; value: string }>
     openOnStart: jsonb("open_on_start")
       .$type<Array<{ type: "url" | "app"; value: string }>>()

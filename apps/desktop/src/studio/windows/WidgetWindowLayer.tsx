@@ -5,10 +5,18 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 
 import { Drawer } from "../drawer/Drawer";
 import { HandTrackingLayer } from "../input/HandTrackingLayer";
-import { HUD_EASE_OUT_QUART, STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import {
+  HUD_EASE_OUT_QUART,
+  SD_ACCENT,
+  SD_INK,
+  SD_RADIUS,
+  SD_SURFACES,
+  STUDIO_MONO,
+} from "../tokens";
 import {
   getWidgetWindows,
   rehydrateWidgetWindows,
+  resyncWidgetSizes,
   summonWidget,
   useWidgetWindows,
 } from "../state/widget-windows";
@@ -32,7 +40,6 @@ const layerStyle: CSSProperties = {
 function summon(kind: WidgetKind): void {
   const entry = WIDGET_CATALOG[kind];
   summonWidget(kind, {}, undefined, {
-    defaultSize: entry.defaultSize,
     singleton: entry.singleton,
   });
 }
@@ -55,19 +62,31 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
     // compose the idle-home; any persisted layout is left untouched.
     const freshBoot = getWidgetWindows().length === 0;
     if (!getWidgetWindows().some((item) => item.kind === "orb")) {
-      const entry = WIDGET_CATALOG.orb;
       summonWidget("orb", {}, { x: 0.5, y: 0.5 }, {
-        defaultSize: entry.defaultSize,
-        singleton: entry.singleton,
+        singleton: WIDGET_CATALOG.orb.singleton,
       });
     }
     if (freshBoot) {
-      const clock = WIDGET_CATALOG.clock;
       summonWidget("clock", {}, { x: 0.5, y: 0.15 }, {
-        defaultSize: clock.defaultSize,
-        singleton: clock.singleton,
+        singleton: WIDGET_CATALOG.clock.singleton,
       });
     }
+  }, []);
+
+  // Fixed per-kind sizes are viewport-relative, so re-derive them when the
+  // window resizes (moved to a bigger monitor, OS zoom change, projector). rAF-
+  // coalesced so a drag-resize storm collapses to one recompute per frame.
+  useEffect(() => {
+    let frame = 0;
+    const onResize = (): void => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => resyncWidgetSizes());
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   useEffect(() => {
@@ -126,7 +145,10 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
                 width: 112,
                 height: 112,
                 borderRadius: "50%",
-                background: `radial-gradient(circle, color-mix(in srgb, ${STUDIO_COLORS.accent} 42%, transparent), transparent 70%)`,
+                // The summon glint: a 220ms transient, not a resting glow, so
+                // §1's de-glow does not reach it. Flattening the falloff to a
+                // solid fill would turn the flash into a hard disc.
+                background: `radial-gradient(circle, color-mix(in srgb, ${SD_ACCENT} 42%, transparent), transparent 70%)`,
                 transform: "translate(-50%, -50%)",
               }}
               initial={{ opacity: 0, scale: 0.35 }}
@@ -137,7 +159,7 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
           ))}
         </AnimatePresence>
         <AnimatePresence>
-          {windows.filter((item) => !item.stowed).map((item) => (
+          {windows.map((item) => (
             <WidgetWindow
               key={item.id}
               window={item}
@@ -152,7 +174,6 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         targeted={drawerTargetId !== null}
-        windows={windows}
       />
 
       {/* TEMP: replaced by desktop-react-shell at merge. */}
@@ -167,9 +188,9 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
             display: "flex",
             gap: 6,
             padding: 6,
-            border: `1px solid ${STUDIO_COLORS.rule}`,
-            borderRadius: 8,
-            background: STUDIO_COLORS.surface,
+            border: `1px solid ${SD_SURFACES.line}`,
+            borderRadius: SD_RADIUS.panel,
+            background: SD_SURFACES.darkBox,
             fontFamily: STUDIO_MONO,
           }}
         >
@@ -178,21 +199,25 @@ function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement
               key={kind}
               type="button"
               onClick={() => summon(kind)}
+              className="studio-drawer-tile"
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
-                padding: "5px 7px",
-                border: `1px solid ${STUDIO_COLORS.rule}`,
-                borderRadius: 5,
-                color: STUDIO_COLORS.text,
-                background: STUDIO_COLORS.background,
+                gap: 6,
+                padding: "5px 8px",
+                border: `1px solid ${SD_SURFACES.line}`,
+                borderRadius: SD_RADIUS.tile,
+                color: SD_INK.dull,
+                background: SD_SURFACES.box,
                 font: "inherit",
-                fontSize: 9,
+                fontSize: 11,
+                letterSpacing: "0.06em",
                 cursor: "pointer",
               }}
             >
-              <entry.icon size={11} aria-hidden />
+              {/* 16 is the floor for the dimensional family; at the old 11 the
+                  body gradient collapsed into a smudge. */}
+              <entry.icon size={16} aria-hidden />
               {entry.label}
             </button>
           ))}

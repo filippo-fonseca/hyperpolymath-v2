@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
+import { getPeopleForCurrentUser } from "@/app/actions/people";
+import { useCurrentUserId } from "@/components/providers/CurrentUserProvider";
+import { EntityLabelsProvider } from "@/components/references/EntityLabelsProvider";
+import { tableKey } from "@/lib/realtime/query-keys";
 import type { ScrollbackAssistantTurn, ScrollbackTurn, ScrollbackAction } from "./jarvis-types";
+import { sortTurns } from "./transcript-order";
 import { JarvisReceipt } from "./JarvisReceipt";
 import { JarvisClarification } from "./JarvisClarification";
 import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
@@ -180,6 +186,35 @@ export function JarvisScrollback({
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const shouldReduce = useReducedMotion();
+  // The composer sends a person mention as a bare `@name` marker, so chipping
+  // one back requires knowing the names — the same deliberate data dependency
+  // as tokenize-content.ts. Without this list, a person the user picked from
+  // the menu came back as literal text in their own transcript (a shipped bug).
+  const userId = useCurrentUserId();
+  const { data: people } = useQuery({
+    queryKey: [...tableKey("people", userId ?? "anon")] as const,
+    queryFn: () => getPeopleForCurrentUser(),
+    enabled: !!userId,
+    staleTime: 5 * 60_000,
+  });
+  const personNames = useMemo(() => (people ?? []).map((p) => p.name), [people]);
+  // Issue #283 — render turns in canonical logical order regardless of how they
+  // reached this component. JarvisConsole's realtime merge already sorts, but
+  // the SSR-hydrated, paginated, and deep-link paths set state straight from
+  // DB rows whose equal-timestamp ties Postgres can return inverted. Sorting
+  // here is the single render chokepoint that guarantees a user turn always
+  // precedes its assistant reply. Cheap (scrollback is capped) and keyed by
+  // stable turn.id so it never thrashes the DOM.
+  const orderedTurns = useMemo(() => sortTurns(turns), [turns]);
+  // Every reference across the whole transcript resolves in one batch rather
+  // than one call per bubble.
+  const turnText = useMemo(
+    () =>
+      orderedTurns.flatMap((t) =>
+        t.kind === "user" ? [t.text] : [(t as ScrollbackAssistantTurn).textDelta],
+      ),
+    [orderedTurns],
+  );
   const prevTurnsCountRef = useRef(turns.length);
   // When the user clicks "Older messages", we record scrollHeight + scrollTop
   // BEFORE the fetch resolves so the post-prepend effect can restore the
@@ -200,7 +235,7 @@ export function JarvisScrollback({
   // transition (streaming → done). Without this, the existing length-only
   // effect would never re-fire during a stream because `turns.length` stays
   // constant while the same turn's content fills in.
-  const lastTurn = turns[turns.length - 1];
+  const lastTurn = orderedTurns[orderedTurns.length - 1];
   const tailContentSignal =
     lastTurn?.kind === "assistant"
       ? `${lastTurn.id}|${lastTurn.textDelta?.length ?? 0}|${lastTurn.actions.length}|${lastTurn.status}`
@@ -294,7 +329,7 @@ export function JarvisScrollback({
 
   // Group turns by day for date headers.
   const grouped: Array<{ day: string; turns: ScrollbackTurn[] }> = [];
-  for (const turn of turns) {
+  for (const turn of orderedTurns) {
     const key = dayKey(turn.createdAt);
     const last = grouped[grouped.length - 1];
     if (last && last.day === key) {
@@ -305,10 +340,33 @@ export function JarvisScrollback({
   }
 
   return (
+    <EntityLabelsProvider text={turnText}>
     <div
       ref={containerRef}
       className="h-full overflow-y-auto overscroll-contain px-6 py-4 hud-scrollbar"
     >
+      {turns.length === 0 ? (
+        // Empty state: the HudCoreBubble centerpiece (rendered behind in
+        // JarvisConsole) carries the visual weight. We add only a quiet
+        // bottom-anchored hint above the input so the bubble stays uncovered
+        // and the surface doesn't feel like a stack of competing greetings.
+        // Full-width + pointer-events-none so it never captures clicks meant
+        // for Studio widgets behind the console.
+        <div className="flex h-full items-end justify-center pb-24 pointer-events-none">
+          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] opacity-70 select-none">
+            Type below, or hold ⌘+J and speak.
+          </p>
+        </div>
+      ) : null}
+
+      {/* Issue #283 (sd register) — the message column is constrained to a
+          fixed reading measure and centered. Chat bubbles used to sprawl the
+          full page width (their max-w-[72/82%] are relative to the container),
+          overrunning Studio widgets on widescreen. Capping at 820px keeps the
+          conversation readable and leaves the side gutters clear so widgets
+          stay visible and interactable. The scroll container itself stays
+          full-width so the hud-scrollbar hugs the edge. */}
+      <div className="mx-auto w-full max-w-[820px]">
       {/* "Older messages" pagination button — only when there's another
           page behind the oldest currently-loaded turn. Sits at the top so
           the user reaches it by scrolling up. */}
@@ -323,18 +381,6 @@ export function JarvisScrollback({
           >
             {loadingOlder ? "Loading…" : "↑ Older messages"}
           </button>
-        </div>
-      ) : null}
-
-      {turns.length === 0 ? (
-        // Empty state: the HudCoreBubble centerpiece (rendered behind in
-        // JarvisConsole) carries the visual weight. We add only a quiet
-        // bottom-anchored hint above the input so the bubble stays uncovered
-        // and the surface doesn't feel like a stack of competing greetings.
-        <div className="flex h-full items-end justify-center pb-24 pointer-events-none">
-          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] opacity-70 select-none">
-            Type below, or hold ⌘+J and speak.
-          </p>
         </div>
       ) : null}
 
@@ -383,7 +429,9 @@ export function JarvisScrollback({
                         </span>
                       ) : (
                         <p className="text-[15px] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
-                          {renderUserText(stripSystemTags(turn.text))}
+                          {renderUserText(stripSystemTags(turn.text), {
+                            personNames,
+                          })}
                         </p>
                       )}
                     </motion.div>
@@ -441,7 +489,9 @@ export function JarvisScrollback({
                           className="font-mono text-base italic font-medium leading-relaxed"
                           style={{ color: "var(--sd-ink)" }}
                         >
-                          {renderInlineMarkdown(stripSystemTags(turn.textDelta))}
+                          {renderInlineMarkdown(stripSystemTags(turn.textDelta), {
+                            personNames,
+                          })}
                           {turn.status === "streaming" ? (
                             <span className="relative inline-block ml-0.5">
                               {!shouldReduce ? (
@@ -546,7 +596,9 @@ export function JarvisScrollback({
       ))}
 
       <div ref={bottomRef} />
+      </div>
     </div>
+    </EntityLabelsProvider>
   );
 }
 

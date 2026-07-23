@@ -29,6 +29,11 @@ import {
   type ParsedDate,
   type Priority,
 } from "@hyperpolymath/jarvis-core";
+import {
+  entityMentionAttrsToRef,
+  ENTITY_MENTION_NODE,
+  serializeEntityMentionNode,
+} from "@/lib/references/tiptap-tokens";
 import type { SlashCommandKey } from "./SlashCommandPopover";
 
 export interface LinkedPerson {
@@ -79,6 +84,13 @@ function serializeEditorJson(json: unknown): string {
     content?: unknown[];
   };
   if (n.type === "text") return typeof n.text === "string" ? n.text : "";
+  // An entityMention carries a real entity id, so it serializes to the
+  // canonical S1 token rather than to a bare `@label` marker — the whole point
+  // being that the server can bind "@Marathon Training" to one exact row
+  // instead of guessing by name. Same textContent trap as the chips below: the
+  // node contributes nothing to doc.textContent, so it MUST be rebuilt here.
+  const entityToken = serializeEntityMentionNode(n);
+  if (entityToken !== null) return entityToken;
   if (n.type === "mention") return `#${n.attrs?.label ?? n.attrs?.id ?? ""}`;
   if (n.type === "projectMention")
     return `$${n.attrs?.label ?? n.attrs?.id ?? ""}`;
@@ -122,6 +134,19 @@ function collectMentions(
     const id = n.attrs.id;
     if (!people.some((p) => p.id === id)) {
       people.push({ id, name: n.attrs.label ?? "" });
+    }
+  }
+  // The universal `@` replaced the person-only one, so a person the user
+  // mentions now arrives as an entityMention. Keep feeding the `people`
+  // sidecar from it or `linkedPeople` silently empties out — the token in the
+  // text is new information for the server, not a replacement for the hint it
+  // already consumes. Other ref kinds are NOT folded into projectIds/hashtags:
+  // `$project` still means "bind this turn to that project", and a passing @
+  // reference to a project does not mean the same thing.
+  if (n.type === ENTITY_MENTION_NODE) {
+    const ref = entityMentionAttrsToRef(n.attrs);
+    if (ref?.type === "person" && !people.some((p) => p.id === ref.id)) {
+      people.push({ id: ref.id, name: ref.label });
     }
   }
   if (Array.isArray(n.content)) {

@@ -1,6 +1,6 @@
 /**
- * Shared tokenizer for rendering capture/task content with inline `#hashtag`
- * and `@person` chips.
+ * Shared tokenizer for rendering capture/task content with inline entity
+ * references, `#hashtag` chips, and `@person` chips.
  *
  * The previous card renderer split on whitespace and only pilled a token when
  * the WHOLE whitespace-delimited token matched `^#word$`, so punctuation-
@@ -14,12 +14,28 @@
  * `@person` chips are emitted only when the text after `@` matches a KNOWN
  * linked person name (longest-first). Raw `@` runs that don't match a person
  * (emails like `me@x.com`, handles) stay plain text — never auto-pilled.
+ *
+ * Reference tokens (`@[label](ref://type/uuid)`) are recognized FIRST, ahead of
+ * both other rules, and their spans are skipped whole. That ordering is not a
+ * preference: a token both starts with `@` and can carry anything in its label,
+ * so scanning it character by character would let the person rule bite the
+ * leading `@` and the hashtag rule chip a `#` *inside* a label. Matching the
+ * complete token first and jumping past it makes a reference opaque — its label
+ * is displayed, never re-parsed.
+ *
+ * Only complete tokens match (parseReferences' guarantee), so a half-typed or
+ * half-streamed `@[foo](ref://ta` stays plain text until it finishes rather
+ * than flickering into a broken chip.
  */
+
+import { type EntityRef, parseReferences } from "@/lib/references/token";
 
 export type ContentSegment =
   | { kind: "text"; value: string }
   | { kind: "hashtag"; display: string }
-  | { kind: "person"; display: string };
+  | { kind: "person"; display: string }
+  /** A complete reference token. `ref.label` is the insert-time snapshot. */
+  | { kind: "entityRef"; ref: EntityRef };
 
 function isWordChar(ch: string | undefined): boolean {
   if (!ch) return false;
@@ -47,6 +63,12 @@ export function tokenizeContent(
     .map((name) => ({ name, lower: name.toLowerCase() }))
     .sort((a, b) => b.name.length - a.name.length);
 
+  // Complete reference tokens, in source order. Resolved up front so the walk
+  // below can jump over each one whole instead of trying to recognize a
+  // multi-part grammar a character at a time.
+  const refs = parseReferences(content);
+  let nextRef = 0;
+
   const segments: ContentSegment[] = [];
   let buffer = "";
   let i = 0;
@@ -62,6 +84,26 @@ export function tokenizeContent(
     const ch = content[i];
     const prev = i > 0 ? content[i - 1] : undefined;
     const atBoundary = !isWordChar(prev);
+
+    // Drop any reference the cursor has already passed. Nothing should be able
+    // to step over a token's start today (a hashtag's alphabet excludes `@` and
+    // `[`, and a person name matching a token's opening is absurd), but a stale
+    // cursor here would silently mis-place a later chip, so it self-corrects.
+    while (nextRef < refs.length && refs[nextRef].start < i) nextRef += 1;
+
+    // References win over every other rule, and consume their whole span, so
+    // nothing inside a label is ever tokenized as anything else.
+    const ref = refs[nextRef];
+    if (ref && i === ref.start) {
+      flush();
+      segments.push({
+        kind: "entityRef",
+        ref: { type: ref.type, id: ref.id, label: ref.label },
+      });
+      i = ref.end;
+      nextRef += 1;
+      continue;
+    }
 
     if (ch === "#" && atBoundary) {
       const m = HASHTAG_AT.exec(content.slice(i));

@@ -24,6 +24,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EntityLabelsProvider } from "@/components/references/EntityLabelsProvider";
+import { EntityPill } from "@/components/references/EntityPill";
 import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { useLinkPreviews } from "@/lib/hooks/use-link-previews";
@@ -497,7 +499,14 @@ function CaptureBody({
 
   let segmentOffset = 0;
   const rendered = segments.map((seg) => {
-    const label = seg.kind === "text" ? seg.value : seg.display;
+    // Every segment contributes the text it stands for, so keys stay stable and
+    // unique across repeats. A reference's own span is its label snapshot.
+    const label =
+      seg.kind === "text"
+        ? seg.value
+        : seg.kind === "entityRef"
+          ? seg.ref.label
+          : seg.display;
     const start = segmentOffset;
     segmentOffset += label.length;
     const key = `${seg.kind}-${start}-${label.length}`;
@@ -507,10 +516,17 @@ function CaptureBody({
     if (seg.kind === "person") {
       return <PersonChip key={key} name={seg.display} asButton={false} />;
     }
+    if (seg.kind === "entityRef") {
+      return <EntityPill key={key} entityRef={seg.ref} />;
+    }
+    // Reference spans never reach here, so a token's uuid can't be autolinked
+    // and its label can't be search-highlighted into fragments.
     return <span key={key}>{renderTextRun(seg.value, key)}</span>;
   });
 
   return (
+    // One resolve call for every reference in this capture, not one per pill.
+    <EntityLabelsProvider text={capture.content}>
     <div className="flex flex-col gap-2 pr-8">
       {/* Capture body — Space Grotesk (sd register), no serif */}
       <div className="text-[15px] leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
@@ -551,5 +567,6 @@ function CaptureBody({
         <RelativeTime date={capture.createdAt} />
       </div>
     </div>
+    </EntityLabelsProvider>
   );
 }

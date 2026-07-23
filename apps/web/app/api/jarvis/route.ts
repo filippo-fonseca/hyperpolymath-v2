@@ -248,6 +248,13 @@ export async function POST(req: NextRequest) {
         onTextDelta: (delta) => {
           controller.enqueue(encoder.encode(sse("text", { delta })));
         },
+        // Spoken tool-latency ack (voice turns only — run-turn gates on isVoice).
+        // Emitted on a dedicated `ack` event, NOT `text`, so it never enters the
+        // rendered/persisted assistant message. The browser voice consumer plays
+        // it via TTS; a text turn never receives it.
+        onAck: (text) => {
+          controller.enqueue(encoder.encode(sse("ack", { text })));
+        },
         onQueued: (toolUseId, name) => {
           controller.enqueue(encoder.encode(sse("queued", { toolUseId, name })));
         },

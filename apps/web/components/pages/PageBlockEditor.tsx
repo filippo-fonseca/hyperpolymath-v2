@@ -6,11 +6,9 @@ import "./page-block-editor.css";
 import "./blocks/link-embed-block.css";
 
 import { undoJarvisAction } from "@/app/actions/jarvis";
-import { resolveOrCreatePerson, searchPeopleForCurrentUser } from "@/app/actions/people";
-import {
-  type WikiReferenceCandidate,
-  searchEntitiesForReference,
-} from "@/app/actions/wiki-references";
+import { resolveOrCreatePerson } from "@/app/actions/people";
+import { searchEntityMentions } from "@/app/actions/wiki-references";
+import type { EntityMentionCandidate } from "@/lib/references/mention-search";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import type { PersonWithStats } from "@/lib/db/queries/people";
 import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
@@ -18,6 +16,9 @@ import { JARVIS_ALIASES, JARVIS_LABEL, hasPromptBody } from "@/lib/jarvis/at-tri
 import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
 import { type InDocumentAction, invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
 import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
+import { ENTITY_KIND_PLURAL } from "@/lib/references/glyphs";
+import { blocksWithReferenceTokens } from "@/lib/references/page-mirror";
+import { stripOrphanBracket } from "@/lib/references/strip-orphan-bracket";
 import {
   type BlockNoteEditor,
   BlockNoteSchema,
@@ -45,15 +46,12 @@ import {
   JarvisPillProvider,
   jarvisReceiptInlineSpec,
 } from "./JarvisReceiptInline";
-import {
-  ENTITY_REFERENCE_TYPE,
-  type EntityReferenceKind,
-  entityReferenceInlineSpec,
-} from "./EntityReferenceInline";
+import { ENTITY_REFERENCE_TYPE, entityReferenceInlineSpec } from "./EntityReferenceInline";
 import { PERSON_MENTION_TYPE, personMentionInlineSpec } from "./PersonMentionInline";
 import { calloutBlock } from "./blocks/CalloutBlock";
 import { linkEmbedBlock } from "./blocks/LinkEmbedBlock";
 import { linkEmbedSlashItems, useLinkEmbedPaste } from "./PageLinkEmbedControls";
+import { withSdSlashChrome } from "./slash-menu-chrome";
 
 const schema = BlockNoteSchema.create({
   blockSpecs: { ...defaultBlockSpecs, callout: calloutBlock, linkEmbed: linkEmbedBlock },
@@ -520,7 +518,15 @@ export default function PageBlockEditor({
           slashMenu={false}
           onChange={() => {
             void (async () => {
-              const markdown = await editor.blocksToMarkdownLossy(editor.document);
+              // content_json keeps the real nodes; only the mirror is rewritten,
+              // so a reference reaches pages.content as its canonical S1 token
+              // (searchable, resolvable) instead of the app-relative link the
+              // exporter would otherwise derive from the chip's anchor.
+              const markdown = await editor.blocksToMarkdownLossy(
+                blocksWithReferenceTokens(editor.document) as Parameters<
+                  typeof editor.blocksToMarkdownLossy
+                >[0]
+              );
               onChange(editor.document, markdown);
             })();
           }}
@@ -531,7 +537,7 @@ export default function PageBlockEditor({
             getItems={async (query) =>
               filterSuggestionItems(
                 [
-                  ...withSlashShorthand(getDefaultReactSlashMenuItems(editor)),
+                  ...withSdSlashChrome(withSlashShorthand(getDefaultReactSlashMenuItems(editor))),
                   insertCalloutItem(editor),
                   ...linkEmbedSlashItems(editor),
                   jarvisSlashItem(editor),
@@ -540,36 +546,28 @@ export default function PageBlockEditor({
               )
             }
           />
-          {/* `@` autocomplete — JARVIS plus people mentions (Phase C). The
-              JARVIS item and matching people are filtered by query; a trailing
-              "Create" item appears for a non-empty query with no exact match so
-              a brand-new person can be inlined without leaving the editor. */}
+          {/* `@` autocomplete — JARVIS plus a reference to ANY entity (S8).
+              Previously this ran two searches, one for people and one for the
+              non-person kinds, and inserted a different node for each. Now a
+              single grouped search spans everything referenceable (captures,
+              tasks, pages, projects, areas, people) and every pick inserts the
+              same entityReference chip. JARVIS stays pinned above the results:
+              "@" in a document means "invoke JARVIS" as often as it means
+              "mention something", and demoting it would cost that muscle
+              memory. A trailing "Create" item still appears for any non-empty
+              query so a brand-new person can be inlined without leaving the
+              editor. */}
           <SuggestionMenuController
             triggerCharacter="@"
             getItems={async (query) => {
               const trimmed = query.trim();
-              // The JARVIS item is local + filtered client-side; people are
-              // fetched live per keystroke so the menu works without first
-              // warming the People-tab cache and matches full names (last
-              // names included).
+              // JARVIS is local and filtered client-side; entities are fetched
+              // live per keystroke so the menu works without first warming any
+              // tab's cache and matches against full titles.
               const jarvis = filterSuggestionItems([jarvisAtItem(editor)], query);
-              // People and entity references are both fetched live per
-              // keystroke so the `@` menu spans the whole knowledge graph
-              // (people + areas/projects/tasks/pages) the instant it opens.
-              const [found, entities] = await Promise.all([
-                searchPeopleForCurrentUser(trimmed),
-                entityReferenceItems(editor, trimmed),
-              ]);
               const items: DefaultReactSuggestionItem[] = [
                 ...jarvis,
-                ...found.map((person) => ({
-                  title: person.name,
-                  subtext: person.email ?? undefined,
-                  aliases: person.email ? [person.email] : [],
-                  group: "People",
-                  onItemClick: () => insertPersonMention(editor, person.id, person.name),
-                })),
-                ...entities,
+                ...(await entityMentionItems(editor, trimmed)),
               ];
               // Always offer Create for a non-empty query — even when matches
               // already exist — so a near-duplicate name can still be added.
@@ -580,18 +578,33 @@ export default function PageBlockEditor({
             }}
           />
           {/* `[` trigger — Notion / wiki-link "[[" muscle memory for inserting
-              a reference to an app entity (area / project / task / page). The
-              menu opens on the first "[" and searches across entities; a second
-              "[" simply continues the query (BlockNote treats it as part of the
-              text after the trigger). Selecting an item inserts an
-              entityReference chip persisted in content_json. */}
+              a reference to an app entity. The menu opens on the first "[" and
+              searches across entities; a second "[" simply continues the query
+              (BlockNote treats it as part of the text after the trigger).
+              Selecting an item inserts an entityReference chip persisted in
+              content_json. It now searches the same universal set as "@" — the
+              two triggers differ in muscle memory, not in what they can reach —
+              minus the JARVIS and Create-person rows, which belong to "@": "[["
+              is a link-to-something-that-exists gesture. */}
           <SuggestionMenuController
             triggerCharacter="["
             getItems={async (query) => {
               // Strip a leading second "[" so typing the familiar "[[" still
               // queries cleanly rather than searching for a literal bracket.
               const trimmed = query.replace(/^\[+/, "").trim();
-              return entityReferenceItems(editor, trimmed);
+              const items = await entityMentionItems(editor, trimmed);
+              // BlockNote re-fires the "[" trigger on the second bracket and so
+              // deletes only "[query" on accept, orphaning the first "[". Strip
+              // that stray bracket before the chip goes in so "[[" leaves no
+              // literal bracket behind (the single-character "@" path is
+              // unaffected and stays byte-identical).
+              return items.map((item) => ({
+                ...item,
+                onItemClick: () => {
+                  stripOrphanBracket(editor);
+                  item.onItemClick?.();
+                },
+              }));
             }}
           />
         </BlockNoteView>
@@ -623,14 +636,39 @@ function jarvisAtItem(editor: Editor): DefaultReactSuggestionItem {
   };
 }
 
-/** Insert a person mention pill at the cursor, plus a trailing space so the
- * cursor can leave the atom and continue typing cleanly. */
-function insertPersonMention(editor: Editor, personId: string, name: string) {
-  editor.insertInlineContent([{ type: PERSON_MENTION_TYPE, props: { personId, name } }, " "]);
+/** The text a row (and the chip it inserts) shows when the entity has no title
+ * of its own — an untitled capture is the realistic case, since a capture's
+ * label is synthesized from its content and content can be whitespace. */
+const UNTITLED = "Untitled";
+
+/**
+ * Insert an entity-reference chip at the cursor, plus a trailing space so the
+ * cursor can leave the atom and continue typing cleanly. The chip persists in
+ * content_json via its props, and the page's next save reconciles it into
+ * entity_references.
+ *
+ * This is now the single insertion path for every kind, people included: the
+ * `@` menu used to insert a personMention for a person and an entityReference
+ * for everything else. New documents get one node type; old documents keep
+ * whatever they were written with.
+ */
+function insertEntityReference(editor: Editor, candidate: EntityMentionCandidate) {
+  editor.insertInlineContent([
+    {
+      type: ENTITY_REFERENCE_TYPE,
+      props: {
+        refKind: candidate.kind,
+        refId: candidate.id,
+        label: candidate.label.trim() || UNTITLED,
+        emoji: candidate.emoji ?? "",
+      },
+    },
+    " ",
+  ]);
 }
 
 /** The trailing "Create '<query>'" item. Resolves-or-creates the person server
- * side, inserts the mention with the returned id, then asks the parent to
+ * side, inserts the reference with the returned id, then asks the parent to
  * refresh its people list so the new row is mentionable again immediately. */
 function createPersonAtItem(
   editor: Editor,
@@ -640,65 +678,54 @@ function createPersonAtItem(
   return {
     title: `Create "${query}"`,
     subtext: "Add a new person and mention them",
-    group: "People",
+    group: ENTITY_KIND_PLURAL.person,
     onItemClick: () => {
       void (async () => {
         const res = await resolveOrCreatePerson({ name: query });
         if (!res.success) return;
-        insertPersonMention(editor, res.data.id, res.data.name);
+        insertEntityReference(editor, {
+          kind: "person",
+          id: res.data.id,
+          label: res.data.name,
+        });
         onPersonCreated?.();
       })();
     },
   };
 }
 
-/** Human-readable group label per referenceable entity kind, used to bucket
- * the reference picker results so areas/projects/tasks/pages read cleanly. */
-const ENTITY_GROUP_LABEL: Record<EntityReferenceKind, string> = {
-  area: "Areas",
-  project: "Projects",
-  task: "Tasks",
-  page: "Pages",
-};
-
 /**
- * Insert an entity-reference chip at the cursor, plus a trailing space so the
- * cursor can leave the atom and continue typing cleanly (mirrors person
- * mentions). The chip persists in content_json via its props.
+ * Build the suggestion items for a query: run the universal search, then map
+ * each candidate to a BlockNote suggestion item under its kind's header.
+ *
+ * The results arrive already grouped and ordered by the action (S4 fixes the
+ * kind order: capture, task, page, project, area, person), so the flatten
+ * preserves that order and BlockNote renders one header per kind. Nothing is
+ * re-filtered client-side — the server already matched the query, and filtering
+ * again here would drop rows it matched on a field the visible label doesn't
+ * show, like a capture matched deep in its body.
+ *
+ * The visible label carries the entity's emoji where it has one; the sublabel
+ * (a project's parent area, a person's email) becomes the subtext that tells
+ * two same-named entities apart.
  */
-function insertEntityReference(editor: Editor, candidate: WikiReferenceCandidate) {
-  editor.insertInlineContent([
-    {
-      type: ENTITY_REFERENCE_TYPE,
-      props: {
-        refKind: candidate.kind,
-        refId: candidate.id,
-        label: candidate.label,
-        emoji: candidate.emoji ?? "",
-      },
-    },
-    " ",
-  ]);
-}
-
-/**
- * Build the entity-reference suggestion items for a query: run the wiki search
- * action, then map each candidate to a BlockNote suggestion item grouped by
- * kind. The visible label carries the entity's emoji (where it has one) and its
- * context (e.g. a project's parent area) as subtext.
- */
-async function entityReferenceItems(
+async function entityMentionItems(
   editor: Editor,
   query: string
 ): Promise<DefaultReactSuggestionItem[]> {
-  const candidates = await searchEntitiesForReference(query);
-  return candidates.map((candidate) => ({
-    title: candidate.emoji ? `${candidate.emoji} ${candidate.label}` : candidate.label,
-    subtext: candidate.context ?? undefined,
-    aliases: [candidate.label],
-    group: ENTITY_GROUP_LABEL[candidate.kind],
-    onItemClick: () => insertEntityReference(editor, candidate),
-  }));
+  const { groups } = await searchEntityMentions(query);
+  return groups.flatMap((group) =>
+    group.items.map((candidate) => {
+      const label = candidate.label.trim() || UNTITLED;
+      return {
+        title: candidate.emoji ? `${candidate.emoji} ${label}` : label,
+        subtext: candidate.sublabel ?? undefined,
+        aliases: [label],
+        group: ENTITY_KIND_PLURAL[group.kind],
+        onItemClick: () => insertEntityReference(editor, candidate),
+      };
+    })
+  );
 }
 
 function normalizeInitial(json: unknown): PartialBlock[] | undefined {

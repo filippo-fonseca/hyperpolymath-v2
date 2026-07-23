@@ -47,6 +47,61 @@ fn webview(app: &AppHandle, label: &str) -> Result<tauri::Webview, String> {
         .ok_or_else(|| format!("studio webview not found: {label}"))
 }
 
+/// Clip a promoted child webview to the widget frame's BOTTOM corner radius.
+///
+/// The child is a native OS webview (a `WKWebView` on macOS) composited ABOVE
+/// the HUD's DOM, so the React frame's CSS `border-radius` / `overflow: hidden`
+/// cannot reach it — its square corners overpaint the frame's rounded corners,
+/// most visibly at the bottom once the page scrolls content into them. We round
+/// the webview's own backing layer instead.
+///
+/// Only the BOTTOM two corners are rounded: the content region sits flush under
+/// the chrome bar (a straight hairline), so its top corners are square junctions,
+/// never the frame's rounded top corners. Rounding all four would carve visible
+/// notches under the header. `radius` is in logical points (the same 14px the
+/// frame's `SD_RADIUS.card` uses), so no DPR scaling is needed — `cornerRadius`
+/// is a point value.
+#[cfg(target_os = "macos")]
+fn round_webview_bottom_corners(webview: &tauri::Webview, radius: f64) {
+    let _ = webview.with_webview(move |platform| {
+        // SAFETY: `inner()` returns the live `WKWebView` pointer owned by wry for
+        // this child webview's lifetime. `WKWebView` is a layer-backed `NSView`;
+        // we make it layer-backed (idempotent) and set documented `CALayer`
+        // properties. `setMaskedCorners:` takes a `CACornerMask` bitfield.
+        unsafe {
+            use objc2::msg_send;
+            use objc2::runtime::AnyObject;
+
+            let wk = platform.inner() as *mut AnyObject;
+            if wk.is_null() {
+                return;
+            }
+            // Ensure the view is layer-backed before reaching for its layer; on a
+            // transparent macos-private-api window wry already backs it, but this
+            // keeps the call self-sufficient and idempotent.
+            let _: () = msg_send![wk, setWantsLayer: true];
+            let layer: *mut AnyObject = msg_send![wk, layer];
+            if layer.is_null() {
+                return;
+            }
+            // WKWebView presents web content top-left origin (a flipped view), so
+            // its backing layer is geometry-flipped and MaxY is the VISUAL BOTTOM.
+            // Bottom pair = kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner. If a
+            // visual check ever shows the TOP corners rounded instead, flip this
+            // to the MinY pair `(1 << 0) | (1 << 1)`.
+            let bottom_corners: usize = (1 << 2) | (1 << 3);
+            let _: () = msg_send![layer, setCornerRadius: radius];
+            let _: () = msg_send![layer, setMaskedCorners: bottom_corners];
+            let _: () = msg_send![layer, setMasksToBounds: true];
+        }
+    });
+}
+
+/// No-op on non-macOS: the child-webview corner clip is a macOS `CALayer`
+/// detail; the target platform is macOS.
+#[cfg(not(target_os = "macos"))]
+fn round_webview_bottom_corners(_webview: &tauri::Webview, _radius: f64) {}
+
 #[tauri::command]
 pub async fn studio_webview_create(
     app: AppHandle,
@@ -56,9 +111,10 @@ pub async fn studio_webview_create(
     y: i32,
     w: u32,
     h: u32,
+    radius: f64,
 ) -> Result<(), String> {
     eprintln!(
-        "[studio_webview_create] label={label} url={url} x={x} y={y} w={w} h={h}"
+        "[studio_webview_create] label={label} url={url} x={x} y={y} w={w} h={h} radius={radius}"
     );
     let url = external_url(&url).map_err(|e| {
         eprintln!("[studio_webview_create] url reject: {e}");
@@ -79,6 +135,9 @@ pub async fn studio_webview_create(
             eprintln!("[studio_webview_create] set_bounds err: {error}");
             error.to_string()
         })?;
+        // Re-apply the corner clip: a reused label keeps its layer, but this is
+        // idempotent and guards against a webview built before the clip existed.
+        round_webview_bottom_corners(&existing, radius);
         return existing.show().map_err(|error| {
             eprintln!("[studio_webview_create] show err: {error}");
             error.to_string()
@@ -129,6 +188,10 @@ pub async fn studio_webview_create(
             eprintln!("[studio_webview_create] add_child err: {error}");
             error.to_string()
         })?;
+    // Clip the child to the widget frame's bottom radius so its square corners
+    // stop overpainting the rounded frame (most visible at the bottom once the
+    // page scrolls). Done before `show()` so the first paint is already clipped.
+    round_webview_bottom_corners(&child, radius);
     // A freshly built child webview is not guaranteed visible or on top of the
     // host webview on macOS; force it visible so the promoted page is not left
     // rendering behind the main window's transparent surface.

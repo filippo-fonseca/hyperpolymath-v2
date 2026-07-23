@@ -14,6 +14,7 @@ import { subscribeToMicState } from "@/lib/voice/mic-state-bus";
 import type { MicState } from "@/lib/voice/types";
 import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
 import {
+  AreaIcon,
   CaptureIcon,
   type DimensionalIconProps,
   FolderIcon,
@@ -85,6 +86,12 @@ interface NavItem {
 const MAIN_ITEMS: readonly NavItem[] = [
   { href: "/search", label: "Search", icon: Search },
   { href: "/lifeos", label: "LifeOS", dimensional: WidgetIcon },
+  // Areas rides this high because it is the taxonomy root — the spine every
+  // project and task hangs off — so it belongs above the nouns it contains
+  // rather than among them. The AREAS section below is the browser for it;
+  // this pill is the destination, and the only thing that reaches /areas from
+  // a pinned rail.
+  { href: "/areas", label: "Areas", dimensional: AreaIcon },
   { href: "/tasks", label: "Tasks", dimensional: TaskIcon },
   { href: "/habits", label: "Habits", dimensional: HabitIcon },
   { href: "/training", label: "Training", dimensional: TrainingIcon },
@@ -106,8 +113,6 @@ const MAIN_ITEMS: readonly NavItem[] = [
   { href: "/wiki", label: "Wiki", dimensional: FolderIcon },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/graph", label: "Graph", icon: Waypoints },
-  // /areas is NOT here — the AREAS section header below is the link, with the
-  // area tree nested under it as proper children.
 ] as const;
 
 /** SYSTEM rail — sits below AREAS (§1.3). */

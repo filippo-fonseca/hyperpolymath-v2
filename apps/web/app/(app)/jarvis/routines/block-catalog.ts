@@ -27,6 +27,7 @@ import {
   Send,
   Brain,
   AppWindow,
+  Lightbulb,
 } from "lucide-react";
 import type { JarvisToolName } from "@hyperpolymath/jarvis-core";
 
@@ -137,6 +138,16 @@ export const BLOCK_CATALOG: BlockCatalogEntry[] = [
     icon: Music,
     description: "Start some playback",
     directivePlaceholder: "my focus playlist, low volume",
+    group: "action",
+  },
+  {
+    // HOME lights — params carry power + which device(s). BlockEditor hides the
+    // NL directive and renders a light picker (all / selected nicknames).
+    tool: "control_lights",
+    label: "Lights",
+    icon: Lightbulb,
+    description: "Turn HOME lights on or off",
+    directivePlaceholder: "",
     group: "action",
   },
   {

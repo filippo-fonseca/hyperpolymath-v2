@@ -107,6 +107,11 @@ export interface JarvisCallbacks {
    *  the server-generated turnId used to correlate Plan 09-02's voice-stage
    *  beacon (UPDATE jarvis_events SET ... WHERE id = $turnId). */
   onTurnStart?: (data: JarvisTurnStartEvent) => void;
+  /** Spoken tool-latency ack (voice turns only). Fires the instant the model
+   *  chooses its first tool with no preamble. It is delivered on a dedicated
+   *  `ack` SSE event — NOT `text` — so the consumer speaks it via TTS without it
+   *  ever entering the rendered/persisted assistant message. */
+  onAck?: (text: string) => void;
   onDone: (usage: Record<string, number>) => void;
   onError: (message: string) => void;
 }
@@ -246,6 +251,9 @@ export async function streamJarvis(
           });
         } else if (eventName === "text") {
           callbacks.onText(typeof obj.delta === "string" ? obj.delta : "");
+        } else if (eventName === "ack") {
+          // Spoken tool-latency ack — routed to TTS only, never rendered.
+          callbacks.onAck?.(typeof obj.text === "string" ? obj.text : "");
         } else if (eventName === "queued") {
           // Phase 5.1 D-P3: queued placeholder before executor resolves
           callbacks.onQueued?.({

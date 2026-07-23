@@ -42,7 +42,12 @@ export type RealtimeTable =
   | "folder_projects"
   // Phase People — first-class person entity + mention references
   | "people"
-  | "people_references";
+  | "people_references"
+  // Universal references — the (source -> target) index behind @-mentions.
+  // Live because a reference is created from one surface and read from
+  // another: mention a task inside a capture and the task's backlink list has
+  // to notice without a reload.
+  | "entity_references";
 
 export function tableKey(
   table: RealtimeTable,

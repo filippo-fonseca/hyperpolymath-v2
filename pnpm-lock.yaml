@@ -17,6 +17,9 @@ importers:
       '@hyperpolymath/jarvis-core':
         specifier: workspace:*
         version: link:../../packages/jarvis-core
+      '@hyperpolymath/ui-icons':
+        specifier: workspace:*
+        version: link:../../packages/ui-icons
       '@mediapipe/tasks-vision':
         specifier: 0.10.35
         version: 0.10.35
@@ -178,6 +181,9 @@ importers:
       '@hyperpolymath/personal-context-mcp':
         specifier: workspace:^
         version: link:../../packages/personal-context-mcp
+      '@hyperpolymath/ui-icons':
+        specifier: workspace:*
+        version: link:../../packages/ui-icons
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
@@ -433,6 +439,25 @@ importers:
       vitest:
         specifier: ^3.0.0
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.18)(jiti@2.7.0)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.48.0)(yaml@2.9.0)
+
+  packages/ui-icons:
+    dependencies:
+      clsx:
+        specifier: ^2.1.0
+        version: 2.1.1
+      react:
+        specifier: ^19.0.0
+        version: 19.2.4
+      tailwind-merge:
+        specifier: ^2.5.0
+        version: 2.6.1
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.14
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
 
 packages:
 

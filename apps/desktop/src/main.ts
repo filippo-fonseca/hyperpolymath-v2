@@ -49,14 +49,13 @@ import {
   ttsPlayer,
   type JarvisResponseComplete,
 } from "@/jarvis-response";
+import { cancelServerTurns } from "@/physical-extender/cancel-turn";
 import type { VoiceStatus } from "@/audio/tts-player";
-import { loadSettings, saveSetting } from "@/settings";
-import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
+import { loadSettings } from "@/settings";
 import { describeAction, handleAction, parseAction, routeOpenUrl } from "@/actions/dispatcher";
 import { onConfirmPendingChange, onMessageSent, startConfirmGate } from "@/actions/confirm-gate";
 import { playSendSound } from "@/studio/sound/studio-sfx";
 import { startWhatsappQrOverlay } from "@/hud/whatsapp-qr";
-import { wireWhatsappSettings } from "@/hud/whatsapp-settings";
 import {
   getJarvisState,
   onJarvisState,
@@ -84,7 +83,6 @@ import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
 import { startRoutineLoader } from "@/hud/routine-loader";
 import { startBackgroundTasksMonitor } from "@/hud/background-tasks";
 import { startNotificationAnnouncer } from "@/hud/notification-announcer";
-import { wireStartupWakeSettings } from "@/hud/startup-settings";
 import {
   refreshIdleLoopForPhrases,
   setHasPhraseTriggers,
@@ -114,6 +112,13 @@ import {
 } from "@studio/actions/browser-router";
 import { shouldSuppressBriefingEcho } from "@/briefing/briefing";
 import { openSettingsWidget } from "@studio/actions/open-settings";
+import { setSettingsEffects, syncManualModeFromRuntime } from "@studio/state/desktop-settings";
+import {
+  setHotkeyLabel,
+  setInvokeMode,
+  setSpeaking,
+  setSseStatus,
+} from "@studio/state/hud-status";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 // Re-fetch the owner's enabled routines on this cadence so the desktop's
@@ -121,15 +126,14 @@ const CLAIM_HEARTBEAT_MS = 10_000;
 const ROUTINE_SYNC_INTERVAL_MS = 5 * 60_000;
 
 function paintSseStatus(status: SseStatus): void {
-  // Drive the header connection dot (body[data-sse]) + the drawer text row.
+  // Drive the header connection dot (body[data-sse]) — this is what still reveals
+  // the disconnect banner at `body[data-sse="error"]`.
   document.body.dataset.sse = status;
-  const el = document.getElementById("sse-status");
-  if (el) {
-    el.textContent =
-      status === "connected" ? "connected"
-      : status === "error" ? "reconnecting…"
-      : "connecting…";
-  }
+  // Push the same value into the Settings surface's status store. The store's
+  // enum uses "open" where the SSE client says "connected"; map across.
+  const detail =
+    status === "connected" ? "connected" : status === "error" ? "reconnecting…" : "connecting…";
+  setSseStatus(status === "connected" ? "open" : status, detail);
 }
 
 // Local cache so paintExtendedState can re-render the recording label
@@ -466,11 +470,9 @@ function paintResponseComplete(response: JarvisResponseComplete): void {
 }
 
 function paintTtsState(playing: boolean): void {
-  const stopBtn = document.getElementById("stop-btn") as HTMLElement | null;
-  const idleLabel = document.getElementById("stop-btn-idle");
-  if (!stopBtn || !idleLabel) return;
-  stopBtn.style.display = playing ? "inline-flex" : "none";
-  idleLabel.style.display = playing ? "none" : "";
+  // The Stop-speaking affordance lives in the Settings surface's Voice section
+  // now; feed the store so it flips between "Stop speaking" and "idle".
+  setSpeaking(playing);
 }
 
 /**
@@ -500,12 +502,10 @@ let _wakeRegistered = false;
 let _extendRegistered = false;
 
 function paintHotkeyStatus(_peEnabled: boolean): void {
-  const el = document.getElementById("hotkey-status");
-  if (!el) return;
-  // Plain labels — no status glyphs. The fallback chain picks a chord
-  // that actually registers, so visual ✓/✗ feedback is just noise.
-  el.innerHTML = `${prettyHotkey(WAKE_HOTKEY)} wake · ${prettyHotkey(_activeExtendHotkey)} extend`;
-  el.removeAttribute("title");
+  // Plain labels — no status glyphs. The fallback chain picks a chord that
+  // actually registers, so visual ✓/✗ feedback is just noise. Pushed into the
+  // Settings surface's status store (the Voice section's Hotkey readout).
+  setHotkeyLabel(`${prettyHotkey(WAKE_HOTKEY)} wake · ${prettyHotkey(_activeExtendHotkey)} extend`);
 }
 
 function wireCancelButton(): void {
@@ -562,6 +562,8 @@ function wireStopButton(): void {
   if (!btn) return;
   btn.addEventListener("click", () => {
     ttsPlayer.stop();
+    // Real interrupt: also abort the running server turn, not just local audio.
+    void cancelServerTurns();
     paintTtsState(false);
   });
 }
@@ -662,143 +664,59 @@ async function boot(): Promise<void> {
   setVadSilenceMs(settings.vadSilenceMs);
   setManualMode(settings.manualMode);
 
-  // Reflect initial state in UI
-  const ttsEnabledEl = document.getElementById("tts-enabled") as HTMLInputElement | null;
-  const ttsProviderEl = document.getElementById("tts-provider") as HTMLSelectElement | null;
-  const peEnabledEl = document.getElementById("pe-enabled") as HTMLInputElement | null;
-  const vadSilenceEl = document.getElementById("vad-silence") as HTMLSelectElement | null;
-  const modeEl = document.getElementById("mode");
-
-  if (ttsEnabledEl) ttsEnabledEl.checked = settings.ttsEnabled;
-  if (ttsProviderEl) ttsProviderEl.value = settings.ttsProvider;
-  if (peEnabledEl) peEnabledEl.checked = settings.physicalExtenderEnabled;
-  if (vadSilenceEl) vadSilenceEl.value = String(settings.vadSilenceMs);
-  if (modeEl) {
-    modeEl.textContent = settings.physicalExtenderEnabled ? "physical extender" : "hotkey (⌃⌥J)";
-  }
+  // 1b. Settings surface wiring. The legacy DOM drawer is gone — the ONE
+  //     settings surface is now the React `SettingsWidget`, which reads through
+  //     the desktop-settings + hud-status stores. There is no drawer markup to
+  //     reflect into here any more; instead we (a) seed the status readouts and
+  //     (b) register the live-apply effects the surface fires on every flip.
+  //     Each effect is exactly what the drawer's DOM `change` handler used to
+  //     do: the store persists the value, these DO the thing. Without this seam
+  //     a flip would persist but not take until the next restart.
+  setInvokeMode(settings.physicalExtenderEnabled ? "physical extender" : "hotkey (⌃⌥J)");
   paintHotkeyStatus(settings.physicalExtenderEnabled);
 
-  // 1b. Wire device token (Authorization: Bearer hpd_...) for prod auth.
-  const tokenInputEl = document.getElementById("device-token-input") as HTMLInputElement | null;
-  const tokenStatusEl = document.getElementById("token-status");
-  const tokenSaveEl = document.getElementById("device-token-save");
-  const tokenClearEl = document.getElementById("device-token-clear");
-  const tokenMintLinkEl = document.getElementById("device-token-mint-link") as HTMLAnchorElement | null;
-  const paintTokenStatus = (token: string | null) => {
-    if (!tokenStatusEl) return;
-    if (token) {
-      tokenStatusEl.textContent = `✓ ${token.slice(0, 8)}…`;
-      tokenStatusEl.style.color = "var(--ok, #5b9d6a)";
-    } else {
-      tokenStatusEl.textContent = "unauthenticated — paste a token below";
-      tokenStatusEl.style.color = "var(--muted)";
-    }
-  };
-  paintTokenStatus(await getDeviceToken());
-  if (tokenMintLinkEl) {
-    const { apiBaseUrl } = (await import("@/env")).getEnv();
-    const mintUrl = `${apiBaseUrl}/settings/desktop`;
-    tokenMintLinkEl.href = mintUrl;
-    tokenMintLinkEl.addEventListener("click", (e) => {
-      e.preventDefault();
-      window.open(mintUrl, "_blank");
-    });
-  }
-  if (tokenSaveEl && tokenInputEl) {
-    const trySaveToken = async (rawValue: string): Promise<boolean> => {
-      const value = rawValue.trim();
-      if (!value) return false;
-      if (!value.startsWith("hpd_")) {
-        if (tokenStatusEl) {
-          tokenStatusEl.textContent =
-            "invalid token — expected one starting with hpd_";
-          tokenStatusEl.style.color = "var(--err, #c45a4a)";
-        }
-        // eslint-disable-next-line no-console
-        console.warn("[device-token] token must start with hpd_");
-        return false;
-      }
-      await setDeviceToken(value);
-      tokenInputEl.value = "";
-      paintTokenStatus(value);
-      // Re-open the SSE stream so the new token authenticates it immediately.
+  setSettingsEffects({
+    onTtsChange: (speaking) => ttsPlayer.setEnabled(speaking),
+    onVoiceIdChange: (voiceId) => ttsPlayer.setVoiceId(voiceId),
+    onPhysicalExtenderChange: (enabled) => {
+      setPeEnabled(enabled);
+      setInvokeMode(enabled ? "physical extender" : "hotkey (⌃⌥J)");
+      paintHotkeyStatus(enabled);
+      // Global shortcut registration follows the mode (Physical Extender vs the
+      // hotkey fallback), same as the old drawer handler.
+      void wireGlobalShortcut(enabled);
+    },
+    onVadSilenceChange: (ms) => setVadSilenceMs(ms),
+    onManualModeChange: (enabled) => setManualMode(enabled),
+    // Live-apply: starts/stops the idle wake listener without a restart. The
+    // store's setWakeEnabled path is also the ONLY writer of the
+    // wake.enabledExplicit marker, so this stays behind saveSetting.
+    onWakeChange: (enabled) => setWakeEnabled(enabled),
+    onDeviceTokenSaved: () => {
+      // A fresh token just landed: re-open the authed SSE stream so it
+      // authenticates immediately, and resync routines that were unfetchable
+      // while unauthenticated — recovery without an app restart (the disconnect
+      // banner's whole reason to exist).
       void reconnectPhysicalExtenderListener();
-      // Routines were unfetchable while unauthenticated — sync now that a
-      // valid bearer is in place so triggers register without an app restart.
       void refreshRoutines();
-      return true;
-    };
-
-    tokenSaveEl.addEventListener("click", async () => {
-      await trySaveToken(tokenInputEl.value);
-    });
-
-    // Auto-save on paste so the user doesn't have to chase a second button.
-    // Tiny timeout lets the pasted content land in `.value` first.
-    tokenInputEl.addEventListener("paste", () => {
-      setTimeout(() => {
-        void trySaveToken(tokenInputEl.value);
-      }, 0);
-    });
-
-    // Enter-to-save while the input has focus.
-    tokenInputEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        void trySaveToken(tokenInputEl.value);
-      }
-    });
-  }
-  if (tokenClearEl) {
-    tokenClearEl.addEventListener("click", async () => {
-      await setDeviceToken(null);
-      paintTokenStatus(null);
-      // Drop the authenticated stream; without a token it would 401 anyway.
-      stopPhysicalExtenderListener();
-    });
-  }
-
-  // 2. Wire TTS enabled toggle
-  if (ttsEnabledEl) {
-    ttsEnabledEl.addEventListener("change", () => {
-      const enabled = ttsEnabledEl.checked;
-      const provider = (ttsProviderEl?.value ?? "elevenlabs") as "elevenlabs" | "off";
-      ttsPlayer.setEnabled(enabled && provider !== "off");
-      void saveSetting("ttsEnabled", enabled);
-    });
-  }
-
-  // 3. Wire TTS provider selector
-  if (ttsProviderEl) {
-    ttsProviderEl.addEventListener("change", () => {
-      const provider = ttsProviderEl.value as "elevenlabs" | "off";
-      const enabled = ttsEnabledEl?.checked ?? true;
-      ttsPlayer.setEnabled(enabled && provider !== "off");
-      void saveSetting("ttsProvider", provider);
-    });
-  }
-
-  // 3a. Wire manual-mode toggle + body[data-jarvis-state] for orb animation
-  const manualModeEl = document.getElementById("manual-mode") as HTMLInputElement | null;
-  if (manualModeEl) {
-    manualModeEl.checked = settings.manualMode;
-    manualModeEl.addEventListener("change", () => {
-      setManualMode(manualModeEl.checked);
-      void saveSetting("manualMode", manualModeEl.checked);
-    });
-  }
-  onManualModeChange((active) => {
-    if (manualModeEl) manualModeEl.checked = active;
+    },
+    // Token cleared → drop the authenticated stream; without a token it 401s.
+    onDeviceTokenCleared: () => stopPhysicalExtenderListener(),
+    onStopSpeaking: () => ttsPlayer.stop(),
   });
+
+  // Reflect a manual-mode change that originates elsewhere (the ⌘⌃E shortcut)
+  // back into the Settings surface so its toggle stays truthful.
+  onManualModeChange((active) => syncManualModeFromRuntime(active));
 
   // 3a-bis. Idle wake-phrase listener ("daddy's home") — OPT-IN, default OFF.
   // The trigger handler is injected (same pattern as setTriggerHandler below)
   // so wake invokes funnel through startConversation(): the startup
   // sequencer's once-per-session and no-briefing-overlap guarantees hold for
   // wake exactly as for the hotkey/tray/button. setWakeEnabled() applies the
-  // persisted setting now and is also the LIVE toggle surface the settings
-  // pane (hud/startup-settings.ts) calls on every flip — start/stop without
-  // an app restart.
+  // persisted setting now and is also the LIVE toggle the Settings surface
+  // reaches through the onWakeChange effect registered above — start/stop
+  // without an app restart.
   setWakeTriggerHandler(() => void startConversation());
 
   // 3a-quater. On-wake cache pre-warm. The wake probe fires this the instant a
@@ -837,30 +755,9 @@ async function boot(): Promise<void> {
   // below once the device token is confirmed present.
   setWakeEnabled(settings.wakeEnabled);
 
-  // 3b. Wire VAD silence dropdown
-  if (vadSilenceEl) {
-    vadSilenceEl.addEventListener("change", () => {
-      const ms = Number(vadSilenceEl.value);
-      if (!Number.isFinite(ms)) return;
-      setVadSilenceMs(ms);
-      void saveSetting("vadSilenceMs", ms);
-    });
-  }
-
-  // 4. Wire PE mode toggle
-  if (peEnabledEl) {
-    peEnabledEl.addEventListener("change", () => {
-      const peOn = peEnabledEl.checked;
-      setPeEnabled(peOn);
-      if (modeEl) {
-        modeEl.textContent = peOn ? "physical extender" : "hotkey (⌃⌥J)";
-      }
-      paintHotkeyStatus(peOn);
-      void saveSetting("physicalExtenderEnabled", peOn);
-      // Global shortcut registration is handled in wireGlobalShortcut below.
-      void wireGlobalShortcut(peOn);
-    });
-  }
+  // 3b/4. VAD silence + PE mode used to be wired to drawer selects here; both
+  //        now flow through the setSettingsEffects seam registered above
+  //        (onVadSilenceChange / onPhysicalExtenderChange).
 
   // 5. Register SSE + capture listeners
   onSseStatusChange(paintSseStatus);
@@ -1027,31 +924,22 @@ async function boot(): Promise<void> {
   // fail-safe — a bad poll skips one tick.
   startNotificationAnnouncer();
 
-  // 5d. Settings gear → opens the Settings widget on the studio stage.
-  // The gear was previously unclickable (studio layers painted over it and
-  // swallowed the hit — fixed by lifting .gear-btn above the studio stack in
-  // index.html) and toggled the legacy DOM settings sheet. It now summons the
-  // singleton Settings widget so the HUD's settings live in one surface,
-  // reachable by mouse AND the synthetic hand pointer (the button is a normal
-  // DOM target either driver can land on). The legacy DOM sheet stays wired for
-  // its close button and the disconnect banner (device-token recovery).
+  // 5d. Settings gear + disconnect banner → summon the ONE Settings widget.
+  // The gear was previously unclickable (studio layers painted over it —
+  // fixed by lifting .gear-btn above the studio stack in index.html) and
+  // toggled the legacy DOM settings sheet. That sheet is gone; both the gear
+  // and the disconnect banner now summon the singleton Settings widget so the
+  // HUD's settings live in one surface, reachable by mouse AND the synthetic
+  // hand pointer (a normal DOM target either driver can land on).
   const gearBtn = document.getElementById("gear-btn");
-  const settingsEl = document.getElementById("settings");
-  const settingsCloseBtn = document.getElementById("settings-close");
   gearBtn?.addEventListener("click", () => openSettingsWidget());
-  settingsCloseBtn?.addEventListener("click", () => settingsEl?.classList.remove("open"));
 
-  // The disconnect banner (shown only when body[data-sse="error"]) is a shortcut
-  // into Settings, where the device token lives — so a dropped server / bad
-  // token is both obvious and one tap from being fixed.
+  // The disconnect banner (shown only when body[data-sse="error"]) is the
+  // recovery path into Settings, where the device token lives — Connection is
+  // the first section, so a dropped server / bad token is one tap from a fix.
   document
     .getElementById("disconnect-banner")
-    ?.addEventListener("click", () => settingsEl?.classList.add("open"));
-
-  // 5d-bis. "Startup & Wake" section of the drawer: wake toggle (live), the
-  // briefing toggle, and the openOnStart / Shortcuts list editors. All persist
-  // via saveSetting immediately on change.
-  wireStartupWakeSettings(settings);
+    ?.addEventListener("click", () => openSettingsWidget());
 
   // Tray left-click also invokes a turn (emitted from Rust as `tray-invoke`).
   // "Show / Hide HUD" stays on the right-click menu so visibility toggling is
@@ -1061,13 +949,11 @@ async function boot(): Promise<void> {
   });
 
   // WhatsApp pairing overlay: render the QR the bundled bridge sidecar emits on
-  // first run / re-auth, and dismiss it once the phone links the device.
+  // first run / re-auth, and dismiss it once the phone links the device. The
+  // WhatsApp settings section (status pill + Reconnect) now lives in the React
+  // Settings surface (widgets/settings/use-whatsapp-health.ts), which owns its
+  // own polling + event subscriptions with proper unmount cleanup.
   void startWhatsappQrOverlay();
-
-  // WhatsApp settings section: Reconnect button + status pill. Reuses the
-  // whatsapp-qr / whatsapp-ready events for its pill and invokes the
-  // whatsapp_reconnect Tauri command to trigger re-pairing.
-  void wireWhatsappSettings(settings);
 
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);

@@ -6,6 +6,7 @@ import {
   nextStackOrder,
   pickSpawnPosition,
 } from "../windows/layout";
+import { currentViewport, widgetSizeFor } from "../windows/size-ladder";
 
 export interface WidgetWindowInstance {
   id: string;
@@ -17,7 +18,6 @@ export interface WidgetWindowInstance {
   h: number;
   z: number;
   createdAt: number;
-  stowed: boolean;
 }
 
 const STORAGE_KEY = "studio:widget-windows:v1";
@@ -70,7 +70,14 @@ export function rehydrateWidgetWindows(): void {
     windows = parsed
       .filter((item): item is WidgetWindowInstance => {
         if (!item || typeof item !== "object") return false;
-        const value = item as Partial<WidgetWindowInstance>;
+        const value = item as Partial<WidgetWindowInstance> & {
+          stowed?: unknown;
+        };
+        // Legacy records that were "stowed" no longer have a stowed lane to
+        // return to: the drawer is a static preset bank now (#307). Treat any
+        // persisted stowed instance as CLOSED so stale widgets don't reappear
+        // on stage after upgrade.
+        if (value.stowed === true) return false;
         return (
           typeof value.id === "string" &&
           typeof value.kind === "string" &&
@@ -81,9 +88,16 @@ export function rehydrateWidgetWindows(): void {
       })
       .map((item) => ({
         ...item,
-        ...clampToStage(item),
+        // Widgets no longer resize, so any persisted free-form w/h from before
+        // is stale. Re-derive the fixed per-kind size from the ladder and keep
+        // only the saved POSITION. The orb owns its own geometry (OrbWidget
+        // re-sizes it every frame), so its persisted size is left untouched.
+        ...clampToStage(
+          item.kind === "orb"
+            ? item
+            : { ...item, ...widgetSizeFor(currentViewport(), item.kind) },
+        ),
         props: item.props ?? {},
-        stowed: item.stowed === true,
       }));
     emit();
   } catch {
@@ -104,7 +118,6 @@ export function summonWidget(
   props: Record<string, unknown> = {},
   at?: { x: number; y: number },
   options?: {
-    defaultSize?: { w: number; h: number };
     singleton?: boolean;
   },
 ): string {
@@ -112,13 +125,14 @@ export function summonWidget(
     ? windows.find((item) => item.kind === kind)
     : undefined;
   if (existing) {
-    if (existing.stowed) restoreWidget(existing.id, at);
     focusWidget(existing.id);
     return existing.id;
   }
-  const size = options?.defaultSize ?? { w: 0.34, h: 0.38 };
-  const spawn =
-    at ?? pickSpawnPosition(windows.filter((item) => !item.stowed), size);
+  // Fixed per-kind size, derived from the live viewport at spawn (the ladder
+  // brackets the proportional ideal with px min/max). Widgets don't resize, so
+  // this is the widget's size for its whole life bar a window-resize resync.
+  const size = widgetSizeFor(currentViewport(), kind);
+  const spawn = at ?? pickSpawnPosition(windows, size);
   const rect = clampToStage({ ...spawn, ...size });
   const id = crypto.randomUUID();
   write([
@@ -130,7 +144,6 @@ export function summonWidget(
       ...rect,
       z: nextStackOrder(windows),
       createdAt: Date.now(),
-      stowed: false,
     },
   ]);
   return id;
@@ -146,6 +159,11 @@ export function moveWidget(id: string, x: number, y: number): void {
   );
 }
 
+/**
+ * Set a widget's geometry directly. No longer a user affordance (the resize
+ * gestures/handle are gone); the ONLY caller now is OrbWidget, which drives the
+ * permanent orb's dock/expand geometry from `getOrbTargetGeometry`.
+ */
 export function resizeWidget(id: string, w: number, h: number): void {
   write(
     windows.map((item) =>
@@ -154,6 +172,28 @@ export function resizeWidget(id: string, w: number, h: number): void {
         : item,
     ),
   );
+}
+
+/**
+ * Re-derive every widget's fixed per-kind size from the ladder for the current
+ * viewport, keeping each widget's position. Called on window resize so a widget
+ * that was adequate on a laptop stays adequate when the window jumps to a
+ * monitor (and vice versa). The orb is skipped — OrbWidget owns its geometry.
+ * A no-op write is avoided so an idle resize storm doesn't churn subscribers.
+ */
+export function resyncWidgetSizes(): void {
+  const viewport = currentViewport();
+  let changed = false;
+  const next = windows.map((item) => {
+    if (item.kind === "orb") return item;
+    const rect = clampToStage({ ...item, ...widgetSizeFor(viewport, item.kind) });
+    if (rect.w === item.w && rect.h === item.h && rect.x === item.x && rect.y === item.y) {
+      return item;
+    }
+    changed = true;
+    return { ...item, ...rect };
+  });
+  if (changed) write(next);
 }
 
 export function updateWidgetProps(
@@ -169,51 +209,11 @@ export function updateWidgetProps(
 
 export function focusWidget(id: string): void {
   const item = windows.find((candidate) => candidate.id === id);
-  if (!item || item.stowed || item.z === nextStackOrder(windows) - 1) return;
+  if (!item || item.z === nextStackOrder(windows) - 1) return;
   const z = nextStackOrder(windows);
   write(
     windows.map((candidate) =>
       candidate.id === id ? { ...candidate, z } : candidate,
-    ),
-  );
-}
-
-function isPermanentWidget(item: WidgetWindowInstance): boolean {
-  const entry = WIDGET_CATALOG[item.kind] as
-    | ({ permanent?: boolean } & object)
-    | undefined;
-  return item.kind === ("orb" as WidgetKind) || entry?.permanent === true;
-}
-
-export function stowWidget(id: string): void {
-  const item = windows.find((candidate) => candidate.id === id);
-  if (!item || item.stowed || isPermanentWidget(item)) return;
-  write(
-    windows.map((candidate) =>
-      candidate.id === id ? { ...candidate, stowed: true } : candidate,
-    ),
-  );
-}
-
-export function restoreWidget(
-  id: string,
-  position?: { x: number; y: number },
-): void {
-  const item = windows.find((candidate) => candidate.id === id);
-  if (!item || !item.stowed) return;
-  const spawn =
-    position ??
-    pickSpawnPosition(
-      windows.filter((candidate) => !candidate.stowed),
-      item,
-    );
-  const rect = clampToStage({ ...item, ...spawn });
-  const z = nextStackOrder(windows);
-  write(
-    windows.map((candidate) =>
-      candidate.id === id
-        ? { ...candidate, ...rect, z, stowed: false }
-        : candidate,
     ),
   );
 }

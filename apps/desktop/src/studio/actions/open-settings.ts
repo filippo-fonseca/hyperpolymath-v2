@@ -15,7 +15,6 @@ import { WIDGET_CATALOG } from "../windows/catalog";
 export function openSettingsWidget(): void {
   const entry = WIDGET_CATALOG.settings;
   summonWidget("settings", {}, undefined, {
-    defaultSize: entry.defaultSize,
     singleton: entry.singleton,
   });
 }

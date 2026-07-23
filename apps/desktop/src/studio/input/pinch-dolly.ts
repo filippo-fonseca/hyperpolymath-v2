@@ -33,8 +33,11 @@
  *    fire a spurious dolly lurch on the way out. This replaces pinch-zoom's thumb-gap
  *    `offRatio` freeze, which has no palm-size analog.
  *
- * DOM-free and framework-free, so it is unit-tested with synthetic size streams.
+ * DOM-free and framework-free, so it is unit-tested with synthetic size streams
+ * (`pinch-dolly.test.ts`).
  */
+
+import { clampAbs } from "./clamp";
 
 export type PinchDollyConfig = {
   /** |octaves| of palm-size change must exceed this before the dolly activates. */
@@ -64,8 +67,6 @@ export type PinchDolly = {
   push(tMs: number, size: number, engaged: boolean, releasing: boolean): number;
   reset(): void;
 };
-
-const clampAbs = (v: number, max: number): number => (v < -max ? -max : v > max ? max : v);
 
 /**
  * Creates a pinch-dolly processor. Deterministic and side-effect-free: the same

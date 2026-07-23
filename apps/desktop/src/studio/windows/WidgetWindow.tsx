@@ -10,17 +10,26 @@ import {
 import { Minus, Pin, X } from "lucide-react";
 import { animate as animateValue, motion, useMotionValue, useReducedMotion } from "motion/react";
 
-import { HUD_EASE_OUT_QUART, HUD_SURFACES, STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import {
+  HUD_EASE_OUT_QUART,
+  SD_ACCENT,
+  SD_DURATION,
+  SD_HAIRLINE,
+  SD_INK,
+  SD_RADIUS,
+  SD_SURFACES,
+  STUDIO_COLORS,
+  STUDIO_MONO,
+} from "../tokens";
 import {
   closeWidget,
   focusWidget,
   moveWidget,
-  resizeWidget,
-  stowWidget,
   type WidgetWindowInstance,
 } from "../state/widget-windows";
 import { WIDGET_CATALOG } from "./catalog";
-import { clampToStage } from "./layout";
+import { clampToStage, type WindowRect } from "./layout";
+import { shouldStowInDrawer, type EdgeRect } from "./drawer-stow";
 import { BurstBubble } from "./BurstBubble";
 import { playDropPop } from "../sound/studio-sfx";
 import {
@@ -43,7 +52,6 @@ interface Props {
 }
 
 interface PointerSession {
-  mode: "move" | "resize";
   pointerId: number;
   startClientX: number;
   startClientY: number;
@@ -61,40 +69,77 @@ export function applyWindowGeometry(
   element.style.height = `${rect.h * 100}%`;
 }
 
-/**
- * Glass-depth shadow stack ported from the wiki `.glass-tile` register: an outer
- * drop for lift, a faint specular top edge (very low alpha so it never smears
- * white on the dark canvas), a recessed bottom edge, and a whisper of inset cyan
- * breath. `hover` deepens the drop and lifts the cyan breath; `focus` adds a 1px
- * inset accent ring (never an outer offset, matching the wiki chrome).
- */
-function glassShadow(hover: boolean): string {
-  return [
-    hover
-      ? `0 34px 84px color-mix(in srgb, ${STUDIO_COLORS.shadow} 86%, transparent)`
-      : `0 20px 56px color-mix(in srgb, ${STUDIO_COLORS.shadow} 78%, transparent)`,
-    "inset 0 1px 0 rgba(255, 255, 255, 0.05)",
-    "inset 0 -1px 0 rgba(0, 0, 0, 0.4)",
-    `inset 0 0 24px color-mix(in srgb, ${STUDIO_COLORS.accent} ${hover ? 9 : 5}%, transparent)`,
-  ].join(", ");
-}
+const EASE = `cubic-bezier(${HUD_EASE_OUT_QUART.join(",")})`;
 
+/**
+ * THE HEADER / PADDING CONTRACT — widget authors (units 5a/5b) read this.
+ *
+ * The window owns its chrome and NOTHING else. Concretely:
+ *
+ * - The header is {@link WINDOW_HEADER_HEIGHT}px tall, drawn by this file, and
+ *   already carries the widget's `catalog.label` as a mono eyebrow. A widget
+ *   MUST NOT paint its own title bar; it would be the second one.
+ * - The content region below it is `flex: 1; min-height: 0; overflow: hidden`
+ *   with **zero padding**. That is deliberate and it is not an oversight: the
+ *   Browser and Camera widgets are edge-to-edge, so the window cannot inset
+ *   content without breaking them. **The widget owns its own padding.**
+ * - Text-bearing widgets should use {@link WINDOW_CONTENT_PADDING}px so the
+ *   catalog reads as one family. Edge-to-edge widgets use 0 and let their own
+ *   surface run to the frame.
+ * - The frame clips to a 14px radius, so a widget needs no corner rounding of
+ *   its own. Inner surfaces go SOLID (`--sd-box` and friends): the glass is the
+ *   frame's, sealed D1 keeps it there, and §0 bans blur on content.
+ */
+export const WINDOW_HEADER_HEIGHT = 32;
+
+/** Inset for text-bearing widget content. Edge-to-edge widgets use 0. */
+export const WINDOW_CONTENT_PADDING = 12;
+
+/**
+ * The glass-depth shadow stack. Sealed D1 keeps this and the 18px backdrop blur:
+ * §0 bans blur on CONTENT, §5 permits it on CHROME, and a widget window is
+ * chrome. What it is NOT is a lift affordance — it is CONSTANT now. It used to
+ * take a `hover` flag that deepened the drop from 20/56 to 34/84, which is
+ * exactly the levitation card v2 forbids; hover moves the border and nothing
+ * else. The inset cyan breath is gone too: glass is translucency, not a glow,
+ * and §1 does not glow (see the report for that judgement call).
+ *
+ * Three terms remain: an outer drop that separates the window from the canvas,
+ * card v2's white inset top hairline, and a recessed bottom edge.
+ */
+const GLASS_SHADOW = [
+  `0 20px 56px color-mix(in srgb, ${STUDIO_COLORS.shadow} 78%, transparent)`,
+  SD_HAIRLINE.card,
+  "inset 0 -1px 0 rgba(0, 0, 0, 0.4)",
+].join(", ");
+
+/**
+ * Card v2, translated out of Tailwind: 14px radius, an --sd-box surface, a 1px
+ * --sd-line border, and the inset top hairline (carried in GLASS_SHADOW). The
+ * surface stays 90% opaque rather than solid so the retained blur has something
+ * to refract — a solid fill would keep the token and quietly delete the glass.
+ */
 const frameStyle: CSSProperties = {
   position: "absolute",
   display: "flex",
   minHeight: 0,
   flexDirection: "column",
   overflow: "hidden",
-  border: `1px solid color-mix(in srgb, ${STUDIO_COLORS.rule} 85%, transparent)`,
-  borderRadius: 10,
-  color: STUDIO_COLORS.text,
-  background: `color-mix(in srgb, ${HUD_SURFACES.raised} 90%, transparent)`,
-  boxShadow: glassShadow(false),
+  border: `1px solid ${SD_SURFACES.line}`,
+  borderRadius: SD_RADIUS.card,
+  color: SD_INK.base,
+  background: `color-mix(in srgb, ${SD_SURFACES.box} 90%, transparent)`,
+  boxShadow: GLASS_SHADOW,
   backdropFilter: "blur(18px)",
-  transition: `box-shadow 180ms cubic-bezier(${HUD_EASE_OUT_QUART.join(",")}), border-color 180ms cubic-bezier(${HUD_EASE_OUT_QUART.join(",")})`,
+  transition: `border-color ${SD_DURATION.micro}ms ${EASE}, box-shadow ${SD_DURATION.micro}ms ${EASE}`,
   pointerEvents: "auto",
 };
 
+/**
+ * Header pin/stow/close. A bare icon button has no border to move, so hover
+ * takes a fill rung here (`.studio-chrome-btn` in studio.css) — the card v2
+ * border-only rule governs cards, and this is not one.
+ */
 const chromeButtonStyle: CSSProperties = {
   display: "grid",
   width: 24,
@@ -102,27 +147,35 @@ const chromeButtonStyle: CSSProperties = {
   placeItems: "center",
   padding: 0,
   border: 0,
-  borderRadius: 5,
-  color: STUDIO_COLORS.muted,
+  borderRadius: SD_RADIUS.chrome,
+  color: SD_INK.faint,
   background: "transparent",
   cursor: "pointer",
 };
 
-function isNearDrawer(clientX: number, clientY: number): boolean {
+/**
+ * Whether the widget's CLAMPED on-screen geometry would drop it into the closet
+ * drawer. `rect` is the normalized, stage-clamped window geometry the drag is
+ * applying; `stage` is the stage's client rect. We translate the widget into
+ * client pixels and hand both rects to the pure hit test — the RAW pointer
+ * never enters this decision, which is what fixes the large-widget mis-stow
+ * (#305): the clamp keeps a big widget's body on-stage while the synthetic hand
+ * pointer sails on into the drawer zone.
+ */
+function widgetReachesDrawer(
+  rect: WindowRect,
+  stage: { left: number; top: number; width: number; height: number },
+): boolean {
   const drawer = document.querySelector<HTMLElement>("[data-widget-drawer]");
-  const rect = drawer?.getBoundingClientRect();
-  // Position-agnostic proximity: a widget dragged within a generous margin of
-  // the drawer's box counts as "near" so the drawer highlights and a release
-  // stows it. The drawer now lives on the right edge, so this is intentionally
-  // symmetric rather than the old bottom-only test.
-  const MARGIN = 84;
-  return Boolean(
-    rect &&
-      clientX >= rect.left - MARGIN &&
-      clientX <= rect.right + MARGIN &&
-      clientY >= rect.top - MARGIN &&
-      clientY <= rect.bottom + MARGIN,
-  );
+  const drawerRect = drawer?.getBoundingClientRect();
+  if (!drawerRect) return false;
+  const widgetRect: EdgeRect = {
+    left: stage.left + (rect.x - rect.w / 2) * stage.width,
+    right: stage.left + (rect.x + rect.w / 2) * stage.width,
+    top: stage.top + (rect.y - rect.h / 2) * stage.height,
+    bottom: stage.top + (rect.y + rect.h / 2) * stage.height,
+  };
+  return shouldStowInDrawer(widgetRect, drawerRect);
 }
 
 export function WidgetWindow({
@@ -204,22 +257,22 @@ export function WidgetWindow({
     onElement(item.id, element);
   };
 
-  const stowFromHeader = (): void => {
+  // The header's minus control (and the drag-to-drawer / edge-burst gestures)
+  // no longer "stow" to a chip — the drawer is a static preset bank now
+  // (#307). They close the widget instead; the drawer glow just signals "drop
+  // here to close".
+  const closeFromHeader = (): void => {
     onDrawerTargetChange(item.id, true);
     requestAnimationFrame(() => {
-      stowWidget(item.id);
+      closeWidget(item.id);
       onDrawerTargetChange(item.id, false);
     });
   };
 
-  const startPointer = (
-    mode: PointerSession["mode"],
-    event: PointerEvent<HTMLElement>,
-  ): void => {
+  const startPointer = (event: PointerEvent<HTMLElement>): void => {
     if (event.button !== 0) return;
     focusWidget(item.id);
     sessionRef.current = {
-      mode,
       pointerId: event.pointerId,
       startClientX: event.clientX,
       startClientY: event.clientY,
@@ -251,21 +304,15 @@ export function WidgetWindow({
     // The RAW (unclamped) center drives the edge-burst affordance so pushing
     // a widget INTO / past the border is expressible even though the applied
     // geometry is clamped to stay on-stage.
-    const rawCenter =
-      session.mode === "move"
-        ? {
-            x: session.start.x + dxPx / stage.width,
-            y: session.start.y + dyPx / stage.height,
-          }
-        : { x: session.start.x, y: session.start.y };
-    const rect =
-      session.mode === "move"
-        ? clampToStage({ ...session.start, x: rawCenter.x, y: rawCenter.y })
-        : clampToStage({
-            ...session.start,
-            w: session.start.w + dxPx / stage.width,
-            h: session.start.h + dyPx / stage.height,
-          });
+    const rawCenter = {
+      x: session.start.x + dxPx / stage.width,
+      y: session.start.y + dyPx / stage.height,
+    };
+    const rect = clampToStage({
+      ...session.start,
+      x: rawCenter.x,
+      y: rawCenter.y,
+    });
     // Permanent widgets are motion-value driven: set the values directly (no
     // spring) so the orb tracks the pointer 1:1. Everything else keeps the
     // imperative geometry path (its `animate` re-applies committed state on
@@ -278,7 +325,7 @@ export function WidgetWindow({
     } else {
       applyWindowGeometry(root, rect);
     }
-    if (session.mode === "move" && stowable) {
+    if (stowable) {
       const progress = widgetEdgeProgress(rawCenter);
       setBurst(
         progress > 0
@@ -291,9 +338,11 @@ export function WidgetWindow({
       );
       // While the burst affordance is armed, the near-border pull owns the
       // gesture; don't also flag the drawer as a target (avoids a double cue).
+      // The drawer lights up only when the widget's own clamped geometry would
+      // actually stow — never merely because the pointer wandered into it.
       onDrawerTargetChange(
         item.id,
-        progress <= 0 && isNearDrawer(event.clientX, event.clientY),
+        progress <= 0 && widgetReachesDrawer(rect, stage),
       );
     }
   };
@@ -323,36 +372,38 @@ export function WidgetWindow({
     }
     const dx = (event.clientX - session.startClientX) / stage.width;
     const dy = (event.clientY - session.startClientY) / stage.height;
-    if (session.mode === "move") {
-      const rawCenter = { x: session.start.x + dx, y: session.start.y + dy };
-      // Past the burst threshold → pop and stow (drawer-stow lifecycle: a chip
-      // appears in the drawer, restorable). The pop plays, then we stow.
-      if (!cancelled && stowable && shouldBurst(widgetEdgeProgress(rawCenter))) {
-        setBurst((current) =>
-          current
-            ? { ...current, progress: 1, popping: true }
-            : {
-                progress: 1,
-                direction: edgeOutwardDirection(rawCenter),
-                popping: true,
-              },
-        );
-        window.setTimeout(() => stowWidget(item.id), reduced ? 0 : 220);
-        return;
-      }
-      // Released before the threshold → deflate the bubble and let the widget
-      // spring back to its clamped, safe position (the forgiving escape).
-      setBurst(null);
-      if (!cancelled && stowable && isNearDrawer(event.clientX, event.clientY)) {
-        stowWidget(item.id);
-        return;
-      }
-      moveWidget(item.id, rawCenter.x, rawCenter.y);
-      // Soft pop as the widget settles under the release point.
-      if (!cancelled) playDropPop();
-    } else {
-      resizeWidget(item.id, session.start.w + dx, session.start.h + dy);
+    const rawCenter = { x: session.start.x + dx, y: session.start.y + dy };
+    // Past the burst threshold → pop and CLOSE the widget (#307: the drawer
+    // is a static preset bank, so there is no chip to return to). The pop
+    // plays, then we close.
+    if (!cancelled && stowable && shouldBurst(widgetEdgeProgress(rawCenter))) {
+      setBurst((current) =>
+        current
+          ? { ...current, progress: 1, popping: true }
+          : {
+              progress: 1,
+              direction: edgeOutwardDirection(rawCenter),
+              popping: true,
+            },
+      );
+      window.setTimeout(() => closeWidget(item.id), reduced ? 0 : 220);
+      return;
     }
+    // Released before the threshold → deflate the bubble and let the widget
+    // spring back to its clamped, safe position (the forgiving escape).
+    setBurst(null);
+    const clampedRect = clampToStage({
+      ...session.start,
+      x: rawCenter.x,
+      y: rawCenter.y,
+    });
+    if (!cancelled && stowable && widgetReachesDrawer(clampedRect, stage)) {
+      closeWidget(item.id);
+      return;
+    }
+    moveWidget(item.id, rawCenter.x, rawCenter.y);
+    // Soft pop as the widget settles under the release point.
+    if (!cancelled) playDropPop();
   };
 
   return (
@@ -362,7 +413,7 @@ export function WidgetWindow({
       role="dialog"
       aria-label={entry.label}
       onPointerDown={(event) => {
-        if (permanent) startPointer("move", event);
+        if (permanent) startPointer(event);
         else focusWidget(item.id);
       }}
       onPointerMove={permanent ? movePointer : undefined}
@@ -423,12 +474,16 @@ export function WidgetWindow({
               touchAction: "none",
             }
           : null),
+        // Card v2 hover: the BORDER moves, nothing else. No fill change, no
+        // deepened drop, no lift. Focus is the one exception and it is not a
+        // hover state — it adds the 1px inset accent ring a keyboard user needs
+        // on top of the unchanged resting shadow.
         ...(!permanent && (dragging || hovered || focused)
           ? {
-              borderColor: `color-mix(in srgb, ${STUDIO_COLORS.accent} ${dragging ? 55 : 40}%, ${STUDIO_COLORS.rule})`,
-              boxShadow: focused
-                ? `${glassShadow(true)}, inset 0 0 0 1px color-mix(in srgb, ${STUDIO_COLORS.accent} 70%, transparent)`
-                : glassShadow(true),
+              borderColor: `color-mix(in srgb, ${SD_ACCENT} ${dragging ? 55 : 40}%, ${SD_SURFACES.line})`,
+              ...(focused
+                ? { boxShadow: `${GLASS_SHADOW}, inset 0 0 0 1px ${SD_ACCENT}` }
+                : null),
               ...(dragging ? { cursor: "grabbing" } : null),
             }
           : null),
@@ -454,17 +509,17 @@ export function WidgetWindow({
         <header
           style={{
             display: "flex",
-            height: 32,
+            height: WINDOW_HEADER_HEIGHT,
             flexShrink: 0,
             touchAction: "none",
             alignItems: "center",
             gap: 8,
             padding: "0 8px 0 10px",
-            background: `color-mix(in srgb, ${HUD_SURFACES.hover} 55%, transparent)`,
-            borderBottom: `1px solid ${HUD_SURFACES.line}`,
+            background: `color-mix(in srgb, ${SD_SURFACES.darkBox} 72%, transparent)`,
+            borderBottom: `1px solid ${SD_SURFACES.line}`,
             cursor: "grab",
           }}
-          onPointerDown={(event) => startPointer("move", event)}
+          onPointerDown={(event) => startPointer(event)}
           onPointerMove={movePointer}
           onPointerUp={endPointer}
           onPointerCancel={(event) => endPointer(event, true)}
@@ -474,11 +529,11 @@ export function WidgetWindow({
               minWidth: 0,
               flex: 1,
               overflow: "hidden",
-              color: STUDIO_COLORS.muted,
+              color: SD_INK.dull,
               fontFamily: STUDIO_MONO,
-              fontSize: 9,
-              fontWeight: 600,
-              letterSpacing: "0.18em",
+              fontSize: 11,
+              fontWeight: 500,
+              letterSpacing: "0.1em",
               textOverflow: "ellipsis",
               textTransform: "uppercase",
               whiteSpace: "nowrap",
@@ -500,10 +555,10 @@ export function WidgetWindow({
           {stowable ? (
             <button
               type="button"
-              aria-label="Stow window"
-              title="Stow"
+              aria-label="Close window"
+              title="Close"
               onPointerDown={(event) => event.stopPropagation()}
-              onClick={stowFromHeader}
+              onClick={closeFromHeader}
               className="studio-chrome-btn"
               style={chromeButtonStyle}
             >
@@ -529,38 +584,13 @@ export function WidgetWindow({
           fallback={
             <div
               aria-label="Loading widget"
-              style={{ height: "100%", background: STUDIO_COLORS.surface }}
+              style={{ height: "100%", background: SD_SURFACES.box }}
             />
           }
         >
           <Content id={item.id} props={item.props} />
         </Suspense>
       </div>
-
-      {permanent ? null : (
-        <button
-          type="button"
-          aria-label="Resize window"
-          title="Resize"
-          style={{
-            position: "absolute",
-            right: 0,
-            bottom: 0,
-            width: 20,
-            height: 20,
-            touchAction: "none",
-            border: 0,
-            borderRight: `2px solid ${STUDIO_COLORS.accent}`,
-            borderBottom: `2px solid ${STUDIO_COLORS.accent}`,
-            background: "transparent",
-            cursor: "nwse-resize",
-          }}
-          onPointerDown={(event) => startPointer("resize", event)}
-          onPointerMove={movePointer}
-          onPointerUp={endPointer}
-          onPointerCancel={(event) => endPointer(event, true)}
-        />
-      )}
     </motion.div>
   );
 }

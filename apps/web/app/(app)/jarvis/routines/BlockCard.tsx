@@ -12,6 +12,10 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import type { RoutineBlock } from "@hyperpolymath/jarvis-core";
+import {
+  formatLightsBlockPreview,
+  readLightsParams,
+} from "@/lib/jarvis/lights-block-params";
 import { catalogEntry } from "./block-catalog";
 
 interface Props {
@@ -19,6 +23,22 @@ interface Props {
   index: number;
   onEdit: () => void;
   onRemove: () => void;
+}
+
+function blockPreview(block: RoutineBlock): string {
+  if (block.tool === "control_lights") {
+    return formatLightsBlockPreview(readLightsParams(block));
+  }
+  if (block.tool === "open_workspace") {
+    const items = block.params?.["items"];
+    const count = Array.isArray(items) ? items.length : 0;
+    return count > 0
+      ? `${count} item${count === 1 ? "" : "s"} to open`
+      : "No items — plain tool call.";
+  }
+  return block.nlDirective?.trim()
+    ? block.nlDirective
+    : "No directive — plain tool call.";
 }
 
 export function BlockCard({ block, index, onEdit, onRemove }: Props) {
@@ -77,9 +97,7 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
           ) : null}
         </div>
         <p className="truncate text-[13px] text-[var(--sd-ink-dull)]">
-          {block.nlDirective?.trim()
-            ? block.nlDirective
-            : "No directive — plain tool call."}
+          {blockPreview(block)}
         </p>
       </div>
 

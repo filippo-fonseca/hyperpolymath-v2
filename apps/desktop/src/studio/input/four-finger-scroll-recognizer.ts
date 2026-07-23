@@ -28,6 +28,7 @@
  * emits `scrollEnd`, but only if a `scrollStart` fired. Framework/DOM-free.
  */
 
+import { clamp } from "./clamp";
 import type { StudioPhaseInput } from "./types";
 
 export type FourFingerScrollSample = {
@@ -60,9 +61,6 @@ export type FourFingerScrollRecognizer = {
   push(sample: FourFingerScrollSample): void;
   reset(): void;
 };
-
-const clamp = (v: number, lo: number, hi: number): number =>
-  v < lo ? lo : v > hi ? hi : v;
 
 /**
  * Creates a four-finger-curl scroll recognizer. `onEvent` receives a targetless

@@ -22,6 +22,8 @@ const SOURCE_LABELS: Partial<Record<JarvisToolName, string>> = {
   play_music: "Music",
   take_screenshot: "Screen",
   computer_use: "Computer",
+  list_lights: "Lights",
+  control_lights: "Lights",
 };
 
 /**

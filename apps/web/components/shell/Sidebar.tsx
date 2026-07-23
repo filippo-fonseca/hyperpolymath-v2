@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Logotype } from "@/components/ui/Logotype";
+import { BrandLockup } from "@/components/ui/BrandLockup";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
@@ -37,10 +37,14 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useOptimistic, useState } from "react";
+import { useReducedMotion } from "motion/react";
+import { usePathname } from "next/navigation";
+import { useEffect, useOptimistic, useRef, useState } from "react";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
 import { PersistentNav, SidebarStatusRow, SidebarSystemNav } from "./PersistentNav";
+import { SidebarHomeDevicesStrip } from "./SidebarHomeDevicesStrip";
 import { SidebarTree } from "./SidebarTree";
+import { deriveSidebarLayout, planToggle, useIsBelowMd } from "./use-sidebar-breakpoint";
 
 interface Props {
   userId: string;
@@ -114,6 +118,15 @@ export function Sidebar({
   const [showArchived, setShowArchived] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [hovered, setHovered] = useState(false);
+  // Below-md overlay open state (u7). Derived-not-persisted: the breakpoint
+  // never touches `collapsed`, so a phone visit can't overwrite the desktop
+  // preference. `belowMd` is SSR-safe (defaults false → server/first paint
+  // agree) and the aside stays `invisible` until `mounted`, so no flash.
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const belowMd = useIsBelowMd();
+  const reduceMotion = useReducedMotion();
+  const pathname = usePathname();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const storedCollapsed = localStorage.getItem("sidebar-collapsed");
@@ -123,18 +136,62 @@ export function Sidebar({
     setMounted(true);
   }, []);
 
-  // When collapsed, hovering temporarily expands the panel as an overlay so the
-  // user can pick a destination without losing collapsed-mode page width.
-  // `effectiveCollapsed` is what every inner UI bit reads — the outer aside
-  // keeps its width tied to `collapsed` so the page layout never shifts.
-  const effectiveCollapsed = collapsed && !hovered;
+  // Above md there is no overlay; make sure crossing back up closes any open one
+  // (and never leaves a stale overlay behind on resize).
+  useEffect(() => {
+    if (!belowMd && overlayOpen) setOverlayOpen(false);
+  }, [belowMd, overlayOpen]);
+
+  // Navigating (below md) dismisses the overlay — tapping a destination should
+  // reveal it, not leave the sheet floating over the new route.
+  useEffect(() => {
+    setOverlayOpen(false);
+  }, [pathname]);
+
+  // Below md the overlay is a modal-ish sheet: Escape and a tap outside it
+  // close it. Desktop hover-peek keeps its own mouse-leave path, untouched.
+  useEffect(() => {
+    if (!belowMd || !overlayOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOverlayOpen(false);
+    }
+    function onPointerDown(e: PointerEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOverlayOpen(false);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [belowMd, overlayOpen]);
+
+  // Layout derivation (u7). Above md this collapses to the classic
+  // `collapsed && !hovered`; below md the rail is forced and the overlay drives
+  // expansion. `railMode` sizes the OUTER aside (no layout push);
+  // `effectiveCollapsed` is what inner UI reads; `peeking` floats the panel.
+  const { railMode, effectiveCollapsed, peeking } = deriveSidebarLayout({
+    belowMd,
+    collapsed,
+    hovered,
+    overlayOpen,
+  });
+  // Width tweens only above md and only with motion allowed. The overlay must
+  // never tween width (§14: animate transform/opacity, never width); below md
+  // it snaps open. Reduced motion drops the desktop collapse tween too.
+  const animateWidth = !belowMd && !reduceMotion;
 
   function toggleCollapsed() {
-    const next = !collapsed;
-    setCollapsed(next);
-    if (!next) setHovered(false);
-    localStorage.setItem("sidebar-collapsed", String(next));
-    sfx.play(next ? "sidebarCollapse" : "sidebarExpand");
+    const decision = planToggle({ belowMd, collapsed, overlayOpen });
+    if (decision.persistCollapsed) {
+      setCollapsed(decision.nextCollapsed);
+      if (!decision.nextCollapsed) setHovered(false);
+      localStorage.setItem("sidebar-collapsed", String(decision.nextCollapsed));
+    }
+    setOverlayOpen(decision.nextOverlayOpen);
+    sfx.play(decision.sfx);
   }
 
   function toggleShowArchived() {
@@ -176,31 +233,40 @@ export function Sidebar({
       aria-label="Sidebar"
       className={cn(
         "relative h-full shrink-0",
-        "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
-        collapsed ? "w-14" : "w-[230px]",
+        animateWidth && "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+        // Below md the outer aside is ALWAYS the rail — expansion is the
+        // floating overlay, so the route width never changes with it.
+        railMode ? "w-14" : "w-[230px]",
         // Nothing paints until localStorage has been read, so a pinned-collapsed
         // sidebar never flashes open on first frame.
         !mounted && "invisible"
       )}
     >
       <div
+        ref={panelRef}
         onMouseEnter={() => {
-          if (collapsed) setHovered(true);
+          // Hover-peek is desktop-only: coarse pointers don't hover, and below
+          // md the toggle owns expansion.
+          if (!belowMd && collapsed) setHovered(true);
         }}
         onMouseLeave={() => setHovered(false)}
         className={cn(
           "group/sidebar absolute inset-y-0 left-0 flex flex-col gap-2.5 overflow-hidden p-2.5 pb-2",
           "border-r border-[var(--sd-line)]",
           SIDEBAR_SURFACE,
-          "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+          animateWidth && "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
           effectiveCollapsed ? "w-14" : "w-[230px]",
-          // Collapsed hover-expand floats above the page as a temporary overlay.
-          collapsed &&
-            hovered &&
+          // Expanded-while-railed floats above the page as an overlay: desktop
+          // hover-peek and the below-md toggle sheet share this one path.
+          peeking &&
             "z-50 rounded-r-md border border-[var(--sd-line)] shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]"
         )}
       >
-        <SidebarHeader collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
+        <SidebarHeader
+          collapsed={railMode}
+          peeking={peeking}
+          onToggleCollapsed={toggleCollapsed}
+        />
 
         {/* Scroll column. Rows dissolve into the footer through the bottom
             mask-fade rather than hard-clipping; the scrollbar stays invisible
@@ -209,12 +275,14 @@ export function Sidebar({
           {/* MAIN — no section header; the labels speak for themselves (§1.3). */}
           <PersistentNav collapsed={effectiveCollapsed} />
 
-          {/* AREAS — the header is itself the link to /areas, with the tree
-              nested beneath it as proper children. */}
+          {/* AREAS — a plain section title over the tree. The label used to be
+              the /areas link too, but the MAIN rail now carries an Areas pill;
+              two rows reading "Areas" that both navigate to /areas is a coin
+              flip for the reader, so the pill is the destination and this is
+              just the tree's title. */}
           <section>
             <SectionHeader
               label="Areas"
-              href="/areas"
               collapsed={effectiveCollapsed}
               // Counts what the tree actually renders, not the active list.
               // `areas` follows the archived-eye toggle and the optimistic add,
@@ -273,6 +341,7 @@ export function Sidebar({
           </section>
 
           <SidebarStatusRow collapsed={effectiveCollapsed} />
+          <SidebarHomeDevicesStrip collapsed={effectiveCollapsed} />
           <IdentityBlock collapsed={effectiveCollapsed} profile={profile} />
           <UtilityStrip
             collapsed={effectiveCollapsed}
@@ -292,87 +361,82 @@ export function Sidebar({
  * trigger variant and unmounted the portal mid-interaction, which is exactly
  * what trapped the collapse toggle (BUG 1).
  *
- * What's left is deliberately dumb: a plain brand mark that does nothing on
- * click, and a dedicated, ALWAYS-MOUNTED collapse icon-button. Both gate on the
- * REAL `collapsed` prop, never on hover, so no control ever changes identity
- * under the pointer during a hover-peek.
+ * What's left is deliberately dumb: the brand lockup, which does nothing on
+ * click, and a dedicated, ALWAYS-MOUNTED collapse icon-button.
+ *
+ * Three states, one JSX tree:
+ *
+ *   - expanded            [kiwi + Hyperpolymath] ......... [toggle]
+ *   - collapsed + peeking [kiwi + Hyperpolymath] ......... [toggle]
+ *   - collapsed rail      [kiwi] / [toggle] stacked, centered — 56px cannot
+ *                         carry a wordmark and a button on one row.
+ *
+ * `peeking` IS hover-derived, which the BUG 1 note above rightly treats as
+ * dangerous — so the danger is designed out rather than avoided. There is
+ * exactly ONE branchless JSX tree here: the same elements always mount in the
+ * same positions and only their classNames change (`flex-col` ↔ `flex-row`).
+ * React reconciles instead of remounting, so the tooltip trigger under the
+ * pointer never changes identity mid-hover. What trapped BUG 1 was a control
+ * swapping out from under the pointer; nothing swaps here.
  */
 function SidebarHeader({
   collapsed,
+  peeking,
   onToggleCollapsed,
 }: {
+  /** The REAL collapsed state — owns the rail-vs-lockup presentation. */
   collapsed: boolean;
+  /** Collapsed AND hovered: the overlay is at full width, so use the full row. */
+  peeking: boolean;
   onToggleCollapsed: () => void;
 }) {
-  if (collapsed) {
-    return (
-      <TooltipProvider delayDuration={300}>
-        <div className="relative flex shrink-0 flex-col items-center gap-1.5">
-          {/* Brand monogram — a plain mark, not a control. The expand button
-              below owns the toggle so the wordmark is never a collapse trap. */}
-          <span
-            className="sidebar-logo-mono flex h-9 items-center justify-center text-[18px] leading-none"
-            aria-hidden="true"
-          >
-            <Logotype collapsed />
-          </span>
-          {/* On pointer hover of the rail, a floating plate reveals the full
-              "Hyperpolymath" wordmark anchored at the rail's top-left. It
-              overlays rather than expanding the rail (absolutely positioned;
-              the aside width stays tied to the real collapsed state), so no
-              layout shifts. See .sidebar-logo-flyout in globals.css. */}
-          <span className="sidebar-logo-flyout absolute left-0 top-0" aria-hidden="true">
-            <Logotype className="text-[16px]" />
-          </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={onToggleCollapsed}
-                aria-label="Expand sidebar"
-                className={cn(
-                  SB_GHOST,
-                  SB_FOCUS,
-                  "inline-flex h-8 w-8 items-center justify-center text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
-                )}
-              >
-                <PanelLeftOpen size={16} strokeWidth={1.75} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Expand sidebar</TooltipContent>
-          </Tooltip>
-        </div>
-      </TooltipProvider>
-    );
-  }
+  // Rail = collapsed with no pointer on it. Peeking borrows the expanded row.
+  const rail = collapsed && !peeking;
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-9 w-full shrink-0 items-center gap-2 px-1">
-        {/* Status dot — cyan stays functional chrome: it says "connected". */}
+      <div
+        className={cn(
+          "flex shrink-0 items-center",
+          rail ? "flex-col gap-1.5" : "h-9 w-full flex-row gap-2 px-1"
+        )}
+      >
+        {/* Brand lockup — a plain mark, not a control. The toggle owns the
+            collapse so the wordmark is never a collapse trap. */}
         <span
-          className="h-2 w-2 shrink-0 rounded-full bg-[var(--hud-cyan)]"
+          className={cn(
+            "flex min-w-0 items-center leading-none",
+            rail ? "h-9 justify-center" : "flex-1 text-[16px]"
+          )}
           aria-hidden="true"
-        />
-        <span className="min-w-0 flex-1 truncate text-[16px] leading-none">
-          <Logotype />
+        >
+          <BrandLockup markOnly={rail} />
         </span>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
               onClick={onToggleCollapsed}
-              aria-label="Collapse sidebar"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               className={cn(
                 SB_GHOST,
                 SB_FOCUS,
-                "inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
+                "inline-flex shrink-0 items-center justify-center",
+                "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
+                rail ? "h-8 w-8" : "h-7 w-7"
               )}
             >
-              <PanelLeftClose size={16} strokeWidth={1.75} />
+              {collapsed ? (
+                <PanelLeftOpen size={16} strokeWidth={1.75} />
+              ) : (
+                <PanelLeftClose size={16} strokeWidth={1.75} />
+              )}
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right">Collapse sidebar</TooltipContent>
+          <TooltipContent side="right">
+            {collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          </TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>
@@ -389,13 +453,11 @@ function SidebarHeader({
  */
 function SectionHeader({
   label,
-  href,
   collapsed,
   count,
   action,
 }: {
   label: string;
-  href?: string;
   collapsed: boolean;
   count?: number;
   action?: React.ReactNode;
@@ -411,16 +473,7 @@ function SectionHeader({
 
   return (
     <div className="group/section mb-1 flex h-6 items-center gap-1.5 px-2">
-      {href ? (
-        <a
-          href={href}
-          className={cn(labelClasses, SB_FOCUS, "rounded-[4px] hover:text-[var(--sd-ink)]")}
-        >
-          {label}
-        </a>
-      ) : (
-        <span className={cn(labelClasses, "select-none")}>{label}</span>
-      )}
+      <span className={cn(labelClasses, "select-none")}>{label}</span>
 
       {count !== undefined && count > 0 && (
         <span

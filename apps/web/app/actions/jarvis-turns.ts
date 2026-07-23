@@ -5,6 +5,7 @@ import { and, eq, asc, desc, lt, gte } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
+import { reconcileEntityReferencesFromText } from "@/lib/references/reconcile";
 
 /**
  * Persisted JARVIS scrollback (Phase 7 polish).
@@ -67,24 +68,50 @@ export async function saveJarvisTurn(
     ...(parsed.data.createdAt ? { createdAt: new Date(parsed.data.createdAt) } : {}),
   };
 
+  // Which text on this turn holds reference tokens, if any.
+  //
+  // A user turn arrives complete on submit, so its `text` is reconciled every
+  // save. An assistant turn is written repeatedly while it streams, and its
+  // half-built `textDelta` ends mid-token — reconciling that would index
+  // whatever prefix happened to have arrived, then thrash the rows on the next
+  // save. So the assistant side waits for status='done', which is the sealed
+  // reading of S3 for this flow.
+  const referenceText =
+    row.kind === "user"
+      ? row.text
+      : row.status === "done"
+        ? row.textDelta
+        : null;
+
   try {
-    await db
-      .insert(jarvisTurns)
-      .values(row)
-      .onConflictDoUpdate({
-        target: jarvisTurns.id,
-        // Only the streaming/undo path needs to UPDATE — never the id, userId,
-        // kind, or createdAt. Update text fields + actions + status so the
-        // canonical row reflects the latest scrollback state.
-        set: {
-          text: row.text,
-          textDelta: row.textDelta,
-          actions: row.actions,
-          clarification: row.clarification,
-          status: row.status,
-          errorMessage: row.errorMessage,
-        },
-      });
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(jarvisTurns)
+        .values(row)
+        .onConflictDoUpdate({
+          target: jarvisTurns.id,
+          // Only the streaming/undo path needs to UPDATE — never the id, userId,
+          // kind, or createdAt. Update text fields + actions + status so the
+          // canonical row reflects the latest scrollback state.
+          set: {
+            text: row.text,
+            textDelta: row.textDelta,
+            actions: row.actions,
+            clarification: row.clarification,
+            status: row.status,
+            errorMessage: row.errorMessage,
+          },
+        });
+
+      if (referenceText !== null) {
+        await reconcileEntityReferencesFromText(tx, {
+          userId,
+          sourceType: "jarvis_turn",
+          sourceId: row.id,
+          text: referenceText,
+        });
+      }
+    });
     return { success: true, data: { id: row.id } };
   } catch (err) {
     console.error("[jarvis-turns] saveJarvisTurn failed", err);

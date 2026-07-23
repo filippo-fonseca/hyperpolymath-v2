@@ -355,6 +355,50 @@
           "at": "2026-07-15T22:16:48.541Z"
         }
       ]
+    },
+    {
+      "id": "item-4c71191a-1784388231034",
+      "content_key": "2716a2c795b0b5575091a9572daa064ba973d82da25ad264fcd175e883fd2a69",
+      "title": "Ultimate Jarvis: full-context retrieval + agent excellence",
+      "body": "Build session driven by the research blueprint at .bgsd/research/jarvis-ultimate-blueprint.md (Opus researcher dispatched 2026-07-18 during sesh-1784388114864). Scope: retrieval architecture over all Hyperpolymath content + agent-quality overhaul per the report's P0 items. Review the report's 'Questions for Filippo' section at sesh start.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 308,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/308"
+      },
+      "created_at": "2026-07-18T15:23:51.033Z",
+      "updated_at": "2026-07-18T15:23:51.033Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-18T15:23:51.033Z"
+        }
+      ]
+    },
+    {
+      "id": "item-6578ffbb-1784814008179",
+      "content_key": "e58029cb4dfbc295932c1a10cfce26be41462e28743a5790ce4c59deddf1d4d9",
+      "title": "Hand cursor: better click-awareness + deterministic clickable areas (GitHub-style)",
+      "body": "Implement better click-awareness and deterministic clickable areas for the Studio hand cursor, modeled on https://github.com/Capslockb/tony-stark-hand-control — study its approach to deterministic hit targets/regions and adapt it to the Studio HUD gesture engine (apps/desktop/src/studio/input). Filed 2026-07-23 mid-sesh-1784813908167; Filippo will start a dedicated bgsd sesh for this.",
+      "source": "manual",
+      "state": "queued",
+      "attempts": 0,
+      "github_issue": {
+        "number": 318,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/318"
+      },
+      "created_at": "2026-07-23T13:40:08.175Z",
+      "updated_at": "2026-07-23T13:40:08.175Z",
+      "trail": [
+        {
+          "from": null,
+          "to": "queued",
+          "at": "2026-07-23T13:40:08.175Z"
+        }
+      ]
     }
   ]
 }

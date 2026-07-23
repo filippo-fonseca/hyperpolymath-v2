@@ -21,7 +21,16 @@ export const LINK_DISTANCE = 0.16;
 const SPEED_MIN = 0.002;
 const SPEED_MAX = 0.006;
 
-/** Fraction of nodes that borrow a hue from NODE_PALETTE (the rest are cyan). */
+/**
+ * Fraction of nodes placed in the recessed variation tier (the rest sit front).
+ *
+ * These used to be the nodes that borrowed one of six NODE_PALETTE hues. Oracle
+ * ruling O3 collapsed that palette to the single accent: the constellation is
+ * atmosphere, not data encoding, so §21's chart exemption does not cover it and
+ * §1's single-hue rule applies. The tier survives the collapse because it was
+ * never really about colour — it is what keeps the mesh from reading flat — and
+ * it now expresses itself through alpha. See ConstellationCanvas.
+ */
 export const CHROMATIC_FRACTION = 0.125;
 
 export interface ConstellationNode {
@@ -31,7 +40,15 @@ export interface ConstellationNode {
   vy: number;
   /** Radius in normalized units (scaled to px at draw time). */
   radius: number;
-  /** Index into NODE_PALETTE, or -1 for the default cyan node. */
+  /**
+   * Variation tier: >= 0 for a recessed node, -1 for a front one.
+   *
+   * Named `palette` because it used to index NODE_PALETTE, which ruling O3
+   * retired (see CHROMATIC_FRACTION). The field keeps its name and range so the
+   * sim's contract — and the tests pinning it — stay untouched by what is a
+   * pure paint change; only the magnitude is now meaningless, since the drawer
+   * reads `>= 0` and nothing else.
+   */
   palette: number;
 }
 

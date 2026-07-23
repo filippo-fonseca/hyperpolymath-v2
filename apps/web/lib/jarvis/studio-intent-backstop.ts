@@ -15,7 +15,7 @@
 // risk opening the wrong page. Keep the regexes tight to avoid false positives
 // on unrelated turns ("remind me to check the weather app tomorrow").
 
-export type StudioBackstopKind = "weather" | "news" | "whatsapp";
+export type StudioBackstopKind = "weather" | "news" | "whatsapp" | "home";
 
 // Weather / temperature: an ambient "what's it like out" question.
 const WEATHER_RE =
@@ -31,6 +31,10 @@ const NEWS_RE =
 // since WhatsApp is the HUD's messaging widget.
 const WHATSAPP_RE =
   /\b(?:open|show|pull\s+up|bring\s+up|launch|go\s+to|check)\s+(?:my\s+|the\s+)?(?:whats\s?app|messages|chats|texts|dms)\b/i;
+
+// Home / smart lights: status or control intent for registered Govee lights.
+const HOME_LIGHTS_RE =
+  /\b(?:(?:turn|switch)\s+(?:on|off)|dim|brighten)\s+(?:the\s+)?(?:\w[\w'-]*\s+){0,2}lights?\b|\b(?:are|is)\s+(?:the\s+)?(?:\w[\w'-]*\s+){0,2}lights?\s+on\b|\b(?:show|open|pull\s+up)\s+(?:my\s+|the\s+)?(?:home\s+)?lights?\b|\b(?:what|which)\s+lights?\b|\blights?\s+(?:status|state)\b|\bgovee\b/i;
 
 /**
  * Given the user's raw utterance and whether the model already opened a studio
@@ -55,5 +59,6 @@ export function detectStudioBackstop(
   // model wrongly reached for open_app (launching the macOS WhatsApp.app), this
   // nudges the native HUD widget open instead.
   if (WHATSAPP_RE.test(text)) return "whatsapp";
+  if (HOME_LIGHTS_RE.test(text)) return "home";
   return null;
 }

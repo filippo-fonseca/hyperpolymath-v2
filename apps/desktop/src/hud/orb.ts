@@ -14,7 +14,11 @@
 
 export type OrbState = "idle" | "listening" | "thinking" | "speaking";
 
-const CYAN = { r: 0, g: 212, b: 255 }; // #00d4ff — the canonical Stark signature
+// The single sd accent, canvas-side. The register collapses the HUD to ONE cyan
+// (`--sd-accent: oklch(72% 0.13 210)`); the canvas cannot read a CSS var per
+// frame, so the same hue is carried here as its sRGB resolution — not the old
+// local #00d4ff. Reconciled so orb, ring, and chrome all speak one cyan.
+const CYAN = { r: 0, g: 186, b: 209 }; // oklch(72% 0.13 210) → sRGB
 
 interface OrbInputs {
   /** Current FSM state (source of truth for the orb). */
