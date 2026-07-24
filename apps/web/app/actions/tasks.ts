@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { tasks, tasksHashtags, tasksProjects, projects } from "@/lib/db/schema";
@@ -10,7 +10,12 @@ import {
   normalizeRule,
   nextOccurrence,
 } from "@/lib/tasks/recurrence";
-import { format } from "date-fns";
+import {
+  DueTimeSchema,
+  TaskRemindersSchema,
+  normalizeReminders,
+} from "@/lib/tasks/reminders";
+import { format, subDays } from "date-fns";
 import { upsertHashtag } from "./hashtags";
 import {
   reconcilePersonReferencesForUser,
@@ -68,6 +73,10 @@ const CreateTaskSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable()
     .optional(),
+  // Optional HH:mm due time; null = default 09:00 for reminder scheduling.
+  dueTime: DueTimeSchema.optional(),
+  // Unlimited reminder offsets before due (capped at 50). null/[] = none.
+  reminders: TaskRemindersSchema.nullable().optional(),
   // Issue #101 — Notion-style URL property. Stored verbatim (normalized
   // client-side); null/absent = unset. Capped to keep the column sane.
   url: z.string().trim().max(2048).nullable().optional(),
@@ -112,6 +121,8 @@ export async function createTask(
         priority: parsed.data.priority,
         status: parsed.data.status,
         dueDate: parsed.data.dueDate ?? null,
+        dueTime: parsed.data.dueTime ?? null,
+        reminders: normalizeReminders(parsed.data.reminders ?? null),
         url: parsed.data.url ? parsed.data.url : null,
         recurrence: parsed.data.recurrence
           ? normalizeRule(parsed.data.recurrence)
@@ -222,6 +233,8 @@ const UpdateTaskSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable()
     .optional(),
+  dueTime: DueTimeSchema.optional(),
+  reminders: TaskRemindersSchema.nullable().optional(),
   // Issue #101 — set, change, or clear (null) the URL property. Flows through
   // the generic `rest` apply loop below (null = clear, string = set).
   url: z.string().trim().max(2048).nullable().optional(),
@@ -256,6 +269,10 @@ export async function updateTask(
   // Issue #101 — treat an empty/whitespace URL as a clear (null) so the column
   // never holds the empty string.
   if (rest.url !== undefined) updates.url = rest.url ? rest.url : null;
+  if (rest.dueTime !== undefined) updates.dueTime = rest.dueTime;
+  if (rest.reminders !== undefined) {
+    updates.reminders = normalizeReminders(rest.reminders);
+  }
   // Issue #144 — normalize a non-null recurrence rule before persisting.
   // `null` (clear / end recurrence) passes through verbatim.
   if (rest.recurrence !== undefined && rest.recurrence !== null) {
@@ -495,6 +512,58 @@ export async function bulkDeleteTasks(
   });
 
   return { success: true, data: { deleted: result.length } };
+}
+
+/**
+ * Clear incomplete tasks whose due date is more than `olderThanDays` ago.
+ * Does not touch completed (lesno) tasks or undated Inbox items.
+ */
+const ClearStaleIncompleteSchema = z.object({
+  olderThanDays: z.number().int().min(1).max(3650),
+});
+
+export async function clearStaleIncompleteTasks(
+  input: unknown,
+): Promise<ActionResult<{ deleted: number; ids: string[] }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = ClearStaleIncompleteSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+  }
+
+  const cutoff = format(subDays(new Date(), parsed.data.olderThanDays), "yyyy-MM-dd");
+
+  const stale = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        ne(tasks.status, "lesno"),
+        isNotNull(tasks.dueDate),
+        lt(tasks.dueDate, cutoff),
+      ),
+    );
+
+  if (stale.length === 0) {
+    return { success: true, data: { deleted: 0, ids: [] } };
+  }
+
+  const ids = stale.map((r) => r.id);
+  // Chunk to stay under the bulk-delete 500 cap.
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    const r = await bulkDeleteTasks({ ids: chunk });
+    if (!r.success) return r;
+    deleted += r.data.deleted;
+  }
+
+  return { success: true, data: { deleted, ids } };
 }
 
 // ---------------------------------------------------------------------------
