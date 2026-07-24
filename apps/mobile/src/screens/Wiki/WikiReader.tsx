@@ -8,6 +8,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { KiwiLoader } from "../../components/KiwiLoader";
+import { ErrorState } from "../../components/shell";
 import { getWikiPage, type WikiPage } from "../../lib/wiki-api";
 import { font, sd } from "../../theme";
 import { Markdown } from "./Markdown";
@@ -123,12 +124,10 @@ export function WikiReader({ pageId, onBack, onEdit }: {
         ) : null}
 
         {state.phase === "error" ? (
-          <View style={styles.center}>
-            <Text style={styles.errorTitle}>Could not load page</Text>
-            <Text style={styles.errorHint}>
-              Pull to retry. Check the server URL and sign-in in Settings.
-            </Text>
-          </View>
+          <ErrorState
+            message="Could not load this page. Check the server URL and sign-in in Settings."
+            onRetry={() => void load()}
+          />
         ) : null}
 
         {page ? (
@@ -235,18 +234,6 @@ const styles = StyleSheet.create({
     paddingTop: 80,
     alignItems: "center",
     gap: 10,
-  },
-  errorTitle: {
-    color: sd.ink,
-    fontFamily: font.sansSemiBold,
-    fontSize: 16,
-  },
-  errorHint: {
-    color: sd.inkFaint,
-    fontFamily: font.sans,
-    fontSize: 13,
-    textAlign: "center",
-    paddingHorizontal: 30,
   },
   titleRow: {
     flexDirection: "row",

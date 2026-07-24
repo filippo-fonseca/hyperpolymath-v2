@@ -12,7 +12,6 @@
 import type { Block } from "@blocknote/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -22,6 +21,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { KiwiLoader } from "../components/KiwiLoader";
+import { ErrorState } from "../components/shell";
 import WikiEditorDom from "../components/wiki-editor/WikiEditorDom";
 import { hasUnknownNodes } from "../components/wiki-editor/sanitize";
 import {
@@ -64,6 +65,8 @@ export function WikiEditorScreen({
   const [loadError, setLoadError] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [domReady, setDomReady] = useState(false);
+  // Bumped by the error-state RETRY button to re-run the load effect.
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   // Latest document JSON from the editor (null until the first real edit).
   const latestDoc = useRef<Block[] | null>(null);
@@ -108,7 +111,7 @@ export function WikiEditorScreen({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetKey]);
+  }, [targetKey, reloadNonce]);
 
   // Data-loss guard (Conductor amendment): a page whose contentJson carries
   // nodes the default schema can't render would be silently stripped by a
@@ -213,9 +216,10 @@ export function WikiEditorScreen({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         {loadError ? (
-          <View style={styles.center}>
-            <Text style={styles.errorText}>Couldn&apos;t load this page.</Text>
-          </View>
+          <ErrorState
+            message="Couldn't load this page. Check the server URL and sign-in in Settings."
+            onRetry={() => setReloadNonce((n) => n + 1)}
+          />
         ) : (
           <WikiEditorDom
             contentKey={page?.id}
@@ -236,9 +240,12 @@ export function WikiEditorScreen({
             }}
           />
         )}
-        {page === null && !loadError ? (
+        {!deliver && !loadError ? (
           <View style={styles.center} pointerEvents="none">
-            <ActivityIndicator color={sd.accent} />
+            <KiwiLoader size={32} />
+            <Text style={styles.loadingHint}>
+              {page === null ? "Loading page…" : "Preparing editor…"}
+            </Text>
           </View>
         ) : null}
       </KeyboardAvoidingView>
@@ -322,10 +329,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: "center",
     justifyContent: "center",
+    gap: 12,
   },
-  errorText: {
+  loadingHint: {
     color: sd.inkFaint,
-    fontFamily: font.sans,
-    fontSize: 14,
+    fontFamily: font.mono,
+    fontSize: 11,
+    letterSpacing: 0.6,
   },
 });
