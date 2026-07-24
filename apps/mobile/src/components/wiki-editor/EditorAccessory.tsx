@@ -10,7 +10,16 @@
 //   2. A categorized bottom-SHEET block picker (Basic / Lists / Media /
 //      Advanced) with icon + name + one-line description rows, opened by `+`
 //      OR by typing `/` in the document (the default floating slash menu is
-//      suppressed in WikiEditorDom). The sheet carries its own filter box.
+//      suppressed in WikiEditorDom). The sheet's chrome mirrors the web
+//      slash-menu canon (page-block-editor.css §.bn-suggestion-menu), scaled to
+//      44px touch targets.
+//
+// LITERAL `/` (Notion semantics): typing `/` is NEVER swallowed — the character
+// lands in the document like any other keystroke. It opens the sheet in "slash"
+// mode; the live query is read back OUT of the document (the text after the `/`)
+// so typing filters the list. Choosing a block deletes the `/`+query range and
+// then inserts. Dismissing (Esc / tap-away) or typing a space / prose that
+// matches nothing leaves the `/` in place as ordinary text and closes the sheet.
 //
 // This module is imported by the `'use dom'` WikiEditorDom, so it is bundled
 // into the WEB bundle and runs inside the WKWebView alongside @blocknote — it
@@ -97,6 +106,8 @@ type Row = {
   onSelect: () => void;
 };
 
+type SheetMode = "plus" | "slash";
+
 /** True when the caret sits where typing `/` should summon the picker: an
  * empty spot or right after whitespace (never mid-word, so "and/or" is safe). */
 function slashContextOk(): boolean {
@@ -106,9 +117,21 @@ function slashContextOk(): boolean {
   if (!node) return true;
   if (node.nodeType === Node.TEXT_NODE) {
     const before = node.textContent?.charAt(sel.anchorOffset - 1) ?? "";
-    return before === "" || before === " " || before === " " || before === "\n";
+    return before === "" || before === " " || before === " " || before === "\n";
   }
   return true;
+}
+
+/** Match rows against a query over title / key / aliases. */
+function matchRows(rows: Row[], q: string): Row[] {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return rows;
+  return rows.filter(
+    (r) =>
+      r.title.toLowerCase().includes(needle) ||
+      r.key.includes(needle) ||
+      r.aliases.some((a) => a.toLowerCase().includes(needle)),
+  );
 }
 
 export function EditorAccessory({
@@ -119,11 +142,15 @@ export function EditorAccessory({
   disabled?: boolean;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<SheetMode>("plus");
   const [query, setQuery] = useState("");
   // Keyboard height (px) from the Visual Viewport API — the bar and sheet rise
   // by this so they hug the top of the on-screen keyboard.
   const [kbOffset, setKbOffset] = useState(0);
   const filterRef = useRef<HTMLInputElement | null>(null);
+  // ProseMirror doc position of the literal `/` that opened the slash picker
+  // (null whenever the sheet was opened by the `+` button instead).
+  const slashPos = useRef<number | null>(null);
 
   const activeStyles = useActiveStyles(editor);
 
@@ -174,29 +201,52 @@ export function EditorAccessory({
     return out;
   }, [editor]);
 
-  const openSheet = useCallback(() => {
+  const openPlusSheet = useCallback(() => {
+    slashPos.current = null;
+    setSheetMode("plus");
     setQuery("");
     setSheetOpen(true);
   }, []);
 
+  // Close the sheet WITHOUT touching the document. In slash mode the typed
+  // `/`+query is left intact as ordinary text — exactly Notion's dismiss.
   const closeSheet = useCallback(() => {
+    slashPos.current = null;
     setSheetOpen(false);
     setQuery("");
   }, []);
 
   const pick = useCallback(
     (row: Row) => {
-      closeSheet();
-      // Return focus so the keyboard comes back, then insert at the caret.
+      const start = slashPos.current;
+      const isSlash = start !== null;
+      // Drop sheet state first so the slash-tracking effect can't re-fire on the
+      // document mutations below.
+      slashPos.current = null;
+      setSheetOpen(false);
+      setQuery("");
+      // In slash mode the caret never left the document (the filter box is a
+      // read-only mirror), so the selection is live: delete the `/`+query range,
+      // then let BlockNote insert/convert at the now-empty spot.
+      if (isSlash) {
+        try {
+          const caret = editor.prosemirrorState.selection.from;
+          if (caret > start!) {
+            editor.transact((tr) => tr.delete(start!, caret));
+          }
+        } catch {
+          /* range already gone */
+        }
+      }
       editor.focus();
       row.onSelect();
     },
-    [closeSheet, editor],
+    [editor],
   );
 
-  // Suppress BlockNote's floating slash menu (WikiEditorDom sets slashMenu=false)
-  // but keep `/` as a summon: intercept it on the ProseMirror element and open
-  // the sheet instead, so `/` and `+` share one picker.
+  // `/` handling: never preventDefault (the char must land in the doc). On a
+  // valid trigger, record the `/`'s position next frame and open the sheet in
+  // slash mode. Escape closes the sheet, keeping any typed text.
   useEffect(() => {
     if (disabled) return;
     const el =
@@ -204,14 +254,79 @@ export function EditorAccessory({
       document.querySelector<HTMLElement>(".ProseMirror");
     if (!el) return;
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (slashPos.current !== null) closeSheet();
+        return;
+      }
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (slashPos.current !== null) return; // already tracking a slash
       if (!slashContextOk()) return;
-      e.preventDefault();
-      openSheet();
+      // Let the "/" type, then capture its doc position on the next frame.
+      requestAnimationFrame(() => {
+        try {
+          const caret = editor.prosemirrorState.selection.from;
+          const start = caret - 1;
+          if (
+            start < 0 ||
+            editor.prosemirrorState.doc.textBetween(start, caret, "\n", "\n") !== "/"
+          ) {
+            return;
+          }
+          slashPos.current = start;
+          setSheetMode("slash");
+          setQuery("");
+          setSheetOpen(true);
+        } catch {
+          /* editor not ready */
+        }
+      });
     };
     el.addEventListener("keydown", onKeyDown);
     return () => el.removeEventListener("keydown", onKeyDown);
-  }, [editor, disabled, openSheet]);
+  }, [editor, disabled, closeSheet]);
+
+  // While a slash picker is up, mirror the document's post-`/` text into the
+  // live query. Close (leaving the text) the moment the `/` is deleted, the
+  // caret leaves it, whitespace is typed, or the query matches nothing.
+  useEffect(() => {
+    if (!sheetOpen || sheetMode !== "slash") return;
+    const sync = () => {
+      const start = slashPos.current;
+      if (start === null) return;
+      try {
+        const state = editor.prosemirrorState;
+        const caret = state.selection.from;
+        if (!state.selection.empty || caret <= start) {
+          closeSheet();
+          return;
+        }
+        if (state.doc.textBetween(start, start + 1, "\n", "\n") !== "/") {
+          closeSheet();
+          return;
+        }
+        const text = state.doc.textBetween(start + 1, caret, "\n", "\n");
+        if (/\s/.test(text)) {
+          closeSheet();
+          return;
+        }
+        // Non-matching prose after the `/` closes the picker (keeping the text).
+        if (text.length > 0 && matchRows(rows, text).length === 0) {
+          closeSheet();
+          return;
+        }
+        setQuery(text);
+      } catch {
+        closeSheet();
+      }
+    };
+    sync();
+    const un1 = editor.onChange?.(sync);
+    const un2 = editor.onSelectionChange?.(sync);
+    return () => {
+      un1?.();
+      un2?.();
+    };
+  }, [sheetOpen, sheetMode, editor, rows, closeSheet]);
 
   // Track the keyboard so bar + sheet sit right above it (Visual Viewport API).
   useEffect(() => {
@@ -230,12 +345,14 @@ export function EditorAccessory({
     };
   }, []);
 
-  // Focus the filter box shortly after the sheet opens (after the slide-in).
+  // Focus the filter box shortly after a `+`-opened sheet slides in. In slash
+  // mode the editor MUST keep focus (so typing keeps flowing into the document),
+  // so the box is a read-only mirror and is never focused here.
   useEffect(() => {
-    if (!sheetOpen) return;
+    if (!sheetOpen || sheetMode !== "plus") return;
     const t = setTimeout(() => filterRef.current?.focus(), 220);
     return () => clearTimeout(t);
-  }, [sheetOpen]);
+  }, [sheetOpen, sheetMode]);
 
   if (disabled) return null;
 
@@ -274,15 +391,8 @@ export function EditorAccessory({
     editor.focus();
   };
 
-  const q = query.trim().toLowerCase();
-  const filtered = q
-    ? rows.filter(
-        (r) =>
-          r.title.toLowerCase().includes(q) ||
-          r.key.includes(q) ||
-          r.aliases.some((a) => a.toLowerCase().includes(q)),
-      )
-    : rows;
+  const isSlash = sheetMode === "slash";
+  const filtered = matchRows(rows, query);
 
   const rise = { transform: `translateY(-${kbOffset}px)` } as const;
 
@@ -296,7 +406,7 @@ export function EditorAccessory({
             className="wiki-bar-btn wiki-bar-plus"
             aria-label="Insert block"
             data-testid="wiki-bar-plus"
-            {...hold(openSheet)}
+            {...hold(openPlusSheet)}
           >
             <Icon name="plus" />
           </button>
@@ -388,18 +498,29 @@ export function EditorAccessory({
           />
           <div className="wiki-sheet" style={rise} role="dialog" aria-label="Insert block">
             <div className="wiki-sheet-grabber" />
-            <input
-              ref={filterRef}
-              className="wiki-sheet-filter"
-              placeholder="Filter blocks…"
-              value={query}
-              spellCheck={false}
-              autoCapitalize="none"
-              autoCorrect="off"
-              onChange={(e) => setQuery(e.target.value)}
-            />
+            {isSlash ? (
+              // Read-only mirror of the `/`-query being typed in the document.
+              // The editor keeps focus so keystrokes keep filtering the list.
+              <div className="wiki-sheet-filter wiki-sheet-filter-slash" aria-live="polite">
+                <span className="wiki-sheet-slash-mark">/</span>
+                <span className="wiki-sheet-slash-query">
+                  {query || <span className="wiki-sheet-slash-hint">Filter blocks…</span>}
+                </span>
+              </div>
+            ) : (
+              <input
+                ref={filterRef}
+                className="wiki-sheet-filter"
+                placeholder="Filter blocks…"
+                value={query}
+                spellCheck={false}
+                autoCapitalize="none"
+                autoCorrect="off"
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            )}
             <div className="wiki-sheet-list">
-              {q ? (
+              {query ? (
                 <PickerRows rows={filtered} onPick={pick} />
               ) : (
                 CATEGORIES.map((cat) => {
