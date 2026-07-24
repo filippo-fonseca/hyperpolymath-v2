@@ -1,9 +1,19 @@
 /**
  * Supabase client for mobile Google OAuth.
  *
- * Config (URL + anon key) is discovered from the configured server via
- * GET /api/mobile/bootstrap — same public values the web app already ships.
- * Session persists in SecureStore (chunked) so relaunches stay signed in.
+ * Config (URL + anon key) resolution, most-preferred first:
+ *   1. A baked build-time config — EXPO_PUBLIC_SUPABASE_URL /
+ *      EXPO_PUBLIC_SUPABASE_ANON_KEY (see apps/mobile/.env.production, inlined
+ *      by Metro at EAS build time), with a hardcoded PROD fallback so a release
+ *      build ALWAYS has a working client even if the .env file is missing.
+ *   2. GET /api/mobile/bootstrap as a *soft override* — lets a mobile build
+ *      pointed at a dev/staging server adopt that server's Supabase project.
+ *      Production `main` does not serve this route yet, so it must never be a
+ *      hard dependency: when it 404s / times out we fall back to the baked
+ *      config and Google sign-in still works.
+ *
+ * Session persists in SecureStore (chunked) so relaunches stay signed in;
+ * a restored session that no longer validates triggers a full local sign-out.
  */
 
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
@@ -11,7 +21,8 @@ import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import { makeRedirectUri } from "expo-auth-session";
 
-import { getSettings } from "./settings";
+import { validateBearer } from "./auth-token";
+import { getDeviceToken, getSettings, setDeviceToken } from "./settings";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -78,6 +89,53 @@ export interface BootstrapConfig {
   supabaseAnonKey: string;
 }
 
+/** Default network deadline for auth/bootstrap calls so boot never hangs. */
+const AUTH_TIMEOUT_MS = 6000;
+
+/**
+ * Baked PROD Supabase URL. Just a public hostname (also the `ref` claim in the
+ * anon JWT and in every web request) — safe to hardcode as a fallback so a
+ * release build always knows which project to talk to.
+ */
+const BAKED_SUPABASE_URL = "https://kzdphwebygqaaqcrufow.supabase.co";
+
+/**
+ * Build-time-baked config. Metro inlines EXPO_PUBLIC_* references at build time
+ * from the env supplied to the build (apps/mobile/.env.production for the URL;
+ * the anon key comes from an EAS production env var or a gitignored
+ * .env.production.local — see apps/mobile/.env.production for why).
+ *
+ * The anon key is deliberately NOT hardcoded here: the repo's secret-scanning
+ * gate (.gitleaks.toml + husky pre-commit) blocks committing JWTs, and project
+ * policy is "secrets in env only". So the URL falls back to the baked constant,
+ * but without the anon key in the build env this returns null and we lean on
+ * the bootstrap fetch instead.
+ */
+export function bakedSupabaseConfig(): BootstrapConfig | null {
+  const supabaseUrl =
+    process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() || BAKED_SUPABASE_URL;
+  const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+  return { supabaseUrl, supabaseAnonKey };
+}
+
+/** Reject a promise after `ms` so a stuck network call can't hang boot. */
+function withTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    Promise.resolve(p).then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
 export async function fetchBootstrap(
   serverUrl?: string,
   opts?: { timeoutMs?: number },
@@ -110,7 +168,11 @@ export async function ensureSupabaseClient(
 ): Promise<SupabaseClient | null> {
   const base = (serverUrl ?? getSettings().serverUrl).replace(/\/$/, "");
   if (client && clientServerBase === base) return client;
-  const cfg = await fetchBootstrap(base, { timeoutMs: 6000 });
+  // Soft override: prefer the server's own bootstrap (so a dev/staging build
+  // adopts that project) but fall back to the baked prod config when the route
+  // is absent or slow — production `main` doesn't serve bootstrap yet.
+  const fetched = await fetchBootstrap(base, { timeoutMs: AUTH_TIMEOUT_MS });
+  const cfg = fetched ?? bakedSupabaseConfig();
   if (!cfg) return null;
   clientServerBase = base;
 
@@ -132,15 +194,90 @@ export async function ensureSupabaseClient(
   return client;
 }
 
-/** Hydrate session from SecureStore. Call once at app start. */
+/**
+ * Hydrate + VALIDATE auth from SecureStore. Call once at app start.
+ *
+ * Guarantees boot never strands the user on a dead session or a spinner:
+ *   - A restored Supabase session is validated with getUser() (which refreshes
+ *     if the access token expired). A definitive auth failure → full local
+ *     sign-out and null. A network/timeout failure keeps the cached session
+ *     (offline: let the app open; autoRefresh retries later).
+ *   - Otherwise, a legacy device token is validated against a cheap authed
+ *     endpoint. A 401 → clear it and sign out; unreachable/timeout keeps it
+ *     (offline).
+ * Every network call is bounded by AUTH_TIMEOUT_MS, so this always resolves.
+ */
 export async function initAuth(): Promise<Session | null> {
   if (bootstrapped) return cachedSession;
   bootstrapped = true;
+
   const sb = await ensureSupabaseClient();
-  if (!sb) return null;
-  const { data } = await sb.auth.getSession();
-  cachedSession = data.session ?? null;
+  if (sb) {
+    let restored: Session | null = null;
+    try {
+      const { data } = await withTimeout(sb.auth.getSession(), AUTH_TIMEOUT_MS);
+      restored = data.session ?? null;
+    } catch {
+      restored = null;
+    }
+    if (restored) {
+      const verdict = await validateSupabaseSession(sb);
+      if (verdict === "invalid") {
+        await clearLocalAuth();
+        return null;
+      }
+      // "ok" or "offline" — trust the restored session.
+      cachedSession = restored;
+      return cachedSession;
+    }
+  }
+
+  // No Supabase session. A legacy device token (advanced pairing) may still
+  // authenticate us — validate it before trusting it.
+  if (getDeviceToken()) {
+    const check = await validateBearer({ timeoutMs: AUTH_TIMEOUT_MS });
+    if (check === "unauthorized") {
+      await clearLocalAuth();
+      return null;
+    }
+    // "ok" or "unreachable" (offline) — keep the token.
+  }
+
   return cachedSession;
+}
+
+/**
+ * Validate a restored Supabase session. getUser() round-trips to the Auth
+ * server and refreshes an expired access token when the refresh token is still
+ * good. Returns "invalid" only on a definitive auth rejection so we never sign
+ * a user out over a flaky connection.
+ */
+async function validateSupabaseSession(
+  sb: SupabaseClient,
+): Promise<"ok" | "invalid" | "offline"> {
+  try {
+    const { data, error } = await withTimeout(sb.auth.getUser(), AUTH_TIMEOUT_MS);
+    if (!error && data.user) return "ok";
+    if (!error) return "invalid";
+    const status = (error as { status?: number }).status;
+    if (status === 401 || status === 403 || status === 400) {
+      // Access token rejected — the refresh token may still be good. Try one
+      // refresh before signing the user out (getSession usually refreshes for
+      // us, but this closes the expired-token race).
+      try {
+        const { data: r, error: rErr } = await withTimeout(
+          sb.auth.refreshSession(),
+          AUTH_TIMEOUT_MS,
+        );
+        return !rErr && r.session ? "ok" : "invalid";
+      } catch {
+        return "offline"; // couldn't reach the refresh endpoint — stay signed in
+      }
+    }
+    return "offline"; // network / 5xx / unknown — don't punish the user
+  } catch {
+    return "offline"; // timeout / thrown network error
+  }
 }
 
 export function getSession(): Session | null {
@@ -246,9 +383,37 @@ async function exchangeRedirectUrl(
   return null;
 }
 
+/**
+ * User-initiated sign-out. Best-effort revoke the Supabase session on the
+ * server, then clear ALL local auth — the Supabase session AND the legacy
+ * device token — so the app can never come back half-authed. Listeners fire
+ * with null, which drops the shell back to the Login gate.
+ */
 export async function signOut(): Promise<void> {
   const sb = client ?? (await ensureSupabaseClient());
-  if (sb) await sb.auth.signOut();
+  if (sb) {
+    try {
+      await withTimeout(sb.auth.signOut(), AUTH_TIMEOUT_MS);
+    } catch {
+      // Offline or slow — local teardown below still fully signs us out.
+    }
+  }
+  await clearLocalAuth();
+}
+
+/**
+ * Local-only teardown: drop the persisted Supabase session and the device
+ * token from SecureStore, clear the in-memory session, and notify listeners.
+ * No network required — used on boot when a restored session is invalid.
+ */
+async function clearLocalAuth(): Promise<void> {
+  try {
+    await client?.auth.signOut({ scope: "local" });
+  } catch {
+    // ignore — explicit SecureStore delete below is the real teardown
+  }
+  await secureDelete(SESSION_KEY);
+  await setDeviceToken(null);
   cachedSession = null;
   for (const fn of listeners) fn(null);
 }
