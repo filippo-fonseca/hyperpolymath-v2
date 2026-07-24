@@ -9,7 +9,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View, Pressable } from "r
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { KiwiLoader } from "../../components/KiwiLoader";
-import { EmptyState, ScreenHeader, SearchBar } from "../../components/shell";
+import { EmptyState, ErrorState, ScreenHeader, SearchBar } from "../../components/shell";
 import { useCollection } from "../../lib/use-collection";
 import { getWikiTree, type WikiFolder, type WikiPageMeta, type WikiTree } from "../../lib/wiki-api";
 import { font, sd } from "../../theme";
@@ -25,7 +25,7 @@ export function WikiBrowse({
   onOpenDaily: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { data, loading, refresh } = useCollection<WikiTree>(getWikiTree, active);
+  const { data, loading, error, refresh } = useCollection<WikiTree>(getWikiTree, active);
   const [stack, setStack] = useState<WikiFolder[]>([]);
   const [query, setQuery] = useState("");
 
@@ -113,11 +113,13 @@ export function WikiBrowse({
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={sd.accent} />
         }
       >
-        {data === null ? (
+        {data === null && !error ? (
           <View style={styles.loader}>
             <KiwiLoader size={34} />
           </View>
         ) : null}
+
+        {data === null && error ? <ErrorState onRetry={() => void refresh()} /> : null}
 
         {data !== null && searching ? (
           <SearchResults

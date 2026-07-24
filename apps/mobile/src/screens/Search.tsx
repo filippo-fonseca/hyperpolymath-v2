@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { KiwiLoader } from "../components/KiwiLoader";
-import { EmptyState, ScreenHeader, SearchBar } from "../components/shell";
+import { EmptyState, ErrorState, ScreenHeader, SearchBar } from "../components/shell";
 import { getCaptures, getTasks, type Capture, type Task } from "../lib/data";
 import { useCollection } from "../lib/use-collection";
 import { font, sd } from "../theme";
@@ -15,6 +15,9 @@ interface SearchData {
 
 async function getSearchData(): Promise<SearchData | null> {
   const [tasks, captures] = await Promise.all([getTasks(), getCaptures()]);
+  // Both sources failed → surface a load error (retryable) rather than an
+  // empty index that looks like "nothing to search".
+  if (tasks === null && captures === null) return null;
   return {
     tasks: tasks ?? [],
     captures: captures ?? [],
@@ -33,7 +36,7 @@ function relativeTime(iso: string): string {
 
 export function SearchScreen({ active }: { active: boolean }) {
   const insets = useSafeAreaInsets();
-  const { data, loading, refresh } = useCollection(getSearchData, active);
+  const { data, loading, error, refresh } = useCollection(getSearchData, active);
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
@@ -74,11 +77,12 @@ export function SearchScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={sd.accent} />
         }
       >
-        {data === null ? (
+        {data === null && !error ? (
           <View style={styles.loader}>
             <KiwiLoader size={34} />
           </View>
         ) : null}
+        {data === null && error ? <ErrorState onRetry={() => void refresh()} /> : null}
         {data !== null && !q ? (
           <EmptyState message="Search titles, notes, captures, projects, and hashtags." />
         ) : null}
