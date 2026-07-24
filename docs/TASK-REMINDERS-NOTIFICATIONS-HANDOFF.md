@@ -104,7 +104,17 @@ eas build -p android --profile production
 
 ---
 
-## 5. Local run
+## 5. Wiki mobile editor (same PR)
+
+Notion-style pass also in this branch:
+
+- Opening a wiki page goes **straight to the BlockNote editor** (no READ → EDIT gate).
+- Formatting accessory bar is **hidden until a block is focused**; dismisses when the caret leaves.
+- Scroll no longer drags the bar (Visual Viewport uses keyboard height only; native `KeyboardAvoidingView` removed around the DOM editor).
+
+JS-only — ships with the same OTA / binary as the rest of this branch.
+
+## 6. Local run
 
 ```bash
 git fetch origin

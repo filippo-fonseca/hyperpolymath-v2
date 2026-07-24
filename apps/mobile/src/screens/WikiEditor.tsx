@@ -2,7 +2,9 @@
 // the get-or-create daily page, or a fresh blank page), renders the native
 // chrome (breadcrumb + save-state affordance in the sd register; the editable
 // title lives in-document inside the DOM editor), and
-// hosts <WikiEditorDom> inside a KeyboardAvoidingView. Edits and the title
+// hosts <WikiEditorDom>. Keyboard avoidance for the formatting accessory is
+// handled inside the DOM via Visual Viewport (KeyboardAvoidingView here would
+// double-offset and make the bar drift while scrolling). Edits and the title
 // autosave on a debounce; "Done" flushes immediately and closes.
 //
 // Navigation is stitched by the Conductor at merge: this screen is a plain
@@ -12,8 +14,6 @@
 import type { Block } from "@blocknote/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -211,10 +211,7 @@ export function WikiEditorScreen({
         </View>
       ) : null}
 
-      <KeyboardAvoidingView
-        style={styles.body}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <View style={styles.body}>
         {loadError ? (
           <ErrorState
             message="Couldn't load this page. Check the server URL and sign-in in Settings."
@@ -248,7 +245,7 @@ export function WikiEditorScreen({
             </Text>
           </View>
         ) : null}
-      </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }
