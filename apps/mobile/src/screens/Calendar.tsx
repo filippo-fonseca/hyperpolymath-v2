@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { EmptyState, ScreenHeader } from "../components/shell";
+import { EmptyState, ErrorState, ScreenHeader } from "../components/shell";
 import { KiwiLoader } from "../components/KiwiLoader";
 import { getCalendarEvents, localDateString, type CalendarEvent } from "../lib/data";
 import { useCollection } from "../lib/use-collection";
@@ -38,7 +38,7 @@ function timeLabel(event: CalendarEvent): string {
 
 export function CalendarScreen({ active }: { active: boolean }) {
   const insets = useSafeAreaInsets();
-  const { data, loading, refresh } = useCollection(() => getCalendarEvents(50), active);
+  const { data, loading, error, refresh } = useCollection(() => getCalendarEvents(50), active);
 
   const calendarById = useMemo(() => {
     const map = new Map<string, string>();
@@ -71,11 +71,13 @@ export function CalendarScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={sd.accent} />
         }
       >
-        {data === null ? (
+        {data === null && !error ? (
           <View style={styles.loader}>
             <KiwiLoader size={34} />
           </View>
         ) : null}
+
+        {data === null && error ? <ErrorState onRetry={() => void refresh()} /> : null}
 
         {disconnected ? (
           <View style={styles.notice}>

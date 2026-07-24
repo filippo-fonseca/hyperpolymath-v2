@@ -36,6 +36,7 @@ import { colors, mono, serif } from "../theme";
 import {
   ChipRow,
   EmptyState,
+  ErrorState,
   Fab,
   Field,
   FieldLabel,
@@ -335,7 +336,7 @@ const bulkStyles = StyleSheet.create({
 
 export function TasksScreen({ active }: { active: boolean }) {
   const insets = useSafeAreaInsets();
-  const { data, loading, refresh, mutate } = useCollection(getTasks, active);
+  const { data, loading, error, refresh, mutate } = useCollection(getTasks, active);
   const [form, setForm] = useState<FormState | null>(null);
   const [showDone, setShowDone] = useState(false);
   const [showProjects, setShowProjects] = useState(false);
@@ -636,11 +637,12 @@ export function TasksScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={colors.accent} />
         }
       >
-        {data === null ? (
+        {data === null && !error ? (
           <View style={{ paddingTop: 80, alignItems: "center" }}>
             <KiwiLoader size={34} />
           </View>
         ) : null}
+        {data === null && error ? <ErrorState onRetry={() => void refresh()} /> : null}
         {data !== null && (data ?? []).length === 0 ? (
           <EmptyState message="Nothing on the list. Tap + or ask JARVIS." />
         ) : null}
