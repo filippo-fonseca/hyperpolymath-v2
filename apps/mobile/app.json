@@ -2,7 +2,7 @@
   "expo": {
     "name": "JARVIS",
     "slug": "jarvis-mobile",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "jarvis",
@@ -18,8 +18,17 @@
         ],
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "JARVIS does not browse your photo library; this access is only referenced by underlying system frameworks and is never used without your explicit action.",
-        "NSPhotoLibraryAddUsageDescription": "JARVIS does not save to your photo library; this access is only referenced by underlying system frameworks and is never used without your explicit action."
+        "NSPhotoLibraryAddUsageDescription": "JARVIS does not save to your photo library; this access is only referenced by underlying system frameworks and is never used without your explicit action.",
+        "NSUserNotificationsUsageDescription": "JARVIS notifies you about task deadlines and reminders you configure."
       }
+    },
+    "android": {
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE"
+      ]
     },
     "runtimeVersion": {
       "policy": "appVersion"
@@ -47,7 +56,18 @@
           "microphonePermission": "JARVIS listens when you tap the orb so you can dictate commands.",
           "speechRecognitionPermission": "JARVIS shows your words live on screen while you dictate."
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#00d4ff",
+          "defaultChannel": "task-deadlines",
+          "sounds": [],
+          "enableBackgroundRemoteNotifications": false
+        }
+      ],
+      "expo-device"
     ],
     "extra": {
       "eas": {

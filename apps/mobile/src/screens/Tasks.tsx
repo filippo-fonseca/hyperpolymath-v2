@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
+  clearStaleIncompleteTasks,
   createTask,
   deleteTask,
   getTasks,
@@ -28,6 +29,16 @@ import {
   type Task,
   type TaskStatus,
 } from "../lib/data";
+import {
+  describeReminder,
+  newReminderId,
+  type ReminderUnit,
+  type TaskReminder,
+} from "../lib/reminders";
+import {
+  requestNotificationPermissions,
+  syncTaskDeadlineNotifications,
+} from "../lib/task-notifications";
 import { celebrate } from "../components/celebrate";
 import { KiwiLoader } from "../components/KiwiLoader";
 import { ProjectsSheet } from "../components/ProjectsSheet";
@@ -96,6 +107,8 @@ interface FormState {
   status: TaskStatus;
   duePreset: DuePreset | null;
   dueDate: string | null;
+  dueTime: string;
+  reminders: TaskReminder[];
   notes: string;
 }
 
@@ -106,8 +119,18 @@ const EMPTY_FORM: FormState = {
   status: "not started",
   duePreset: "today",
   dueDate: localDateString(0),
+  dueTime: "",
+  reminders: [],
   notes: "",
 };
+
+const REMINDER_UNITS: ReminderUnit[] = ["minutes", "hours", "days", "weeks"];
+const REMINDER_PRESETS: { amount: number; unit: ReminderUnit; label: string }[] = [
+  { amount: 15, unit: "minutes", label: "15m" },
+  { amount: 1, unit: "hours", label: "1h" },
+  { amount: 1, unit: "days", label: "1d" },
+  { amount: 1, unit: "weeks", label: "1w" },
+];
 
 // Snapshot of a task before a bulk mutation — used for the 5s undo.
 interface BulkUndo {
@@ -341,10 +364,23 @@ export function TasksScreen({ active }: { active: boolean }) {
   const [showDone, setShowDone] = useState(false);
   const [showProjects, setShowProjects] = useState(false);
   const [query, setQuery] = useState("");
+  const [staleDays, setStaleDays] = useState("30");
+  const [clearConfirm, setClearConfirm] = useState(false);
 
   // Multi-select state.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectionMode = selectedIds.size > 0;
+
+  // Ask once when the screen becomes active, then resync local schedules.
+  useEffect(() => {
+    if (!active) return;
+    void requestNotificationPermissions();
+  }, [active]);
+
+  useEffect(() => {
+    if (!active || !data) return;
+    void syncTaskDeadlineNotifications(data);
+  }, [active, data]);
 
   // Which task has its quick-reschedule strip open (collapses on any tap outside).
   const [quickRescheduleId, setQuickRescheduleId] = useState<string | null>(null);
@@ -412,6 +448,8 @@ export function TasksScreen({ active }: { active: boolean }) {
       status: t.status,
       duePreset: null,
       dueDate: t.dueDate,
+      dueTime: t.dueTime ?? "",
+      reminders: t.reminders ?? [],
       notes: t.notes ?? "",
     });
   };
@@ -424,6 +462,8 @@ export function TasksScreen({ active }: { active: boolean }) {
       priority: form.priority,
       status: form.status,
       dueDate,
+      dueTime: dueDate ? form.dueTime || null : null,
+      reminders: dueDate && form.reminders.length > 0 ? form.reminders : null,
       notes: form.notes.trim() || null,
     };
     setForm(null);
@@ -438,6 +478,15 @@ export function TasksScreen({ active }: { active: boolean }) {
     } else {
       await createTask(payload);
     }
+    void refresh();
+  };
+
+  const clearStale = async () => {
+    const days = Math.max(1, Number.parseInt(staleDays || "30", 10) || 30);
+    setClearConfirm(false);
+    const deleted = await clearStaleIncompleteTasks(days);
+    if (deleted === null) return;
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     void refresh();
   };
 
@@ -630,6 +679,32 @@ export function TasksScreen({ active }: { active: boolean }) {
       />
       {data && data.length > 0 ? (
         <SearchBar value={query} onChangeText={setQuery} placeholder="Search tasks…" />
+      ) : null}
+      {data && data.some((t) => t.status !== "lesno" && t.dueDate && t.dueDate < localDateString(0)) ? (
+        <View style={styles.staleRow}>
+          <Text style={styles.staleLabel}>CLEAR INCOMPLETE &gt;</Text>
+          <Field
+            value={staleDays}
+            onChangeText={setStaleDays}
+            keyboardType="number-pad"
+            style={styles.staleInput}
+          />
+          <Text style={styles.staleLabel}>DAYS</Text>
+          {clearConfirm ? (
+            <>
+              <Pressable onPress={() => void clearStale()} style={styles.staleConfirm}>
+                <Text style={styles.staleConfirmText}>CONFIRM</Text>
+              </Pressable>
+              <Pressable onPress={() => setClearConfirm(false)}>
+                <Text style={styles.staleCancel}>CANCEL</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable onPress={() => setClearConfirm(true)} style={styles.staleBtn}>
+              <Text style={styles.staleBtnText}>CLEAR</Text>
+            </Pressable>
+          )}
+        </View>
       ) : null}
       <ScrollView
         contentContainerStyle={[styles.list, selectionMode && { paddingBottom: 140 }]}
@@ -847,6 +922,101 @@ export function TasksScreen({ active }: { active: boolean }) {
             {form.dueDate && form.duePreset === null ? (
               <Text style={styles.dueNote}>currently {form.dueDate}</Text>
             ) : null}
+            {(form.duePreset !== "none" && (form.duePreset !== null || form.dueDate)) ? (
+              <>
+                <FieldLabel>DUE TIME (HH:MM, optional)</FieldLabel>
+                <Field
+                  value={form.dueTime}
+                  onChangeText={(dueTime) => setForm({ ...form, dueTime })}
+                  placeholder="09:00"
+                  autoCapitalize="none"
+                />
+                <FieldLabel>REMINDERS</FieldLabel>
+                <View style={styles.reminderPresets}>
+                  {REMINDER_PRESETS.map((p) => (
+                    <Pressable
+                      key={p.label}
+                      onPress={() =>
+                        setForm({
+                          ...form,
+                          reminders: [
+                            ...form.reminders,
+                            { id: newReminderId(), amount: p.amount, unit: p.unit },
+                          ],
+                        })
+                      }
+                      style={styles.reminderChip}
+                    >
+                      <Text style={styles.reminderChipText}>+{p.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {form.reminders.map((r) => (
+                  <View key={r.id} style={styles.reminderRow}>
+                    <Field
+                      value={String(r.amount)}
+                      onChangeText={(raw) => {
+                        const amount = Math.max(1, Number.parseInt(raw || "1", 10) || 1);
+                        setForm({
+                          ...form,
+                          reminders: form.reminders.map((x) =>
+                            x.id === r.id ? { ...x, amount } : x,
+                          ),
+                        });
+                      }}
+                      keyboardType="number-pad"
+                      style={styles.reminderAmount}
+                    />
+                    <View style={styles.reminderUnits}>
+                      {REMINDER_UNITS.map((u) => (
+                        <Pressable
+                          key={u}
+                          onPress={() =>
+                            setForm({
+                              ...form,
+                              reminders: form.reminders.map((x) =>
+                                x.id === r.id ? { ...x, unit: u } : x,
+                              ),
+                            })
+                          }
+                          style={[
+                            styles.reminderUnit,
+                            r.unit === u && styles.reminderUnitOn,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.reminderUnitText,
+                              r.unit === u && styles.reminderUnitTextOn,
+                            ]}
+                          >
+                            {u.slice(0, 3)}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    <Pressable
+                      onPress={() =>
+                        setForm({
+                          ...form,
+                          reminders: form.reminders.filter((x) => x.id !== r.id),
+                        })
+                      }
+                      hitSlop={8}
+                    >
+                      <Text style={styles.reminderRemove}>✕</Text>
+                    </Pressable>
+                  </View>
+                ))}
+                {form.reminders.length > 0 ? (
+                  <Text style={styles.dueNote}>
+                    {form.reminders.map((r) => describeReminder(r)).join(" · ")}
+                  </Text>
+                ) : (
+                  <Text style={styles.dueNote}>No reminders — due time defaults to 9:00</Text>
+                )}
+              </>
+            ) : null}
             <FieldLabel>STATUS</FieldLabel>
             <ChipRow
               options={STATUSES}
@@ -958,6 +1128,117 @@ const styles = StyleSheet.create({
     fontFamily: mono,
     fontSize: 11,
     marginTop: 6,
+  },
+  staleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  staleLabel: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  staleInput: {
+    width: 48,
+    marginBottom: 0,
+    paddingVertical: 6,
+  },
+  staleBtn: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  staleBtnText: {
+    color: colors.accent,
+    fontFamily: mono,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  staleConfirm: {
+    borderWidth: 1,
+    borderColor: colors.rec,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  staleConfirmText: {
+    color: colors.rec,
+    fontFamily: mono,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  staleCancel: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  reminderPresets: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
+  },
+  reminderChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  reminderChipText: {
+    color: colors.accent,
+    fontFamily: mono,
+    fontSize: 11,
+  },
+  reminderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  reminderAmount: {
+    width: 56,
+    marginBottom: 0,
+    paddingVertical: 6,
+  },
+  reminderUnits: {
+    flex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+  },
+  reminderUnit: {
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  reminderUnitOn: {
+    borderColor: colors.accent,
+  },
+  reminderUnitText: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 10,
+    textTransform: "uppercase",
+  },
+  reminderUnitTextOn: {
+    color: colors.accent,
+  },
+  reminderRemove: {
+    color: colors.rec,
+    fontFamily: mono,
+    fontSize: 14,
+    paddingHorizontal: 4,
   },
   rescheduleGlyph: {
     paddingHorizontal: 6,
