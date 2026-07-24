@@ -378,6 +378,73 @@ export async function deleteEvent(
 }
 
 /**
+ * Bulk-archive (= delete from Google Calendar) up to 200 events.
+ * Idempotent per-item on 404/410. Partial failures are reported in `failed`.
+ */
+const BulkArchiveSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        calendarId: z.string().min(1),
+        eventId: z.string().min(1),
+      }),
+    )
+    .min(1)
+    .max(200),
+});
+
+export async function bulkArchiveEvents(
+  input: unknown,
+): Promise<
+  ActionResult<{ archived: number; failed: { eventId: string; error: string }[] }>
+> {
+  const user = await requireOnboarded();
+  const parsed = BulkArchiveSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+      kind: "unknown",
+    };
+  }
+
+  const acquired = await acquireCalendar(user.id);
+  if (!acquired.ok) return acquired.result;
+
+  let archived = 0;
+  const failed: { eventId: string; error: string }[] = [];
+
+  for (const item of parsed.data.items) {
+    try {
+      await acquired.cal.events.delete({
+        calendarId: item.calendarId,
+        eventId: item.eventId,
+      });
+      archived += 1;
+    } catch (e) {
+      const status = gcalErrorStatus(e);
+      if (status === 410 || status === 404) {
+        archived += 1;
+        continue;
+      }
+      if (e instanceof GcalTokenRevokedError) {
+        return {
+          success: false,
+          error: "Google Calendar disconnected. Reconnect from Settings.",
+          kind: "revoked",
+        };
+      }
+      failed.push({
+        eventId: item.eventId,
+        error: e instanceof Error ? e.message : "Delete failed",
+      });
+    }
+  }
+
+  return { success: true, data: { archived, failed } };
+}
+
+/**
  * Extract the HTTP status from a googleapis/gaxios error without importing the
  * gaxios types. The thrown error exposes the status as `code` (number or
  * numeric string) and/or `response.status` depending on the failure path.

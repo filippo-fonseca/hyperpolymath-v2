@@ -71,11 +71,12 @@ import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import type { GcalEventDTO } from "@/lib/gcal/event-dto";
 import type { GcalCalendarMeta } from "@/lib/gcal/calendars";
 
-import { Plus } from "lucide-react";
+import { Archive, Plus } from "lucide-react";
 
 import { CalendarGrid, type GcalEvent } from "./CalendarGrid";
 import { CalendarFilters } from "./CalendarFilters";
 import { CalendarIcon } from "./CalendarIcon";
+import { CalendarCleanupPanel } from "./CalendarCleanupPanel";
 import { DayWeekToggle } from "./DayWeekToggle";
 import {
   EventDetailPanel,
@@ -144,6 +145,7 @@ export function CalendarClient({
   const [date, setDate] = useState(new Date());
   const [calsParam] = useQueryState("cals");
   const [panelState, setPanelState] = useState<PanelState>({ mode: "closed" });
+  const [cleanupOpen, setCleanupOpen] = useState(false);
 
   /**
    * Live form-state preview (Plan 04-04 polish — conflict-detection UX).
@@ -781,6 +783,14 @@ export function CalendarClient({
         />
         <div className="flex items-center gap-3">
           <CalendarFilters calendars={calendars} />
+          <button
+            type="button"
+            onClick={() => setCleanupOpen(true)}
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--sd-ink-muted)] rounded-[6px] px-3 py-1.5 border border-[var(--sd-line)] transition-colors duration-150 ease-out cursor-pointer-always hover:text-[var(--sd-ink)] hover:border-[var(--sd-accent)]"
+          >
+            <Archive size={14} strokeWidth={1.75} aria-hidden />
+            Archive…
+          </button>
           {/* "New event" CTA opens the create Sheet at the next round
               half-hour (parity with the Cmd+K?create=now path). Accent-ghost
               on the sd register — cyan tint + accent hairline, --sd-ink label. */}
@@ -868,6 +878,15 @@ export function CalendarClient({
           panelState.mode === "edit" ? handlePanelDelete : undefined
         }
         onDraftChange={setFormDraft}
+      />
+      <CalendarCleanupPanel
+        open={cleanupOpen}
+        onOpenChange={setCleanupOpen}
+        userId={userId}
+        calendarIds={visibleCalIds}
+        onArchived={() => {
+          void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
+        }}
       />
     </div>
   );
