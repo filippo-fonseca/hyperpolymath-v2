@@ -257,12 +257,24 @@ async function validateSupabaseSession(
 ): Promise<"ok" | "invalid" | "offline"> {
   try {
     const { data, error } = await withTimeout(sb.auth.getUser(), AUTH_TIMEOUT_MS);
-    if (error) {
-      const status = (error as { status?: number }).status;
-      if (status === 401 || status === 403 || status === 400) return "invalid";
-      return "offline"; // network / 5xx / unknown — don't punish the user
+    if (!error && data.user) return "ok";
+    if (!error) return "invalid";
+    const status = (error as { status?: number }).status;
+    if (status === 401 || status === 403 || status === 400) {
+      // Access token rejected — the refresh token may still be good. Try one
+      // refresh before signing the user out (getSession usually refreshes for
+      // us, but this closes the expired-token race).
+      try {
+        const { data: r, error: rErr } = await withTimeout(
+          sb.auth.refreshSession(),
+          AUTH_TIMEOUT_MS,
+        );
+        return !rErr && r.session ? "ok" : "invalid";
+      } catch {
+        return "offline"; // couldn't reach the refresh endpoint — stay signed in
+      }
     }
-    return data.user ? "ok" : "invalid";
+    return "offline"; // network / 5xx / unknown — don't punish the user
   } catch {
     return "offline"; // timeout / thrown network error
   }
