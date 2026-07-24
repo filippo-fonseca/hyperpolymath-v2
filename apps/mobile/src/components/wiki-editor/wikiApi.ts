@@ -51,15 +51,27 @@ class WikiApiError extends Error {
   }
 }
 
+/** Hard ceiling per editor call so a hung load/save rejects (→ loadError /
+ * "retry save") instead of leaving the editor spinning forever. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function call<T>(
   path: string,
   init?: { method?: string; body?: unknown },
 ): Promise<T> {
-  const res = await fetch(`${base()}${path}`, {
-    method: init?.method ?? "GET",
-    headers: headers(),
-    body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let res: Awaited<ReturnType<typeof fetch>>;
+  try {
+    res = await fetch(`${base()}${path}`, {
+      method: init?.method ?? "GET",
+      headers: headers(),
+      body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     let detail = "";
     try {

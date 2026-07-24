@@ -229,6 +229,34 @@ export function EmptyState({ message }: { message: string }) {
   );
 }
 
+/**
+ * In-register failure state for a first fetch that came back empty (network
+ * error, non-2xx, or timeout). Pairs a short message with an explicit Retry
+ * affordance so a screen never dead-ends on an infinite spinner.
+ */
+export function ErrorState({
+  message = "Couldn't load this. Check the server URL and sign-in in Settings.",
+  onRetry,
+}: {
+  message?: string;
+  onRetry: () => void;
+}) {
+  return (
+    <View style={styles.errorState}>
+      <Text style={styles.errorTitle}>Something went wrong</Text>
+      <Text style={styles.errorMessage}>{message}</Text>
+      <Pressable
+        onPress={onRetry}
+        style={({ pressed }) => [styles.retryButton, pressed && { opacity: 0.7 }]}
+        accessibilityRole="button"
+        accessibilityLabel="Retry"
+      >
+        <Text style={styles.retryLabel}>RETRY</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
@@ -423,5 +451,38 @@ const styles = StyleSheet.create({
     color: sd.inkFaint,
     fontFamily: font.sans,
     fontSize: 14,
+  },
+  errorState: {
+    alignItems: "center",
+    paddingTop: 72,
+    paddingHorizontal: 30,
+    gap: 8,
+  },
+  errorTitle: {
+    color: sd.ink,
+    fontFamily: font.sansSemiBold,
+    fontSize: 16,
+  },
+  errorMessage: {
+    color: sd.inkFaint,
+    fontFamily: font.sans,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 10,
+    borderRadius: sd.radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+    backgroundColor: sd.box,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+  },
+  retryLabel: {
+    color: sd.accent,
+    fontFamily: font.mono,
+    fontSize: 11,
+    letterSpacing: 1.2,
   },
 });
