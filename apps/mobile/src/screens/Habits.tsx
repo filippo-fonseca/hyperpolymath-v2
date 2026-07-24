@@ -30,6 +30,7 @@ import { KiwiLoader } from "../components/KiwiLoader";
 import { colors, mono, serif } from "../theme";
 import {
   EmptyState,
+  ErrorState,
   Fab,
   Field,
   FieldLabel,
@@ -57,7 +58,7 @@ export function HabitsScreen({ active }: { active: boolean }) {
   const insets = useSafeAreaInsets();
   const weekStart = localDateString(-6);
   const today = localDateString(0);
-  const { data, loading, refresh, mutate } = useCollection<HabitData>(
+  const { data, loading, error, refresh, mutate } = useCollection<HabitData>(
     () => getHabits(weekStart, today),
     active,
   );
@@ -209,11 +210,12 @@ export function HabitsScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={colors.accent} />
         }
       >
-        {data === null ? (
+        {data === null && !error ? (
           <View style={{ paddingTop: 80, alignItems: "center" }}>
             <KiwiLoader size={34} />
           </View>
         ) : null}
+        {data === null && error ? <ErrorState onRetry={() => void refresh()} /> : null}
         {data !== null && habits.length === 0 ? (
           <EmptyState message="No habits yet. Build the machine." />
         ) : null}

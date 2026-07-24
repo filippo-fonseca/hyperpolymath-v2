@@ -1,0 +1,19 @@
+# API round-trip evidence — mobile wiki editor client vs sealed API-CONTRACT
+# mock server stands in for U1's not-yet-merged /api/device/wiki/* routes
+# date: 2026-07-23
+
+## 1) GET /daily?date=2026-07-23 (get-or-create) -> 200
+{"id":"pg_116q3","title":"Standup 07-23","emoji":null,"folderId":null,"pinned":false,"url":null,"contentJson":[{"id":"b1","type":"heading","props":{"level":1},"content":[{"type":"text","text":"Standup","styles":{}}]},{"id":"b2","type":"bulletListItem","content":[{"type":"text","text":"ship wiki editor","styles":{}}]},{"id":"b3","type":"checkListItem","props":{"checked":true},"content":[{"type":"text","text":"round-trip proven","styles":{}}]}],"content":"# Standup\n\n- ship wiki editor\n\n- [x] round-trip proven","updatedAt":"2026-07-23T18:21:01.829Z"}
+
+## 2) PATCH /pages/pg_116q3  body={title, contentJson:[heading,bullet,checkbox]} -> 200
+{"id":"pg_116q3","title":"Standup 07-23","emoji":null,"folderId":null,"pinned":false,"url":null,"contentJson":[{"id":"b1","type":"heading","props":{"level":1},"content":[{"type":"text","text":"Standup","styles":{}}]},{"id":"b2","type":"bulletListItem","content":[{"type":"text","text":"ship wiki editor","styles":{}}]},{"id":"b3","type":"checkListItem","props":{"checked":true},"content":[{"type":"text","text":"round-trip proven","styles":{}}]}],"content":"# Standup\n\n- ship wiki editor\n\n- [x] round-trip proven","updatedAt":"2026-07-23T18:23:27.277Z"}
+regenerated markdown mirror (server §4):
+"# Standup\n\n- ship wiki editor\n\n- [x] round-trip proven"
+
+## 3) GET /pages/pg_116q3 (reload) -> 200
+{"id":"pg_116q3","title":"Standup 07-23","emoji":null,"folderId":null,"pinned":false,"url":null,"contentJson":[{"id":"b1","type":"heading","props":{"level":1},"content":[{"type":"text","text":"Standup","styles":{}}]},{"id":"b2","type":"bulletListItem","content":[{"type":"text","text":"ship wiki editor","styles":{}}]},{"id":"b3","type":"checkListItem","props":{"checked":true},"content":[{"type":"text","text":"round-trip proven","styles":{}}]}],"content":"# Standup\n\n- ship wiki editor\n\n- [x] round-trip proven","updatedAt":"2026-07-23T18:23:27.277Z"}
+
+## RESULT: reload.contentJson === sent  =>  true  (3 blocks byte-identical)
+
+## 4) read-only-guard input — GET /pages/seed-custom (has a 'callout' block hasUnknownNodes=true)
+{"id":"seed-custom","title":"Has a callout","emoji":null,"folderId":null,"pinned":false,"url":null,"contentJson":[{"id":"c1","type":"heading","props":{"level":1},"content":"Roadmap"},{"id":"c2","type":"callout","props":{"tone":"info"},"content":[{"type":"text","text":"web-only","styles":{}}]}],"content":"# Roadmap\n\nweb-only","updatedAt":"2026-07-23T18:20:06.398Z"}

@@ -4,6 +4,17 @@ import path from "node:path";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // Issue #329 (device wiki API): the bearer-authed wiki routes regenerate the
+  // markdown mirror server-side via `@blocknote/server-util`
+  // (ServerBlockNoteEditor.blocksToMarkdownLossy). That package transitively
+  // imports @blocknote/react, whose module-scope `createContext` call resolves
+  // to Next's RSC-vendored React (no createContext) once bundled into a route,
+  // breaking both `next build` page-data collection and the route at runtime.
+  // Marking it external makes Next require it from node_modules under the real
+  // Node React, where it runs fine. Node runtime only (the wiki routes are
+  // `runtime = "nodejs"`).
+  serverExternalPackages: ["@blocknote/server-util"],
+
   // Issue #28 — Notion-style page cover images. Banners chosen from the Unsplash
   // picker are served from images.unsplash.com; allow next/image to optimize them.
   // (User-pasted arbitrary image URLs are rendered with the unoptimized escape

@@ -1,0 +1,49 @@
+=== unit-wiki-api curl smoke — Thu Jul 23 12:13:25 CST 2026 ===
+
+### 1. GET /tree WITHOUT bearer -> expect 401
+HTTP 401
+
+### 2. GET /tree WITH bearer -> expect 200 {folders,pages}
+{"folders":[{"id":"1a399bcc-9095-40f8-b921-f836632acb93","name":"Test","parentId":null,"positionKey":null},{"id":"7c9154e5-f438-43d7-bb06-32887780b93a","name":"Test 2","parentId":null,"positionKey":null},{"id":"ef264bf7-ad3f-4fee-ab97-62bbd8be9094","name":"Tester","parentId":"7c9154e5-f438-43d7-bb06-32887780b93a","positionKey":null}],"pages":[{"id":"72933e0e-034a-4378-a363-1907a724ee16","title":"Test","emoji":null,"folderId":"ef264bf7-ad3f-4fee-ab97-62bbd8be9094","pinned":false,"dailyDate":null,"updatedAt":"2026-07-14T04:00:40.946Z"},{"id":"6bd6caab-1ed4-4393-b449-ad787fec3148","title":"test another","emoji":null,"folderId":"7c9154e5-f438-43d7-bb06-32887780b93a","pinned":false,"dailyDate":nu ...(truncated)
+
+### 3. POST /pages (create, with contentJson incl. callout + personMention) -> 200
+created id=ea9a3386-56a8-4b5a-8543-59a1b7bb1b4b
+mirror content (regenerated from contentJson):
+"# Smoke Heading\n\nHello from the device API.\n\ncallout body text\n\n@[Ada](ref://person/abc-123)\n\n* a bullet\n"
+
+### 4. GET /pages/:id -> expect 200
+HTTP 200
+
+### 5. PATCH /pages/:id — MIRROR REGENERATION PROOF
+content BEFORE patch:
+"# Smoke Heading\n\nHello from the device API.\n\ncallout body text\n\n@[Ada](ref://person/abc-123)\n\n* a bullet\n"
+HTTP for PATCH:
+  200
+content AFTER patch (must differ):
+"## Edited Heading Two\n\ntotally different body\n"
+title AFTER:
+"[bgsd-test] wiki-api smoke EDITED"
+emoji AFTER:
+"K"
+
+### 6. GET /pages/<random uuid> -> expect 404
+HTTP 404
+
+### 7. GET /daily?date=1999-01-01 (get-or-create) -> 200
+{"id":"68d84545-09db-4e71-9a7d-db96c303f58e","title":"Friday, January 1, 1999","emoji":null,"folderId":null,"pinned":false,"url":null,"contentJson":null,"content":"","updatedAt":"2026-07-23T18:13:26.851Z"}
+HTTP 200
+
+### 8. GET /daily?date=1999-01-01 again -> SAME id (idempotent get-or-create)
+first=68d84545-09db-4e71-9a7d-db96c303f58e second=68d84545-09db-4e71-9a7d-db96c303f58e same=YES
+
+### 9. GET /daily?date=not-a-date -> expect 400
+HTTP 400
+
+### 10. POST /pages with unknown folderId -> expect 400
+HTTP 400
+
+### 11. GET /tree WITH bad bearer -> expect 401
+HTTP 401
+
+SMOKE_PID=ea9a3386-56a8-4b5a-8543-59a1b7bb1b4b
+SMOKE_DAILY_ID=68d84545-09db-4e71-9a7d-db96c303f58e
