@@ -39,6 +39,7 @@ import { ClarificationCard, type ClarificationState } from "../components/Clarif
 import { ThinkingWord } from "../components/ThinkingWord";
 import {
   fetchTurn,
+  postCancelTurn,
   postText,
   postTranscript,
   postUndo,
@@ -58,11 +59,16 @@ import {
   refreshJarvisContext,
   type JarvisContext,
 } from "../lib/jarvis-context";
+import {
+  loadJarvisTranscript,
+  MAX_JARVIS_TRANSCRIPT_TURNS,
+  saveJarvisTranscript,
+} from "../lib/jarvis-transcript-store";
 import { getDeviceToken, getSettings, loadSettings, onSettingsChange } from "../lib/settings";
 import { splitDeltas } from "../lib/sentence-splitter";
 import { subscribeJarvisEvents, type SseStatus } from "../lib/sse";
 import { emitDataInvalidate } from "../lib/use-collection";
-import { colors, mono, serif, serifSemiBold } from "../theme";
+import { colors, font, mono, sd, serif, serifSemiBold } from "../theme";
 
 interface Turn {
   id: string;
@@ -72,6 +78,7 @@ interface Turn {
   /** Assistant turns: stream finished (response-end seen or reconciled). */
   done: boolean;
   clarification?: ClarificationState;
+  cancelled?: boolean;
 }
 
 const HELP_TEXT = [
@@ -105,6 +112,7 @@ export function Home({
   const [ready, setReady] = useState(false);
   const [orbState, setOrbState] = useState<OrbState>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [transcriptHydrated, setTranscriptHydrated] = useState(false);
   const [sseStatus, setSseStatus] = useState<SseStatus>("connecting");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -121,6 +129,7 @@ export function Home({
   const sentenceBuffer = useRef("");
   const sentenceSeq = useRef(0);
   const turnDone = useRef(true);
+  const activeTurnId = useRef<string | null>(null);
   const activeAssistantId = useRef<string | null>(null);
   const orbStateRef = useRef<OrbState>("idle");
   orbStateRef.current = orbState;
@@ -129,11 +138,9 @@ export function Home({
   turnsRef.current = turns;
 
   // ---------------------------------------------------------------------------
-  // Session memory (Phase 16 parity) — last 10 turns in Anthropic content-block
-  // format. Sent to /api/jarvis/voice/text so the model resolves entity IDs
-  // across turns ("the task I just created", "no scrap that, delete the qc").
-  //
-  // In-memory only — no persistence requirement for MVP.
+  // Session memory (Phase 16 parity) — persisted locally, then converted into
+  // Anthropic content-block history for /api/jarvis/voice/text so the model can
+  // resolve entity IDs across relaunches ("the task I just created").
   // ---------------------------------------------------------------------------
 
   // Reconstruct a minimal tool input from a receipt for history content blocks.
@@ -169,48 +176,81 @@ export function Home({
     }
   }
 
-  // Build Anthropic-compatible history from the last 10 turns.
-  // Each assistant turn with actions produces:
-  //   1. assistant: [text?, tool_use...]
-  //   2. user: [tool_result...] (required by Anthropic Pitfall 1)
+  function entriesForHistoryTurn(t: Turn): HistoryEntry[] {
+    if (!t.done || t.cancelled) return [];
+    if (t.role === "user") return t.text.trim() ? [{ role: "user", content: t.text }] : [];
+
+    const doneActions = t.actions.filter((a) => a.result !== undefined && a.result !== null);
+    if (doneActions.length === 0) {
+      return t.text.trim() ? [{ role: "assistant", content: t.text }] : [];
+    }
+
+    const assistantBlocks: HistoryContentBlock[] = [];
+    if (t.text.trim()) assistantBlocks.push({ type: "text", text: t.text });
+    for (const a of doneActions) {
+      assistantBlocks.push({
+        type: "tool_use",
+        id: a.toolUseId,
+        name: a.name,
+        input: reconstructToolInput(a.name, a.result),
+      });
+    }
+
+    const toolResultBlocks: HistoryContentBlock[] = doneActions.map((a) => ({
+      type: "tool_result",
+      tool_use_id: a.toolUseId,
+      content: JSON.stringify(a.result ?? { ok: false, error: "no result" }),
+    }));
+
+    return [
+      { role: "assistant", content: assistantBlocks },
+      { role: "user", content: toolResultBlocks },
+    ];
+  }
+
+  // Build Anthropic-compatible history. The server accepts at most 10 entries,
+  // so walk backward and keep assistant tool_use + user tool_result pairs intact.
   function buildHistory(current: Turn[]): HistoryEntry[] {
-    const recent = current.slice(-10);
     const out: HistoryEntry[] = [];
-    for (const t of recent) {
-      if (t.role === "user") {
-        out.push({ role: "user", content: t.text });
-        continue;
-      }
-      // Assistant turn
-      const doneActions = t.actions.filter(
-        (a) => !(a.result === undefined || a.result === null),
-      );
-      if (doneActions.length === 0) {
-        if (t.text) out.push({ role: "assistant", content: t.text });
-        continue;
-      }
-      // Mixed: text preamble + tool_use blocks
-      const assistantBlocks: HistoryContentBlock[] = [];
-      if (t.text) assistantBlocks.push({ type: "text", text: t.text });
-      for (const a of doneActions) {
-        assistantBlocks.push({
-          type: "tool_use",
-          id: a.toolUseId,
-          name: a.name,
-          input: reconstructToolInput(a.name, a.result),
-        });
-      }
-      out.push({ role: "assistant", content: assistantBlocks });
-      // Anthropic requires matching tool_result blocks in the next user turn.
-      const toolResultBlocks: HistoryContentBlock[] = doneActions.map((a) => ({
-        type: "tool_result",
-        tool_use_id: a.toolUseId,
-        content: JSON.stringify(a.result ?? { ok: false, error: "no result" }),
-      }));
-      out.push({ role: "user", content: toolResultBlocks });
+    for (let i = current.length - 1; i >= 0; i--) {
+      const entries = entriesForHistoryTurn(current[i]!);
+      if (entries.length === 0) continue;
+      if (out.length + entries.length > 10) break;
+      out.unshift(...entries);
     }
     return out;
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadJarvisTranscript()
+      .then((saved) => {
+        if (cancelled || saved.length === 0) return;
+        setTurns((prev) => (prev.length > 0 ? prev : saved));
+      })
+      .finally(() => {
+        if (!cancelled) setTranscriptHydrated(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!transcriptHydrated) return;
+    const handle = setTimeout(() => {
+      void saveJarvisTranscript(turnsRef.current);
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [transcriptHydrated, turns]);
+
+  useEffect(() => {
+    if (!transcriptHydrated) return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active") void saveJarvisTranscript(turnsRef.current);
+    });
+    return () => sub.remove();
+  }, [transcriptHydrated]);
 
   // Pairing deep link (jarvis://pair?token=…&server=…): apply, re-pair,
   // and re-open the SSE subscription against the new server.
@@ -258,6 +298,7 @@ export function Home({
       if (state === "playing") {
         setOrbState("speaking");
       } else if (turnDone.current && orbStateRef.current === "speaking") {
+        activeAssistantId.current = null;
         setOrbState("idle");
       }
     });
@@ -280,7 +321,7 @@ export function Home({
           return next;
         }
         const created = mutate({ id, role: "assistant", text: "", actions: [], done: false });
-        return [...prev, created].slice(-20);
+        return [...prev, created].slice(-MAX_JARVIS_TRANSCRIPT_TURNS);
       });
     },
     [],
@@ -297,6 +338,7 @@ export function Home({
         sentenceBuffer.current = "";
         sentenceSeq.current = 0;
         ttsQueue.resetTurn();
+        activeTurnId.current = turnId;
         activeAssistantId.current = `a-${turnId}`;
         upsertAssistantTurn(turnId, (t) => t);
         setOrbState((s) => (s === "speaking" ? s : "thinking"));
@@ -336,6 +378,7 @@ export function Home({
       onResponseEnd: ({ turnId }) => {
         turnDone.current = true;
         upsertAssistantTurn(turnId, (t) => ({ ...t, done: true }));
+        if (activeTurnId.current === turnId) activeTurnId.current = null;
         const tail = sentenceBuffer.current.trim();
         sentenceBuffer.current = "";
         if (tail) ttsQueue.enqueueSentence(tail, sentenceSeq.current++);
@@ -393,6 +436,7 @@ export function Home({
           done: true,
         }));
         turnDone.current = true;
+        if (activeTurnId.current === turnId) activeTurnId.current = null;
         if (orbStateRef.current === "thinking" || orbStateRef.current === "transcribing") {
           setOrbState("idle");
         }
@@ -423,21 +467,81 @@ export function Home({
         idx >= 0
           ? [...acked.slice(0, idx), userTurn, ...acked.slice(idx)]
           : [...acked, userTurn];
-      return next.slice(-20);
+      return next.slice(-MAX_JARVIS_TRANSCRIPT_TURNS);
     });
   }, []);
+
+  const interruptCurrentTurn = useCallback(() => {
+    const turnId = activeTurnId.current;
+    const assistantId = activeAssistantId.current ?? (turnId ? `a-${turnId}` : null);
+
+    ttsQueue.stop();
+    sentenceBuffer.current = "";
+    sentenceSeq.current = 0;
+    turnDone.current = true;
+    activeTurnId.current = null;
+    activeAssistantId.current = null;
+    setOverlayOpen(false);
+    setLiveTranscript("");
+    setOrbState("idle");
+
+    if (assistantId) {
+      setTurns((prev) => {
+        let found = false;
+        const next = prev.map((t) => {
+          if (t.id !== assistantId) return t;
+          found = true;
+          return {
+            ...t,
+            text: t.text || "Stopped.",
+            done: true,
+            cancelled: true,
+          };
+        });
+        if (found) return next;
+        return [
+          ...prev.slice(-(MAX_JARVIS_TRANSCRIPT_TURNS - 1)),
+          {
+            id: assistantId,
+            role: "assistant",
+            text: "Stopped.",
+            actions: [],
+            done: true,
+            cancelled: true,
+          },
+        ];
+      });
+    } else {
+      setTurns((prev) => [
+        ...prev.slice(-(MAX_JARVIS_TRANSCRIPT_TURNS - 1)),
+        {
+          id: `a-cancel-${Date.now()}`,
+          role: "assistant",
+          text: "Stopped.",
+          actions: [],
+          done: true,
+          cancelled: true,
+        },
+      ]);
+    }
+
+    void postCancelTurn(turnId ? { turnId } : { all: true });
+  }, [ttsQueue]);
 
   /** Orb tap — anywhere it appears. */
   const handleOrbPress = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (orbStateRef.current === "speaking") {
-      ttsQueue.stop();
-      setOrbState("idle");
+      interruptCurrentTurn();
       return;
     }
-    if (orbStateRef.current === "transcribing" || orbStateRef.current === "thinking") {
-      return; // a turn is in flight
+    if (orbStateRef.current === "thinking") {
+      interruptCurrentTurn();
+      return;
+    }
+    if (orbStateRef.current === "transcribing") {
+      return; // upload/STT is in flight; no server turn exists yet.
     }
 
     if (orbStateRef.current === "recording") {
@@ -476,7 +580,11 @@ export function Home({
       }
       pushUserTurn(result.transcript);
       setOrbState("thinking");
-      if (result.turnId) watchTurn(result.turnId);
+      if (result.turnId) {
+        activeTurnId.current = result.turnId;
+        activeAssistantId.current = `a-${result.turnId}`;
+        watchTurn(result.turnId);
+      }
       return;
     }
 
@@ -498,7 +606,7 @@ export function Home({
       setOrbState("recording");
       setOverlayOpen(true);
     }
-  }, [recorder, ttsQueue, pushUserTurn, watchTurn]);
+  }, [interruptCurrentTurn, recorder, ttsQueue, pushUserTurn, watchTurn]);
 
   // Register the orb-press handler with the shell — the bottom nav's kiwi
   // button is the voice trigger.
@@ -528,7 +636,7 @@ export function Home({
 
       if (payload.isHelp) {
         setTurns((prev) => [
-          ...prev.slice(-19),
+          ...prev.slice(-(MAX_JARVIS_TRANSCRIPT_TURNS - 1)),
           {
             id: `a-help-${Date.now()}`,
             role: "assistant",
@@ -565,6 +673,8 @@ export function Home({
         pushUserTurn("⚠︎ couldn't reach JARVIS — check settings");
         return;
       }
+      activeTurnId.current = result.turnId;
+      activeAssistantId.current = `a-${result.turnId}`;
       watchTurn(result.turnId);
     },
     [pushUserTurn, watchTurn],
@@ -702,12 +812,17 @@ export function Home({
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       pushUserTurn(option);
       setOrbState("thinking");
-      const result = await postText(`[CLARIFICATION REPLY] ${option}`);
+      const history = buildHistory(turnsRef.current);
+      const result = await postText(`[CLARIFICATION REPLY] ${option}`, {
+        history: history.length ? history : undefined,
+      });
       if (!result) {
         setOrbState("idle");
         pushUserTurn("⚠︎ couldn't reach JARVIS — check settings");
         return;
       }
+      activeTurnId.current = result.turnId;
+      activeAssistantId.current = `a-${result.turnId}`;
       watchTurn(result.turnId);
     },
     [pushUserTurn, watchTurn],
@@ -773,6 +888,10 @@ export function Home({
                 key={turn.id}
                 style={[styles.turn, turn.role === "user" ? styles.turnUser : styles.turnAssistant]}
               >
+                <View style={styles.turnHeader}>
+                  <Text style={styles.turnLabel}>{turn.role === "user" ? "you" : "jarvis"}</Text>
+                  {turn.cancelled ? <Text style={styles.turnStopped}>stopped</Text> : null}
+                </View>
                 {turn.text ? (
                   <Text style={styles.turnText}>{turn.text}</Text>
                 ) : !turn.done && turn.actions.length === 0 && !turn.clarification ? (
@@ -903,33 +1022,53 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   conversationContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 12,
-    gap: 10,
+    paddingBottom: 14,
+    gap: 8,
   },
   turn: {
-    maxWidth: "88%",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    maxWidth: "90%",
+    borderRadius: sd.radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    gap: 5,
   },
   turnUser: {
     alignSelf: "flex-end",
-    backgroundColor: "rgba(0, 212, 255, 0.10)",
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: "rgba(34, 211, 238, 0.10)",
+    borderColor: "rgba(34, 211, 238, 0.26)",
   },
   turnAssistant: {
     alignSelf: "flex-start",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.hairline,
+    backgroundColor: sd.darkBox,
+    borderColor: sd.line,
+  },
+  turnHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  turnLabel: {
+    color: sd.inkFaint,
+    fontFamily: font.mono,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  turnStopped: {
+    color: sd.amber,
+    fontFamily: font.mono,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
   turnText: {
-    color: colors.text,
-    fontFamily: serif,
-    fontSize: 17,
-    lineHeight: 24,
+    color: sd.ink,
+    fontFamily: font.sans,
+    fontSize: 15,
+    lineHeight: 21,
   },
 });

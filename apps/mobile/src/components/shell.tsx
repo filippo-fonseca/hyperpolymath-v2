@@ -1,5 +1,6 @@
-// Shared scaffolding for the entity screens (Tasks / Habits / Captures):
+// Shared scaffolding for entity screens (Tasks / Habits / Captures):
 // screen header, floating add button, modal form sheet, field primitives.
+// Styled to the sd register (mirror desktop / DESIGN-SYSTEM.md).
 
 import type { ReactNode } from "react";
 import {
@@ -14,7 +15,7 @@ import {
   View,
 } from "react-native";
 
-import { colors, mono, serif, serifSemiBold } from "../theme";
+import { font, sd } from "../theme";
 
 export function ScreenHeader({
   title,
@@ -67,7 +68,7 @@ export function SearchBar({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={colors.textDim}
+        placeholderTextColor={sd.inkFaint}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
@@ -100,7 +101,7 @@ export function FormSheet({
   title,
   onClose,
   onSave,
-  saveLabel = "SAVE",
+  saveLabel = "Save",
   onDelete,
   children,
 }: {
@@ -131,13 +132,13 @@ export function FormSheet({
               onPress={onClose}
               style={({ pressed }) => [styles.button, pressed && { opacity: 0.7 }]}
             >
-              <Text style={styles.buttonLabel}>CANCEL</Text>
+              <Text style={styles.buttonLabel}>Cancel</Text>
             </Pressable>
             <Pressable
               onPress={onSave}
               style={({ pressed }) => [styles.button, styles.buttonPrimary, pressed && { opacity: 0.7 }]}
             >
-              <Text style={[styles.buttonLabel, { color: colors.bg }]}>{saveLabel}</Text>
+              <Text style={[styles.buttonLabel, { color: sd.app }]}>{saveLabel}</Text>
             </Pressable>
           </View>
           {onDelete ? (
@@ -145,7 +146,7 @@ export function FormSheet({
               onPress={onDelete}
               style={({ pressed }) => [styles.deleteButton, pressed && { opacity: 0.7 }]}
             >
-              <Text style={styles.deleteLabel}>DELETE</Text>
+              <Text style={styles.deleteLabel}>Delete</Text>
             </Pressable>
           ) : null}
         </ScrollView>
@@ -177,7 +178,7 @@ export function Field({
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
-      placeholderTextColor={colors.textDim}
+      placeholderTextColor={sd.inkFaint}
       multiline={multiline}
       autoFocus={autoFocus}
     />
@@ -237,31 +238,32 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   headerTitle: {
-    color: colors.text,
-    fontFamily: serifSemiBold,
-    fontSize: 26,
-    letterSpacing: 0.5,
+    color: sd.ink,
+    fontFamily: font.sansSemiBold,
+    fontSize: 24,
+    letterSpacing: -0.2,
   },
   headerCount: {
-    color: colors.textDim,
-    fontFamily: mono,
-    fontSize: 13,
+    color: sd.inkFaint,
+    fontFamily: font.mono,
+    fontSize: 12,
   },
   headerRight: {
     marginLeft: "auto",
   },
   headerButton: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: sd.radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+    backgroundColor: sd.box,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   headerButtonLabel: {
-    color: colors.accent,
-    fontFamily: mono,
+    color: sd.inkDull,
+    fontFamily: font.mono,
     fontSize: 11,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   searchWrap: {
     marginHorizontal: 20,
@@ -270,14 +272,14 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     height: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    backgroundColor: colors.surface,
-    color: colors.text,
+    borderRadius: sd.radius.pillInset,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+    backgroundColor: sd.input,
+    color: sd.ink,
     paddingHorizontal: 14,
     paddingRight: 34,
-    fontFamily: serif,
+    fontFamily: font.sans,
     fontSize: 15,
   },
   searchClear: {
@@ -287,48 +289,42 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   searchClearLabel: {
-    color: colors.textDim,
-    fontFamily: mono,
+    color: sd.inkFaint,
+    fontFamily: font.mono,
     fontSize: 13,
   },
   fab: {
     position: "absolute",
     right: 20,
     bottom: 20,
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
-    // Opaque cyan-on-dark mix — content scrolls underneath, and a
-    // translucent fill let list rows bleed through the button.
-    backgroundColor: "#08313d",
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
+    backgroundColor: sd.accent,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.accent,
   },
   fabLabel: {
-    color: colors.accent,
+    color: sd.app,
     fontSize: 28,
     lineHeight: 32,
-    fontFamily: mono,
+    fontFamily: font.sansMedium,
   },
   sheetRoot: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: sd.app,
   },
   sheetContent: {
     padding: 24,
     gap: 6,
   },
   sheetTitle: {
-    color: colors.accent,
-    fontFamily: serifSemiBold,
+    color: sd.ink,
+    fontFamily: font.sansSemiBold,
     fontSize: 22,
-    letterSpacing: 1,
+    letterSpacing: -0.2,
     marginBottom: 12,
   },
   sheetActions: {
@@ -339,55 +335,54 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     height: 46,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: sd.radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+    backgroundColor: sd.box,
     alignItems: "center",
     justifyContent: "center",
   },
   buttonPrimary: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: sd.accent,
+    borderColor: sd.accent,
   },
   buttonLabel: {
-    color: colors.text,
-    fontFamily: mono,
-    fontSize: 12,
-    letterSpacing: 2,
+    color: sd.ink,
+    fontFamily: font.sansSemiBold,
+    fontSize: 14,
   },
   deleteButton: {
     marginTop: 14,
     height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(229, 75, 75, 0.45)",
+    borderRadius: sd.radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(224, 107, 92, 0.45)",
     alignItems: "center",
     justifyContent: "center",
   },
   deleteLabel: {
-    color: colors.rec,
-    fontFamily: mono,
-    fontSize: 12,
-    letterSpacing: 2,
+    color: sd.coral,
+    fontFamily: font.sansMedium,
+    fontSize: 14,
   },
   fieldLabel: {
-    color: colors.textDim,
-    fontFamily: mono,
+    color: sd.inkFaint,
+    fontFamily: font.mono,
     fontSize: 11,
-    letterSpacing: 2,
+    letterSpacing: 1.4,
     marginTop: 14,
     marginBottom: 6,
   },
   input: {
     minHeight: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    color: colors.text,
+    borderRadius: sd.radius.pillInset,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+    backgroundColor: sd.input,
+    color: sd.ink,
     paddingHorizontal: 14,
     paddingVertical: 11,
-    fontFamily: serif,
+    fontFamily: font.sans,
     fontSize: 16,
   },
   inputMultiline: {
@@ -400,32 +395,33 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    paddingHorizontal: 13,
-    paddingVertical: 7,
+    borderRadius: sd.radius.chip,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+    backgroundColor: sd.box,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   chipSelected: {
-    borderColor: colors.accent,
-    backgroundColor: "rgba(0, 212, 255, 0.12)",
+    // Neutral selected backplate — accent only on the label (§4).
+    backgroundColor: sd.selected,
+    borderColor: sd.line,
   },
   chipLabel: {
-    color: colors.textDim,
-    fontFamily: mono,
+    color: sd.inkDull,
+    fontFamily: font.mono,
     fontSize: 12,
   },
   chipLabelSelected: {
-    color: colors.accent,
+    color: sd.accent,
   },
   empty: {
     alignItems: "center",
     paddingVertical: 60,
   },
   emptyText: {
-    color: colors.textDim,
-    fontFamily: serif,
-    fontSize: 16,
-    fontStyle: "italic",
+    color: sd.inkFaint,
+    fontFamily: font.sans,
+    fontSize: 14,
   },
 });

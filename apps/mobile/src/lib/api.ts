@@ -1,18 +1,11 @@
 // HTTP client for the JARVIS server — mirrors apps/desktop/src/api/client.ts.
-// Auth is the device bearer token minted at /settings/desktop (hpd_...);
-// validateDesktopBearer on the server maps it to a userId.
-//
-// Uses expo/fetch (WinterCG-compliant) so typed-array bodies and
-// arrayBuffer() responses behave correctly on iOS.
+// Auth is a Supabase access JWT (Google OAuth) or a legacy `hpd_…` device
+// token. Server validateDesktopBearer accepts both.
 
 import { fetch } from "expo/fetch";
 
-import { getDeviceToken, getSettings } from "./settings";
-
-function authHeaders(): Record<string, string> {
-  const token = getDeviceToken();
-  return token ? { authorization: `Bearer ${token}` } : {};
-}
+import { authHeaders } from "./auth-token";
+import { getSettings } from "./settings";
 
 function baseUrl(): string {
   return getSettings().serverUrl.replace(/\/$/, "");
@@ -101,6 +94,30 @@ export async function postText(
   } catch (err) {
     console.warn("[text] request failed", err);
     return null;
+  }
+}
+
+/**
+ * POST /api/jarvis/voice/cancel
+ * Interrupts an in-flight physical-bus JARVIS turn. `turnId` targets the active
+ * run when mobile knows it; `all` is the safe barge-in fallback.
+ */
+export async function postCancelTurn(args: { turnId?: string; all?: boolean }): Promise<boolean> {
+  try {
+    const res = await fetch(`${baseUrl()}/api/jarvis/voice/cancel`, {
+      method: "POST",
+      headers: { ...authHeaders(), "content-type": "application/json" },
+      body: JSON.stringify(args.turnId ? { turnId: args.turnId } : { all: args.all === true }),
+    });
+    if (!res.ok) {
+      console.warn(`[cancel] ${res.status}`);
+      return false;
+    }
+    const data = (await res.json()) as { ok?: boolean };
+    return data.ok === true;
+  } catch (err) {
+    console.warn("[cancel] request failed", err);
+    return false;
   }
 }
 

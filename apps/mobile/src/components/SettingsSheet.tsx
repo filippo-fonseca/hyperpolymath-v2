@@ -1,6 +1,4 @@
-// Settings modal: server URL, device token pairing (minted at
-// /settings/desktop on the web app — same flow as the desktop app), voice
-// output toggle, ElevenLabs voice ID, and a connection probe.
+// Settings: account (Google), server URL, voice, advanced device-token fallback.
 
 import { useEffect, useState } from "react";
 import {
@@ -23,14 +21,17 @@ import {
   setDeviceToken,
   updateSettings,
 } from "../lib/settings";
-import { colors, mono, serif, serifSemiBold } from "../theme";
+import { getSession, signOut } from "../lib/supabase";
+import { font, sd } from "../theme";
 
 export function SettingsSheet({
   visible,
   onClose,
+  onSignedOut,
 }: {
   visible: boolean;
   onClose: () => void;
+  onSignedOut?: () => void;
 }) {
   const settings = getSettings();
   const [serverUrl, setServerUrl] = useState(settings.serverUrl);
@@ -38,12 +39,11 @@ export function SettingsSheet({
   const [ttsEnabled, setTtsEnabled] = useState(settings.ttsEnabled);
   const [voiceId, setVoiceId] = useState(settings.voiceId);
   const [probe, setProbe] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const session = getSession();
+  const email =
+    (typeof session?.user?.email === "string" && session.user.email) || null;
 
-  // Re-sync form state from the store every time the sheet opens. The
-  // component mounts (hidden) before SecureStore finishes loading, so the
-  // useState initializers capture empty values — without this, the token
-  // field looks blank after an app reload and saving would wipe the real
-  // persisted token.
   useEffect(() => {
     if (!visible) return;
     const s = getSettings();
@@ -60,25 +60,30 @@ export function SettingsSheet({
       ttsEnabled,
       voiceId: voiceId.trim() || settings.voiceId,
     });
-    await setDeviceToken(token);
+    if (showAdvanced) await setDeviceToken(token);
     onClose();
   };
 
   const runProbe = async () => {
     setProbe("probing…");
-    // Probe with the values currently in the form, not the saved ones.
     await updateSettings({ serverUrl: serverUrl.trim().replace(/\/$/, "") });
-    await setDeviceToken(token);
+    if (showAdvanced) await setDeviceToken(token);
     const result = await probeConnection();
     setProbe(
       result === "ok"
-        ? "connected — token accepted"
+        ? "connected"
         : result === "voice-only"
-          ? "connected — voice OK, text route not deployed on this server yet"
+          ? "connected — voice OK, text route not deployed yet"
           : result === "unauthorized"
-            ? "unauthorized — check token"
+            ? "unauthorized — sign in again or check token"
             : "unreachable — check server URL",
     );
+  };
+
+  const onSignOut = async () => {
+    await signOut();
+    onClose();
+    onSignedOut?.();
   };
 
   return (
@@ -88,7 +93,19 @@ export function SettingsSheet({
         style={styles.root}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>SETTINGS</Text>
+          <Text style={styles.title}>Settings</Text>
+
+          <Text style={styles.label}>ACCOUNT</Text>
+          <View style={styles.accountCard}>
+            <Text style={styles.accountEmail}>{email ?? "Signed in"}</Text>
+            <Text style={styles.hint}>Google · Supabase session</Text>
+            <Pressable
+              onPress={onSignOut}
+              style={({ pressed }) => [styles.signOut, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.signOutLabel}>Sign out</Text>
+            </Pressable>
+          </View>
 
           <Text style={styles.label}>SERVER URL</Text>
           <TextInput
@@ -98,23 +115,8 @@ export function SettingsSheet({
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
-            placeholder="https://your-app.vercel.app"
-            placeholderTextColor={colors.textDim}
-          />
-
-          <Text style={styles.label}>DEVICE TOKEN</Text>
-          <Text style={styles.hint}>
-            Mint one at /settings/desktop on the web app, then paste it here.
-          </Text>
-          <TextInput
-            style={styles.input}
-            value={token}
-            onChangeText={setToken}
-            autoCapitalize="none"
-            autoCorrect={false}
-            placeholder="hpd_…"
-            placeholderTextColor={colors.textDim}
-            secureTextEntry
+            placeholder="https://hyperpolymath.com"
+            placeholderTextColor={sd.inkFaint}
           />
 
           <View style={styles.switchRow}>
@@ -125,8 +127,8 @@ export function SettingsSheet({
             <Switch
               value={ttsEnabled}
               onValueChange={setTtsEnabled}
-              trackColor={{ true: "rgba(0, 212, 255, 0.5)", false: "#22313a" }}
-              thumbColor={ttsEnabled ? colors.accent : "#5a6b75"}
+              trackColor={{ true: "rgba(34, 211, 238, 0.45)", false: sd.darkBox }}
+              thumbColor={ttsEnabled ? sd.accent : sd.inkFaint}
             />
           </View>
 
@@ -138,8 +140,34 @@ export function SettingsSheet({
             autoCapitalize="none"
             autoCorrect={false}
             placeholder="ElevenLabs voice ID"
-            placeholderTextColor={colors.textDim}
+            placeholderTextColor={sd.inkFaint}
           />
+
+          <Pressable
+            onPress={() => setShowAdvanced((v) => !v)}
+            style={({ pressed }) => [styles.advancedToggle, pressed && { opacity: 0.7 }]}
+          >
+            <Text style={styles.advancedToggleLabel}>
+              {showAdvanced ? "▾ Advanced · device token" : "▸ Advanced · device token"}
+            </Text>
+          </Pressable>
+          {showAdvanced ? (
+            <>
+              <Text style={styles.hint}>
+                Optional fallback. Mint at /settings/desktop on the web app if you still need a paired `hpd_` token.
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={token}
+                onChangeText={setToken}
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder="hpd_…"
+                placeholderTextColor={sd.inkFaint}
+                secureTextEntry
+              />
+            </>
+          ) : null}
 
           <Pressable onPress={runProbe} style={({ pressed }) => [styles.probe, pressed && { opacity: 0.7 }]}>
             <Text style={styles.probeLabel}>TEST CONNECTION</Text>
@@ -148,13 +176,13 @@ export function SettingsSheet({
 
           <View style={styles.actions}>
             <Pressable onPress={onClose} style={({ pressed }) => [styles.button, pressed && { opacity: 0.7 }]}>
-              <Text style={styles.buttonLabel}>CANCEL</Text>
+              <Text style={styles.buttonLabel}>Cancel</Text>
             </Pressable>
             <Pressable
               onPress={save}
               style={({ pressed }) => [styles.button, styles.buttonPrimary, pressed && { opacity: 0.7 }]}
             >
-              <Text style={[styles.buttonLabel, { color: colors.bg }]}>SAVE</Text>
+              <Text style={[styles.buttonLabel, { color: sd.app }]}>Save</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -166,42 +194,72 @@ export function SettingsSheet({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: sd.app,
   },
   content: {
     padding: 24,
     gap: 8,
   },
   title: {
-    color: colors.accent,
-    fontFamily: serifSemiBold,
+    color: sd.ink,
+    fontFamily: font.sansSemiBold,
     fontSize: 22,
-    letterSpacing: 2,
+    letterSpacing: -0.2,
     marginBottom: 16,
   },
   label: {
-    color: colors.textDim,
-    fontFamily: mono,
+    color: sd.inkFaint,
+    fontFamily: font.mono,
     fontSize: 11,
-    letterSpacing: 2,
+    letterSpacing: 1.4,
     marginTop: 14,
   },
   hint: {
-    color: colors.textDim,
-    fontFamily: serif,
-    fontSize: 14,
+    color: sd.inkDull,
+    fontFamily: font.sans,
+    fontSize: 13,
     marginTop: 2,
     marginBottom: 4,
+    lineHeight: 18,
+  },
+  accountCard: {
+    marginTop: 8,
+    padding: 14,
+    borderRadius: sd.radius.panel,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+    backgroundColor: sd.box,
+    gap: 4,
+  },
+  accountEmail: {
+    color: sd.ink,
+    fontFamily: font.sansMedium,
+    fontSize: 15,
+  },
+  signOut: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: sd.radius.chrome,
+    backgroundColor: sd.input,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+  },
+  signOutLabel: {
+    color: sd.coral,
+    fontFamily: font.sansMedium,
+    fontSize: 13,
   },
   input: {
     height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    color: colors.text,
+    borderRadius: sd.radius.pillInset,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+    backgroundColor: sd.input,
+    color: sd.ink,
     paddingHorizontal: 14,
-    fontFamily: serif,
+    fontFamily: font.sans,
     fontSize: 15,
     marginTop: 6,
   },
@@ -210,24 +268,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 6,
   },
+  advancedToggle: {
+    marginTop: 22,
+    paddingVertical: 8,
+  },
+  advancedToggleLabel: {
+    color: sd.inkDull,
+    fontFamily: font.mono,
+    fontSize: 11,
+    letterSpacing: 0.8,
+  },
   probe: {
     marginTop: 24,
     height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: sd.radius.pillInset,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+    backgroundColor: sd.box,
     alignItems: "center",
     justifyContent: "center",
   },
   probeLabel: {
-    color: colors.accent,
-    fontFamily: mono,
+    color: sd.accent,
+    fontFamily: font.mono,
     fontSize: 12,
-    letterSpacing: 2,
+    letterSpacing: 1.4,
   },
   probeResult: {
-    color: colors.textDim,
-    fontFamily: mono,
+    color: sd.inkDull,
+    fontFamily: font.mono,
     fontSize: 12,
     marginTop: 8,
     textAlign: "center",
@@ -240,20 +309,20 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     height: 46,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: sd.radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: sd.line,
+    backgroundColor: sd.box,
     alignItems: "center",
     justifyContent: "center",
   },
   buttonPrimary: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: sd.accent,
+    borderColor: sd.accent,
   },
   buttonLabel: {
-    color: colors.text,
-    fontFamily: mono,
-    fontSize: 12,
-    letterSpacing: 2,
+    color: sd.ink,
+    fontFamily: font.sansSemiBold,
+    fontSize: 14,
   },
 });

@@ -48,6 +48,9 @@ export function HMark({ size = 22, color = colors.accent }: { size?: number; col
 
 // Tab bar glyphs — Material filled paths.
 const TAB_PATHS = {
+  // today
+  today:
+    "M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zm-7-2h5v-5h-5v5z",
   // check_circle
   tasks:
     "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z",
@@ -60,6 +63,9 @@ const TAB_PATHS = {
   // description
   captures:
     "M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z",
+  // apps
+  more:
+    "M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z",
 } as const;
 
 export function TabIcon({

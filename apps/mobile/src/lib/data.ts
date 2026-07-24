@@ -4,17 +4,17 @@
 
 import { fetch } from "expo/fetch";
 
-import { getDeviceToken, getSettings } from "./settings";
+import { authHeaders } from "./auth-token";
+import { getSettings } from "./settings";
 
 function base(): string {
   return getSettings().serverUrl.replace(/\/$/, "");
 }
 
 function headers(): Record<string, string> {
-  const token = getDeviceToken();
   return {
     "content-type": "application/json",
-    ...(token ? { authorization: `Bearer ${token}` } : {}),
+    ...authHeaders(),
   };
 }
 
@@ -202,6 +202,43 @@ export async function deleteCapture(id: string): Promise<boolean> {
   return data?.ok === true;
 }
 
+// ── Calendar (read-only; Google Calendar remains source of truth) ───────────
+
+export type CalendarStatus = "connected" | "not_connected" | "revoked";
+
+export interface CalendarEvent {
+  id: string;
+  calendarId: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  description: string | null;
+  colorId: string | null;
+  recurringEventId: string | null;
+  htmlLink: string;
+}
+
+export interface CalendarMeta {
+  id: string;
+  summary: string;
+  backgroundColor: string;
+  foregroundColor: string;
+  primary: boolean;
+  accessRole: string;
+}
+
+export interface CalendarData {
+  status: CalendarStatus;
+  events: CalendarEvent[];
+  calendars: CalendarMeta[];
+  error?: string;
+}
+
+export async function getCalendarEvents(limit = 25): Promise<CalendarData | null> {
+  return call<CalendarData>(`/api/device/calendar?limit=${limit}`);
+}
+
 /** Local YYYY-MM-DD for the user's current day. */
 export function localDateString(offsetDays = 0): string {
   const d = new Date();
@@ -212,7 +249,7 @@ export function localDateString(offsetDays = 0): string {
   return `${y}-${m}-${day}`;
 }
 
-// ── Projects / Areas (read-only) ──────────────────────────────────────────────
+// ── Projects / Areas ─────────────────────────────────────────────────────────
 
 export interface DeviceProject {
   id: string;
@@ -232,6 +269,69 @@ export interface DeviceArea {
 export async function getProjects(): Promise<DeviceArea[] | null> {
   const data = await call<{ areas: DeviceArea[] }>("/api/device/projects");
   return data?.areas ?? null;
+}
+
+export async function createArea(input: {
+  name: string;
+  emoji?: string | null;
+}): Promise<string | null> {
+  const data = await call<{ id: string }>("/api/device/projects", {
+    method: "POST",
+    body: { type: "area", ...input },
+  });
+  return data?.id ?? null;
+}
+
+export async function updateArea(input: {
+  id: string;
+  name?: string;
+  emoji?: string | null;
+  archived?: boolean;
+}): Promise<boolean> {
+  const data = await call<{ ok: boolean }>("/api/device/projects", {
+    method: "PATCH",
+    body: { type: "area", ...input },
+  });
+  return data?.ok === true;
+}
+
+export async function deleteArea(id: string): Promise<boolean> {
+  const data = await call<{ ok: boolean }>(`/api/device/projects?type=area&id=${id}`, {
+    method: "DELETE",
+  });
+  return data?.ok === true;
+}
+
+export async function createProject(input: {
+  areaId: string;
+  name: string;
+  icon?: string | null;
+}): Promise<string | null> {
+  const data = await call<{ id: string }>("/api/device/projects", {
+    method: "POST",
+    body: { type: "project", ...input },
+  });
+  return data?.id ?? null;
+}
+
+export async function updateProject(input: {
+  id: string;
+  name?: string;
+  icon?: string | null;
+  archived?: boolean;
+}): Promise<boolean> {
+  const data = await call<{ ok: boolean }>("/api/device/projects", {
+    method: "PATCH",
+    body: { type: "project", ...input },
+  });
+  return data?.ok === true;
+}
+
+export async function deleteProject(id: string): Promise<boolean> {
+  const data = await call<{ ok: boolean }>(`/api/device/projects?type=project&id=${id}`, {
+    method: "DELETE",
+  });
+  return data?.ok === true;
 }
 
 // ── Training ────────────────────────────────────────────────────────────────
