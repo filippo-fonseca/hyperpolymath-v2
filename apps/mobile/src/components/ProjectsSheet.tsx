@@ -27,7 +27,7 @@ import {
 } from "../lib/data";
 import { font, sd } from "../theme";
 import { KiwiLoader } from "./KiwiLoader";
-import { EmptyState, Field, FieldLabel, FormSheet } from "./shell";
+import { EmptyState, ErrorState, Field, FieldLabel, FormSheet } from "./shell";
 
 type FormState =
   | { kind: "area"; id: string | null; name: string; emoji: string }
@@ -42,19 +42,28 @@ type FormState =
 
 export function ProjectsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const [areas, setAreas] = useState<DeviceArea[] | null>(null);
+  const [error, setError] = useState(false);
   const [form, setForm] = useState<FormState | null>(null);
 
   const refresh = useCallback(async () => {
     const res = await getProjects();
-    setAreas(res ?? []);
+    if (res === null) {
+      setError(true);
+    } else {
+      setError(false);
+      setAreas(res);
+    }
   }, []);
 
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
     setAreas(null);
+    setError(false);
     void getProjects().then((res) => {
-      if (!cancelled) setAreas(res ?? []);
+      if (cancelled) return;
+      if (res === null) setError(true);
+      else setAreas(res);
     });
     return () => {
       cancelled = true;
@@ -167,14 +176,15 @@ export function ProjectsSheet({ visible, onClose }: { visible: boolean; onClose:
         <ScrollView
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl refreshing={areas === null} onRefresh={() => void refresh()} tintColor={sd.accent} />
+            <RefreshControl refreshing={areas === null && !error} onRefresh={() => void refresh()} tintColor={sd.accent} />
           }
         >
-          {areas === null ? (
+          {areas === null && !error ? (
             <View style={{ paddingTop: 80, alignItems: "center" }}>
               <KiwiLoader size={34} />
             </View>
           ) : null}
+          {areas === null && error ? <ErrorState onRetry={() => void refresh()} /> : null}
           {areas !== null && areas.length === 0 ? (
             <EmptyState message="No areas yet. Tap + area to start." />
           ) : null}

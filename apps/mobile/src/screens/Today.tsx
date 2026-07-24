@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { EmptyState, ScreenHeader } from "../components/shell";
+import { EmptyState, ErrorState, ScreenHeader } from "../components/shell";
 import { KiwiLoader } from "../components/KiwiLoader";
 import {
   getCalendarEvents,
@@ -37,6 +37,12 @@ async function getTodayData(): Promise<TodayData | null> {
     getCalendarEvents(5),
   ]);
 
+  // Every source failed → treat the whole screen as a load error so it can
+  // offer retry instead of rendering a hollow "all empty" dashboard.
+  if (tasks === null && habits === null && captures === null && calendar === null) {
+    return null;
+  }
+
   return {
     tasks: tasks ?? [],
     habits: habits ?? EMPTY_HABITS,
@@ -68,7 +74,7 @@ function eventTime(start: string, allDay: boolean): string {
 export function TodayScreen({ active }: { active: boolean }) {
   const insets = useSafeAreaInsets();
   const today = localDateString(0);
-  const { data, loading, refresh } = useCollection(getTodayData, active);
+  const { data, loading, error, refresh } = useCollection(getTodayData, active);
 
   const openTasks = data?.tasks.filter((t) => t.status !== "lesno") ?? [];
   const overdueCount = openTasks.filter((t) => t.dueDate && t.dueDate < today).length;
@@ -103,11 +109,13 @@ export function TodayScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={sd.accent} />
         }
       >
-        {data === null ? (
+        {data === null && !error ? (
           <View style={styles.loader}>
             <KiwiLoader size={34} />
           </View>
         ) : null}
+
+        {data === null && error ? <ErrorState onRetry={() => void refresh()} /> : null}
 
         {data !== null ? (
           <>

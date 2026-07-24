@@ -18,15 +18,22 @@ function headers(): Record<string, string> {
   };
 }
 
+/** Hard ceiling for any single device API call so a hung request surfaces as a
+ * retryable error (null) instead of an infinite spinner. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function call<T>(
   path: string,
   init?: { method?: string; body?: unknown },
 ): Promise<T | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const res = await fetch(`${base()}${path}`, {
       method: init?.method ?? "GET",
       headers: headers(),
       body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+      signal: controller.signal,
     });
     if (!res.ok) {
       console.warn(`[data] ${init?.method ?? "GET"} ${path} → ${res.status}`);
@@ -36,6 +43,8 @@ async function call<T>(
   } catch (err) {
     console.warn(`[data] ${path} failed`, err);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

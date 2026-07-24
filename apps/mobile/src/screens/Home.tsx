@@ -31,6 +31,7 @@ import { useVoiceRecorder } from "../audio/recorder";
 import { TtsQueue } from "../audio/tts-queue";
 import { GearIcon } from "../components/icons";
 import { JarvisReceipt, type ReceiptAction } from "../components/JarvisReceipt";
+import { KiwiLoader } from "../components/KiwiLoader";
 import { Orb, type OrbState } from "../components/Orb";
 import { SettingsSheet } from "../components/SettingsSheet";
 import { TextBar, type TextBarSubmit } from "../components/TextBar";
@@ -875,7 +876,13 @@ export function Home({
         </View>
 
         {/* Body */}
-        {hasConversation ? (
+        {!transcriptHydrated ? (
+          // Brief: while the saved transcript loads from local storage. Avoids
+          // flashing the empty center-stage orb before restoring a prior chat.
+          <View style={styles.centerStage}>
+            <KiwiLoader size={30} />
+          </View>
+        ) : hasConversation ? (
           <ScrollView
             ref={scrollRef}
             style={styles.flex}

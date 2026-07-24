@@ -34,6 +34,7 @@ import { colors, mono, serif } from "../theme";
 import {
   ChipRow,
   EmptyState,
+  ErrorState,
   Fab,
   Field,
   FieldLabel,
@@ -73,7 +74,7 @@ export function TrainingScreen({ active }: { active: boolean }) {
   const insets = useSafeAreaInsets();
   const start = localDateString(-WINDOW_BACK);
   const end = localDateString(WINDOW_FORWARD);
-  const { data, loading, refresh, mutate } = useCollection<TrainingData>(
+  const { data, loading, error, refresh, mutate } = useCollection<TrainingData>(
     () => getTraining(start, end),
     active,
   );
@@ -182,11 +183,12 @@ export function TrainingScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={colors.accent} />
         }
       >
-        {data === null ? (
+        {data === null && !error ? (
           <View style={{ paddingTop: 80, alignItems: "center" }}>
             <KiwiLoader size={34} />
           </View>
         ) : null}
+        {data === null && error ? <ErrorState onRetry={() => void refresh()} /> : null}
         {data !== null && (data?.activities ?? []).length === 0 ? (
           <EmptyState message="No sessions this week. Plan one." />
         ) : null}

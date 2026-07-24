@@ -26,6 +26,7 @@ import { KiwiLoader } from "../components/KiwiLoader";
 import { colors, mono, serif } from "../theme";
 import {
   EmptyState,
+  ErrorState,
   Fab,
   Field,
   FieldLabel,
@@ -53,7 +54,7 @@ interface FormState {
 
 export function CapturesScreen({ active }: { active: boolean }) {
   const insets = useSafeAreaInsets();
-  const { data, loading, refresh, mutate } = useCollection(getCaptures, active);
+  const { data, loading, error, refresh, mutate } = useCollection(getCaptures, active);
   const [form, setForm] = useState<FormState | null>(null);
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
@@ -194,11 +195,12 @@ export function CapturesScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={colors.accent} />
         }
       >
-        {data === null ? (
+        {data === null && !error ? (
           <View style={{ paddingTop: 80, alignItems: "center" }}>
             <KiwiLoader size={34} />
           </View>
         ) : null}
+        {data === null && error ? <ErrorState onRetry={() => void refresh()} /> : null}
         {data !== null && (data ?? []).length === 0 ? (
           <EmptyState message="Nothing captured yet. Thoughts go here." />
         ) : null}

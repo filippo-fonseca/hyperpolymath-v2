@@ -23,12 +23,20 @@ export function useCollection<T>(
 ): {
   data: T | null;
   loading: boolean;
+  /**
+   * True when the most recent fetch failed (the fetcher returned null: any
+   * non-2xx, network error, or timeout). Stays false while data is present so
+   * a transient poll failure never nukes already-shown content — screens only
+   * surface the error state when there is nothing else to show (`error && !data`).
+   */
+  error: boolean;
   refresh: () => Promise<void>;
   /** Apply an optimistic local mutation immediately. */
   mutate: (update: (current: T | null) => T | null) => void;
 } {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
   const activeRef = useRef(active);
@@ -41,7 +49,14 @@ export function useCollection<T>(
     setLoading(true);
     try {
       const next = await fetcherRef.current();
-      if (next !== null) setData(next);
+      if (next !== null) {
+        setData(next);
+        setError(false);
+      } else {
+        // Fetcher signalled failure (null). Surface an error; keep any prior
+        // data so a failed background poll doesn't blank the screen.
+        setError(true);
+      }
     } finally {
       inFlight.current = false;
       setLoading(false);
@@ -76,5 +91,5 @@ export function useCollection<T>(
     setData((current) => update(current));
   }, []);
 
-  return { data, loading, refresh, mutate };
+  return { data, loading, error, refresh, mutate };
 }
