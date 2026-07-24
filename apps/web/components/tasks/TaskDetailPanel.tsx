@@ -63,6 +63,7 @@ import {
   Clock,
   Copy,
   ExternalLink,
+  Bell,
   Flag,
   FolderOpen,
   Link2,
@@ -78,8 +79,10 @@ import { PersonListField } from "@/components/shared/PersonListField";
 import { MoveToMenu } from "./MoveToMenu";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
+import { TaskRemindersControl } from "./TaskRemindersControl";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 import type { RecurrenceRule } from "@/lib/tasks/recurrence";
+import type { TaskReminder } from "@/lib/tasks/reminders";
 
 type Priority = "P∞" | "P1" | "P2" | "P3";
 type Status = "not started" | "up next" | "in progress" | "almost done" | "lesno";
@@ -227,6 +230,8 @@ interface FormState {
   status: Status;
   priority: Priority;
   dueDate: string;
+  dueTime: string;
+  reminders: TaskReminder[] | null;
   url: string | null;
   notes: string;
   projectIds: string[];
@@ -241,6 +246,8 @@ function toFormState(task: TaskWithProjects): FormState {
     status: task.status as Status,
     priority: task.priority as Priority,
     dueDate: task.dueDate ?? "",
+    dueTime: task.dueTime ?? "",
+    reminders: task.reminders ?? null,
     url: task.url ?? null,
     notes: task.notes ?? "",
     projectIds: task.projects.map((p) => p.id),
@@ -256,6 +263,8 @@ function isDirty(a: FormState, b: FormState): boolean {
     a.status !== b.status ||
     a.priority !== b.priority ||
     a.dueDate !== b.dueDate ||
+    a.dueTime !== b.dueTime ||
+    JSON.stringify(a.reminders) !== JSON.stringify(b.reminders) ||
     a.url !== b.url ||
     a.notes !== b.notes ||
     JSON.stringify(a.projectIds.sort()) !== JSON.stringify(b.projectIds.sort()) ||
@@ -323,6 +332,8 @@ export function TaskDetailPanel({
     status: "not started",
     priority: "P3",
     dueDate: "",
+    dueTime: "",
+    reminders: null,
     url: null,
     notes: "",
     projectIds: [],
@@ -538,6 +549,8 @@ export function TaskDetailPanel({
         priority: form.priority,
         status: form.status,
         dueDate: form.dueDate || null,
+        dueTime: form.dueTime || null,
+        reminders: form.reminders,
         url: form.url,
         kanbanPosition: 0,
         completedAt: null,
@@ -556,6 +569,8 @@ export function TaskDetailPanel({
       priority: form.priority,
       status: form.status,
       dueDate: form.dueDate || null,
+      dueTime: form.dueTime || null,
+      reminders: form.reminders,
       url: form.url,
       projectIds: form.projectIds,
       recurrence: form.recurrence,
@@ -587,6 +602,8 @@ export function TaskDetailPanel({
       priority: form.priority,
       status: form.status,
       dueDate: form.dueDate || null,
+      dueTime: form.dueTime || null,
+      reminders: form.reminders,
       url: form.url,
       recurrence: form.recurrence,
     };
@@ -887,11 +904,50 @@ export function TaskDetailPanel({
                           onPick={(ymd) => set("dueDate", ymd ?? "")}
                         />
                       </div>
+                      {form.dueDate && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <label className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+                            Time
+                          </label>
+                          <input
+                            type="time"
+                            value={form.dueTime}
+                            onChange={(e) => set("dueTime", e.target.value)}
+                            className={cn(
+                              "h-8 w-[8.5rem] rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-2",
+                              "font-sans text-[13px] text-[var(--sd-ink)] outline-none",
+                              "focus-visible:border-[var(--sd-accent)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+                            )}
+                          />
+                          {form.dueTime ? (
+                            <button
+                              type="button"
+                              onClick={() => set("dueTime", "")}
+                              className="cursor-pointer-always font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] hover:text-[var(--ink-coral)]"
+                            >
+                              Clear
+                            </button>
+                          ) : (
+                            <span className="font-sans text-[11px] text-[var(--sd-ink-faint)]">
+                              Defaults to 9:00 for reminders
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {!form.dueDate && task?.dueDate && (
                         <p className="font-sans text-[11px] text-[var(--sd-ink-faint)]">
                           Will move to Inbox
                         </p>
                       )}
+                    </FieldSection>
+
+                    <FieldSection label="Reminders" icon={Bell}>
+                      <TaskRemindersControl
+                        value={form.reminders}
+                        onChange={(next) => set("reminders", next)}
+                        disabled={isPending}
+                        hasDueDate={Boolean(form.dueDate)}
+                      />
                     </FieldSection>
 
                     {/* URL (issue #101) — Notion-style link property. */}

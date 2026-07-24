@@ -3,11 +3,12 @@
 import {
   bulkDeleteTasks,
   bulkUpdateTaskDueDate,
+  clearStaleIncompleteTasks,
   createTask,
+  deleteTask,
   getTasksForCurrentUser,
   updateTask,
 } from "@/app/actions/tasks";
-import { deleteTask } from "@/app/actions/tasks";
 import { createProject } from "@/app/actions/projects";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
@@ -398,6 +399,30 @@ export function TasksClient({
     [addOptimistic, queryClient, userId, startTransition]
   );
 
+  const handleClearStale = useCallback(
+    async (olderThanDays: number) => {
+      const r = await clearStaleIncompleteTasks({ olderThanDays });
+      if (!r.success) {
+        toast.error(r.error);
+        return;
+      }
+      if (r.data.deleted === 0) {
+        toast.message(`No incomplete tasks due more than ${olderThanDays} days ago.`);
+        return;
+      }
+      startTransition(() => {
+        for (const id of r.data.ids) {
+          addOptimistic({ type: "delete", id });
+        }
+      });
+      await queryClient.invalidateQueries({ queryKey: tableKey("tasks", userId) });
+      toast.success(
+        `Cleared ${r.data.deleted} incomplete task${r.data.deleted === 1 ? "" : "s"} older than ${olderThanDays} days.`,
+      );
+    },
+    [addOptimistic, queryClient, userId, startTransition],
+  );
+
   // Multi-select helpers
   const toggleSelected = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -617,6 +642,8 @@ export function TasksClient({
           priority: "P3",
           status: input.status,
           dueDate: defaultedDueDate,
+          dueTime: null,
+          reminders: null,
           url: null,
           kanbanPosition: 0,
           completedAt: null,
@@ -667,6 +694,8 @@ export function TasksClient({
         priority: "P3",
         status: draftStatus,
         dueDate: dateYmd,
+        dueTime: null,
+        reminders: null,
         url: null,
         kanbanPosition: 0,
         completedAt: null,
@@ -876,6 +905,7 @@ export function TasksClient({
                     overdueTasks={overdueTasks}
                     onTaskClick={setOpenTaskId}
                     onReschedule={(ids, dueYmd) => void handleRescheduleOverdue(ids, dueYmd)}
+                    onClearStale={(days) => void handleClearStale(days)}
                     draggedTaskId={draggedTaskId}
                     onDragStart={(id) => setDraggedTaskId(id)}
                     onDragEnd={() => setDraggedTaskId(null)}
