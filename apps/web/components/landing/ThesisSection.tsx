@@ -58,7 +58,7 @@ export function ThesisSection() {
 
   return (
     <section
-      className="dark relative isolate flex min-h-[100svh] w-full max-w-[100vw] flex-col items-center justify-center overflow-hidden px-5 py-20 sm:px-6 sm:py-24 md:px-10 md:py-28"
+      className="dark relative isolate flex w-full max-w-[100vw] flex-col items-center overflow-hidden px-5 py-3 sm:px-6 sm:py-16 md:min-h-[100svh] md:justify-center md:px-10 md:py-28"
       aria-labelledby="thesis-headline"
       style={
         {
@@ -109,120 +109,121 @@ export function ThesisSection() {
       </div>
 
       <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-[1080px] flex-col items-center text-center">
-        {/* Crest — author pill replaces the ··· ornament; life-OS line is
-            centered + higher-contrast on mobile, split meta row on desktop. */}
-        <motion.div
-          {...fade(0)}
-          className="flex w-full min-w-0 flex-col items-center gap-3 px-1 sm:gap-3"
-        >
-          <a
-            href="https://filippofonseca.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] py-1 pl-1 pr-3 text-[var(--ink)] shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset] transition-colors hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]"
-            aria-label="Filippo Fonseca — filippofonseca.com"
+        {/* First screen — crest → CTAs. Packed tight on mobile so both CTAs
+            land in one viewport; demo cards stay below the fold. */}
+        <div className="flex w-full min-h-[calc(100svh-3.5rem)] flex-col items-center justify-center md:min-h-0 md:justify-start">
+          {/* Crest — author pill + life-OS line. */}
+          <motion.div
+            {...fade(0)}
+            className="flex w-full min-w-0 flex-col items-center gap-1.5 px-1 sm:gap-3"
           >
-            <Image
-              src="/filippo.png"
-              alt=""
-              width={24}
-              height={24}
-              className="size-6 shrink-0 rounded-full object-cover"
-              priority
-            />
-            <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em]">
-              by Filippo Fonseca
-            </span>
-          </a>
+            <a
+              href="https://filippofonseca.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] py-1 pl-1 pr-3 text-[var(--ink)] shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset] transition-colors hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]"
+              aria-label="Filippo Fonseca — filippofonseca.com"
+            >
+              <Image
+                src="/filippo.png"
+                alt=""
+                width={24}
+                height={24}
+                className="size-6 shrink-0 rounded-full object-cover"
+                priority
+              />
+              <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em]">
+                by Filippo Fonseca
+              </span>
+            </a>
 
-          <div className="flex w-full min-w-0 flex-col items-center gap-1.5 sm:flex-row sm:justify-between sm:gap-4">
-            <span className="w-full max-w-[22rem] text-center text-balance font-mono text-[11px] font-medium uppercase leading-[1.45] tracking-[0.11em] text-[var(--ink)] sm:max-w-none sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] sm:text-[var(--ink-muted)] md:text-[11px] md:tracking-[0.2em]">
-              My life operating system framework, open sourced  ·  v2
-            </span>
-            <span className="text-center font-mono text-[11px] font-medium uppercase tracking-[0.11em] text-[var(--ink-muted)] sm:shrink-0 sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] md:text-[11px] md:tracking-[0.2em]">
-              MIT  ·  Open source
-            </span>
-          </div>
-        </motion.div>
+            <div className="flex w-full min-w-0 flex-col items-center gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
+              <span className="w-full max-w-[22rem] text-center text-balance font-mono text-[11px] font-medium uppercase leading-[1.35] tracking-[0.11em] text-[var(--ink)] sm:max-w-none sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] sm:text-[var(--ink-muted)] md:text-[11px] md:tracking-[0.2em]">
+                My life operating system framework, open sourced  ·  v2
+              </span>
+              <span className="text-center font-mono text-[10px] font-medium uppercase tracking-[0.11em] text-[var(--ink-muted)] sm:shrink-0 sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] md:text-[11px] md:tracking-[0.2em]">
+                MIT  ·  Open source
+              </span>
+            </div>
+          </motion.div>
 
-        {/* ONE glossy focal orb — bold bounce + scale + pulsing glow. Mount
-            box leaves room for travel so overflow-hidden on the plate does
-            not clip the motion. */}
-        <motion.div
-          {...fade(1)}
-          className="mt-5 flex h-[210px] w-[210px] items-center justify-center sm:mt-6 md:mt-8 md:h-[260px] md:w-[260px]"
-        >
-          <div className="origin-center scale-[0.82] md:scale-100">
-            <FocalOrb size={176} intensity="bold" />
-          </div>
-        </motion.div>
-
-        {/* Headline — Logotype (EB Garamond), fluid so the full wordmark fits
-            every phone width without clipping. Sized from available viewport
-            minus section padding; capped at the desktop editorial 92px. */}
-        <motion.h1
-          {...fade(2)}
-          id="thesis-headline"
-          className="mt-5 w-full min-w-0 max-w-full sm:mt-6"
-          style={{ filter: "drop-shadow(rgba(0,0,0,0.95) 0 16px 50px)" }}
-        >
-          <Logotype className="mx-auto block max-w-full whitespace-nowrap text-[clamp(2rem,calc((100vw-2.5rem)/8),5.75rem)] font-semibold leading-[0.98] tracking-[-0.02em] text-white" />
-        </motion.h1>
-
-        {/* Lede — dull ink, the reference site's muted sub-headline. */}
-        <motion.p
-          {...fade(3)}
-          className="mt-4 max-w-[640px] px-1 font-serif text-[17px] leading-[1.45] text-balance text-[var(--ink-muted)] sm:mt-5 sm:text-[18px] md:text-[21px]"
-        >
-          A personal life-OS for people who refuse to specialize.
-        </motion.p>
-
-        {/* Brand statement — the Renaissance/JARVIS thesis, preserved. */}
-        <motion.p
-          {...fade(4)}
-          className="mt-4 max-w-[760px] px-1 font-serif text-[16px] font-semibold leading-[1.4] text-balance text-[var(--ink)] sm:mt-5 sm:text-[17px] md:text-[20px]"
-        >
-          I brought back the{" "}
-          <em className="font-extrabold italic">Renaissance Human</em>. And gave
-          them <em className="font-extrabold italic">JARVIS</em> from Tony Stark.{" "}
-          <span className="italic text-[var(--ink-muted)]">All in one.</span>
-        </motion.p>
-
-        {/* Pill CTAs — lit-from-above primary + glass ghost (constitution §C,
-            §6). Labels: xs semibold uppercase tracking-[0.12em]. */}
-        <motion.div
-          {...fade(5)}
-          className="mt-8 flex w-full max-w-md flex-col items-stretch gap-3 px-1 sm:mt-9 sm:max-w-none sm:flex-row sm:items-center sm:justify-center"
-        >
-          <Link
-            href="/sign-in"
-            className="sd-btn-primary group inline-flex items-center justify-center gap-2 px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] transition-transform duration-150 ease-out active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d]"
+          {/* ONE glossy focal orb — compact mount on mobile so CTAs stay above
+              the fold; desktop keeps the larger theatrical footprint. */}
+          <motion.div
+            {...fade(1)}
+            className="mt-2 flex h-[132px] w-[132px] items-center justify-center sm:mt-6 sm:h-[200px] sm:w-[200px] md:mt-8 md:h-[260px] md:w-[260px]"
           >
-            <span>Get started</span>
-            <ArrowUpRight
-              size={14}
-              strokeWidth={2.2}
-              aria-hidden="true"
-              className="transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-            />
-          </Link>
-          <a
-            href="https://github.com/filippo-fonseca/hyperpolymath-v2"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="sd-btn-ghost group inline-flex items-center justify-center gap-2 px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] transition-colors duration-150 hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d]"
+            <div className="origin-center scale-[0.68] sm:scale-[0.82] md:scale-100">
+              <FocalOrb size={176} intensity="bold" />
+            </div>
+          </motion.div>
+
+          {/* Headline — Logotype (EB Garamond), fluid so the full wordmark fits
+              every phone width without clipping. Sized from available viewport
+              minus section padding; capped at the desktop editorial 92px. */}
+          <motion.h1
+            {...fade(2)}
+            id="thesis-headline"
+            className="mt-1.5 w-full min-w-0 max-w-full sm:mt-6"
+            style={{ filter: "drop-shadow(rgba(0,0,0,0.95) 0 16px 50px)" }}
           >
-            <Github size={14} strokeWidth={2} aria-hidden="true" />
-            <span>View the source</span>
-          </a>
-        </motion.div>
+            <Logotype className="mx-auto block max-w-full whitespace-nowrap text-[clamp(1.85rem,calc((100vw-2.5rem)/8),5.75rem)] font-semibold leading-[0.98] tracking-[-0.02em] text-white" />
+          </motion.h1>
+
+          {/* Lede — dull ink, the reference site's muted sub-headline. */}
+          <motion.p
+            {...fade(3)}
+            className="mt-2 max-w-[640px] px-1 font-serif text-[15px] leading-[1.35] text-balance text-[var(--ink-muted)] sm:mt-5 sm:text-[18px] sm:leading-[1.45] md:text-[21px]"
+          >
+            A personal life-OS for people who refuse to specialize.
+          </motion.p>
+
+          {/* Brand statement — the Renaissance/JARVIS thesis, preserved. */}
+          <motion.p
+            {...fade(4)}
+            className="mt-2 max-w-[760px] px-1 font-serif text-[14px] font-semibold leading-[1.35] text-balance text-[var(--ink)] sm:mt-5 sm:text-[17px] sm:leading-[1.4] md:text-[20px]"
+          >
+            I brought back the{" "}
+            <em className="font-extrabold italic">Renaissance Human</em>. And gave
+            them <em className="font-extrabold italic">JARVIS</em> from Tony Stark.{" "}
+            <span className="italic text-[var(--ink-muted)]">All in one.</span>
+          </motion.p>
+
+          {/* Pill CTAs — side-by-side even on mobile so both fit one view. */}
+          <motion.div
+            {...fade(5)}
+            className="mt-4 flex w-full max-w-md flex-row flex-wrap items-center justify-center gap-2 px-1 sm:mt-9 sm:max-w-none sm:gap-3"
+          >
+            <Link
+              href="/sign-in"
+              className="sd-btn-primary group inline-flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition-transform duration-150 ease-out active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d] sm:flex-none sm:gap-2 sm:px-6 sm:py-3 sm:text-xs"
+            >
+              <span>Get started</span>
+              <ArrowUpRight
+                size={14}
+                strokeWidth={2.2}
+                aria-hidden="true"
+                className="transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              />
+            </Link>
+            <a
+              href="https://github.com/filippo-fonseca/hyperpolymath-v2"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sd-btn-ghost group inline-flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors duration-150 hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d] sm:flex-none sm:gap-2 sm:px-6 sm:py-3 sm:text-xs"
+            >
+              <Github size={14} strokeWidth={2} aria-hidden="true" />
+              <span>View the source</span>
+            </a>
+          </motion.div>
+        </div>
 
         {/* Typed + Spoken input cards — both modalities advertised at once.
             They resolve dark tokens under the .dark plate scope, so they read
             exactly as they do in dark mode regardless of the app theme. */}
         <motion.div
           {...fade(6)}
-          className="mt-10 grid w-full min-w-0 grid-cols-1 gap-4 sm:mt-12 md:grid-cols-2"
+          className="mt-8 grid w-full min-w-0 grid-cols-1 gap-4 sm:mt-12 md:grid-cols-2"
         >
           <HeroJarvisLine />
           <VoiceInputCard />
@@ -231,7 +232,7 @@ export function ThesisSection() {
         {/* Brand spine — preserved mono meta, quiet under the fold of content. */}
         <motion.div
           {...fade(7)}
-          className="mt-8 flex w-full min-w-0 flex-col items-center justify-between gap-2 border-t border-white/10 px-1 pt-5 sm:mt-10 sm:flex-row sm:gap-4"
+          className="mt-6 flex w-full min-w-0 flex-col items-center justify-between gap-2 border-t border-white/10 px-1 pt-4 pb-6 sm:mt-10 sm:flex-row sm:gap-4 sm:pt-5 sm:pb-0"
         >
           <span className="text-center font-mono text-[10px] uppercase leading-snug tracking-[0.14em] text-[var(--ink-muted)] sm:tracking-[0.18em] md:text-[11px] md:tracking-[0.22em]">
             ❦  Hyperpolymath  ·  by Filippo Fonseca
