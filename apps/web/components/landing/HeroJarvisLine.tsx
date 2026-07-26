@@ -127,10 +127,10 @@ export function HeroJarvisLine() {
     phase === "typing" ? example.input.slice(0, typedChars) : example.input;
 
   return (
-    <div className="flex justify-center" aria-live="polite">
+    <div className="flex min-w-0 w-full justify-center" aria-live="polite">
       <motion.div
         key={exampleIdx}
-        className="inline-flex flex-col items-start gap-2 px-5 py-4 rounded bg-[var(--sd-box)] min-w-[260px] sm:min-w-[420px] max-w-[560px] w-full"
+        className="inline-flex w-full min-w-0 max-w-[560px] flex-col items-start gap-2 rounded bg-[var(--sd-box)] px-4 py-4 sm:px-5"
         style={{
           border: "1px solid color-mix(in oklch, var(--sd-accent) 30%, var(--sd-line))",
           boxShadow: "none",
