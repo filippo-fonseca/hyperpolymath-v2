@@ -9,7 +9,7 @@
 
 ⚜  This is the small spec behind [`hyperpolymath-v2`](https://github.com/filippo-fonseca/hyperpolymath-v2) — the file you read when you want to understand the shape of the system, not the product. It is distilled from one user (me, Filippo) running [v1](https://github.com/filippo-fonseca/polymath-web) in production for 18 months and rebuilding v2 on Postgres for another 6. Everything here is load-bearing in the live app and nothing here is aspirational.
 
-It names **five primitives** — Areas, Projects, Captures, JARVIS, Calendar — and **one agent contract** between them. That is the entire framework. The rest of the codebase is the same five primitives wired through Next.js 16, Drizzle, Supabase, and Claude Sonnet 4.6, plus the discipline of refusing to add a sixth primitive when one of the existing five could be sharpened instead.
+It names **five primitives** — Areas, Projects, Captures, JARVIS, Calendar — and **one agent contract** between them. That is the entire framework. The rest of the codebase is the same five primitives wired through Next.js 16, Drizzle, Supabase, and the LLM of choice in the backend, plus the discipline of refusing to add a sixth primitive when one of the existing five could be sharpened instead.
 
 The point of the document is to be forkable in spirit AND in code. Read it once, decide whether the shape fits how you actually live, and either clone the repo or carry the primitives into your own stack. There is no product to sell. The repo is the offering.
 
@@ -371,7 +371,7 @@ Hyperpolymath is built and maintained by [@filippo-fonseca](https://github.com/f
 **Acknowledgments.**
 
 - **Andrej Karpathy**, for [nanoGPT](https://github.com/karpathy/nanoGPT) — both the model of "the README IS the landing page" and the discipline of "small is a feature." This document is shaped by both.
-- **Anthropic**, for Claude Sonnet 4.6 and for shipping Strict Tool Use as a first-class API instead of an afterthought. The agent contract is downstream of their model card.
+- Model providers that ship **Strict Tool Use** (or equivalent structured tool calling) as a first-class API instead of an afterthought. The agent contract is downstream of that discipline, not of any one vendor.
 
 ```
        ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜

@@ -29,7 +29,7 @@
 
 ## Abstract
 
-**Hyperpolymath** is a personal life-OS for people who refuse to specialize. In other words, it is the ultimate Jarvis & Notion hybrid. Areas, projects, classes, tasks, habits, captures, training, and Google Calendar, all unified under a single natural-language agent called **JARVIS**, built on Claude Sonnet 4.6. The whole thing is tied together by a **LifeOS** homepage organized around the areas tree.
+**Hyperpolymath** is a personal life-OS for people who refuse to specialize. In other words, it is the ultimate Jarvis & Notion hybrid. Areas, projects, classes, tasks, habits, captures, training, and Google Calendar, all unified under a single natural-language agent called **JARVIS**, powered by the LLM of choice in the backend. The whole thing is tied together by a **LifeOS** homepage organized around the areas tree.
 
 It runs on three surfaces: the **web app**, a **desktop app** (Tauri-based, keyboard-shortcut driven, mic-gated so it never listens by accident), and an optional **physical extender** (a small macropad with an onboard wake-word module that flips JARVIS into voice mode only when the device is awake).
 
@@ -61,7 +61,7 @@ Hyperpolymath rejects the premise. **One system. One inbox. One sentence.** Runn
 Everything below is **shipped and working** unless explicitly marked otherwise.
 
 #### Agent
-- **JARVIS console:** Streaming Claude Sonnet 4.6 with Strict Tool Use. Zero parse errors, multi-tool calls per turn.
+- **JARVIS console:** Streaming LLM of choice with Strict Tool Use. Zero parse errors, multi-tool calls per turn.
 - **Agentic loop:** Multi-step plans: read context → act → react → continue. Full **create / read / update / delete** over tasks, captures, projects, areas, gcal events.
 - **Inline references:** `$projectname` resolves to a project ID, `#hashtag` to a tag, highlighted as chips in the composer and normalized before reaching the model.
 - **Native time language:** "tomorrow", "next thursday", "8pm sat", time ranges, M/D. All parsed.
@@ -98,7 +98,7 @@ Everything below is **shipped and working** unless explicitly marked otherwise.
 
 ## ❦  The Engine: JARVIS
 
-JARVIS is the centerpiece. A streaming, structured-output agent built on Claude Sonnet 4.6 with **Strict Tool Use** for zero-parse-error JSON contracts. One input becomes N actions, each a different shape.
+JARVIS is the centerpiece. A streaming, structured-output agent powered by the LLM of choice in the backend, with **Strict Tool Use** for zero-parse-error JSON contracts. One input becomes N actions, each a different shape.
 
 | Input | JARVIS infers |
 |---|---|
@@ -359,7 +359,7 @@ If you want to self-host the whole stack for your own use, the quickstart above 
 
 **Filippo Fonseca** &nbsp;·&nbsp; [@filippo-fonseca](https://github.com/filippo-fonseca)
 
-I'm a student, runner, musician, and builder who refuses to pick one. Hyperpolymath is the system I wanted to exist: an academic-paper-feeling life-OS that an agent named JARVIS can drive end-to-end. I started v1 (`polymath-web`) on Firebase + OpenAI, lived with it for a year, learned what mattered, and rebuilt v2 from scratch on Next.js 16 + Supabase + Claude Sonnet 4.6.
+I'm a student, runner, musician, and builder who refuses to pick one. Hyperpolymath is the system I wanted to exist: an academic-paper-feeling life-OS that an agent named JARVIS can drive end-to-end. I started v1 (`polymath-web`) on Firebase + OpenAI, lived with it for a year, learned what mattered, and rebuilt v2 from scratch on Next.js 16 + Supabase + the LLM of choice in the backend.
 
 The thesis (mine, and this codebase's): *running discipline informs studying discipline · music trains pattern recognition · everything connects, so the tool should too.*
 
