@@ -243,7 +243,7 @@ export function ThesisSection() {
         </motion.div>
       </div>
 
-      {/* Learn more — pinned scroll affordance, unchanged behavior. */}
+      {/* Learn more — desktop only; mobile first-screen is packed to the CTAs. */}
       {!scrolled && (
         <motion.button
           type="button"
@@ -255,7 +255,7 @@ export function ThesisSection() {
               block: "start",
             });
           }}
-          className="absolute bottom-8 z-10 inline-flex cursor-pointer flex-col items-center gap-1 rounded px-3 py-2 text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]"
+          className="absolute bottom-8 z-10 hidden cursor-pointer flex-col items-center gap-1 rounded px-3 py-2 text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] md:inline-flex"
           initial={{ opacity: 0.5 }}
           animate={
             reducedMotion ? { opacity: 0.7 } : { opacity: [0.45, 0.85, 0.45] }
