@@ -77,7 +77,7 @@ export function LandingFooter() {
               size={48}
               className="text-[var(--sd-ink)]"
             />
-            <span className="text-[40px] md:text-[44px] leading-none text-[var(--sd-ink)]">
+            <span className="min-w-0 text-[clamp(1.75rem,8vw,2.75rem)] leading-none text-[var(--sd-ink)] md:text-[44px]">
               <Logotype />.
             </span>
           </div>
@@ -133,7 +133,7 @@ export function LandingFooter() {
 
         {/* ── Three-kiwi ornament (matches SectionDivider) ── */}
         <div
-          className="flex items-center justify-center gap-[4em] text-[var(--sd-ink-faint)] opacity-60"
+          className="flex items-center justify-center gap-[2.5em] text-[var(--sd-ink-faint)] opacity-60 sm:gap-[4em]"
           aria-hidden="true"
         >
           <KiwiIcon size={14} />
