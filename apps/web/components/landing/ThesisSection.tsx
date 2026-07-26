@@ -57,7 +57,7 @@ export function ThesisSection() {
 
   return (
     <section
-      className="dark relative isolate flex min-h-[100svh] w-full max-w-[100vw] flex-col items-center justify-center overflow-x-clip px-5 py-20 sm:px-6 sm:py-24 md:px-10 md:py-28"
+      className="dark relative isolate flex min-h-[100svh] w-full max-w-[100vw] flex-col items-center justify-center overflow-hidden px-5 py-20 sm:px-6 sm:py-24 md:px-10 md:py-28"
       aria-labelledby="thesis-headline"
       style={
         {
@@ -72,6 +72,8 @@ export function ThesisSection() {
         } as CSSProperties
       }
     >
+      <style>{HERO_AURORA_CSS}</style>
+
       {/* Plate edges: a whisper cyan hairline up top and a soft vignette that
           eases the dark field into the body below (graceful transition). */}
       <div
@@ -96,6 +98,15 @@ export function ThesisSection() {
           than the fixed full-viewport default. */}
       <AmbientGlow intensity="bold" anchor="hero" className="absolute inset-0 z-0" />
 
+      {/* Hero aurora — slow sweeping light sheets behind the orb so the plate
+          itself feels alive (not only the AmbientGlow blobs). */}
+      <div className="landing-hero-aurora" aria-hidden="true">
+        <span className="landing-hero-aurora__sheet landing-hero-aurora__sheet--a" />
+        <span className="landing-hero-aurora__sheet landing-hero-aurora__sheet--b" />
+        <span className="landing-hero-aurora__sheet landing-hero-aurora__sheet--c" />
+        <span className="landing-hero-aurora__ring" />
+      </div>
+
       <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-[1080px] flex-col items-center text-center">
         {/* Crest row — mono brand meta, preserved verbatim. */}
         <motion.div
@@ -117,16 +128,15 @@ export function ThesisSection() {
           </span>
         </motion.div>
 
-        {/* ONE glossy focal orb — the canonical CSS/SVG sphere, sitting above
-            the headline like the spacedrive.com reference composition. Its own
-            under-glow + slow bob carry the focal light source the headline
-            punches out of. */}
+        {/* ONE glossy focal orb — bold bounce + scale + pulsing glow. Mount
+            box leaves room for travel so overflow-hidden on the plate does
+            not clip the motion. */}
         <motion.div
           {...fade(1)}
-          className="mt-7 flex h-[144px] w-[144px] items-center justify-center sm:mt-8 md:mt-10 md:h-[176px] md:w-[176px]"
+          className="mt-5 flex h-[210px] w-[210px] items-center justify-center sm:mt-6 md:mt-8 md:h-[260px] md:w-[260px]"
         >
           <div className="origin-center scale-[0.82] md:scale-100">
-            <FocalOrb size={176} />
+            <FocalOrb size={176} intensity="bold" />
           </div>
         </motion.div>
 
@@ -248,3 +258,94 @@ export function ThesisSection() {
     </section>
   );
 }
+
+/** Slow aurora sheets + a breathing ring behind the hero orb. Pure CSS so it
+ *  stays compositor-cheap and respects prefers-reduced-motion. */
+const HERO_AURORA_CSS = `
+.landing-hero-aurora {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+.landing-hero-aurora__sheet {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  will-change: transform, opacity;
+  mix-blend-mode: screen;
+}
+.landing-hero-aurora__sheet--a {
+  left: 50%;
+  top: 18%;
+  width: min(92vw, 720px);
+  height: min(52vh, 420px);
+  margin-left: calc(min(92vw, 720px) / -2);
+  margin-top: calc(min(52vh, 420px) / -2);
+  background: radial-gradient(ellipse at 50% 50%,
+    rgb(var(--hud-cyan-rgb) / 0.22) 0%,
+    rgb(var(--hud-cyan-rgb) / 0.06) 45%,
+    transparent 72%);
+  animation: landingAuroraA 11s ease-in-out infinite;
+}
+.landing-hero-aurora__sheet--b {
+  left: 28%;
+  top: 32%;
+  width: min(55vw, 380px);
+  height: min(40vh, 300px);
+  margin-left: calc(min(55vw, 380px) / -2);
+  margin-top: calc(min(40vh, 300px) / -2);
+  background: radial-gradient(circle at 50% 50%,
+    rgb(var(--hud-cyan-rgb) / 0.18) 0%,
+    transparent 70%);
+  animation: landingAuroraB 8.5s ease-in-out infinite;
+}
+.landing-hero-aurora__sheet--c {
+  left: 72%;
+  top: 24%;
+  width: min(48vw, 340px);
+  height: min(36vh, 280px);
+  margin-left: calc(min(48vw, 340px) / -2);
+  margin-top: calc(min(36vh, 280px) / -2);
+  background: radial-gradient(circle at 50% 50%,
+    rgb(var(--hud-cyan-rgb) / 0.14) 0%,
+    transparent 68%);
+  animation: landingAuroraC 9.5s ease-in-out infinite;
+}
+.landing-hero-aurora__ring {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  width: min(70vw, 420px);
+  height: min(70vw, 420px);
+  margin-left: calc(min(70vw, 420px) / -2);
+  margin-top: calc(min(70vw, 420px) / -2);
+  border-radius: 9999px;
+  border: 1px solid rgb(var(--hud-cyan-rgb) / 0.14);
+  box-shadow:
+    0 0 40px rgb(var(--hud-cyan-rgb) / 0.12),
+    inset 0 0 40px rgb(var(--hud-cyan-rgb) / 0.08);
+  animation: landingAuroraRing 6s ease-in-out infinite;
+}
+@keyframes landingAuroraA {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.7; }
+  50% { transform: translate3d(0, 4%, 0) scale(1.12); opacity: 1; }
+}
+@keyframes landingAuroraB {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.95); opacity: 0.55; }
+  50% { transform: translate3d(8%, -6%, 0) scale(1.2); opacity: 0.95; }
+}
+@keyframes landingAuroraC {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); opacity: 0.5; }
+  50% { transform: translate3d(-10%, 5%, 0) scale(0.9); opacity: 0.9; }
+}
+@keyframes landingAuroraRing {
+  0%, 100% { transform: scale(0.88); opacity: 0.35; }
+  50% { transform: scale(1.08); opacity: 0.75; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-aurora__sheet,
+  .landing-hero-aurora__ring { animation: none !important; opacity: 0.55; }
+}
+`;
