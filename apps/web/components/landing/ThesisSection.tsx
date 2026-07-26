@@ -139,7 +139,7 @@ export function ThesisSection() {
           className="mt-5 w-full min-w-0 max-w-full sm:mt-6"
           style={{ filter: "drop-shadow(rgba(0,0,0,0.95) 0 16px 50px)" }}
         >
-          <Logotype className="block w-full max-w-full whitespace-nowrap text-[clamp(2.05rem,calc((100vw-2.75rem)/7.35),5.75rem)] font-semibold leading-[0.98] tracking-[-0.02em] text-white" />
+          <Logotype className="mx-auto block max-w-full whitespace-nowrap text-[clamp(2rem,calc((100vw-2.5rem)/8),5.75rem)] font-semibold leading-[0.98] tracking-[-0.02em] text-white" />
         </motion.h1>
 
         {/* Lede — dull ink, the reference site's muted sub-headline. */}
