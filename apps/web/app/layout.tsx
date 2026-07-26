@@ -56,8 +56,6 @@ export const metadata: Metadata = {
     "life-OS",
     "productivity",
     "agent",
-    "Claude",
-    "Anthropic",
     "task manager",
     "second brain",
   ],
