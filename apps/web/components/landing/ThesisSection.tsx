@@ -112,7 +112,7 @@ export function ThesisSection() {
         {/* First screen — fills the mobile viewport under the sticky header.
             justify-between pins crest to the top and CTAs to the bottom so
             View the source lands at the fold without feeling crushed. */}
-        <div className="flex w-full min-h-[calc(100svh-3.5rem)] flex-col items-center justify-between py-3 sm:min-h-0 sm:justify-start sm:gap-0 sm:py-0">
+        <div className="flex w-full min-h-[calc(100svh-3.5rem)] min-h-[calc(100dvh-3.5rem)] flex-col items-center justify-between py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:min-h-0 sm:justify-start sm:gap-0 sm:py-0 sm:pb-0">
           {/* Crest — author pill + life-OS line. */}
           <motion.div
             {...fade(0)}
