@@ -7,7 +7,7 @@ import { STRICT_TOOL_USE_FIXTURE } from "../../../../packages/jarvis-core/tests/
  * §04 — The Engine (LAND-ENGINE / SC-5 / D-05).
  *
  * THE ONE MODERATE-DENSITY SECTION on the landing — earns its weight via the
- * Claude Sonnet 4.6 + Strict Tool Use paragraph and the real JSON contract
+ * LLM-of-choice + Strict Tool Use paragraph and the real JSON contract
  * imported verbatim from packages/jarvis-core/tests/strict-tool-use.fixture.ts.
  *
  * sd register: the INPUT + JSON panels are card-v2 plates. The single accent
@@ -25,7 +25,7 @@ export function EngineSection() {
     <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 06 · THE ENGINE" />
       <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
-        Claude Sonnet 4.6, with a contract.
+        An LLM of choice, with a contract.
       </h2>
       <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
         Most agents are just an LLM with a prompt taped on top. They drift,
@@ -35,12 +35,13 @@ export function EngineSection() {
       </p>
       <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
         So I built JARVIS the other way around. The schema is the source of
-        truth, and the model is constrained to it. Claude Sonnet 4.6 with
-        Strict Tool Use literally cannot emit a malformed action, because
-        the contract is enforced at generation time rather than validated
-        after the fact. One sentence in, N typed JSON tool calls out, each
-        a different shape. The router stays small because the primitives
-        stay small, and the whole pipeline still fits in my head.
+        truth, and the model is constrained to it. Whatever LLM the backend
+        is wired to, Strict Tool Use means it literally cannot emit a
+        malformed action, because the contract is enforced at generation
+        time rather than validated after the fact. One sentence in, N typed
+        JSON tool calls out, each a different shape. The router stays small
+        because the primitives stay small, and the whole pipeline still fits
+        in my head.
       </p>
 
       {/* Side-by-side input + JSON */}

@@ -76,8 +76,8 @@ export function KiwiAboutDialog({ children, open, onOpenChange }: KiwiAboutDialo
             Areas, projects, captures, your calendar, your tasks, your
             habits, your training. I know where they all live. I never make
             up tools that don&rsquo;t exist — the schema is my contract,
-            and Claude Sonnet 4.6 with Strict Tool Use enforces it at
-            generation time, so I can&rsquo;t drift even if I tried.
+            and Strict Tool Use with the backend LLM of choice enforces it
+            at generation time, so I can&rsquo;t drift even if I tried.
           </p>
           <p className="text-[var(--ink-muted)] italic pt-1">
             Find me on the JARVIS tab. Try typing &ldquo;coffee with brian

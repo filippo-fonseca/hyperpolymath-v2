@@ -101,11 +101,11 @@ export function MeetKiwiSection() {
         </p>
 
         <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
-          Under the hood I am Claude Sonnet 4.6 wrapped in a strict Zod
-          schema with the Strict Tool Use beta enabled. The schema is my
-          contract. The model is constrained to it at generation time,
-          which is why I never invent a tool that doesn&rsquo;t exist and
-          never emit a malformed action. The Engine section below walks
+          Under the hood I am powered by the LLM of choice in the backend,
+          wrapped in a strict Zod schema with Strict Tool Use. The schema
+          is my contract. The model is constrained to it at generation
+          time, which is why I never invent a tool that doesn&rsquo;t exist
+          and never emit a malformed action. The Engine section below walks
           through exactly what that looks like.
         </p>
       </Reveal>

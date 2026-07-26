@@ -8,7 +8,7 @@
  *   - Future contract tests asserting the canonical README example still routes correctly
  *
  * The input is the README canonical example (README.md lines 33-39).
- * The output is the real shape Claude Sonnet 4.6 emits via Anthropic Strict Tool Use
+ * The output is the real shape a Strict-Tool-Use backend LLM emits
  * for this input, conforming to the Zod schemas in packages/jarvis-core/src/tools/.
  *
  * Field names match the live Zod schemas EXACTLY:
