@@ -110,13 +110,13 @@ export function ThesisSection() {
 
       <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-[1080px] flex-col items-center text-center">
         {/* First screen — fills the mobile viewport under the sticky header.
-            justify-between pins crest to the top and CTAs to the bottom so
-            View the source lands at the fold without feeling crushed. */}
-        <div className="flex w-full min-h-[calc(100svh-3.5rem)] min-h-[calc(100dvh-3.5rem)] flex-col items-center justify-between py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:min-h-0 sm:justify-start sm:gap-0 sm:py-0 sm:pb-0">
+            Crest + CTAs stay at the ends; the middle cluster flex-grows and
+            justify-evenly so orb/title/copy actually breathe. */}
+        <div className="flex w-full min-h-[calc(100svh-3.5rem)] min-h-[calc(100dvh-3.5rem)] flex-col items-center py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:min-h-0 sm:py-0 sm:pb-0">
           {/* Crest — author pill + life-OS line. */}
           <motion.div
             {...fade(0)}
-            className="flex w-full min-w-0 flex-col items-center gap-1.5 px-1 sm:gap-3"
+            className="flex w-full min-w-0 shrink-0 flex-col items-center gap-2.5 px-1 sm:gap-3"
           >
             <a
               href="https://filippofonseca.com"
@@ -138,8 +138,8 @@ export function ThesisSection() {
               </span>
             </a>
 
-            <div className="flex w-full min-w-0 flex-col items-center gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
-              <span className="w-full max-w-[22rem] text-center text-balance font-mono text-[11px] font-medium uppercase leading-[1.35] tracking-[0.11em] text-[var(--ink)] sm:max-w-none sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] sm:text-[var(--ink-muted)] md:text-[11px] md:tracking-[0.2em]">
+            <div className="flex w-full min-w-0 flex-col items-center gap-1 sm:flex-row sm:justify-between sm:gap-4">
+              <span className="w-full max-w-[22rem] text-center text-balance font-mono text-[11px] font-medium uppercase leading-[1.4] tracking-[0.11em] text-[var(--ink)] sm:max-w-none sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] sm:text-[var(--ink-muted)] md:text-[11px] md:tracking-[0.2em]">
                 My life operating system framework, open sourced  ·  v2
               </span>
               <span className="text-center font-mono text-[10px] font-medium uppercase tracking-[0.11em] text-[var(--ink-muted)] sm:shrink-0 sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] md:text-[11px] md:tracking-[0.2em]">
@@ -148,14 +148,14 @@ export function ThesisSection() {
             </div>
           </motion.div>
 
-          {/* Middle cluster — orb + wordmark + lede. Sits between crest and
-              CTAs so justify-between can breathe without crushing copy. */}
-          <div className="flex w-full flex-col items-center">
+          {/* Middle cluster — grows to fill leftover height and spaces its
+              children evenly so the hero doesn't feel crushed mid-screen. */}
+          <div className="flex w-full flex-1 flex-col items-center justify-evenly py-3 sm:flex-none sm:justify-start sm:py-0 sm:gap-0">
             <motion.div
               {...fade(1)}
-              className="flex h-[148px] w-[148px] items-center justify-center sm:mt-6 sm:h-[200px] sm:w-[200px] md:mt-8 md:h-[260px] md:w-[260px]"
+              className="flex h-[168px] w-[168px] items-center justify-center sm:mt-6 sm:h-[200px] sm:w-[200px] md:mt-8 md:h-[260px] md:w-[260px]"
             >
-              <div className="origin-center scale-[0.72] sm:scale-[0.82] md:scale-100">
+              <div className="origin-center scale-[0.8] sm:scale-[0.82] md:scale-100">
                 <FocalOrb size={176} intensity="bold" />
               </div>
             </motion.div>
@@ -163,7 +163,7 @@ export function ThesisSection() {
             <motion.h1
               {...fade(2)}
               id="thesis-headline"
-              className="mt-2 w-full min-w-0 max-w-full sm:mt-6"
+              className="w-full min-w-0 max-w-full sm:mt-6"
               style={{ filter: "drop-shadow(rgba(0,0,0,0.95) 0 16px 50px)" }}
             >
               <Logotype className="mx-auto block max-w-full whitespace-nowrap text-[clamp(1.9rem,calc((100vw-2.5rem)/8),5.75rem)] font-semibold leading-[0.98] tracking-[-0.02em] text-white" />
@@ -171,14 +171,14 @@ export function ThesisSection() {
 
             <motion.p
               {...fade(3)}
-              className="mt-2.5 max-w-[640px] px-1 font-serif text-[15px] leading-[1.4] text-balance text-[var(--ink-muted)] sm:mt-5 sm:text-[18px] sm:leading-[1.45] md:text-[21px]"
+              className="max-w-[640px] px-1 font-serif text-[15px] leading-[1.45] text-balance text-[var(--ink-muted)] sm:mt-5 sm:text-[18px] sm:leading-[1.45] md:text-[21px]"
             >
               A personal life-OS for people who refuse to specialize.
             </motion.p>
 
             <motion.p
               {...fade(4)}
-              className="mt-2 max-w-[760px] px-1 font-serif text-[14px] font-semibold leading-[1.4] text-balance text-[var(--ink)] sm:mt-5 sm:text-[17px] sm:leading-[1.4] md:text-[20px]"
+              className="max-w-[760px] px-1 font-serif text-[15px] font-semibold leading-[1.45] text-balance text-[var(--ink)] sm:mt-5 sm:text-[17px] sm:leading-[1.4] md:text-[20px]"
             >
               I brought back the{" "}
               <em className="font-extrabold italic">Renaissance Human</em>. And gave
@@ -190,7 +190,7 @@ export function ThesisSection() {
           {/* Pill CTAs — pinned to the bottom of the first mobile screen. */}
           <motion.div
             {...fade(5)}
-            className="flex w-full max-w-md flex-row flex-wrap items-center justify-center gap-2 px-1 sm:mt-9 sm:max-w-none sm:gap-3"
+            className="flex w-full max-w-md shrink-0 flex-row flex-wrap items-center justify-center gap-2.5 px-1 sm:mt-9 sm:max-w-none sm:gap-3"
           >
             <Link
               href="/sign-in"
