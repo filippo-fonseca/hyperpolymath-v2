@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, ArrowUpRight, Github } from "lucide-react";
 import { HeroJarvisLine } from "./HeroJarvisLine";
@@ -108,24 +109,40 @@ export function ThesisSection() {
       </div>
 
       <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-[1080px] flex-col items-center text-center">
-        {/* Crest row — mono brand meta, preserved verbatim. */}
+        {/* Crest — author pill replaces the ··· ornament; life-OS line is
+            centered + higher-contrast on mobile, split meta row on desktop. */}
         <motion.div
           {...fade(0)}
-          className="flex w-full min-w-0 flex-col items-center justify-between gap-2 px-1 sm:flex-row sm:gap-4"
+          className="flex w-full min-w-0 flex-col items-center gap-3 px-1 sm:gap-3"
         >
-          <div className="flex min-w-0 max-w-full items-center justify-center gap-2.5 sm:gap-3">
-            <span className="inline-flex shrink-0 gap-1.5 opacity-50" aria-hidden="true">
-              <span className="block h-[5px] w-[5px] rounded-full bg-[var(--ink)]" />
-              <span className="block h-[5px] w-[5px] rounded-full bg-[var(--ink)]" />
-              <span className="block h-[5px] w-[5px] rounded-full bg-[var(--ink)]" />
+          <a
+            href="https://filippofonseca.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] py-1 pl-1 pr-3 text-[var(--ink)] shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset] transition-colors hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]"
+            aria-label="Filippo Fonseca — filippofonseca.com"
+          >
+            <Image
+              src="/filippo.png"
+              alt=""
+              width={24}
+              height={24}
+              className="size-6 shrink-0 rounded-full object-cover"
+              priority
+            />
+            <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em]">
+              by Filippo Fonseca
             </span>
-            <span className="min-w-0 text-balance font-mono text-[10px] uppercase leading-snug tracking-[0.16em] text-[var(--ink-muted)] sm:tracking-[0.2em] md:text-[11px] md:tracking-[0.22em]">
+          </a>
+
+          <div className="flex w-full min-w-0 flex-col items-center gap-1.5 sm:flex-row sm:justify-between sm:gap-4">
+            <span className="w-full max-w-[22rem] text-center text-balance font-mono text-[11px] font-medium uppercase leading-[1.45] tracking-[0.11em] text-[var(--ink)] sm:max-w-none sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] sm:text-[var(--ink-muted)] md:text-[11px] md:tracking-[0.2em]">
               My life operating system framework, open sourced  ·  v2
             </span>
+            <span className="text-center font-mono text-[11px] font-medium uppercase tracking-[0.11em] text-[var(--ink-muted)] sm:shrink-0 sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] md:text-[11px] md:tracking-[0.2em]">
+              MIT  ·  Open source
+            </span>
           </div>
-          <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ink-muted)] sm:tracking-[0.2em] md:text-[11px] md:tracking-[0.22em]">
-            MIT  ·  Open source
-          </span>
         </motion.div>
 
         {/* ONE glossy focal orb — bold bounce + scale + pulsing glow. Mount
