@@ -30,7 +30,7 @@ import { FrameworkSection } from "./FrameworkSection";
 export function LandingPage() {
   return (
     <div
-      className="dark relative min-h-screen overflow-hidden text-[var(--sd-ink)]"
+      className="dark relative min-h-screen w-full max-w-[100vw] overflow-x-clip text-[var(--sd-ink)]"
       style={
         {
           // The landing is one continuous dark plate — the hero's near-black
