@@ -34,14 +34,14 @@ const STATE_COLOR: Record<OrbState, string> = {
   speaking: colors.accent,
 };
 
-// Breathing tempo per state (ms per cycle) — desktop: 3.2s idle, 1.1s
-// recording, 1.4s uploading, 1.6s speaking.
+// Breathing tempo per state (ms per cycle). Idle is snappier than the old
+// 3.2s so the bounce reads as alive; active states stay urgent.
 const STATE_BREATHE_MS: Record<OrbState, number> = {
-  idle: 3200,
-  recording: 1100,
-  transcribing: 1400,
-  thinking: 1300,
-  speaking: 1600,
+  idle: 2400,
+  recording: 900,
+  transcribing: 1100,
+  thinking: 1050,
+  speaking: 1300,
 };
 
 const TICK_COUNT = 24;
@@ -122,9 +122,11 @@ export function Orb({
 
   const slowRotate = spinSlow.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
   const fastRotate = spinFast.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "-360deg"] });
-  const glowScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.06] });
-  const glowOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
-  const glyphScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] });
+  // Pronounced bounce: glow blooms farther, orb expands, slight vertical travel.
+  const glowScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1.22] });
+  const glowOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] });
+  const glyphScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.12] });
+  const bobY = breathe.interpolate({ inputRange: [0, 1], outputRange: [-10, 10] });
 
   // All ring geometry is proportional to the radius so the orb scales from
   // 300px (overlay) down to 48px (header) without the rings crowding the
@@ -158,20 +160,21 @@ export function Orb({
         onPress ? (state === "recording" ? "Stop dictating" : "Dictate to JARVIS") : "JARVIS status"
       }
     >
-      {/* Breathing radial glow */}
+      {/* Breathing radial glow — blooms + rides the vertical bob. */}
       <Animated.View
         style={[
           StyleSheet.absoluteFill,
-          { transform: [{ scale: glowScale }], opacity: glowOpacity },
+          { transform: [{ translateY: bobY }, { scale: glowScale }], opacity: glowOpacity },
         ]}
         pointerEvents="none"
       >
         <Svg width={size} height={size}>
           <Defs>
             <RadialGradient id="glow" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor={color} stopOpacity={0.42} />
-              <Stop offset="38%" stopColor={color} stopOpacity={0.14} />
-              <Stop offset="72%" stopColor={color} stopOpacity={0} />
+              <Stop offset="0%" stopColor={color} stopOpacity={0.62} />
+              <Stop offset="32%" stopColor={color} stopOpacity={0.28} />
+              <Stop offset="58%" stopColor={color} stopOpacity={0.1} />
+              <Stop offset="78%" stopColor={color} stopOpacity={0} />
             </RadialGradient>
           </Defs>
           <Circle cx={c} cy={c} r={c} fill="url(#glow)" />
@@ -227,8 +230,12 @@ export function Orb({
         </Svg>
       </Animated.View>
 
-      {/* Logo glyph — kiwi (default) or Hyperpolymath "H" brand mark */}
-      <Animated.View style={{ transform: [{ scale: glyphScale }] }} pointerEvents="none">
+      {/* Logo glyph — kiwi (default) or Hyperpolymath "H" brand mark.
+          Bob + scale ride the same breathe so the whole orb feels elastic. */}
+      <Animated.View
+        style={{ transform: [{ translateY: bobY }, { scale: glyphScale }] }}
+        pointerEvents="none"
+      >
         {showH ? (
           <Text
             style={{
