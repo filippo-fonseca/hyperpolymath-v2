@@ -8,6 +8,7 @@ import { ChevronDown, ArrowUpRight, Github } from "lucide-react";
 import { HeroJarvisLine } from "./HeroJarvisLine";
 import { VoiceInputCard } from "./VoiceInputCard";
 import { AmbientGlow, FocalOrb } from "@/components/ui/ambient";
+import { Logotype } from "@/components/ui/Logotype";
 
 // --ease-out-quart token, typed as a 4-tuple for Motion's cubic-bezier
 // inference. An ease-OUT curve — the seed's sanctioned hero entrance.
@@ -56,7 +57,7 @@ export function ThesisSection() {
 
   return (
     <section
-      className="dark relative isolate flex min-h-[100vh] flex-col items-center justify-center overflow-hidden px-6 py-24 md:px-10 md:py-28"
+      className="dark relative isolate flex min-h-[100svh] w-full max-w-[100vw] flex-col items-center justify-center overflow-x-clip px-5 py-20 sm:px-6 sm:py-24 md:px-10 md:py-28"
       aria-labelledby="thesis-headline"
       style={
         {
@@ -95,23 +96,23 @@ export function ThesisSection() {
           than the fixed full-viewport default. */}
       <AmbientGlow intensity="bold" anchor="hero" className="absolute inset-0 z-0" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-[1080px] flex-col items-center text-center">
+      <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-[1080px] flex-col items-center text-center">
         {/* Crest row — mono brand meta, preserved verbatim. */}
         <motion.div
           {...fade(0)}
-          className="flex w-full flex-col items-center justify-between gap-2 sm:flex-row"
+          className="flex w-full min-w-0 flex-col items-center justify-between gap-2 px-1 sm:flex-row sm:gap-4"
         >
-          <div className="flex items-center gap-3">
-            <span className="inline-flex gap-1.5 opacity-50" aria-hidden="true">
+          <div className="flex min-w-0 max-w-full items-center justify-center gap-2.5 sm:gap-3">
+            <span className="inline-flex shrink-0 gap-1.5 opacity-50" aria-hidden="true">
               <span className="block h-[5px] w-[5px] rounded-full bg-[var(--ink)]" />
               <span className="block h-[5px] w-[5px] rounded-full bg-[var(--ink)]" />
               <span className="block h-[5px] w-[5px] rounded-full bg-[var(--ink)]" />
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--ink-muted)] md:text-[11px]">
+            <span className="min-w-0 text-balance font-mono text-[10px] uppercase leading-snug tracking-[0.16em] text-[var(--ink-muted)] sm:tracking-[0.2em] md:text-[11px] md:tracking-[0.22em]">
               My life operating system framework, open sourced  ·  v2
             </span>
           </div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--ink-muted)] md:text-[11px]">
+          <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ink-muted)] sm:tracking-[0.2em] md:text-[11px] md:tracking-[0.22em]">
             MIT  ·  Open source
           </span>
         </motion.div>
@@ -120,25 +121,31 @@ export function ThesisSection() {
             the headline like the spacedrive.com reference composition. Its own
             under-glow + slow bob carry the focal light source the headline
             punches out of. */}
-        <motion.div {...fade(1)} className="mt-8 flex justify-center md:mt-10">
-          <FocalOrb size={176} />
+        <motion.div
+          {...fade(1)}
+          className="mt-7 flex h-[144px] w-[144px] items-center justify-center sm:mt-8 md:mt-10 md:h-[176px] md:w-[176px]"
+        >
+          <div className="origin-center scale-[0.82] md:scale-100">
+            <FocalOrb size={176} />
+          </div>
         </motion.div>
 
-        {/* Headline — EB Garamond editorial moment, punching out of the glow
-            via a heavy black drop-shadow (constitution §Scout-B). */}
+        {/* Headline — Logotype (EB Garamond), fluid so the full wordmark fits
+            every phone width without clipping. Sized from available viewport
+            minus section padding; capped at the desktop editorial 92px. */}
         <motion.h1
           {...fade(2)}
           id="thesis-headline"
-          className="mt-6 font-serif text-[64px] font-semibold leading-[0.98] tracking-[-0.02em] text-white md:text-[92px]"
+          className="mt-5 w-full min-w-0 max-w-full sm:mt-6"
           style={{ filter: "drop-shadow(rgba(0,0,0,0.95) 0 16px 50px)" }}
         >
-          Hyperpolymath
+          <Logotype className="mx-auto block max-w-full whitespace-nowrap text-[clamp(2rem,calc((100vw-2.5rem)/8),5.75rem)] font-semibold leading-[0.98] tracking-[-0.02em] text-white" />
         </motion.h1>
 
         {/* Lede — dull ink, the reference site's muted sub-headline. */}
         <motion.p
           {...fade(3)}
-          className="mt-5 max-w-[640px] font-serif text-[18px] leading-[1.45] text-[var(--ink-muted)] md:text-[21px]"
+          className="mt-4 max-w-[640px] px-1 font-serif text-[17px] leading-[1.45] text-balance text-[var(--ink-muted)] sm:mt-5 sm:text-[18px] md:text-[21px]"
         >
           A personal life-OS for people who refuse to specialize.
         </motion.p>
@@ -146,7 +153,7 @@ export function ThesisSection() {
         {/* Brand statement — the Renaissance/JARVIS thesis, preserved. */}
         <motion.p
           {...fade(4)}
-          className="mt-5 max-w-[760px] font-serif text-[17px] font-semibold leading-[1.4] text-[var(--ink)] md:text-[20px]"
+          className="mt-4 max-w-[760px] px-1 font-serif text-[16px] font-semibold leading-[1.4] text-balance text-[var(--ink)] sm:mt-5 sm:text-[17px] md:text-[20px]"
         >
           I brought back the{" "}
           <em className="font-extrabold italic">Renaissance Human</em>. And gave
@@ -158,11 +165,11 @@ export function ThesisSection() {
             §6). Labels: xs semibold uppercase tracking-[0.12em]. */}
         <motion.div
           {...fade(5)}
-          className="mt-9 flex flex-col items-center gap-3 sm:flex-row"
+          className="mt-8 flex w-full max-w-md flex-col items-stretch gap-3 px-1 sm:mt-9 sm:max-w-none sm:flex-row sm:items-center sm:justify-center"
         >
           <Link
             href="/sign-in"
-            className="sd-btn-primary group inline-flex items-center gap-2 px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] transition-transform duration-150 ease-out active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d]"
+            className="sd-btn-primary group inline-flex items-center justify-center gap-2 px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] transition-transform duration-150 ease-out active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d]"
           >
             <span>Get started</span>
             <ArrowUpRight
@@ -176,7 +183,7 @@ export function ThesisSection() {
             href="https://github.com/filippo-fonseca/hyperpolymath-v2"
             target="_blank"
             rel="noopener noreferrer"
-            className="sd-btn-ghost group inline-flex items-center gap-2 px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] transition-colors duration-150 hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d]"
+            className="sd-btn-ghost group inline-flex items-center justify-center gap-2 px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] transition-colors duration-150 hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d]"
           >
             <Github size={14} strokeWidth={2} aria-hidden="true" />
             <span>View the source</span>
@@ -188,7 +195,7 @@ export function ThesisSection() {
             exactly as they do in dark mode regardless of the app theme. */}
         <motion.div
           {...fade(6)}
-          className="mt-12 grid w-full grid-cols-1 gap-4 md:grid-cols-2"
+          className="mt-10 grid w-full min-w-0 grid-cols-1 gap-4 sm:mt-12 md:grid-cols-2"
         >
           <HeroJarvisLine />
           <VoiceInputCard />
@@ -197,12 +204,12 @@ export function ThesisSection() {
         {/* Brand spine — preserved mono meta, quiet under the fold of content. */}
         <motion.div
           {...fade(7)}
-          className="mt-10 flex w-full flex-col items-center justify-between gap-2 border-t border-white/10 pt-5 sm:flex-row"
+          className="mt-8 flex w-full min-w-0 flex-col items-center justify-between gap-2 border-t border-white/10 px-1 pt-5 sm:mt-10 sm:flex-row sm:gap-4"
         >
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--ink-muted)] md:text-[11px]">
+          <span className="text-center font-mono text-[10px] uppercase leading-snug tracking-[0.14em] text-[var(--ink-muted)] sm:tracking-[0.18em] md:text-[11px] md:tracking-[0.22em]">
             ❦  Hyperpolymath  ·  by Filippo Fonseca
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--ink-muted)] md:text-[11px]">
+          <span className="text-center font-mono text-[10px] uppercase leading-snug tracking-[0.14em] text-[var(--ink-muted)] sm:tracking-[0.18em] md:text-[11px] md:tracking-[0.22em]">
             How you do one thing is how you do everything
           </span>
         </motion.div>

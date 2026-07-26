@@ -25,12 +25,12 @@ export function FrameworkSection() {
       className="py-16 max-w-[1080px] mx-auto px-6 md:px-10 scroll-mt-20"
     >
       <div className="relative overflow-hidden rounded-[18px] border border-[var(--sd-line)] bg-[var(--sd-dark-box)] text-[var(--sd-ink)] shadow-[0_1px_0_rgba(255,255,255,0.06)_inset]">
-        <div className="relative px-8 md:px-14 py-10 md:py-14">
+        <div className="relative px-5 py-10 sm:px-8 md:px-14 md:py-14">
           {/* Crest row */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
+          <div className="mb-8 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 items-center gap-3">
               <span
-                className="inline-flex gap-1.5 opacity-50"
+                className="inline-flex shrink-0 gap-1.5 opacity-50"
                 aria-hidden="true"
               >
                 <span className="block w-[5px] h-[5px] rounded-full bg-[var(--sd-ink)]" />
@@ -47,7 +47,7 @@ export function FrameworkSection() {
           </div>
 
           {/* Headline */}
-          <h2 className="font-semibold text-center text-[40px] md:text-[56px] leading-[1.05] tracking-[-0.02em] text-[var(--sd-ink)]">
+          <h2 className="text-center text-[clamp(1.75rem,6.5vw,3.5rem)] font-semibold leading-[1.05] tracking-[-0.02em] text-balance text-[var(--sd-ink)]">
             It&rsquo;s a{" "}
             <em className="italic font-extrabold text-[var(--sd-accent)]">
               platform
@@ -126,7 +126,7 @@ export function FrameworkSection() {
           </p>
 
           {/* Footer brand spine */}
-          <div className="mt-10 md:mt-12 flex items-center justify-between border-t border-[var(--sd-line)] pt-4 md:pt-5">
+          <div className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-[var(--sd-line)] pt-4 sm:flex-row sm:items-center md:mt-12 md:pt-5">
             <span className="font-mono text-[10px] md:text-[11px] tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
               ❦  Open source by commitment
             </span>

@@ -14,28 +14,28 @@ import { Logotype } from "@/components/ui/Logotype";
  */
 export function LandingHeader() {
   return (
-    <header className="sticky top-0 z-10 h-14 bg-[color:var(--canvas)]/95 backdrop-blur-sm border-b border-[var(--edge)]">
-      <div className="h-full max-w-[1200px] mx-auto px-6 md:px-10 flex items-center justify-between">
+    <header className="sticky top-0 z-10 h-14 w-full max-w-[100vw] overflow-x-clip border-b border-[var(--edge)] bg-[color:var(--canvas)]/95 backdrop-blur-sm">
+      <div className="mx-auto flex h-full min-w-0 max-w-[1200px] items-center justify-between gap-3 px-5 sm:px-6 md:px-10">
         <Link
           href="/"
-          className="group inline-flex items-center gap-2.5 text-[var(--ink)]"
+          className="group inline-flex min-w-0 items-center gap-2 text-[var(--ink)] sm:gap-2.5"
           aria-label="Hyperpolymath · home"
         >
           <KiwiIcon size={18} aria-hidden="true" className="shrink-0" />
-          <Logotype className="text-[17px] leading-none" />
-          <span className="hidden md:inline font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)] pl-2 border-l border-[var(--edge)] ml-1">
+          <Logotype className="truncate text-[16px] leading-none sm:text-[17px]" />
+          <span className="ml-1 hidden border-l border-[var(--edge)] pl-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)] md:inline">
             MANIFESTO
           </span>
         </Link>
 
-        <div className="flex items-center gap-3 md:gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3 md:gap-4">
           <span className="hidden md:inline font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             EST. 2026 / MIT
           </span>
           <ThemeToggle variant="header" />
           <Link
             href="/sign-in"
-            className="group inline-flex items-center gap-1.5 h-9 px-4 rounded-md font-serif text-[14px] font-medium tracking-tight text-[var(--canvas)] bg-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_88%,var(--ink-muted))] transition-[background-color,transform] duration-150 ease-out active:translate-y-px shadow-[0_1px_0_color-mix(in_oklch,var(--ink)_22%,transparent),0_4px_12px_color-mix(in_oklch,var(--ink)_18%,transparent)]"
+            className="group inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--ink)] px-3 font-serif text-[14px] font-medium tracking-tight text-[var(--canvas)] shadow-[0_1px_0_color-mix(in_oklch,var(--ink)_22%,transparent),0_4px_12px_color-mix(in_oklch,var(--ink)_18%,transparent)] transition-[background-color,transform] duration-150 ease-out hover:bg-[color-mix(in_oklch,var(--ink)_88%,var(--ink-muted))] active:translate-y-px sm:px-4"
           >
             <span>Sign in</span>
             <ArrowUpRight

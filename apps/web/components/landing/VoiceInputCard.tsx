@@ -67,7 +67,7 @@ export function VoiceInputCard() {
   return (
     <motion.div
       key={idx}
-      className="inline-flex flex-col items-start gap-2 px-5 py-4 rounded bg-[var(--sd-box)] w-full"
+      className="inline-flex w-full min-w-0 flex-col items-start gap-2 rounded bg-[var(--sd-box)] px-4 py-4 sm:px-5"
       style={{
         border: "1px solid color-mix(in oklch, var(--sd-accent) 30%, var(--sd-line))",
         boxShadow: "none",

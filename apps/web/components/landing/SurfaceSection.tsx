@@ -117,14 +117,14 @@ export function SurfaceSection() {
               "1px solid color-mix(in oklch, var(--sd-accent) 30%, var(--sd-line))",
           }}
         >
-          <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+          <div className="flex items-center justify-center gap-2">
             <span
-              className="inline-flex size-7 items-center justify-center rounded-[7px] border border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-accent)]"
+              className="inline-flex size-7 shrink-0 items-center justify-center rounded-[7px] border border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-accent)]"
               aria-hidden="true"
             >
               <Cpu size={15} strokeWidth={1.75} />
             </span>
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-accent)]">
+            <p className="min-w-0 text-center font-mono text-[10px] font-medium uppercase leading-snug tracking-[0.12em] text-[var(--sd-accent)] sm:text-[11px] sm:tracking-[0.14em]">
               MACROPAD + VOICE DETECTOR HARDWARE
             </p>
           </div>
