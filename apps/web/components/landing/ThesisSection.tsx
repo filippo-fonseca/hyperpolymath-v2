@@ -58,7 +58,7 @@ export function ThesisSection() {
 
   return (
     <section
-      className="dark relative isolate flex w-full max-w-[100vw] flex-col items-center overflow-hidden px-5 pt-2 pb-4 sm:px-6 sm:py-16 md:min-h-[100svh] md:justify-center md:px-10 md:py-28"
+      className="dark relative isolate flex w-full max-w-[100vw] flex-col items-center overflow-hidden px-5 pt-0 pb-0 sm:px-6 sm:py-16 md:min-h-[100svh] md:justify-center md:px-10 md:py-28"
       aria-labelledby="thesis-headline"
       style={
         {
@@ -109,13 +109,14 @@ export function ThesisSection() {
       </div>
 
       <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-[1080px] flex-col items-center text-center">
-        {/* First screen — crest → CTAs. Top-aligned on mobile (no vertical
-            centering gap under the header); demo cards stay below the fold. */}
-        <div className="flex w-full flex-col items-center justify-start md:min-h-0">
+        {/* First screen — fills the mobile viewport under the sticky header.
+            justify-between pins crest to the top and CTAs to the bottom so
+            View the source lands at the fold without feeling crushed. */}
+        <div className="flex w-full min-h-[calc(100svh-3.5rem)] flex-col items-center justify-between py-3 sm:min-h-0 sm:justify-start sm:gap-0 sm:py-0">
           {/* Crest — author pill + life-OS line. */}
           <motion.div
             {...fade(0)}
-            className="flex w-full min-w-0 flex-col items-center gap-1 px-1 sm:gap-3"
+            className="flex w-full min-w-0 flex-col items-center gap-1.5 px-1 sm:gap-3"
           >
             <a
               href="https://filippofonseca.com"
@@ -147,52 +148,49 @@ export function ThesisSection() {
             </div>
           </motion.div>
 
-          {/* ONE glossy focal orb — compact mount on mobile so CTAs stay above
-              the fold; desktop keeps the larger theatrical footprint. */}
-          <motion.div
-            {...fade(1)}
-            className="mt-1.5 flex h-[120px] w-[120px] items-center justify-center sm:mt-6 sm:h-[200px] sm:w-[200px] md:mt-8 md:h-[260px] md:w-[260px]"
-          >
-            <div className="origin-center scale-[0.62] sm:scale-[0.82] md:scale-100">
-              <FocalOrb size={176} intensity="bold" />
-            </div>
-          </motion.div>
+          {/* Middle cluster — orb + wordmark + lede. Sits between crest and
+              CTAs so justify-between can breathe without crushing copy. */}
+          <div className="flex w-full flex-col items-center">
+            <motion.div
+              {...fade(1)}
+              className="flex h-[148px] w-[148px] items-center justify-center sm:mt-6 sm:h-[200px] sm:w-[200px] md:mt-8 md:h-[260px] md:w-[260px]"
+            >
+              <div className="origin-center scale-[0.72] sm:scale-[0.82] md:scale-100">
+                <FocalOrb size={176} intensity="bold" />
+              </div>
+            </motion.div>
 
-          {/* Headline — Logotype (EB Garamond), fluid so the full wordmark fits
-              every phone width without clipping. Sized from available viewport
-              minus section padding; capped at the desktop editorial 92px. */}
-          <motion.h1
-            {...fade(2)}
-            id="thesis-headline"
-            className="mt-1 w-full min-w-0 max-w-full sm:mt-6"
-            style={{ filter: "drop-shadow(rgba(0,0,0,0.95) 0 16px 50px)" }}
-          >
-            <Logotype className="mx-auto block max-w-full whitespace-nowrap text-[clamp(1.85rem,calc((100vw-2.5rem)/8),5.75rem)] font-semibold leading-[0.98] tracking-[-0.02em] text-white" />
-          </motion.h1>
+            <motion.h1
+              {...fade(2)}
+              id="thesis-headline"
+              className="mt-2 w-full min-w-0 max-w-full sm:mt-6"
+              style={{ filter: "drop-shadow(rgba(0,0,0,0.95) 0 16px 50px)" }}
+            >
+              <Logotype className="mx-auto block max-w-full whitespace-nowrap text-[clamp(1.9rem,calc((100vw-2.5rem)/8),5.75rem)] font-semibold leading-[0.98] tracking-[-0.02em] text-white" />
+            </motion.h1>
 
-          {/* Lede — dull ink, the reference site's muted sub-headline. */}
-          <motion.p
-            {...fade(3)}
-            className="mt-1.5 max-w-[640px] px-1 font-serif text-[15px] leading-[1.35] text-balance text-[var(--ink-muted)] sm:mt-5 sm:text-[18px] sm:leading-[1.45] md:text-[21px]"
-          >
-            A personal life-OS for people who refuse to specialize.
-          </motion.p>
+            <motion.p
+              {...fade(3)}
+              className="mt-2.5 max-w-[640px] px-1 font-serif text-[15px] leading-[1.4] text-balance text-[var(--ink-muted)] sm:mt-5 sm:text-[18px] sm:leading-[1.45] md:text-[21px]"
+            >
+              A personal life-OS for people who refuse to specialize.
+            </motion.p>
 
-          {/* Brand statement — the Renaissance/JARVIS thesis, preserved. */}
-          <motion.p
-            {...fade(4)}
-            className="mt-1.5 max-w-[760px] px-1 font-serif text-[14px] font-semibold leading-[1.35] text-balance text-[var(--ink)] sm:mt-5 sm:text-[17px] sm:leading-[1.4] md:text-[20px]"
-          >
-            I brought back the{" "}
-            <em className="font-extrabold italic">Renaissance Human</em>. And gave
-            them <em className="font-extrabold italic">JARVIS</em> from Tony Stark.{" "}
-            <span className="italic text-[var(--ink-muted)]">All in one.</span>
-          </motion.p>
+            <motion.p
+              {...fade(4)}
+              className="mt-2 max-w-[760px] px-1 font-serif text-[14px] font-semibold leading-[1.4] text-balance text-[var(--ink)] sm:mt-5 sm:text-[17px] sm:leading-[1.4] md:text-[20px]"
+            >
+              I brought back the{" "}
+              <em className="font-extrabold italic">Renaissance Human</em>. And gave
+              them <em className="font-extrabold italic">JARVIS</em> from Tony Stark.{" "}
+              <span className="italic text-[var(--ink-muted)]">All in one.</span>
+            </motion.p>
+          </div>
 
-          {/* Pill CTAs — side-by-side even on mobile so both fit one view. */}
+          {/* Pill CTAs — pinned to the bottom of the first mobile screen. */}
           <motion.div
             {...fade(5)}
-            className="mt-3 flex w-full max-w-md flex-row flex-wrap items-center justify-center gap-2 px-1 sm:mt-9 sm:max-w-none sm:gap-3"
+            className="flex w-full max-w-md flex-row flex-wrap items-center justify-center gap-2 px-1 sm:mt-9 sm:max-w-none sm:gap-3"
           >
             <Link
               href="/sign-in"
