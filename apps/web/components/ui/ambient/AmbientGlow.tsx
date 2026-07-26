@@ -16,8 +16,8 @@ import { useTabHidden } from "./useTabHidden";
  * Registers:
  *   - "whisper" (default): static, dampened. Mounted behind the app shell on
  *     every route.
- *   - "bold": the foundations opacities + a slow compositor drift (transform /
- *     scale only). Mounted behind the Life OS hero / stat strip.
+ *   - "bold": drifting + pulsing blobs (transform / opacity only). Mounted
+ *     behind the landing hero / Life OS theatrical plates.
  *
  * Both themes are first-class (D1c): the foundations utilities already run a
  * dampened light-theme alpha, and whisper dampens further, so text contrast
@@ -43,7 +43,11 @@ interface Props {
 /** Per-anchor blob geometry. Centering via negative margins keeps `transform`
  *  free for the drift animation. Sizes are viewport-relative so the field
  *  scales with the screen; the container's overflow-hidden clips the bleed. */
-function blobGeometry(anchor: Anchor): { wide: CSSProperties; core: CSSProperties } {
+function blobGeometry(anchor: Anchor): {
+  wide: CSSProperties;
+  core: CSSProperties;
+  flare: CSSProperties;
+} {
   switch (anchor) {
     case "top":
       return {
@@ -63,24 +67,40 @@ function blobGeometry(anchor: Anchor): { wide: CSSProperties; core: CSSPropertie
           marginLeft: "-17vw",
           marginTop: "-16vh",
         },
+        flare: {
+          left: "62%",
+          top: "18%",
+          width: "28vw",
+          height: "28vh",
+          marginLeft: "-14vw",
+          marginTop: "-14vh",
+        },
       };
     case "hero":
       return {
         wide: {
-          left: "44%",
-          top: "12%",
-          width: "66vw",
-          height: "48vh",
-          marginLeft: "-33vw",
-          marginTop: "-24vh",
+          left: "50%",
+          top: "18%",
+          width: "88vw",
+          height: "58vh",
+          marginLeft: "-44vw",
+          marginTop: "-29vh",
         },
         core: {
-          left: "33%",
-          top: "6%",
-          width: "30vw",
-          height: "30vh",
-          marginLeft: "-15vw",
-          marginTop: "-15vh",
+          left: "42%",
+          top: "10%",
+          width: "42vw",
+          height: "40vh",
+          marginLeft: "-21vw",
+          marginTop: "-20vh",
+        },
+        flare: {
+          left: "58%",
+          top: "28%",
+          width: "36vw",
+          height: "34vh",
+          marginLeft: "-18vw",
+          marginTop: "-17vh",
         },
       };
     default:
@@ -101,18 +121,27 @@ function blobGeometry(anchor: Anchor): { wide: CSSProperties; core: CSSPropertie
           marginLeft: "-17vw",
           marginTop: "-17vh",
         },
+        flare: {
+          left: "58%",
+          top: "52%",
+          width: "26vw",
+          height: "26vh",
+          marginLeft: "-13vw",
+          marginTop: "-13vh",
+        },
       };
   }
 }
 
 export function AmbientGlow({ intensity = "whisper", anchor = "center", className }: Props) {
   const hidden = useTabHidden();
-  const { wide, core } = blobGeometry(anchor);
+  const { wide, core, flare } = blobGeometry(anchor);
 
   return (
     <div
       aria-hidden
       data-intensity={intensity}
+      data-anchor={anchor}
       data-paused={hidden ? "true" : "false"}
       className={cn(
         "sd-ambient pointer-events-none overflow-hidden fixed inset-0 -z-10",
@@ -122,6 +151,7 @@ export function AmbientGlow({ intensity = "whisper", anchor = "center", classNam
       <style>{AMBIENT_CSS}</style>
       <div className="sd-ambient__blob sd-glow-wide" style={wide} />
       <div className="sd-ambient__blob sd-glow-core" style={core} />
+      <div className="sd-ambient__blob sd-ambient__flare" style={flare} />
       <div className="sd-noise-overlay" />
     </div>
   );
@@ -135,27 +165,78 @@ const AMBIENT_CSS = `
 /* Blobs are absolutely placed by this unit; foundations only styles their look. */
 .sd-ambient__blob { position: absolute; transform: translate3d(0, 0, 0); }
 
+/* Tertiary flare — cyan accent blob used for bold motion depth. */
+.sd-ambient__flare {
+  border-radius: 9999px;
+  background: var(--sd-accent);
+  opacity: 0;
+  filter: blur(90px);
+}
+.dark .sd-ambient__flare { opacity: 0; }
+
 /* Whisper: dampen the foundations opacities to a quiet background hum. */
 .sd-ambient[data-intensity="whisper"] .sd-glow-wide { opacity: 0.05; }
 .sd-ambient[data-intensity="whisper"] .sd-glow-core { opacity: 0.04; }
 .sd-ambient[data-intensity="whisper"] .sd-noise-overlay { opacity: 0.06; }
+.sd-ambient[data-intensity="whisper"] .sd-ambient__flare { display: none; }
 :where(.dark) .sd-ambient[data-intensity="whisper"] .sd-glow-wide { opacity: 0.07; }
 :where(.dark) .sd-ambient[data-intensity="whisper"] .sd-glow-core { opacity: 0.05; }
 :where(.dark) .sd-ambient[data-intensity="whisper"] .sd-noise-overlay { opacity: 0.12; }
 
-/* Drift — bold only, compositor transform/scale on top of the blur. */
-.sd-ambient[data-intensity="bold"] .sd-ambient__blob { will-change: transform; }
-.sd-ambient[data-intensity="bold"] .sd-glow-wide { animation: sdAmbientDriftA 24s ease-in-out infinite; }
-.sd-ambient[data-intensity="bold"] .sd-glow-core { animation: sdAmbientDriftB 31s ease-in-out infinite; }
+/* Bold — brighter field + faster compositor drift/pulse. */
+.sd-ambient[data-intensity="bold"] .sd-ambient__blob { will-change: transform, opacity; }
+.sd-ambient[data-intensity="bold"] .sd-glow-wide {
+  opacity: 0.18;
+  animation: sdAmbientDriftA 14s ease-in-out infinite;
+}
+.sd-ambient[data-intensity="bold"] .sd-glow-core {
+  opacity: 0.16;
+  animation: sdAmbientDriftB 10s ease-in-out infinite;
+}
+.sd-ambient[data-intensity="bold"] .sd-ambient__flare {
+  opacity: 0.14;
+  animation: sdAmbientDriftC 8s ease-in-out infinite;
+}
+:where(.dark) .sd-ambient[data-intensity="bold"] .sd-glow-wide { opacity: 0.32; }
+:where(.dark) .sd-ambient[data-intensity="bold"] .sd-glow-core { opacity: 0.26; }
+:where(.dark) .sd-ambient[data-intensity="bold"] .sd-ambient__flare { opacity: 0.22; }
+:where(.dark) .sd-ambient[data-intensity="bold"] .sd-noise-overlay { opacity: 0.28; }
+
+/* Hero plate: a second opacity breathe so the field pulses with the orb. */
+.sd-ambient[data-intensity="bold"][data-anchor="hero"] .sd-glow-wide {
+  animation:
+    sdAmbientDriftA 14s ease-in-out infinite,
+    sdAmbientBreathWide 5.2s ease-in-out infinite;
+}
+.sd-ambient[data-intensity="bold"][data-anchor="hero"] .sd-glow-core {
+  animation:
+    sdAmbientDriftB 10s ease-in-out infinite,
+    sdAmbientBreathCore 5.2s ease-in-out infinite reverse;
+}
+
 .sd-ambient[data-paused="true"] .sd-ambient__blob { animation-play-state: paused; }
 
 @keyframes sdAmbientDriftA {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(4%, -3%, 0) scale(1.05); }
+  33% { transform: translate3d(6%, -5%, 0) scale(1.1); }
+  66% { transform: translate3d(-4%, 4%, 0) scale(1.06); }
 }
 @keyframes sdAmbientDriftB {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(-3%, 4%, 0) scale(1.04); }
+  40% { transform: translate3d(-7%, 5%, 0) scale(1.12); }
+  70% { transform: translate3d(5%, -4%, 0) scale(1.05); }
+}
+@keyframes sdAmbientDriftC {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.95); opacity: 0.12; }
+  50% { transform: translate3d(-5%, -6%, 0) scale(1.18); opacity: 0.28; }
+}
+@keyframes sdAmbientBreathWide {
+  0%, 100% { opacity: 0.24; }
+  50% { opacity: 0.42; }
+}
+@keyframes sdAmbientBreathCore {
+  0%, 100% { opacity: 0.18; }
+  50% { opacity: 0.36; }
 }
 @media (prefers-reduced-motion: reduce) {
   .sd-ambient__blob { animation: none !important; }

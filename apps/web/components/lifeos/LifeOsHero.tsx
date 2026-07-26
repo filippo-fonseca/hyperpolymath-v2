@@ -235,10 +235,10 @@ export function LifeOsHero({
           </h1>
         </div>
 
-        {/* Presence lamp: JARVIS is here. Not a planet (R1). */}
+        {/* Presence lamp: JARVIS is here. Not a planet (R1). Soft intensity
+            keeps the chrome bob quiet while the landing hero runs bold. */}
         <div className="lifeos-presence flex shrink-0 flex-col items-center gap-1.5">
-          <style>{PRESENCE_CSS}</style>
-          <FocalOrb size={ORB_SIZE} />
+          <FocalOrb size={ORB_SIZE} intensity="soft" />
           <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
             JARVIS
           </span>
@@ -303,13 +303,6 @@ export function LifeOsHero({
     </section>
   );
 }
-
-/* The shared FocalOrb bobs at 8s; as a presence lamp it runs a gentler 6s
-   (§4). Scoped to this mount so the landing hero orb is untouched, and the
-   component's own reduced-motion rule still wins (it kills the animation). */
-const PRESENCE_CSS = `
-.lifeos-presence .sd-orb__bob { animation-duration: 6s; }
-`;
 
 /* HabitIcon is a ring, not a filled body: on the dark canvas its indigo band
    sits close enough to the surface that the streak barely reads, while the
