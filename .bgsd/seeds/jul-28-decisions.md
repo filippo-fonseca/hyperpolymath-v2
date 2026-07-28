@@ -77,6 +77,16 @@ mapping, a streaming-to-single-message strategy, and a **settings toggle gating 
 replies**, exposed on web (mobile parity noted as follow-up). Green bubble, not blue; a
 self-hosted iMessage bridge can be added later behind the same seam.
 
+**Reaffirmed after contrary evidence.** Scout `s6-jarvis.md` came back recommending against this:
+it found the repo already contains both halves of an iMessage loop (inbound
+`tools/imessage-sync/sync.mjs` tailing `chat.db` into `POST /api/imessage/ingest`; outbound the
+`send_message` tool dispatching over the physical SSE bus into the desktop app's AppleScript
+`Messages` send), making blue-bubble iMessage a loop-closer rather than a new transport, at zero
+cost and with no 10DLC registration. That evidence was put to Filippo explicitly on 2026-07-28
+and he **reaffirmed Twilio**. D6 therefore stands as the sealed decision, now with the trade-off
+made with full information: Twilio's independence from any machine of his being awake is worth
+the green bubble, the monthly cost, and the 10DLC wait. No worker relitigates this. See R11.
+
 ## D7 — GitHub issues
 One epic issue for the sesh plus one atomic issue per unit. Each PR closes its issue on
 merge. No PR is merged without Filippo's explicit say-so.
