@@ -37,7 +37,9 @@ describe("flow pill store", () => {
       { type: "stop-capture" },
       { type: "send", text: "book the lab bench" },
     ]);
-    expect(effects.some((e) => e.type === "dismiss-after")).toBe(false);
+    // `dismiss-after` is absent from the list above, and `FlowPillOutboundEffect`
+    // excludes it at the type level, so a runtime assertion here would not
+    // compile. The fade timing never crosses this boundary.
     store.destroy();
   });
 
