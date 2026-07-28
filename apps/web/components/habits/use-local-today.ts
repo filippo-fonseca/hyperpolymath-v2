@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { todayISO } from "@/lib/habits/dates";
+import { useEffect, useState } from "react";
 
 /**
  * The client's local date, kept honest across midnight.

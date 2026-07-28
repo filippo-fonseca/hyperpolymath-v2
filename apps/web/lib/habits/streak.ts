@@ -68,8 +68,7 @@ export function computeHabitStreak(input: StreakInput): StreakResult {
     cursor = addDaysISO(cursor, -1);
   }
 
-  const todayCredit =
-    daysOfWeek[dayOfWeekISO(todayISO)] && completed.has(todayISO) ? 1 : 0;
+  const todayCredit = daysOfWeek[dayOfWeekISO(todayISO)] && completed.has(todayISO) ? 1 : 0;
 
   return { base, current: base + todayCredit, saturated };
 }
@@ -80,7 +79,7 @@ export function computeHabitStreak(input: StreakInput): StreakResult {
  * (or never fetched); this helper is shape-only on purpose.
  */
 export function groupCompletedDates(
-  rows: readonly { habitId: string; completedDate: string }[],
+  rows: readonly { habitId: string; completedDate: string }[]
 ): Map<string, Set<string>> {
   const byHabit = new Map<string, Set<string>>();
   for (const row of rows) {

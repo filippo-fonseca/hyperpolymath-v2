@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   MONTH_NAMES,
   WEEKDAY_SHORT,
@@ -49,9 +49,7 @@ export function MiniCalendar({ value, onChange }: Props) {
   }, [monthAnchor]);
 
   function shiftMonth(delta: number) {
-    setMonthAnchor(
-      new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + delta, 1),
-    );
+    setMonthAnchor(new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + delta, 1));
   }
 
   return (
@@ -83,6 +81,7 @@ export function MiniCalendar({ value, onChange }: Props) {
       <div className="mb-1 grid grid-cols-7 gap-1">
         {WEEKDAY_SHORT.map((w, i) => (
           <span
+            // biome-ignore lint/suspicious/noArrayIndexKey: static 7-slot header with duplicate letters (S, T)
             key={i}
             className="py-1 text-center text-micro text-[var(--ink-faint)]"
           >
@@ -113,11 +112,9 @@ export function MiniCalendar({ value, onChange }: Props) {
                   ? "font-medium text-[var(--canvas)]"
                   : c.inMonth
                     ? "text-[var(--ink)] hover:bg-[var(--hover)]"
-                    : "text-[var(--ink-faint)] hover:bg-[var(--hover)]",
+                    : "text-[var(--ink-faint)] hover:bg-[var(--hover)]"
               )}
-              style={
-                isSelected ? { background: "var(--accent)" } : undefined
-              }
+              style={isSelected ? { background: "var(--accent)" } : undefined}
             >
               {c.date}
               {isToday && !isSelected ? (

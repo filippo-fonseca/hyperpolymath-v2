@@ -105,7 +105,7 @@ describe("computeHabitStreak", () => {
       const d = new Date(2026, 6, 28);
       d.setDate(d.getDate() - i);
       days.push(
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
       );
     }
     const r = computeHabitStreak({
@@ -124,7 +124,7 @@ describe("computeHabitStreak", () => {
       const d = new Date(2026, 6, 28);
       d.setDate(d.getDate() - i);
       days.push(
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
       );
     }
     const r = computeHabitStreak({

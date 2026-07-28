@@ -26,8 +26,7 @@ export function compareISODates(a: string, b: string): number {
 export function daysBetweenISO(start: string, end: string): number {
   return (
     Math.round(
-      (parseISODate(end).getTime() - parseISODate(start).getTime()) /
-        (1000 * 60 * 60 * 24),
+      (parseISODate(end).getTime() - parseISODate(start).getTime()) / (1000 * 60 * 60 * 24)
     ) + 1
   );
 }
@@ -38,11 +37,7 @@ export function daysBetweenISO(start: string, end: string): number {
  * mini-calendar to render a 6-row × 7-col grid.
  */
 export function calendarGridStart(monthAnchor: Date): Date {
-  const first = new Date(
-    monthAnchor.getFullYear(),
-    monthAnchor.getMonth(),
-    1,
-  );
+  const first = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1);
   const dayOfWeek = first.getDay(); // 0 = Sun
   first.setDate(first.getDate() - dayOfWeek);
   return first;

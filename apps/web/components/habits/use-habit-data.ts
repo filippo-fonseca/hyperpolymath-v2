@@ -1,18 +1,18 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import {
+  type HabitDockToday,
   getHabitCompletionsInRange,
   getHabitDockToday,
   toggleHabitCompletion,
-  type HabitDockToday,
 } from "@/app/actions/habits";
-import { tableKey } from "@/lib/realtime/query-keys";
 import type { OptimisticAction } from "@/lib/realtime/optimistic-reducer";
+import { tableKey } from "@/lib/realtime/query-keys";
 import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import { sfx } from "@/lib/ui/sfx";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+import { toast } from "sonner";
 
 /**
  * The one data plane behind every habits surface — the /habits page and the
@@ -49,7 +49,7 @@ export function useHabitMeta(
   userId: string,
   todayISO: string,
   seed?: HabitDockToday,
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean } = {}
 ) {
   return useQuery({
     queryKey: habitMetaKey(userId, todayISO),
@@ -80,7 +80,7 @@ export function useHabitDay(
   dateISO: string,
   todayISO: string,
   seed?: { habitId: string; completedDate: string }[],
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean } = {}
 ): HabitDay {
   const queryClient = useQueryClient();
 
@@ -97,18 +97,13 @@ export function useHabitDay(
         ...c,
         id: `${c.habitId}::${c.completedDate}`,
       })),
-    [canonical],
+    [canonical]
   );
   const [optimistic, dispatch] = useOptimisticList<CompletionRow>(rows);
 
   const doneSet = useMemo(
-    () =>
-      new Set(
-        optimistic
-          .filter((c) => c.completedDate === dateISO)
-          .map((c) => c.habitId),
-      ),
-    [optimistic, dateISO],
+    () => new Set(optimistic.filter((c) => c.completedDate === dateISO).map((c) => c.habitId)),
+    [optimistic, dateISO]
   );
 
   const toggle = useCallback(
@@ -146,7 +141,7 @@ export function useHabitDay(
         }
       })();
     },
-    [dateISO, todayISO, userId, doneSet, dispatch, queryClient],
+    [dateISO, todayISO, userId, doneSet, dispatch, queryClient]
   );
 
   return { doneSet, toggle, pending: isPending };

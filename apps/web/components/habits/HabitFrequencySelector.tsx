@@ -28,11 +28,7 @@ const DISPLAY_ORDER: { idx: number; short: string; full: string }[] = [
  * accessible (each pill is a real <button>). The mismatched repeated short
  * letters (T-T, S-S) are clarified by the full-name aria-label + title.
  */
-export function HabitFrequencySelector({
-  value,
-  onChange,
-  disabled = false,
-}: Props) {
+export function HabitFrequencySelector({ value, onChange, disabled = false }: Props) {
   function toggle(idx: number) {
     if (disabled) return;
     const next = [...value];
@@ -41,11 +37,8 @@ export function HabitFrequencySelector({
   }
 
   return (
-    <div
-      role="group"
-      aria-label="Days of the week"
-      className="inline-flex items-center gap-1"
-    >
+    // biome-ignore lint/a11y/useSemanticElements: fieldset brings default chrome and layout quirks; role="group" + label is equivalent here
+    <div role="group" aria-label="Days of the week" className="inline-flex items-center gap-1">
       {DISPLAY_ORDER.map(({ idx, short, full }) => {
         const on = !!value[idx];
         return (
@@ -64,7 +57,7 @@ export function HabitFrequencySelector({
               on
                 ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
                 : "border-[var(--edge)] bg-transparent text-[var(--ink-faint)] hover:border-[var(--edge-strong)] hover:text-[var(--ink)]",
-              disabled && "cursor-not-allowed opacity-40",
+              disabled && "cursor-not-allowed opacity-40"
             )}
           >
             {short}
@@ -83,11 +76,8 @@ export function HabitFrequencySelector({
  */
 export function HabitFrequencyBadges({ value }: { value: boolean[] }) {
   return (
-    <div
-      role="group"
-      aria-label="Days of the week"
-      className="inline-flex items-center gap-1"
-    >
+    // biome-ignore lint/a11y/useSemanticElements: read-only badge strip, not a form control group
+    <div role="group" aria-label="Days of the week" className="inline-flex items-center gap-1">
       {DISPLAY_ORDER.map(({ idx, short, full }) => {
         const on = !!value[idx];
         return (
@@ -97,9 +87,7 @@ export function HabitFrequencyBadges({ value }: { value: boolean[] }) {
             className={cn(
               "inline-flex h-[18px] w-[18px] items-center justify-center rounded",
               "text-micro",
-              on
-                ? "bg-[var(--selected)] text-[var(--ink)]"
-                : "text-[var(--ink-faint)]",
+              on ? "bg-[var(--selected)] text-[var(--ink)]" : "text-[var(--ink-faint)]"
             )}
           >
             {short}

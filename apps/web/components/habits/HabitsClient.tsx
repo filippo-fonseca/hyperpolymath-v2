@@ -1,41 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { toast } from "sonner";
 import {
-  Plus,
-  MoreHorizontal,
-  Trash2,
-  Archive,
-  ArchiveRestore,
-  ChevronLeft,
-  ChevronRight,
-  CalendarIcon,
-  Flame,
-} from "lucide-react";
-import { tableKey } from "@/lib/realtime/query-keys";
-import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import {
-  getHabitsForCurrentUser,
-  getArchivedHabitsForCurrentUser,
-  deleteHabit,
-  updateHabit,
   type HabitDockToday,
   type HabitWithAreas,
+  deleteHabit,
+  getArchivedHabitsForCurrentUser,
+  getHabitsForCurrentUser,
+  updateHabit,
 } from "@/app/actions/habits";
-import { Button } from "@/components/ui/button";
+import { Chip, ProgressRow } from "@/components/lifeos/entity-card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageScaffold } from "@/components/ui/PageScaffold";
 import {
   AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogAction,
-  AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,22 +29,32 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { PageScaffold } from "@/components/ui/PageScaffold";
-import { Chip, ProgressRow } from "@/components/lifeos/entity-card";
 import { HabitIcon } from "@/components/ui/icons";
-import { HabitDialog, type AreaOption } from "./HabitDialog";
-import { MiniCalendar } from "./MiniCalendar";
-import { scheduleLabel } from "./schedule";
-import { useLocalToday } from "./use-local-today";
-import { useHabitDay, useHabitMeta } from "./use-habit-data";
-import { addDaysISO, dayOfWeekISO, parseISODate, toISODate } from "./date-utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { cn } from "@/lib/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Archive,
+  ArchiveRestore,
+  CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
+  MoreHorizontal,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { type AreaOption, HabitDialog } from "./HabitDialog";
+import { MiniCalendar } from "./MiniCalendar";
+import { addDaysISO, dayOfWeekISO, parseISODate, toISODate } from "./date-utils";
+import { scheduleLabel } from "./schedule";
+import { useHabitDay, useHabitMeta } from "./use-habit-data";
+import { useLocalToday } from "./use-local-today";
 
 interface Props {
   userId: string;
@@ -169,48 +165,35 @@ export function HabitsClient({
     initialData: initialHabits,
   });
 
-  const { data: meta } = useHabitMeta(
-    userId,
-    today,
-    seedOk ? initialMeta : undefined,
-  );
+  const { data: meta } = useHabitMeta(userId, today, seedOk ? initialMeta : undefined);
 
   // Today's completion state is always mounted (the header stats read it) and
   // must be declared before the selected-day hook so the seeded instance
   // creates the shared cache entry.
-  const todayBase = useHabitDay(
-    userId,
-    today,
-    today,
-    seedOk ? initialTodayCompletions : undefined,
-  );
+  const todayBase = useHabitDay(userId, today, today, seedOk ? initialTodayCompletions : undefined);
   const selectedDay = useHabitDay(userId, selectedDate, today);
   const isTodaySelected = selectedDate === today;
   const todayDay = isTodaySelected ? selectedDay : todayBase;
 
   // ── Derived stats (live: base streaks + today's optimistic state) ─────
-  const metaById = useMemo(
-    () => new Map((meta?.habits ?? []).map((h) => [h.id, h])),
-    [meta],
-  );
+  const metaById = useMemo(() => new Map((meta?.habits ?? []).map((h) => [h.id, h])), [meta]);
   const scheduledToday = useMemo(
     () => (meta?.habits ?? []).filter((h) => h.scheduledToday),
-    [meta],
+    [meta]
   );
   const doneTodayCount = useMemo(
     () => scheduledToday.filter((h) => todayDay.doneSet.has(h.id)).length,
-    [scheduledToday, todayDay.doneSet],
+    [scheduledToday, todayDay.doneSet]
   );
 
   const streakOf = useCallback(
     (habitId: string): StreakDisplay => {
       const m = metaById.get(habitId);
       if (!m) return { value: 0, saturated: false };
-      const credit =
-        m.scheduledToday && todayDay.doneSet.has(habitId) ? 1 : 0;
+      const credit = m.scheduledToday && todayDay.doneSet.has(habitId) ? 1 : 0;
       return { value: m.streakBase + credit, saturated: m.streakSaturated };
     },
-    [metaById, todayDay.doneSet],
+    [metaById, todayDay.doneSet]
   );
 
   const bestStreak = useMemo(() => {
@@ -226,9 +209,7 @@ export function HabitsClient({
     if (!meta) return null;
     const scheduled = meta.rate28.scheduled + scheduledToday.length;
     if (scheduled === 0) return null;
-    return Math.round(
-      ((meta.rate28.done + doneTodayCount) / scheduled) * 100,
-    );
+    return Math.round(((meta.rate28.done + doneTodayCount) / scheduled) * 100);
   }, [meta, scheduledToday.length, doneTodayCount]);
 
   // ── Selected-day list ──────────────────────────────────────────────────
@@ -238,11 +219,9 @@ export function HabitsClient({
       habits
         .filter((h) => h.daysOfWeek[selectedDow])
         .filter((h) => toISODate(h.createdAt) <= selectedDate),
-    [habits, selectedDow, selectedDate],
+    [habits, selectedDow, selectedDate]
   );
-  const dayDoneCount = dayHabits.filter((h) =>
-    selectedDay.doneSet.has(h.id),
-  ).length;
+  const dayDoneCount = dayHabits.filter((h) => selectedDay.doneSet.has(h.id)).length;
   const isFuture = selectedDate > today;
   const isPast = selectedDate < today;
 
@@ -405,9 +384,7 @@ export function HabitsClient({
 
             {showArchived ? (
               <div className="mt-6">
-                <h3 className="mb-3 text-micro font-medium text-[var(--ink-faint)]">
-                  Archived
-                </h3>
+                <h3 className="mb-3 text-micro font-medium text-[var(--ink-faint)]">Archived</h3>
                 {archivedPending ? (
                   <p className="text-meta text-[var(--ink-faint)]">Loading…</p>
                 ) : archived.length === 0 ? (
@@ -450,24 +427,18 @@ export function HabitsClient({
       ) : null}
 
       {/* Destructive confirmation — one of the two sanctioned modal uses. */}
-      <AlertDialog
-        open={!!deleting}
-        onOpenChange={(o) => !o && setDeleting(null)}
-      >
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete habit?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently removes “{deleting?.name}” and its completion
-              history. Archiving keeps the history instead.
+              This permanently removes “{deleting?.name}” and its completion history. Archiving
+              keeps the history instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="rounded-lg"
-              onClick={handleDeleteConfirmed}
-            >
+            <AlertDialogAction className="rounded-lg" onClick={handleDeleteConfirmed}>
               Delete habit
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -586,11 +557,7 @@ function DaySection({
       {habits.length === 0 ? (
         <EmptyState
           size="inline"
-          title={
-            isPast
-              ? "Nothing was scheduled this day."
-              : "Nothing scheduled for this day."
-          }
+          title={isPast ? "Nothing was scheduled this day." : "Nothing scheduled for this day."}
         />
       ) : (
         <ul className="mt-4 flex flex-col gap-2">
@@ -605,11 +572,7 @@ function DaySection({
                     ? { opacity: 0, transition: { duration: 0 } }
                     : { opacity: 0, y: 4, transition: { duration: 0.16 } }
                 }
-                transition={
-                  reduced
-                    ? { duration: 0 }
-                    : { duration: 0.22, ease: [0.25, 1, 0.5, 1] }
-                }
+                transition={reduced ? { duration: 0 } : { duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
               >
                 <DayHabitRow
                   habit={h}
@@ -648,18 +611,14 @@ function DayHabitRow({
         <p
           className={cn(
             "truncate text-subtitle",
-            completed
-              ? "text-[var(--ink-faint)] line-through"
-              : "text-[var(--ink)]",
+            completed ? "text-[var(--ink-faint)] line-through" : "text-[var(--ink)]"
           )}
         >
           {habit.name}
         </p>
         {habit.areas.length > 0 ? (
           <p className="mt-1 truncate text-micro text-[var(--ink-faint)]">
-            {habit.areas
-              .map((a) => `${a.emoji ?? ""} ${a.name}`.trim())
-              .join(" · ")}
+            {habit.areas.map((a) => `${a.emoji ?? ""} ${a.name}`.trim()).join(" · ")}
           </p>
         ) : null}
       </div>
@@ -674,11 +633,7 @@ function StreakChip({ streak }: { streak: StreakDisplay }) {
   const label = streak.saturated ? `${streak.value}+` : String(streak.value);
   const days = streak.value === 1 && !streak.saturated ? "day" : "days";
   return (
-    <Chip
-      icon={<Flame size={11} />}
-      tone="var(--ink-amber)"
-      className="shrink-0"
-    >
+    <Chip icon={<Flame size={11} />} tone="var(--ink-amber)" className="shrink-0">
       <span className="tabular-nums" aria-label={`${label} ${days} streak`}>
         {label}
       </span>
@@ -715,21 +670,14 @@ function ManageHabitRow({
         className="flex min-w-0 flex-1 flex-col text-left cursor-pointer-always"
       >
         <span className="flex items-center gap-2">
-          <span className="truncate text-subtitle text-[var(--ink)]">
-            {habit.name}
-          </span>
+          <span className="truncate text-subtitle text-[var(--ink)]">{habit.name}</span>
           <StreakChip streak={streak} />
         </span>
         <span className="mt-1 truncate text-meta text-[var(--ink-muted)]">
           {metaParts.join(" · ")}
         </span>
       </button>
-      <HabitRowMenu
-        variant="active"
-        onEdit={onEdit}
-        onArchive={onArchive}
-        onDelete={onDelete}
-      />
+      <HabitRowMenu variant="active" onEdit={onEdit} onArchive={onArchive} onDelete={onDelete} />
     </div>
   );
 }
@@ -746,20 +694,13 @@ function ArchivedHabitRow({
   return (
     <div className={ROW}>
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="truncate text-subtitle text-[var(--ink-muted)]">
-          {habit.name}
-        </p>
+        <p className="truncate text-subtitle text-[var(--ink-muted)]">{habit.name}</p>
         <p className="mt-1 truncate text-micro text-[var(--ink-faint)]">
           Created {prettyDate(habit.createdAt)}
           {habit.archivedAt ? ` · Archived ${prettyDate(habit.archivedAt)}` : ""}
         </p>
       </div>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="rounded-lg"
-        onClick={onRestore}
-      >
+      <Button size="sm" variant="ghost" className="rounded-lg" onClick={onRestore}>
         <ArchiveRestore size={13} /> Restore
       </Button>
       <HabitRowMenu
@@ -799,25 +740,17 @@ function CheckCircle({
         completed
           ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--canvas)]"
           : "border-[var(--edge-strong)] bg-transparent hover:border-[var(--ink-faint)]",
-        disabled && "cursor-not-allowed opacity-40",
+        disabled && "cursor-not-allowed opacity-40"
       )}
     >
       <motion.span
         initial={false}
-        animate={
-          reduced ? undefined : completed ? { scale: [1, 1.22, 1] } : { scale: 1 }
-        }
+        animate={reduced ? undefined : completed ? { scale: [1, 1.22, 1] } : { scale: 1 }}
         transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
         className="inline-flex"
       >
         {completed ? (
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            aria-hidden="true"
-          >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path
               d="M3 7.5L6 10.5L11 4.5"
               stroke="currentColor"
