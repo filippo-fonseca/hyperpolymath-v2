@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils"
  * both themes without a Tailwind scan-gap miss.
  */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md whitespace-nowrap cursor-pointer-always " +
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-lg whitespace-nowrap cursor-pointer-always " +
     "transition-colors duration-[120ms] ease-out " +
     "focus-visible:outline-none " +
     "disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none " +
@@ -49,11 +49,11 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-9 px-4 py-2 text-base has-[>svg]:px-3",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-md px-3 text-sm has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 text-base has-[>svg]:px-4",
+        xs: "h-6 gap-1 rounded-lg px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-8 gap-1.5 rounded-lg px-3 text-sm has-[>svg]:px-2.5",
+        lg: "h-10 rounded-lg px-6 text-base has-[>svg]:px-4",
         icon: "size-9",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+        "icon-xs": "size-6 rounded-lg [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",
         "icon-lg": "size-10",
       },
