@@ -1,29 +1,21 @@
 /**
  * Date helpers for the habits surfaces. All strings are local-`YYYY-MM-DD`
  * (NOT UTC) so what the user sees is what the server stores. Anywhere we
- * cross the wire we use this canonical shape — never a `Date` object.
+ * cross the wire we use this canonical shape, never a `Date` object.
+ *
+ * The core helpers live in `lib/habits/dates.ts` so server code (actions,
+ * analytics, the Kiwi context node) shares the exact same date math; this file
+ * re-exports them to keep existing client import paths working.
  */
 
-export function toISODate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-export function todayISO(): string {
-  return toISODate(new Date());
-}
-
-/** Parse `YYYY-MM-DD` into a local-midnight Date. Tolerant of trailing time. */
-export function parseISODate(iso: string): Date {
-  // Anchor at local midnight — `new Date("2026-05-26")` would parse as UTC
-  // and shift back across DST in some zones.
-  return new Date(`${iso.slice(0, 10)}T00:00:00`);
-}
-
-export function addDaysISO(iso: string, n: number): string {
-  const d = parseISODate(iso);
-  d.setDate(d.getDate() + n);
-  return toISODate(d);
-}
+export {
+  addDaysISO,
+  dayOfWeekISO,
+  parseISODate,
+  toISODate,
+  todayISO,
+} from "@/lib/habits/dates";
+import { parseISODate, toISODate } from "@/lib/habits/dates";
 
 export function compareISODates(a: string, b: string): number {
   // String compare works because the format is fixed-width + numeric.
