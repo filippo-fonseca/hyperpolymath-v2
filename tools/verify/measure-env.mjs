@@ -139,6 +139,21 @@ const BASE_FILTER = `
  *
  * Set MEASURE_ROLE to the role the measured dev server's DATABASE_URL uses.
  * Leaving it unset reproduces the integration verifier's filter byte for byte.
+ *
+ * To set one up on the local stack (the `postgres` role is not a superuser
+ * there, so the role has to be created as `supabase_admin`):
+ *
+ *   psql postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres \
+ *     -c "CREATE ROLE hp_measure_a LOGIN SUPERUSER PASSWORD 'hp_measure_a'"
+ *
+ * then boot the server under measurement with
+ *
+ *   DATABASE_URL=postgresql://hp_measure_a:hp_measure_a@127.0.0.1:54322/postgres \
+ *     pnpm exec next dev --turbopack --port 3300
+ *
+ * and run the scripts with MEASURE_ROLE=hp_measure_a. Superuser is deliberate:
+ * the app bypasses RLS as `postgres` does today, so anything less would change
+ * what the measured render is allowed to read. Local stack only.
  */
 const MEASURE_ROLE = process.env.MEASURE_ROLE;
 export const FILTER = MEASURE_ROLE
