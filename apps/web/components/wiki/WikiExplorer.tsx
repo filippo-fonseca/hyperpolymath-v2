@@ -296,7 +296,7 @@ export function WikiExplorer({
   const isEmptyWiki = pages.length === 0 && folders.length === 0;
 
   return (
-    <div className="wiki-explorer mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-4">
+    <div className="wiki-explorer flex min-h-0 w-full flex-1 flex-col gap-4">
       <DndContext
         id="wiki-explorer-dnd"
         sensors={sensors}

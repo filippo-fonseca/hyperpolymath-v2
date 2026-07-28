@@ -11,6 +11,8 @@ import {
 } from "@/app/actions/pages";
 import { getFieldDefinitionsForCurrentUser } from "@/app/actions/page-fields";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
+import { Button } from "@/components/ui/button";
+import { PageScaffold } from "@/components/ui/PageScaffold";
 import { PropertiesManagerModal } from "./PropertiesManagerModal";
 import { JournalRail } from "@/components/wiki/journal/JournalRail";
 import { WikiExplorer } from "@/components/wiki/WikiExplorer";
@@ -161,33 +163,39 @@ export function PagesListClient({
   const isEmpty = allPages.length === 0 && folders.length === 0;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col gap-6 overflow-hidden p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-serif text-3xl leading-none text-[var(--ink)]">Wiki</h1>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
+    // The one page container (SDC-1 §2.9), so the H1 left edge lines up with
+    // every other scaffolded route. The wiki home is the one route that owns
+    // its own scroll (the explorer canvas scrolls internally; the Stage
+    // renders it h-full), so the scaffold becomes a flex column filling the
+    // stage, and the deep document bottom padding gives way to the section
+    // step so the explorer window can breathe without drowning.
+    <PageScaffold
+      title="Wiki"
+      actions={
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleExportAll}
             disabled={isEmpty}
             title="Export the entire wiki as a .zip of markdown files"
-            className="flex items-center gap-1.5 rounded-sm border border-[var(--edge)] px-3 py-1.5 font-serif text-[13px] text-[var(--ink)] transition-colors duration-150 ease-out hover:bg-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Download size={13} strokeWidth={1.5} />
-            <span>Export all</span>
-          </button>
-          <button
-            type="button"
+            Export all
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setWikiManagerOpen(true)}
             title="Manage wiki properties"
-            className="flex items-center gap-1.5 rounded-sm border border-[var(--edge)] px-3 py-1.5 font-serif text-[13px] text-[var(--ink)] transition-colors duration-150 ease-out hover:bg-[var(--surface)]"
           >
             <SlidersHorizontal size={13} strokeWidth={1.5} />
-            <span>Properties</span>
-          </button>
-        </div>
-      </div>
-
+            Properties
+          </Button>
+        </>
+      }
+      className="flex h-full min-h-0 flex-col gap-6 overflow-hidden pb-6"
+    >
       {/* Wave-3: the editorial Journal rail (today card + 7-day trail + calendar). */}
       <JournalRail
         allPages={allPages}
@@ -212,6 +220,6 @@ export function PagesListClient({
         definitions={fieldDefinitions}
         onChanged={handleFieldsChanged}
       />
-    </div>
+    </PageScaffold>
   );
 }
