@@ -41,25 +41,24 @@ const IGNORED_TABLES = new Set();
 function parseDrizzleSchema(src) {
   const tables = new Map();
   const re = /pgTable\(\s*"([a-z0-9_]+)"\s*,\s*\{/g;
-  let m;
-  while ((m = re.exec(src))) {
+  for (const m of src.matchAll(re)) {
     const name = m[1];
     // Walk braces from the opening `{` of the columns object.
+    const openIndex = m.index + m[0].length;
     let depth = 1;
-    let i = re.lastIndex;
+    let i = openIndex;
     while (i < src.length && depth > 0) {
       const ch = src[i];
       if (ch === "{") depth++;
       else if (ch === "}") depth--;
       i++;
     }
-    const body = src.slice(re.lastIndex, i - 1);
+    const body = src.slice(openIndex, i - 1);
     const cols = new Set();
     // Each column is `key: someType("db_column"...)`. Take the first string
     // literal that follows the type call on each property.
     const colRe = /(^|[,{]\s*)[A-Za-z0-9_]+\s*:\s*[A-Za-z0-9_]+\(\s*"([a-z0-9_]+)"/g;
-    let c;
-    while ((c = colRe.exec(body))) cols.add(c[2]);
+    for (const c of body.matchAll(colRe)) cols.add(c[2]);
     tables.set(name, cols);
   }
   return tables;
@@ -74,8 +73,7 @@ function tablesCreatedBy(dir) {
   for (const f of files) {
     const sql = readFileSync(join(dir, f), "utf8");
     const re = /create\s+table\s+(?:if\s+not\s+exists\s+)?"?(?:public\.)?"?([a-z0-9_]+)"?/gi;
-    let m;
-    while ((m = re.exec(sql))) if (!found.has(m[1])) found.set(m[1], f);
+    for (const m of sql.matchAll(re)) if (!found.has(m[1])) found.set(m[1], f);
   }
   return found;
 }
@@ -119,15 +117,9 @@ for (const [t, cols] of expected) {
 
 // Tables the app declares that a FRESH local reset would NOT create. This is the
 // drift that bites: the live db can be fine because it was patched by hand.
-const notInSupabaseMigrations = [...expected.keys()].filter(
-  (t) => !supaCreates.has(t),
-);
-const notInDrizzleMigrations = [...expected.keys()].filter(
-  (t) => !drizzleCreates.has(t),
-);
-const onlyInSupabase = [...supaCreates.keys()].filter(
-  (t) => !drizzleCreates.has(t),
-);
+const notInSupabaseMigrations = [...expected.keys()].filter((t) => !supaCreates.has(t));
+const notInDrizzleMigrations = [...expected.keys()].filter((t) => !drizzleCreates.has(t));
+const onlyInSupabase = [...supaCreates.keys()].filter((t) => !drizzleCreates.has(t));
 
 console.log("=== schema drift report ===");
 console.log(`db:                    ${DB_URL.replace(/:[^:@/]*@/, ":***@")}`);
@@ -138,9 +130,7 @@ console.log(`drizzle/:              ${drizzleCreates.size} tables created`);
 console.log("");
 
 console.log("--- A. live db vs schema.ts (app correctness) ---");
-console.log(
-  missingTables.length ? `MISSING TABLES: ${fmt(new Set(missingTables))}` : "tables: ok",
-);
+console.log(missingTables.length ? `MISSING TABLES: ${fmt(new Set(missingTables))}` : "tables: ok");
 if (missingColumns.length) {
   for (const [t, gap] of missingColumns) console.log(`MISSING COLUMNS ${t}: ${gap.join(", ")}`);
 } else {
@@ -152,14 +142,12 @@ console.log("--- B. schema.ts tables never created by supabase/migrations ---");
 console.log(
   notInSupabaseMigrations.length
     ? `${fmt(new Set(notInSupabaseMigrations))}`
-    : "none (a fresh reset builds every app table)",
+    : "none (a fresh reset builds every app table)"
 );
 console.log("");
 
 console.log("--- C. schema.ts tables never created by drizzle/ (prod path) ---");
-console.log(
-  notInDrizzleMigrations.length ? `${fmt(new Set(notInDrizzleMigrations))}` : "none",
-);
+console.log(notInDrizzleMigrations.length ? `${fmt(new Set(notInDrizzleMigrations))}` : "none");
 console.log("");
 
 console.log("--- D. tables only supabase/migrations creates (local-only) ---");
@@ -167,5 +155,9 @@ console.log(onlyInSupabase.length ? `${fmt(new Set(onlyInSupabase))}` : "none");
 
 const bad = missingTables.length + missingColumns.length;
 console.log("");
-console.log(bad ? `VERDICT: DRIFT — live db cannot serve the app (${bad} gaps)` : "VERDICT: live db satisfies schema.ts");
+console.log(
+  bad
+    ? `VERDICT: DRIFT — live db cannot serve the app (${bad} gaps)`
+    : "VERDICT: live db satisfies schema.ts"
+);
 process.exit(bad ? 1 : 0);

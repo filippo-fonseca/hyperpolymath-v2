@@ -22,13 +22,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
-import {
-  CREDENTIALS_PATH,
-  TEST_EMAIL,
-  ensureVerifyDir,
-  log,
-  supabaseEnv,
-} from "./env.mjs";
+import { CREDENTIALS_PATH, TEST_EMAIL, ensureVerifyDir, log, supabaseEnv } from "./env.mjs";
 
 /** RFC 4122 v5 UUID, so fixture ids are stable across runs without a registry. */
 const NAMESPACE = "6f2a1c4e-9d3b-4a71-8e5f-2c7b1d0a9e34";
@@ -130,12 +124,52 @@ async function seedFixtures(sql, userId) {
   // kanban, so fixtures dated only in the future render an empty board that
   // looks identical to a broken query.
   const taskRows = [
-    ["task:pset-7", "Finish problem set 7", "Sections 4.2 through 4.6.", "P1", "in progress", isoDaysFromNow(0), 0],
-    ["task:calibration", "Redo the calibration run", null, "P2", "not started", isoDaysFromNow(0), 1],
+    [
+      "task:pset-7",
+      "Finish problem set 7",
+      "Sections 4.2 through 4.6.",
+      "P1",
+      "in progress",
+      isoDaysFromNow(0),
+      0,
+    ],
+    [
+      "task:calibration",
+      "Redo the calibration run",
+      null,
+      "P2",
+      "not started",
+      isoDaysFromNow(0),
+      1,
+    ],
     ["task:reading", "Read Callen chapter 3", null, "P2", "up next", isoDaysFromNow(3), 1],
-    ["task:lab-writeup", "Write up the calorimetry lab", "Include the error analysis.", "P2", "not started", isoDaysFromNow(5), 2],
-    ["task:office-hours", "Ask about entropy problem in office hours", null, "P3", "not started", null, 3],
-    ["task:final-project", "Scope the final project", "Pick a system worth modelling.", "P∞", "almost done", isoDaysFromNow(9), 4],
+    [
+      "task:lab-writeup",
+      "Write up the calorimetry lab",
+      "Include the error analysis.",
+      "P2",
+      "not started",
+      isoDaysFromNow(5),
+      2,
+    ],
+    [
+      "task:office-hours",
+      "Ask about entropy problem in office hours",
+      null,
+      "P3",
+      "not started",
+      null,
+      3,
+    ],
+    [
+      "task:final-project",
+      "Scope the final project",
+      "Pick a system worth modelling.",
+      "P∞",
+      "almost done",
+      isoDaysFromNow(9),
+      4,
+    ],
     ["task:submit", "Submit the midterm reflection", null, "P1", "lesno", isoDaysFromNow(-2), 5],
   ];
   for (const [key, title, notes, priority, status, dueDate, pos] of taskRows) {
@@ -170,10 +204,38 @@ async function seedFixtures(sql, userId) {
   `;
 
   const pageRows = [
-    ["page:first-law", "The first law", subFolderId, "# The first law\n\nEnergy is conserved. The internal energy of a closed system changes only by heat added and work done.\n\n- dU = δQ − δW\n- Sign conventions matter more than the algebra does.\n", "🔥", "a0"],
-    ["page:entropy", "Entropy and the second law", subFolderId, "# Entropy and the second law\n\nEntropy of an isolated system never decreases. The interesting part is what that rules out.\n", "🌀", "a1"],
-    ["page:lab-notes", "Calorimetry lab notes", subFolderId, "# Calorimetry lab notes\n\nRaw measurements, the calibration constant, and the error budget.\n", "🧪", "a2"],
-    ["page:reading-list", "Reading list", folderId, "# Reading list\n\nCallen, Schroeder, and the two papers from week four.\n", "📖", "a1"],
+    [
+      "page:first-law",
+      "The first law",
+      subFolderId,
+      "# The first law\n\nEnergy is conserved. The internal energy of a closed system changes only by heat added and work done.\n\n- dU = δQ − δW\n- Sign conventions matter more than the algebra does.\n",
+      "🔥",
+      "a0",
+    ],
+    [
+      "page:entropy",
+      "Entropy and the second law",
+      subFolderId,
+      "# Entropy and the second law\n\nEntropy of an isolated system never decreases. The interesting part is what that rules out.\n",
+      "🌀",
+      "a1",
+    ],
+    [
+      "page:lab-notes",
+      "Calorimetry lab notes",
+      subFolderId,
+      "# Calorimetry lab notes\n\nRaw measurements, the calibration constant, and the error budget.\n",
+      "🧪",
+      "a2",
+    ],
+    [
+      "page:reading-list",
+      "Reading list",
+      folderId,
+      "# Reading list\n\nCallen, Schroeder, and the two papers from week four.\n",
+      "📖",
+      "a1",
+    ],
   ];
   for (const [key, title, folder, content, emoji, positionKey] of pageRows) {
     await sql`
@@ -246,7 +308,7 @@ async function seedFixtures(sql, userId) {
 
   const captureRows = [
     ["capture:idea", "Idea: plot the Carnot efficiency against reservoir ratio for the writeup."],
-    ["capture:quote", "\"Thermodynamics is a funny subject.\" — Arnold Sommerfeld"],
+    ["capture:quote", '"Thermodynamics is a funny subject." (Arnold Sommerfeld)'],
     ["capture:todo", "Email the TA about the regrade window."],
   ];
   for (const [key, content] of captureRows) {
@@ -259,7 +321,7 @@ async function seedFixtures(sql, userId) {
 
   log(
     `seeded fixtures: 1 area, 1 project, ${taskRows.length} tasks, 2 wiki folders, ` +
-      `${pageRows.length} pages, ${habitRows.length} habits, ${captureRows.length} captures`,
+      `${pageRows.length} pages, ${habitRows.length} habits, ${captureRows.length} captures`
   );
 }
 

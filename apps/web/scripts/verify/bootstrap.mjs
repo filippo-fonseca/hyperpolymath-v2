@@ -109,7 +109,7 @@ async function main() {
     const child = spawn(
       "pnpm",
       ["exec", "next", "dev", "--turbopack", "--port", String(APP_PORT)],
-      { cwd: WEB_ROOT, detached: true, stdio: ["ignore", out, out] },
+      { cwd: WEB_ROOT, detached: true, stdio: ["ignore", out, out] }
     );
     child.unref();
     log(`dev server pid ${child.pid}, log: ${DEV_SERVER_LOG}`);

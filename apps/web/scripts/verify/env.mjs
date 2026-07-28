@@ -80,7 +80,7 @@ export function supabaseEnv() {
     // Hard stop. Every write below is destructive-by-design fixture seeding and
     // the admin API bypasses RLS; pointing it at a real project would be bad.
     throw new Error(
-      `refusing to run the verify harness against a non-local Supabase URL: ${env.url}`,
+      `refusing to run the verify harness against a non-local Supabase URL: ${env.url}`
     );
   }
   return env;

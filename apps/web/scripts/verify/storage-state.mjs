@@ -45,7 +45,7 @@ const COOKIE_HOSTS = ["localhost", "127.0.0.1"];
 function readCredentials() {
   if (!existsSync(CREDENTIALS_PATH)) {
     throw new Error(
-      `no fixture credentials at ${CREDENTIALS_PATH}. Run: node scripts/verify/seed.mjs`,
+      `no fixture credentials at ${CREDENTIALS_PATH}. Run: node scripts/verify/seed.mjs`
     );
   }
   return JSON.parse(readFileSync(CREDENTIALS_PATH, "utf8"));
@@ -91,7 +91,7 @@ export async function writeStorageState() {
 
   if (jar.size === 0) {
     throw new Error(
-      "@supabase/ssr wrote no cookies during sign-in; the storage state would be empty",
+      "@supabase/ssr wrote no cookies during sign-in; the storage state would be empty"
     );
   }
 
@@ -123,7 +123,7 @@ export async function writeStorageState() {
   log(
     `wrote ${STORAGE_STATE_PATH} — ${names.length} cookie(s) ` +
       `[${names.join(", ")}] x ${COOKIE_HOSTS.length} host(s), ` +
-      `session for ${creds.email} expires ${new Date(expires * 1000).toISOString()}`,
+      `session for ${creds.email} expires ${new Date(expires * 1000).toISOString()}`
   );
   return { path: STORAGE_STATE_PATH, cookieNames: names, userId: data.session.user.id };
 }
