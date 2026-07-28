@@ -71,7 +71,12 @@ function formatTerm(term: string): string {
 function buildClassMetaParts(project: ProjectData): string[] {
   const parts: string[] = [];
   if (project.courseCode) parts.push(project.courseCode);
-  if (project.instructor) parts.push(`Prof. ${project.instructor}`);
+  if (project.instructor) {
+    // Do not double the honorific when the stored value already carries one.
+    parts.push(/^(prof|dr|mr|ms|mrs)\.?\s/i.test(project.instructor)
+      ? project.instructor
+      : `Prof. ${project.instructor}`);
+  }
   if (project.semesterTerm && project.semesterYear) {
     parts.push(`${formatTerm(project.semesterTerm)} ${project.semesterYear}`);
   } else if (project.semesterTerm) {
@@ -330,21 +335,26 @@ export function ProjectHeader({
 
   return (
     <>
-      {/* Banner — flush, edge to edge above the scaffold, no added chrome. */}
-      <div
-        className="group/banner-area relative w-full"
-        style={{ height: "120px", background: parseBanner(project.bannerUrl) }}
-      >
+      {/* Banner — flush, edge to edge above the scaffold, no added chrome.
+          Rendered only when one is set; a banner-less project starts at the
+          scaffold instead of a 120px blank strip, and gains an "Add banner"
+          ghost action in the header. */}
+      {project.bannerUrl ? (
         <div
-          className={cn(
-            "absolute top-3 right-3",
-            "opacity-0 transition-opacity duration-[160ms] ease-out",
-            "group-hover/banner-area:opacity-100 focus-within:opacity-100"
-          )}
+          className="group/banner-area relative w-full"
+          style={{ height: "120px", background: parseBanner(project.bannerUrl) }}
         >
-          <BannerPicker value={project.bannerUrl} onChange={handleBannerChange} />
+          <div
+            className={cn(
+              "absolute top-3 right-3",
+              "opacity-0 transition-opacity duration-[160ms] ease-out",
+              "group-hover/banner-area:opacity-100 focus-within:opacity-100"
+            )}
+          >
+            <BannerPicker value={project.bannerUrl} onChange={handleBannerChange} />
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <PageScaffold
         eyebrow={eyebrow}
@@ -360,6 +370,17 @@ export function ProjectHeader({
                 renderTrigger={
                   <Button variant="ghost" size="sm" className="rounded-lg">
                     Add icon
+                  </Button>
+                }
+              />
+            ) : null}
+            {!project.bannerUrl ? (
+              <BannerPicker
+                value={project.bannerUrl}
+                onChange={handleBannerChange}
+                renderTrigger={
+                  <Button variant="ghost" size="sm" className="rounded-lg">
+                    Add banner
                   </Button>
                 }
               />

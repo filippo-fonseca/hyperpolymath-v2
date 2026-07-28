@@ -3,7 +3,7 @@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { parseBanner } from "@/lib/utils/banner";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 const BANNER_OPTIONS: { name: string; value: string; type: "solid" | "gradient" }[] = [
   // Solids — muted earth tones (UI-SPEC §Banner Picker)
@@ -61,6 +61,13 @@ const BANNER_OPTIONS: { name: string; value: string; type: "solid" | "gradient" 
 interface Props {
   value: string | null;
   onChange: (bannerValue: string | null) => void;
+  /**
+   * Optional custom trigger (used with PopoverTrigger `asChild`). When omitted,
+   * the default swatch button renders. ProjectHeader passes a ghost "Add
+   * banner" button for banner-less projects. Must be a single focusable
+   * element so Radix can forward its props.
+   */
+  renderTrigger?: ReactNode;
 }
 
 /**
@@ -69,22 +76,24 @@ interface Props {
  * Selected: ring-2 in --edge-strong with a 1px offset.
  * aria-label: "[Color name] banner".
  */
-export function BannerPicker({ value, onChange }: Props) {
+export function BannerPicker({ value, onChange, renderTrigger }: Props) {
   const [open, setOpen] = useState(false);
   const currentBg = parseBanner(value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Pick banner color"
-          className={cn(
-            "h-9 w-20 rounded-lg border border-[var(--edge)]",
-            "transition-opacity duration-[160ms] ease-out hover:opacity-90"
-          )}
-          style={{ background: currentBg }}
-        />
+        {renderTrigger ?? (
+          <button
+            type="button"
+            aria-label="Pick banner color"
+            className={cn(
+              "h-9 w-20 rounded-lg border border-[var(--edge)]",
+              "transition-opacity duration-[160ms] ease-out hover:opacity-90"
+            )}
+            style={{ background: currentBg }}
+          />
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-3" align="start" sideOffset={4}>
         <p className="mb-2 font-sans text-micro font-medium text-[var(--ink-faint)]">Solids</p>
