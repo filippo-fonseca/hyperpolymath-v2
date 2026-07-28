@@ -157,7 +157,10 @@ export function ProjectDetailClient({
           />
         </PageScaffold.Section>
 
-        <PageScaffold.Section divided>
+        {/* §2.6: section separation prefers whitespace over hairlines, and
+            §2.5 names 32px between sections; plain Section rhythm delivers
+            exactly that. */}
+        <PageScaffold.Section>
           <ProjectCapturesSection
             userId={userId}
             projectId={projectId}
@@ -172,7 +175,7 @@ export function ProjectDetailClient({
           />
         </PageScaffold.Section>
 
-        <PageScaffold.Section divided>
+        <PageScaffold.Section>
           <ProjectPagesSection userId={userId} projectId={projectId} initialPages={initialPages} />
         </PageScaffold.Section>
       </ProjectHeader>
