@@ -28,8 +28,6 @@ import { integrationTokens } from "@/lib/db/schema";
 import { MCP_PROVIDER } from "@/lib/mcp/mint-token";
 import { McpTokensClient } from "./McpTokensClient";
 
-export const dynamic = "force-dynamic";
-
 export interface McpTokenRow {
   name: string;
   createdAt: string;

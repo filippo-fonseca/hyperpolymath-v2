@@ -26,8 +26,6 @@ import { MemoryTable } from "@/components/settings/memory/MemoryTable";
 import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 import { EmptyState } from "@/components/shared/EmptyState";
 
-export const dynamic = "force-dynamic";
-
 export default async function MemoryPage() {
   const user = await requireOnboarded();
   const facts = await getJarvisFactsForUser(user.id);

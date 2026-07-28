@@ -3,14 +3,14 @@
  *
  * Phase 4 Plan 04-03 (CAL-03, CAL-07, CAL-08).
  *
- * Why a Server Component (with `force-dynamic`):
+ * Why a Server Component:
  *   - Initial events render in SSR — no flash of empty grid on first paint.
  *   - The Server Component talks to gcal *once* per visit; the client then
  *     wraps `initialEvents` in `useQuery` and re-fetches on window focus
  *     or filter change.
- *   - `force-dynamic` because gcal is the source of truth (CAL-07 — no
- *     Postgres mirror). Caching the page would surface stale events on
- *     navigation.
+ *   - Never cached, because gcal is the source of truth (CAL-07 — no Postgres
+ *     mirror) and caching the page would surface stale events on navigation.
+ *     requireOnboarded()'s auth cookie read already forces that.
  *
  * Flow:
  *   1. requireOnboarded → guarantees a `public.users` row with `id` + an
@@ -64,9 +64,9 @@ import { CalendarClient } from "@/components/calendar/CalendarClient";
 import { DisconnectBanner } from "@/components/calendar/DisconnectBanner";
 import { EmptyState } from "@/components/calendar/EmptyState";
 
-// Never cache — gcal is the source of truth (CAL-07).
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Never cached anyway — gcal is the source of truth (CAL-07) and this page is
+// dynamic through requireOnboarded()'s auth cookie read, so the explicit
+// force-dynamic / revalidate exports were restating the runtime's own verdict.
 
 export default async function CalendarPage() {
   const user = await requireOnboarded();

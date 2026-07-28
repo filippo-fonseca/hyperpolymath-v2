@@ -38,8 +38,6 @@ import {
 } from "@/lib/gcal/token";
 import { listCalendars, type GcalCalendarMeta } from "@/lib/gcal/calendars";
 
-export const dynamic = "force-dynamic";
-
 export default async function SettingsPage() {
   const user = await requireOnboarded();
   const [

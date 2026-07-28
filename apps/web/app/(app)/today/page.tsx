@@ -21,8 +21,6 @@ import type {
  * \$project autocomplete, hashtags for \# autocomplete, the user's IANA
  * timezone for client-side chrono pre-parse).
  */
-export const dynamic = "force-dynamic";
-
 export default async function TodayPage() {
   const user = await requireOnboarded();
 

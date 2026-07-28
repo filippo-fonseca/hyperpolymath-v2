@@ -16,8 +16,6 @@ import { requireOnboarded } from "@/lib/auth/get-user";
 import { getJournalEntry, getJournalEntries } from "@/app/actions/journal";
 import { JournalingClient } from "./JournalingClient";
 
-export const dynamic = "force-dynamic";
-
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default async function JournalingPage({

@@ -17,8 +17,6 @@ import { db } from "@/lib/db";
 import { personalContextSnapshots, integrationTokens } from "@/lib/db/schema";
 import { GraphExplorer } from "./GraphExplorer";
 
-export const dynamic = "force-dynamic";
-
 interface SnapshotPayloadShape {
   generatedAt?: string;
   nodes?: unknown[];

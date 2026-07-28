@@ -12,8 +12,6 @@ import { requireOnboarded } from "@/lib/auth/get-user";
 import { getNutritionTargets } from "@/lib/nutrition/nutrition-service";
 import { NutritionTargetsForm } from "@/components/nutrition/NutritionTargetsForm";
 
-export const dynamic = "force-dynamic";
-
 export default async function NutritionSettingsPage() {
   const user = await requireOnboarded();
   const targets = await getNutritionTargets(user.id);
