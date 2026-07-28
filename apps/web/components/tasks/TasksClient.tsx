@@ -9,9 +9,11 @@ import {
 } from "@/app/actions/tasks";
 import { deleteTask } from "@/app/actions/tasks";
 import { createProject } from "@/app/actions/projects";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageScaffold } from "@/components/ui/PageScaffold";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useOptimisticList, type OptimisticListAction } from "@/lib/realtime/useOptimisticList";
@@ -21,20 +23,29 @@ import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { endOfMonth, endOfWeek, isAfter, isBefore, isSameDay, startOfDay } from "date-fns";
-import { Maximize2, Minimize2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Check, Maximize2, Minimize2, Plus, SlidersHorizontal } from "lucide-react";
+import dynamic from "next/dynamic";
 import { parseAsArrayOf, parseAsString, useQueryState, useQueryStates } from "nuqs";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { InboxColumn } from "./InboxColumn";
 import { KanbanBoard } from "./KanbanBoard";
 import { OverdueTasksPanel } from "./OverdueTasksPanel";
 import { DaySwitcher } from "./DaySwitcher";
 import { TaskOverviewView } from "./TaskOverviewView";
-import { TaskDetailPanel } from "./TaskDetailPanel";
-import { TaskFilters } from "./TaskFilters";
+import { TaskFilters, type TaskFilterState } from "./TaskFilters";
 import { TaskList } from "./TaskList";
 import { TaskSelectionBar } from "./TaskSelectionBar";
+
+// The detail panel carries the whole TipTap stack (6 @tiptap packages plus the
+// mention/suggestion plumbing). Loading it on demand keeps all of that out of
+// the initial /tasks bundle; combined with the conditional mount below, a cold
+// load with no task open parses zero editor code and instantiates zero
+// ProseMirror instances.
+const TaskDetailPanel = dynamic(
+  () => import("./TaskDetailPanel").then((m) => m.TaskDetailPanel),
+  { ssr: false }
+);
 
 type TaskStatus = "not started" | "up next" | "in progress" | "almost done" | "lesno";
 
@@ -65,22 +76,36 @@ interface Props {
 
 export type TasksOptimisticDispatch = (action: OptimisticListAction<TaskWithProjects>) => void;
 
+const VIEW_SEGMENTS = [
+  { value: "kanban", label: "Board" },
+  { value: "list", label: "List" },
+  { value: "overview", label: "Overview" },
+] as const;
+
 /**
- * /tasks orchestrator — Phase 3 realtime + useOptimistic.
+ * /tasks orchestrator.
  *
- * Pattern (D-04 / D-06 / D-09):
+ * Data pattern (unchanged):
  *   1. `useQuery({ queryKey: tableKey("tasks", userId), initialData })` —
  *      TanStack Query owns the canonical tasks cache, hydrated from SSR.
- *   2. `useTableSubscription("tasks", userId)` + `useTableSubscription("tasks_projects", userId)`
- *      — Realtime echoes invalidate the cache → refetch via queryFn.
- *   3. `useOptimistic(tasks, optimisticReducer)` — instant local feedback for
- *      writes. The Realtime echo carries the same caller-supplied UUID, so
- *      the reducer's "insert"no-ops on echo (RT-05 dedupe).
+ *   2. `useTableSubscription("tasks")` + `("tasks_projects")` — Realtime echoes
+ *      invalidate the cache → refetch via queryFn.
+ *   3. `useOptimisticList` — a self-reconciling optimistic overlay that holds
+ *      each patch until the canonical cache catches up.
  *
- * D-02: no opacity dim / spinner / pending chrome on optimistic surfaces.
- * D-05: no toast/badge on Realtime invalidation (silent cross-device sync).
- * D-03: server rejection → toast.error + silent revert (useOptimistic reverts
- *       automatically when the transition closes without committing real state).
+ * Refetch policy: optimistic mutations rely on the Realtime echo as the single
+ * invalidation signal (one write → one refetch). The old belt-and-suspenders
+ * explicit invalidate produced a guaranteed second full-table refetch per
+ * mutation; the overlay already guarantees the local UI regardless of echo
+ * timing, so the double fetch bought nothing. Deletes keep an awaited explicit
+ * invalidate because the undo window must not un-hide a row before canonical
+ * has caught up.
+ *
+ * Presentation: PageScaffold (SDC-1 §2.9) owns the header; one toolbar row
+ * carries the view segments, the filter strip (single nuqs subscriber,
+ * shallow — filtering is fully client-side, so filter changes make no server
+ * request), and the display-options menu. The detail panel is one lazily
+ * mounted SidePanel instance for both edit and create.
  */
 export function TasksClient({
   userId,
@@ -91,10 +116,8 @@ export function TasksClient({
   hashtags = [],
   people = [],
 }: Props) {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [, startTransition] = useTransition();
-  // Phase 6 Plan 06-02: sonner Undo toast helper for delete-task flow (RES-02).
   const { show: showUndoToast } = useUndoToast();
 
   // Local projects list, seeded from SSR props. Inline project creation
@@ -142,32 +165,30 @@ export function TasksClient({
     [areas, queryClient, userId]
   );
 
-  // ── Canonical cache (D-06 hybrid SSR + TanStack Query) ───────────────────
+  // ── Canonical cache ──────────────────────────────────────────────────────
   const { data: tasks = initialTasks } = useQuery({
     queryKey: tableKey("tasks", userId),
     queryFn: getTasksForCurrentUser,
     initialData: initialTasks,
   });
 
-  // ── Realtime subscriptions (RT-01 singleton; D-08) ───────────────────────
+  // ── Realtime subscriptions ───────────────────────────────────────────────
   // tasks: primary table
   // tasks_projects: junction — flipping a task's project links from anywhere
   // also refreshes /tasks since project chips render in cards
   useTableSubscription("tasks", userId);
   useTableSubscription("tasks_projects", userId);
 
-  // ── Optimistic overlay (RT-06 self-reconciling) ──────────────────────────
-  // Replaces React's transition-scoped useOptimistic: pending inserts/updates
-  // persist until the canonical cache catches up, so a slow refetch or echo
-  // can't make a just-created row flash out and back in. Same [items, dispatch]
-  // API, so every addOptimistic({...}) call below is unchanged.
+  // ── Optimistic overlay ───────────────────────────────────────────────────
   const [optimisticTasks, addOptimistic] = useOptimisticList<TaskWithProjects>(tasks);
 
-  // Expand/fullscreen (D-08 / UI-SPEC S-7) — localStorage-backed flag shared
-  // with AppShell (which hides the sidebar). Ephemeral, never in the URL.
+  // Expand/fullscreen — localStorage-backed flag shared with the cockpit rail
+  // (which hides itself). Ephemeral, never in the URL.
   const { expanded, toggle: toggleExpanded } = useTasksExpanded();
 
-  // View toggle — URL ?view= + localStorage fallback (UI-SPEC D-05)
+  // View — URL ?view= only. The old localStorage→URL sync effect could rewrite
+  // the view after first paint (a visible flip on load); the URL is now the
+  // single source of truth.
   const [view, setView] = useQueryState("view", parseAsString.withDefault("kanban"));
 
   // Day-aware kanban — URL ?date=YYYY-MM-DD, defaults to today.
@@ -178,10 +199,8 @@ export function TasksClient({
 
   // Long-lived optimistic-delete set. Held in plain useState (NOT useOptimistic)
   // so a deleted row stays hidden for the FULL 5s undo window regardless of
-  // whether a transition is pending — useOptimistic only holds its value while
-  // a transition spans the call, which is the root cause of the reappear bug.
-  // commit fires the real delete + invalidate THEN drops the id; addBack/error
-  // just drops the id with no server call.
+  // whether a transition is pending. commit fires the real delete + invalidate
+  // THEN drops the id; addBack/error just drops the id with no server call.
   const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
   const dropPending = useCallback((...ids: string[]) => {
     setPendingDeleteIds((prev) => {
@@ -191,7 +210,7 @@ export function TasksClient({
     });
   }, []);
 
-  // Reset selection when the active date or view changes — selections are
+  // Reset selection when the active date or view changes; selections are
   // scoped to "what's visible on this surface now."
   useEffect(() => {
     setSelectedIds(new Set());
@@ -200,24 +219,23 @@ export function TasksClient({
   // Cross-surface drag (Inbox tray → kanban columns + Not-Started tray
   // within KanbanBoard). Lifted to this component so the drag source
   // (Inbox cards rendered here, OUTSIDE KanbanBoard) and the drop target
-  // (kanban columns INSIDE KanbanBoard) share state. On drop:
-  //   - status → target column
-  //   - dueDate → the active day (so a previously-undated inbox task lands
-  //     on today's board)
+  // (kanban columns INSIDE KanbanBoard) share state.
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  // List-view drop area highlight (cyan glow) while a card hovers over it.
-  const [listDragOver, setListDragOver] = useState(false);
+  // List-view drop area affordance, written straight to the DOM (never React
+  // state: dragover fires per frame and a state write there re-renders every
+  // row it hovers past).
+  const listDropRef = useRef<HTMLDivElement>(null);
 
-  // Detail panel — which task is open (URL ?task=<id>)
+  // Detail panel — which task is open (URL ?task=<id>, lib/entity-href.ts).
   const [openTaskId, setOpenTaskId] = useQueryState("task", parseAsString);
-  // Draft task — set when the user clicks "+ Add task"in a kanban column.
-  // The detail panel opens in create mode with a synthetic empty task; Save
-  // calls createTask, Cancel/close discards.
+  // Draft status — set when the user starts a create (New task button or a
+  // kanban column's add affordance). The one panel instance switches to create
+  // mode with a synthetic task; Save calls createTask, close discards.
   const [draftStatus, setDraftStatus] = useState<TaskStatus | null>(null);
 
-  // Deep-link create: `/tasks?create=now` (from the Cmd+Shift+K command palette
-  // or the new-task keyboard shortcut) opens the draft panel in create mode,
-  // then strips the param so a later refresh doesn't reopen it.
+  // Deep-link create: `/tasks?create=now` (from the command palette or the
+  // new-task shortcut) opens the draft panel in create mode, then strips the
+  // param so a later refresh doesn't reopen it.
   const [createParam, setCreateParam] = useQueryState("create", parseAsString);
   useEffect(() => {
     if (createParam === "now") {
@@ -226,9 +244,10 @@ export function TasksClient({
     }
   }, [createParam, setCreateParam]);
 
-  // Auto-hide completed "lesno"tasks by default (per user spec). Persisted in
-  // localStorage so the choice survives page reloads. Toggle pill sits in the
-  // toolbar next to the view switcher.
+  // Auto-hide completed "lesno" tasks by default. Persisted in localStorage so
+  // the choice survives reloads. Lives in the display-options menu and only
+  // applies to the overview (day surfaces keep the selected day's done work
+  // visible by design).
   const [showLesno, setShowLesno] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -238,8 +257,7 @@ export function TasksClient({
     if (typeof window !== "undefined") localStorage.setItem("tasks-show-lesno", String(showLesno));
   }, [showLesno]);
 
-  // Hide/unhide the persistent Inbox column. The Inbox is the default anchor,
-  // so this starts visible; the choice persists in localStorage like showLesno.
+  // Hide/unhide the persistent Inbox column, from the display-options menu.
   const [inboxHidden, setInboxHidden] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -250,35 +268,27 @@ export function TasksClient({
       localStorage.setItem("tasks-inbox-hidden", String(inboxHidden));
   }, [inboxHidden]);
 
-  // Read the SAME 4 filter dimensions TaskFilters writes — single source of truth via URL.
-  const [filters] = useQueryStates(
-    {
-      priority: parseAsArrayOf(parseAsString).withDefault(initialFilters.priority),
-      status: parseAsArrayOf(parseAsString).withDefault(initialFilters.status),
-      due: parseAsArrayOf(parseAsString).withDefault(initialFilters.due),
-      project: parseAsArrayOf(parseAsString).withDefault(initialFilters.project),
+  // The ONE nuqs subscriber for the 4 filter dimensions. TaskFilters is purely
+  // presentational and receives this state + setter, so the two-hook first
+  // paint disagreement is structurally impossible. `shallow` stays at its
+  // default (true): filtering is 100% client-side, so a chip change must not
+  // re-run the five server queries in tasks/page.tsx.
+  const [filters, setFilters] = useQueryStates({
+    priority: parseAsArrayOf(parseAsString).withDefault(initialFilters.priority),
+    status: parseAsArrayOf(parseAsString).withDefault(initialFilters.status),
+    due: parseAsArrayOf(parseAsString).withDefault(initialFilters.due),
+    project: parseAsArrayOf(parseAsString).withDefault(initialFilters.project),
+  });
+
+  const handleFiltersChange = useCallback(
+    (patch: Partial<TaskFilterState>) => {
+      void setFilters(patch);
     },
-    { shallow: false }
+    [setFilters]
   );
 
-  // localStorage fallback for view (UI-SPEC: localStorage remembers user's last choice)
-  useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("tasks-view") : null;
-    if ((stored === "list" || stored === "overview") && (!view || view === "kanban")) {
-      setView(stored);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("tasks-view", view ?? "kanban");
-    }
-  }, [view]);
-
-  // Blocker 3: CONCRETE filter predicate — date-fns helpers, no stub
-  // Filters the OPTIMISTIC tasks so local optimistic inserts/updates flow
-  // through immediately.
+  // Concrete filter predicate. Filters the OPTIMISTIC tasks so local
+  // optimistic inserts/updates flow through immediately.
   const filtered = useMemo(() => {
     return optimisticTasks.filter((t) => {
       // Optimistically-deleted rows vanish from every surface for the full
@@ -286,13 +296,12 @@ export function TasksClient({
       if (pendingDeleteIds.has(t.id)) return false;
       // Auto-hide "lesno" (completed) unless the user explicitly opts in OR
       // they've requested lesno via an explicit status filter (that filter
-      // takes precedence — the chip wouldn't make sense otherwise) OR the
-      // task is completed on the currently-selected day (D-06): day-scoped
-      // views (kanban/list) must keep that day's done work visible rather
-      // than having it vanish on completion. The YMD string match keeps
-      // the day-survival rule scoped — lesno tasks on OTHER days still
-      // obey the global showLesno toggle. Undated lesno tasks never match
-      // dateYmd, so the Inbox stays lesno-free regardless.
+      // takes precedence) OR the task is completed on the currently-selected
+      // day: day-scoped views must keep that day's done work visible rather
+      // than having it vanish on completion. The YMD string match keeps the
+      // day-survival rule scoped; lesno tasks on OTHER days still obey the
+      // global showLesno toggle. Undated lesno tasks never match dateYmd, so
+      // the Inbox stays lesno-free regardless.
       if (
         !showLesno &&
         t.status === "lesno" &&
@@ -339,11 +348,7 @@ export function TasksClient({
   // Compare YMD strings directly: t.dueDate from the DB is already a
   // YYYY-MM-DD string (drizzle `date` column), and dateYmd is the URL
   // YMD string. Round-tripping through Date introduces UTC-midnight
-  // drift in negative-UTC timezones (a task created today as "today"in
-  // EDT would parse to UTC midnight, which is yesterday in EDT, and
-  // never match the day filter — that's why new tasks were falling
-  // through to the Inbox tray instead of landing in the active column).
-  const activeDate = useMemo(() => fromYmd(dateYmd), [dateYmd]);
+  // drift in negative-UTC timezones.
   const dayFilteredTasks = useMemo(
     () => filtered.filter((t) => t.dueDate === dateYmd),
     [filtered, dateYmd]
@@ -356,7 +361,7 @@ export function TasksClient({
   // Overdue tasks (issue #143): due date strictly before today's start, not
   // completed, and (by the dueDate guard) never undated. Computed from the
   // OPTIMISTIC `tasks` rather than the day-filtered slice so the panel spans
-  // every overdue date regardless of which day the kanban is showing — and so
+  // every overdue date regardless of which day the kanban is showing, and so
   // a reschedule optimistically removes the row the instant its dueDate moves
   // forward. Deliberately bypasses the `filtered`/`showLesno` plumbing: the
   // overdue set is its own concern, always lesno-free.
@@ -373,9 +378,8 @@ export function TasksClient({
   }, [optimisticTasks, pendingDeleteIds]);
 
   // Reschedule a set of overdue tasks to a new day. REUSES the existing
-  // bulkUpdateTaskDueDate server action (no new endpoint) — same optimistic +
-  // invalidate shape as handleBulkMove. Works for the panel's mass action, the
-  // per-group quick action, and the drag-out-of-panel path.
+  // bulkUpdateTaskDueDate server action (no new endpoint). Works for the
+  // panel's mass action, the per-group quick action, and the drag-out path.
   const handleRescheduleOverdue = useCallback(
     async (ids: string[], dueYmd: string) => {
       if (ids.length === 0) return;
@@ -390,12 +394,11 @@ export function TasksClient({
         for (const id of ids) addOptimistic({ type: "revert", id });
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: tableKey("tasks", userId) });
       toast.success(
         `${ids.length} task${ids.length === 1 ? "" : "s"} rescheduled to ${dueYmd}`
       );
     },
-    [addOptimistic, queryClient, userId, startTransition]
+    [addOptimistic, startTransition]
   );
 
   // Multi-select helpers
@@ -425,7 +428,7 @@ export function TasksClient({
     async (newDueDate: string | null) => {
       const ids = Array.from(selectedIds);
       if (ids.length === 0) return;
-      // Optimistic — update each row's dueDate immediately so the cards
+      // Optimistic: update each row's dueDate immediately so the cards
       // disappear from the current day view (or land in Inbox if cleared).
       startTransition(() => {
         for (const id of ids) {
@@ -442,14 +445,11 @@ export function TasksClient({
         for (const id of ids) addOptimistic({ type: "revert", id });
         return;
       }
-      await queryClient.invalidateQueries({
-        queryKey: tableKey("tasks", userId),
-      });
       const tail = newDueDate === null ? "moved to Inbox" : `moved to ${newDueDate}`;
       toast.success(`${ids.length} task${ids.length === 1 ? "" : "s"} ${tail}`);
       clearSelection();
     },
-    [selectedIds, addOptimistic, queryClient, userId, clearSelection, startTransition]
+    [selectedIds, addOptimistic, clearSelection, startTransition]
   );
 
   const handleBulkDelete = useCallback(() => {
@@ -519,21 +519,17 @@ export function TasksClient({
       if (!r.success) {
         toast.error(r.error);
         addOptimistic({ type: "revert", id: t.id });
-        return;
       }
-      await queryClient.invalidateQueries({
-        queryKey: tableKey("tasks", userId),
-      });
+      // One drag = one write = one refetch, driven by the Realtime echo.
     },
-    [draggedTask, dateYmd, activeDate, addOptimistic, queryClient, userId]
+    [draggedTask, dateYmd, addOptimistic, startTransition]
   );
 
-  // D-04 / TASK-INBOX-02: drop a single card onto the Inbox column → null its
-  // due date. Mirrors handleBulkMove's optimistic shape but for the lone
-  // dragged card, and REUSES the existing bulkUpdateTaskDueDate server action
-  // (no new action — per CONTEXT). Silent optimistic on the single-card path
-  // (UI-SPEC I-1): success is its own feedback (card lands in the Inbox); only
-  // a failure surfaces a toast.
+  // Drop a single card onto the Inbox column → null its due date. Mirrors
+  // handleBulkMove's optimistic shape but for the lone dragged card, and
+  // REUSES the existing bulkUpdateTaskDueDate server action. Silent optimistic
+  // on the single-card path: success is its own feedback (card lands in the
+  // Inbox); only a failure surfaces a toast.
   const handleInboxDrop = useCallback(async () => {
     const id = draggedTaskId;
     setDraggedTaskId(null);
@@ -548,16 +544,12 @@ export function TasksClient({
     if (!r.success) {
       toast.error("Couldn't move to Inbox. Try again.");
       addOptimistic({ type: "revert", id });
-      return;
     }
-    await queryClient.invalidateQueries({
-      queryKey: tableKey("tasks", userId),
-    });
-  }, [draggedTaskId, optimisticTasks, addOptimistic, queryClient, userId, startTransition]);
+  }, [draggedTaskId, optimisticTasks, addOptimistic, startTransition]);
 
   // Drop a dragged card onto a specific day (List view drop area → the active
-  // day; Overview → the row's day). Forces status to "not started"and sets the
-  // due date to the target day, mirroring handleKanbanDrop's optimistic shape.
+  // day; Overview → the row's day). Forces status to "not started" and sets
+  // the due date to the target day, mirroring handleKanbanDrop.
   const handleDropOnDay = useCallback(
     async (ymd: string) => {
       const t = draggedTask;
@@ -584,30 +576,24 @@ export function TasksClient({
       if (!r.success) {
         toast.error(r.error);
         addOptimistic({ type: "revert", id: t.id });
-        return;
       }
-      await queryClient.invalidateQueries({
-        queryKey: tableKey("tasks", userId),
-      });
     },
-    [draggedTask, addOptimistic, queryClient, userId, startTransition]
+    [draggedTask, addOptimistic, startTransition]
   );
 
   async function handleCreateTask(input: {
     title: string;
     status: TaskStatus;
   }) {
-    // RT-05: client-generated UUID flows through to the server so the
-    // Realtime echo arrives with the same id (no-op in the reducer).
+    // Client-generated UUID flows through to the server so the Realtime echo
+    // arrives with the same id (no-op in the reducer).
     const newId = crypto.randomUUID();
-    // Default the new task's due date to the day shown in the kanban
-    // header AND the status to whichever column the inline composer was
-    // in. Both come from props/state and require no extra UI affordance —
-    // matches the muscle-memory expectation that "the column I click is
-    // the column it lands in"and "today's tasks land on today."
+    // Default the new task's due date to the day shown in the kanban header
+    // AND the status to whichever column the inline composer was in.
     const defaultedDueDate = dateYmd;
     startTransition(async () => {
-      // Optimistic insert FIRST — UI flips instantly
+      // Optimistic insert FIRST; the UI flips instantly and the overlay holds
+      // the row until the canonical cache catches up via the echo.
       addOptimistic({
         type: "insert",
         row: {
@@ -636,20 +622,10 @@ export function TasksClient({
         projectIds: [],
       });
       if (!r.success) {
-        // D-03: explicit revert (RT-06: the overlay no longer auto-reverts on
-        // transition close) + toast.error
         toast.error(r.error);
         addOptimistic({ type: "revert", id: newId });
         return;
       }
-      // Belt-and-suspenders: explicit invalidate so the canonical cache catches
-      // up BEFORE the transition closes (and useOptimistic reverts). Without
-      // this, a slow/failed Realtime echo means the optimistic row disappears
-      // and the user has to refresh to see their new task. Realtime stays for
-      // cross-device sync; local case is now guaranteed.
-      await queryClient.invalidateQueries({
-        queryKey: tableKey("tasks", userId),
-      });
       toast("Task added.");
     });
   }
@@ -657,8 +633,7 @@ export function TasksClient({
   const openTask = openTaskId ? (optimisticTasks.find((t) => t.id === openTaskId) ?? null) : null;
 
   // Synthetic draft for create mode. id stays constant so React doesn't
-  // re-init the form between toggles; the panel skips the syncing useEffect
-  // anyway by checking task?.id. Dates/projects default to sensible values.
+  // re-init the form between toggles.
   const draftTask: TaskWithProjects | null = draftStatus
     ? {
         id: "__draft__",
@@ -679,15 +654,23 @@ export function TasksClient({
       }
     : null;
 
+  // One panel, two modes. A just-started draft takes the slot even if a task
+  // is open behind it; closing the draft returns to that task.
+  const panelTask = draftTask ?? openTask;
+  const panelMode: "edit" | "create" = draftTask ? "create" : "edit";
+  const closePanel = useCallback(() => {
+    setDraftStatus(null);
+    if (openTaskId) void setOpenTaskId(null);
+  }, [openTaskId, setOpenTaskId]);
+
   const hasActiveFilters =
     filters.priority.length > 0 ||
     filters.status.length > 0 ||
     filters.due.length > 0 ||
     filters.project.length > 0;
 
-  // Arc-redesign: lightweight stats for the page header so the user gets
-  // a glance-able sense of load without leaving /tasks. Computed locally
-  // from the same `tasks` list the body renders.
+  // Glance stats for the scaffold meta row, computed locally from the same
+  // `tasks` list the body renders.
   const headerStats = useMemo(() => {
     const today = startOfDay(new Date());
     const open = tasks.filter((t) => t.status !== "lesno");
@@ -699,179 +682,110 @@ export function TasksClient({
     };
   }, [tasks]);
 
+  const showTriageRail =
+    view !== "overview" && (overdueTasks.length > 0 || (!inboxHidden && inboxTasks.length > 0));
+
   return (
-    // No max-w cap — kanban view needs full horizontal real estate for the
-    // 5 status columns. Header + toolbar happily extend to the page edge.
-    <div className="flex flex-col h-full min-h-0 overflow-hidden px-8 py-10 w-full">
-      {/* Arc-redesign page header — serif title + glance stats row, with the
-          expand/fullscreen toggle anchored top-right (D-08 / UI-SPEC S-7). */}
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div className="space-y-1.5">
-        <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--sd-ink)]">
-          Tasks
-        </h1>
-        <p className="font-serif text-base text-[var(--sd-ink-dull)] flex items-center gap-3">
-          <span>
-            {headerStats.open} open
-            {headerStats.overdue > 0 ? (
-              <span className="ml-1.5 text-[var(--ink-coral)]">
-                · {headerStats.overdue} overdue
-              </span>
-            ) : null}
-          </span>
-          {headerStats.done > 0 ? (
-            <span className="text-[var(--sd-ink-faint)]">· {headerStats.done} done</span>
-          ) : null}
-        </p>
-        </div>
-        <button
-          type="button"
-          onClick={toggleExpanded}
-          aria-label={expanded ? "Exit fullscreen" : "Expand tasks to fullscreen"}
-          className="text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] p-1 rounded-[5px] cursor-pointer-always transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
-        >
-          {expanded ? (
-            <Minimize2 size={16} strokeWidth={1.5} />
-          ) : (
-            <Maximize2 size={16} strokeWidth={1.5} />
-          )}
-        </button>
-      </header>
-
-      {/* Toolbar: filters + view toggle in a solid Spacedrive chrome bar
-          (--sd-box fill, --sd-line hairline; no backdrop-blur per sd register).
-          Filters render their own sd pills inside it. */}
-      <div className="flex items-center justify-between gap-4 mb-5 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2">
-        <TaskFilters projects={projects} />
-        {/* Show / hide completed "lesno"tasks. Off by default per user spec —
-            the kanban + list + day views all read from `filtered`, which
-            drops lesno when this is false. */}
-        <button
-          type="button"
-          onClick={() => setShowLesno((v) => !v)}
-          aria-pressed={showLesno}
-          disabled={view !== "overview"}
-          className={cn(
-            "px-2.5 py-0.5 rounded-[6px] font-mono text-[11px] uppercase tracking-[0.06em] transition-colors duration-[120ms] ease-out border shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-            view !== "overview"
-              ? "border-transparent text-[var(--sd-ink-faint)]/50 cursor-not-allowed"
-              : showLesno
-                ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)] cursor-pointer"
-                : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-line)] cursor-pointer"
-          )}
-          title={
-            view !== "overview"
-              ? "Completed tasks always show on the selected day"
-              : showLesno
-                ? "Hide completed (lesno) tasks"
-                : "Show completed (lesno) tasks"
-          }
-        >
-          {showLesno ? "Hide lesno" : "Show lesno"}
-        </button>
-        {/* Hide / show the persistent Inbox column. */}
-        <button
-          type="button"
-          onClick={() => setInboxHidden((v) => !v)}
-          aria-pressed={inboxHidden}
-          className={cn(
-            "px-2.5 py-0.5 rounded-[6px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-[120ms] ease-out border shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-            inboxHidden
-              ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)]"
-              : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-line)]"
-          )}
-          title={inboxHidden ? "Show the Inbox column" : "Hide the Inbox column"}
-        >
-          {inboxHidden ? "Show inbox" : "Hide inbox"}
-        </button>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Top-level surface: Overview vs. Day. Segmented group on the sd
-              ViewToggle idiom — neutral --sd-selected backplate + accent label
-              on the active segment (two-tier selection, D6). */}
-          <div className="flex items-center gap-0.5 border border-[var(--sd-line)] rounded-[6px] p-0.5 bg-[var(--sd-box)]">
-            {([
-              { value: "overview", label: "overview", active: view === "overview" },
-              { value: "day", label: "day", active: view !== "overview" },
-            ] as const).map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                onClick={() =>
-                  setView(t.value === "overview" ? "overview" : view === "overview" ? "kanban" : view)
-                }
-                aria-pressed={t.active}
-                className={cn(
-                  "px-2.5 py-0.5 rounded-[4px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer",
-                  "transition-colors duration-[120ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-                  t.active
-                    ? "bg-[var(--sd-selected)] text-[var(--sd-accent)]"
-                    : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
+    <>
+      <PageScaffold
+        title="Tasks"
+        meta={
+          <PageScaffold.MetaRow>
+            {[
+              <span key="open" className="tabular-nums">
+                {headerStats.open} open
+              </span>,
+              headerStats.overdue > 0 ? (
+                <span key="overdue" className="tabular-nums">
+                  {headerStats.overdue} overdue
+                </span>
+              ) : null,
+              headerStats.done > 0 ? (
+                <span key="done" className="tabular-nums">
+                  {headerStats.done} done
+                </span>
+              ) : null,
+            ]}
+          </PageScaffold.MetaRow>
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-lg"
+              onClick={toggleExpanded}
+              aria-label={expanded ? "Exit fullscreen" : "Expand tasks to fullscreen"}
+            >
+              {expanded ? (
+                <Minimize2 size={15} strokeWidth={1.5} />
+              ) : (
+                <Maximize2 size={15} strokeWidth={1.5} />
+              )}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="rounded-lg"
+              onClick={() => setDraftStatus("not started")}
+            >
+              <Plus size={14} strokeWidth={2} />
+              New task
+            </Button>
+          </>
+        }
+      >
+        {/* Toolbar: views left, filters centre, display options right. One row,
+            fixed height; the chip strip scrolls sideways rather than wrapping,
+            so adding a filter never shifts the layout below. */}
+        <div className="mt-8 flex h-9 items-center gap-3">
+          <SegmentedControl
+            value={view}
+            options={VIEW_SEGMENTS}
+            onChange={(v) => void setView(v)}
+            ariaLabel="Tasks view"
+          />
+          <div className="min-w-0 flex-1">
+            <TaskFilters projects={projects} filters={filters} onChange={handleFiltersChange} />
           </div>
-          {/* Day sub-toggle: Kanban vs. List — only in Day mode. */}
-          {view !== "overview" && (
-            <div className="flex items-center gap-0.5 border border-[var(--sd-line)] rounded-[6px] p-0.5 bg-[var(--sd-box)]">
-              {(["kanban", "list"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setView(v)}
-                  aria-pressed={view === v}
-                  className={cn(
-                    "px-2.5 py-0.5 rounded-[4px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer",
-                    "transition-colors duration-[120ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-                    view === v
-                      ? "bg-[var(--sd-selected)] text-[var(--sd-accent)]"
-                      : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
-                  )}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          )}
+          <DisplayMenu
+            view={view}
+            showLesno={showLesno}
+            onShowLesnoChange={setShowLesno}
+            inboxHidden={inboxHidden}
+            onInboxHiddenChange={setInboxHidden}
+          />
         </div>
-      </div>
 
-      {/* Content area — Phase 6 Plan 06-02 (RES-03, AES-04) empty states */}
-      {filtered.length === 0 && hasActiveFilters ? (
-        // Filter empty (UI-SPEC §9: "Nothing matches.")
-        <EmptyState
-          heading="Nothing matches."
-          body="Adjust the filters or clear them all."
-          action={{ label: "Clear filters", onClick: () => router.push("/tasks") }}
-        />
-      ) : tasks.length === 0 && !hasActiveFilters ? (
-        // True empty — no tasks at all (UI-SPEC §9: "Nothing needs doing.")
-        <EmptyState
-          heading="Nothing needs doing."
-          body="Which probably means you've handled everything. JARVIS is waiting if that changes."
-          action={{
-            label: "Tell JARVIS",
-            onClick: () => {
-              window.location.href = "/today";
-            },
-          }}
-        />
-      ) : (
-        <div className="flex flex-1 min-h-0 flex-col">
-          {/* Triage rail — Overdue (issue #143) and the undated Inbox (D-01)
-              laid half-and-half, each 50% of the rail width, side by side. Both
-              are independent collapsible disclosures sharing the same chevron
-              toggle grammar, so both can be open at once. When only one is
-              present (no overdue work, or the Inbox hidden) that panel spans the
-              full rail. Cards stay draggable (native HTML5 DnD): dropping an
-              overdue card on a day target reschedules it forward; dropping any
-              card on the Inbox nulls its due date via handleInboxDrop. `min-w-0`
-              on each half lets task titles truncate rather than overflow. */}
-          {(overdueTasks.length > 0 || !inboxHidden) && (
-            <div className="mb-4 flex flex-row items-start gap-3">
-              {overdueTasks.length > 0 ? (
-                <div className="min-w-0 flex-1">
+        {/* Content */}
+        {filtered.length === 0 && hasActiveFilters ? (
+          <EmptyState
+            size="page"
+            title="Nothing matches"
+            description="Adjust the filters, or clear them all."
+            action={{
+              label: "Clear filters",
+              onClick: () =>
+                void setFilters({ priority: [], status: [], due: [], project: [] }),
+            }}
+          />
+        ) : tasks.length === 0 && !hasActiveFilters ? (
+          <EmptyState
+            size="page"
+            title="Nothing needs doing"
+            description="Which probably means you've handled everything. Add a task when that changes."
+            action={{ label: "New task", onClick: () => setDraftStatus("not started") }}
+          />
+        ) : (
+          <div className="mt-6 flex flex-col">
+            {/* Triage rail: Overdue and the undated Inbox side by side on wide
+                stages, stacked otherwise. Cards stay draggable: dropping an
+                overdue card on a day target reschedules it; dropping any card
+                on the Inbox nulls its due date. */}
+            {showTriageRail && (
+              <div className="mb-6 grid items-start gap-4 @3xl/main:grid-cols-2">
+                {overdueTasks.length > 0 ? (
                   <OverdueTasksPanel
                     overdueTasks={overdueTasks}
                     onTaskClick={setOpenTaskId}
@@ -880,10 +794,8 @@ export function TasksClient({
                     onDragStart={(id) => setDraggedTaskId(id)}
                     onDragEnd={() => setDraggedTaskId(null)}
                   />
-                </div>
-              ) : null}
-              {!inboxHidden && (
-                <div className="min-w-0 flex-1">
+                ) : null}
+                {!inboxHidden && inboxTasks.length > 0 && (
                   <InboxColumn
                     inboxTasks={inboxTasks}
                     onTaskClick={setOpenTaskId}
@@ -894,37 +806,35 @@ export function TasksClient({
                     selectedIds={selectedIds}
                     onToggleSelected={(id) => toggleSelected(id)}
                   />
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
 
-          {/* Central area — the day-scoped surface, now full width beneath the
-              triage rail. The DaySwitcher lives HERE (not page-wide) so it
-              visually governs the central tasks and makes clear it does NOT
-              scope the dateless Inbox. Overview is inherently multi-day, so it
-              owns its own day toggles and hides the switcher. */}
-          <div className="flex flex-1 min-h-0 flex-col">
+            {/* The day-scoped surface. The DaySwitcher lives here (not
+                page-wide) so it visually governs the central tasks and makes
+                clear it does NOT scope the dateless Inbox. Overview is
+                inherently multi-day and hides it. */}
             {view !== "overview" && (
               <DaySwitcher dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
             )}
             {view === "list" ? (
               <div
+                ref={listDropRef}
                 onDragOver={(e) => {
                   if (!draggedTaskId) return;
                   e.preventDefault();
-                  setListDragOver(true);
+                  if (listDropRef.current)
+                    listDropRef.current.style.boxShadow = "inset 0 0 0 1px var(--accent)";
                 }}
-                onDragLeave={() => setListDragOver(false)}
+                onDragLeave={() => {
+                  if (listDropRef.current) listDropRef.current.style.boxShadow = "none";
+                }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  setListDragOver(false);
+                  if (listDropRef.current) listDropRef.current.style.boxShadow = "none";
                   void handleDropOnDay(dateYmd);
                 }}
-                className={cn(
-                  "flex-1 min-h-0 overflow-y-auto -mx-2 px-2 rounded-[8px] transition-shadow",
-                  listDragOver && "ring-1 ring-[var(--sd-accent)]/40"
-                )}
+                className="-mx-2 rounded-lg px-2"
               >
                 <TaskList
                   tasks={dayFilteredTasks}
@@ -933,42 +843,38 @@ export function TasksClient({
                 />
               </div>
             ) : view === "overview" ? (
-              <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
-                <TaskOverviewView
-                  tasks={filtered}
-                  onTaskClick={setOpenTaskId}
-                  onSelectDay={(ymd) => {
-                    void setDateYmd(ymd);
-                    void setView("kanban");
-                  }}
-                  draggingActive={!!draggedTaskId}
-                  onDropDay={(ymd) => void handleDropOnDay(ymd)}
-                />
-              </div>
+              <TaskOverviewView
+                tasks={filtered}
+                onTaskClick={setOpenTaskId}
+                onSelectDay={(ymd) => {
+                  void setDateYmd(ymd);
+                  void setView("kanban");
+                }}
+                draggingActive={!!draggedTaskId}
+                onDropDay={(ymd) => void handleDropOnDay(ymd)}
+              />
             ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
-                <KanbanBoard
-                  tasks={dayFilteredTasks}
-                  userId={userId}
-                  onTaskClick={setOpenTaskId}
-                  onCreateTask={handleCreateTask}
-                  onStartCreate={(s) => setDraftStatus(s)}
-                  addOptimistic={addOptimistic}
-                  selectionActive={selectedIds.size > 0}
-                  selectedIds={selectedIds}
-                  onToggleSelected={(id) => toggleSelected(id)}
-                  onToggleColumnSelection={toggleColumnSelection}
-                  externalDraggedTaskId={draggedTaskId}
-                  externalDraggedFromStatus={draggedFromStatus}
-                  onExternalDragStart={(id) => setDraggedTaskId(id)}
-                  onExternalDragEnd={() => setDraggedTaskId(null)}
-                  onExternalDropOnStatus={(s) => void handleKanbanDrop(s as TaskStatus)}
-                />
-              </div>
+              <KanbanBoard
+                tasks={dayFilteredTasks}
+                userId={userId}
+                onTaskClick={setOpenTaskId}
+                onCreateTask={handleCreateTask}
+                onStartCreate={(s) => setDraftStatus(s)}
+                addOptimistic={addOptimistic}
+                selectionActive={selectedIds.size > 0}
+                selectedIds={selectedIds}
+                onToggleSelected={(id) => toggleSelected(id)}
+                onToggleColumnSelection={toggleColumnSelection}
+                externalDraggedTaskId={draggedTaskId}
+                externalDraggedFromStatus={draggedFromStatus}
+                onExternalDragStart={(id) => setDraggedTaskId(id)}
+                onExternalDragEnd={() => setDraggedTaskId(null)}
+                onExternalDropOnStatus={(s) => void handleKanbanDrop(s as TaskStatus)}
+              />
             )}
           </div>
-        </div>
-      )}
+        )}
+      </PageScaffold>
 
       <TaskSelectionBar
         count={selectedIds.size}
@@ -978,64 +884,193 @@ export function TasksClient({
         pending={false}
       />
 
-      {/* Detail panel — RES-02: delete passes through useUndoToast for 5s Undo */}
-      <TaskDetailPanel
-        task={openTask}
-        projects={projects}
-        hashtags={hashtags}
-        people={people}
-        areas={areas}
-        onCreateProject={handleCreateProject}
-        open={!!openTask}
-        onClose={() => setOpenTaskId(null)}
-        addOptimistic={addOptimistic}
-        onDeleteTask={(task) => {
-          // 1. Optimistic remove via the long-lived pendingDeleteIds set —
-          //    the card stays hidden for the full 5s window (D-02).
-          setPendingDeleteIds((prev) => new Set(prev).add(task.id));
-          // 2. Toast with 5s Undo (RES-02 / UI-SPEC §8h)
-          showUndoToast({
-            message: `"${task.title}"deleted`,
-            optimisticRemove: () => {
-              /* already done above via the set */
-            },
-            commit: async () => {
-              const r = await deleteTask(task.id);
-              if (!r.success) {
-                toast.error(r.error);
-                // Server rejected the delete — restore the row.
+      {/* Detail panel: ONE lazily mounted instance for edit and create. On a
+          cold load with no ?task= param nothing here mounts, so the TipTap
+          stack stays out of the page entirely. */}
+      {panelTask ? (
+        <TaskDetailPanel
+          key={panelMode === "create" ? "__draft__" : panelTask.id}
+          task={panelTask}
+          projects={projects}
+          hashtags={hashtags}
+          people={people}
+          areas={areas}
+          onCreateProject={handleCreateProject}
+          open
+          onClose={closePanel}
+          addOptimistic={addOptimistic}
+          mode={panelMode}
+          onDeleteTask={(task) => {
+            // 1. Optimistic remove via the long-lived pendingDeleteIds set;
+            //    the card stays hidden for the full 5s window.
+            setPendingDeleteIds((prev) => new Set(prev).add(task.id));
+            // 2. Toast with 5s Undo
+            showUndoToast({
+              message: `"${task.title}" deleted`,
+              optimisticRemove: () => {
+                /* already done above via the set */
+              },
+              commit: async () => {
+                const r = await deleteTask(task.id);
+                if (!r.success) {
+                  toast.error(r.error);
+                  // Server rejected the delete: restore the row.
+                  dropPending(task.id);
+                  return;
+                }
+                // Refetch THEN drop the id so the refetched canonical data is
+                // the single source of truth (the row must not flash back).
+                await queryClient.invalidateQueries({
+                  queryKey: tableKey("tasks", userId),
+                });
                 dropPending(task.id);
-                return;
-              }
-              // Belt-and-suspenders refetch (matches create/status-change),
-              // THEN drop the id so the refetched canonical data is the
-              // single source of truth.
-              await queryClient.invalidateQueries({
-                queryKey: tableKey("tasks", userId),
-              });
-              dropPending(task.id);
-            },
-            undo: () => {
-              /* Server delete only fires on commit; nothing server-side to roll back */
-            },
-            addBack: () => dropPending(task.id),
-          });
-        }}
-      />
+              },
+              undo: () => {
+                /* Server delete only fires on commit; nothing to roll back */
+              },
+              addBack: () => dropPending(task.id),
+            });
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
 
-      {/* Draft panel — opens when the user clicks "+ Add task"in a column. */}
-      <TaskDetailPanel
-        task={draftTask}
-        projects={projects}
-        hashtags={hashtags}
-        people={people}
-        areas={areas}
-        onCreateProject={handleCreateProject}
-        open={!!draftTask}
-        onClose={() => setDraftStatus(null)}
-        addOptimistic={addOptimistic}
-        mode="create"
-      />
+/**
+ * Quiet segmented control: a `--surface` well with a raised active segment.
+ * Fill over borders (SDC-1 §2.6), sentence case, ladder radii (8px well,
+ * 4px segments).
+ */
+function SegmentedControl<T extends string>({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+}: {
+  value: string;
+  options: readonly { value: T; label: string }[];
+  onChange: (value: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      className="flex h-8 shrink-0 items-center gap-0.5 rounded-lg bg-[var(--surface)] p-0.5"
+    >
+      {options.map((opt) => {
+        const active = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "h-7 rounded-sm px-3 text-meta cursor-pointer-always",
+              "transition-colors duration-[160ms] ease-out",
+              active
+                ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)]"
+                : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            )}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
+  );
+}
+
+/**
+ * Display options: view preferences demoted OUT of the filter row into one
+ * quiet menu. Nothing in here ever renders disabled; options that do not
+ * apply to the current view are simply absent.
+ */
+function DisplayMenu({
+  view,
+  showLesno,
+  onShowLesnoChange,
+  inboxHidden,
+  onInboxHiddenChange,
+}: {
+  view: string;
+  showLesno: boolean;
+  onShowLesnoChange: (next: boolean) => void;
+  inboxHidden: boolean;
+  onInboxHiddenChange: (next: boolean) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Display options"
+          className={cn(
+            "inline-flex size-8 shrink-0 items-center justify-center rounded-lg cursor-pointer-always",
+            "text-[var(--ink-muted)] transition-colors duration-[160ms] ease-out",
+            "hover:bg-[var(--hover)] hover:text-[var(--ink)]",
+            "data-[state=open]:bg-[var(--selected)] data-[state=open]:text-[var(--ink)]"
+          )}
+        >
+          <SlidersHorizontal size={15} strokeWidth={1.75} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-56 rounded-xl border-[var(--edge)] p-2">
+        <p className="px-2 pb-1.5 text-micro font-medium text-[var(--ink-faint)]">Display</p>
+        <div className="flex flex-col">
+          {view !== "overview" ? (
+            <DisplayToggleRow
+              label="Show inbox"
+              checked={!inboxHidden}
+              onToggle={() => onInboxHiddenChange(!inboxHidden)}
+            />
+          ) : (
+            <DisplayToggleRow
+              label="Show completed"
+              checked={showLesno}
+              onToggle={() => onShowLesnoChange(!showLesno)}
+            />
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function DisplayToggleRow({
+  label,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={checked}
+      className={cn(
+        "flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 cursor-pointer-always",
+        "text-meta text-[var(--ink)] transition-colors duration-[160ms] ease-out",
+        "hover:bg-[var(--hover)]"
+      )}
+    >
+      {label}
+      <span
+        className={cn(
+          "flex size-4 items-center justify-center rounded-sm border transition-colors duration-[160ms]",
+          checked
+            ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
+            : "border-[var(--edge)] text-transparent"
+        )}
+      >
+        <Check size={11} strokeWidth={2.5} />
+      </span>
+    </button>
   );
 }
