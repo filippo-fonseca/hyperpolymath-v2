@@ -18,6 +18,7 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({ storage: { from: fromMock } }),
 }));
 
+import type { Editor } from "@/components/pages/PageBlockEditor";
 import {
   ACCEPTED_PAGE_IMAGE_MIME_TYPES,
   MAX_PAGE_IMAGE_BYTES,
@@ -26,7 +27,6 @@ import {
   usePageImageDrop,
   usePageImageUploader,
 } from "@/components/pages/page-image-upload";
-import type { Editor } from "@/components/pages/PageBlockEditor";
 
 /** A File of a given type and byte length, without allocating the bytes. */
 function fakeFile(name: string, type: string, size = 1024): File {
@@ -78,9 +78,9 @@ describe("pageImageRejection", () => {
   });
 
   it("rejects an image over the size limit but accepts one exactly at it", () => {
-    expect(pageImageRejection(fakeFile("big.png", "image/png", MAX_PAGE_IMAGE_BYTES + 1))).toContain(
-      "larger than"
-    );
+    expect(
+      pageImageRejection(fakeFile("big.png", "image/png", MAX_PAGE_IMAGE_BYTES + 1))
+    ).toContain("larger than");
     expect(pageImageRejection(fakeFile("edge.png", "image/png", MAX_PAGE_IMAGE_BYTES))).toBeNull();
   });
 });
