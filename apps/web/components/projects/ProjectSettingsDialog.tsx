@@ -27,6 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -43,8 +45,10 @@ interface Props {
     endDate: string | null;
     archivedAt: string | Date | null;
   };
-  allAreas: { id: string; name: string }[];
+  allAreas: { id: string; name: string; emoji?: string | null }[];
   addOptimisticProject: ProjectOptimisticDispatch;
+  /** Owning user — the collection query key project mutations settle on. */
+  userId: string;
 }
 
 /**
@@ -58,8 +62,10 @@ export function ProjectSettingsDialog({
   project,
   allAreas,
   addOptimisticProject,
+  userId,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [, startTransition] = useTransition();
   const move = usePendingAction();
   const archive = usePendingAction();
@@ -109,7 +115,11 @@ export function ProjectSettingsDialog({
       () => (isArchived ? unarchiveProject(project.id) : archiveProject(project.id)),
       {
         success: isArchived ? "Project unarchived." : "Project archived.",
-        onSuccess: () => router.refresh(),
+        // archivedAt lives on the project row, which the page reads through the
+        // projects collection query, so refetching that one query settles the
+        // toggle. router.refresh() re-ran the whole route tree for the same result.
+        onSuccess: () =>
+          void queryClient.invalidateQueries({ queryKey: tableKey("projects", userId) }),
       }
     );
   }
