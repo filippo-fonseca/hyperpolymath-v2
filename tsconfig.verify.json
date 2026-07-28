@@ -1,0 +1,25 @@
+{
+  // Typechecks the verification harness only. `pnpm typecheck` runs
+  // `apps/web`'s tsc, which does not reach these root-level files, so without
+  // this the Playwright config and spec would rot silently.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    // pnpm keeps dependencies isolated per workspace package, so @types/node
+    // and @playwright/test live under apps/web and the repo root respectively.
+    // tsc resolves typeRoots relative to this file, so both are named.
+    "typeRoots": ["./apps/web/node_modules/@types", "./node_modules/@types"],
+    "types": ["node"],
+    "paths": {
+      "@playwright/test": ["./node_modules/@playwright/test"]
+    }
+  },
+  "include": ["playwright.config.ts", "tests/verify/**/*.ts"]
+}

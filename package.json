@@ -20,6 +20,7 @@
     "verify:auth": "pnpm --filter web exec node scripts/verify/storage-state.mjs",
     "verify:drift": "pnpm --filter web exec node scripts/schema-drift-report.mjs",
     "verify:e2e": "playwright test",
+    "verify:typecheck": "pnpm --filter web exec tsc -p ../../tsconfig.verify.json",
     "verify": "pnpm verify:bootstrap && pnpm verify:e2e",
     "prepare": "husky"
   },
