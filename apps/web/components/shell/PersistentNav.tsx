@@ -323,6 +323,73 @@ export function SidebarSystemNav({ collapsed }: Props) {
   );
 }
 
+/**
+ * Pinned Google Calendar fault row (§1.4).
+ *
+ * The /calendar row above carries the same badge, and that is still the right
+ * home for it: the row that owns the feature is where a dropped connection
+ * should first be legible. It is just not a SUFFICIENT home. MAIN lives in the
+ * sidebar's scroll column and Calendar is its thirteenth row; the column is
+ * `flex-1`, so at 1280x720 it shows about nine rows and the badge sits ~80px
+ * below the fold. On every laptop viewport the indicator was invisible unless
+ * you scrolled to it, which is the same failure the SYSTEM block was pinned to
+ * escape (see the footer-stack comment in Sidebar.tsx).
+ *
+ * So this is the pinned copy, mounted in that same footer stack. It renders
+ * ONLY while the connection is down, so a healthy sidebar pays no vertical
+ * space for it, and it is a link straight to the reconnect control rather than
+ * a bare state report: a fault the reader cannot act on is chrome.
+ *
+ * Coral 12%-alpha chip plus the canonical 6px dot — functional ink, never
+ * accent, so it costs nothing against the two-accent-per-viewport budget.
+ */
+export function SidebarGcalAlert({ collapsed }: Props) {
+  const badge = useGcalBadge();
+  if (!badge) return null;
+
+  const chrome = cn(
+    "flex items-center rounded-[6px] transition-colors duration-[120ms] ease-out",
+    "bg-[color-mix(in_oklch,var(--ink-coral)_12%,transparent)]",
+    "hover:bg-[color-mix(in_oklch,var(--ink-coral)_18%,transparent)]",
+    "shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--ink-coral)_22%,transparent)]",
+    collapsed ? "h-7 w-7 justify-center" : "h-7 w-full gap-2 px-2"
+  );
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className={cn("flex", collapsed && "justify-center")}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href="/settings#integrations"
+              aria-label={`${badge.label}. Reconnect it in Settings.`}
+              data-slot="gcal-sidebar-alert"
+              className={chrome}
+            >
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: "var(--ink-coral)" }}
+              />
+              {!collapsed && (
+                <span className="truncate text-micro font-medium text-[var(--ink-coral)]">
+                  {badge.short}
+                </span>
+              )}
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent
+            side="right"
+            className="max-w-[240px] font-sans normal-case tracking-normal"
+          >
+            {badge.tooltip}
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
+  );
+}
+
 /** Subscribes to the JarvisListener singleton; feeds MicState to the dot. */
 function MicIndicatorDotContainer() {
   const [state, setState] = useState<MicState>("idle");
