@@ -1,4 +1,6 @@
 import type { DockWidgetDef } from "@/components/shell/cockpit/dock-registry";
+import { homeDevicesWidget } from "./home-devices";
+import { nextEventWidget } from "./next-event";
 import { todayCountsWidget } from "./today-counts";
 
 /**
@@ -12,4 +14,8 @@ import { todayCountsWidget } from "./today-counts";
  * Order fields are spaced by ten so a widget can slot between two existing ones
  * without renumbering the rest.
  */
-export const DOCK_WIDGETS: DockWidgetDef<unknown>[] = [todayCountsWidget];
+export const DOCK_WIDGETS: DockWidgetDef<unknown>[] = [
+  todayCountsWidget,
+  nextEventWidget,
+  homeDevicesWidget,
+];
