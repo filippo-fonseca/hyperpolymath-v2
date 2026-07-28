@@ -20,10 +20,10 @@ import { toast } from "sonner";
  * Storage follows the avatars pattern (components/settings/ProfileSection.tsx):
  * a client-side upload straight to Supabase Storage, then the public URL. The
  * bucket and its owner-scoped RLS policies live in
- * drizzle/0039_page_images_bucket.sql.
+ * drizzle/0040_page_images_bucket.sql.
  */
 
-/** Supabase Storage bucket created by 0039_page_images_bucket.sql. */
+/** Supabase Storage bucket created by 0040_page_images_bucket.sql. */
 export const PAGE_IMAGE_BUCKET = "page-images";
 
 /** Matches the bucket's `file_size_limit`, so a reject here mirrors the server. */

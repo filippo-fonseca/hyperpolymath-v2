@@ -41,7 +41,12 @@ import { useReducedMotion } from "motion/react";
 import { usePathname } from "next/navigation";
 import { useEffect, useOptimistic, useRef, useState } from "react";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
-import { PersistentNav, SidebarStatusRow, SidebarSystemNav } from "./PersistentNav";
+import {
+  PersistentNav,
+  SidebarGcalAlert,
+  SidebarStatusRow,
+  SidebarSystemNav,
+} from "./PersistentNav";
 import { SidebarHomeDevicesStrip } from "./SidebarHomeDevicesStrip";
 import { SidebarTree } from "./SidebarTree";
 import { deriveSidebarLayout, planToggle, useIsBelowMd } from "./use-sidebar-breakpoint";
@@ -335,6 +340,12 @@ export function Sidebar({
             reachable by scrolling past fifteen others. Pinned, it keeps the §1.3
             vertical order (still below AREAS) and is always visible. */}
         <div className="shrink-0 space-y-1">
+          {/* Google Calendar fault row. Same reasoning as SYSTEM, one step
+              further: the /calendar row's own badge is the thirteenth row of a
+              scroll column, so it is below the fold at every laptop height.
+              This renders only while the connection is down. */}
+          <SidebarGcalAlert collapsed={effectiveCollapsed} />
+
           <section>
             <SectionHeader label="System" collapsed={effectiveCollapsed} />
             <SidebarSystemNav collapsed={effectiveCollapsed} />

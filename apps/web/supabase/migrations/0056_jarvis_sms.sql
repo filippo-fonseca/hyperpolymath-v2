@@ -1,4 +1,4 @@
--- 0055 — JARVIS over text message (issue #352, decision D6 — Twilio Programmable
+-- 0056 — JARVIS over text message (issue #352, decision D6 — Twilio Programmable
 -- SMS/MMS behind a channel-agnostic core).
 --
 -- Two things land here:

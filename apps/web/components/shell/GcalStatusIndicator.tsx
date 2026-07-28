@@ -31,6 +31,8 @@ export interface GcalBadge {
   label: string;
   /** Sentence-case tooltip copy: what is wrong, and the path back. */
   tooltip: string;
+  /** Two-word label for the pinned fault row, where the dot has room to speak. */
+  short: string;
 }
 
 /**
@@ -50,12 +52,14 @@ export function useGcalBadge(): GcalBadge | null {
     return {
       label: "Google Calendar connection expired",
       tooltip: "Google Calendar access expired. Reconnect it from Settings.",
+      short: "Calendar expired",
     };
   }
 
   return {
     label: "Google Calendar disconnected",
     tooltip: "Google Calendar is not connected. Connect it from Settings.",
+    short: "Calendar offline",
   };
 }
 
