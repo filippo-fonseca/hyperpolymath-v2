@@ -155,14 +155,22 @@ export function AreaDetailClient({
           Areas
         </Link>
       }
-      icon={
+      // The emoji rides inside the title node rather than the scaffold's icon
+      // slot: the icon slot sits beside the h1 and would shift its left edge
+      // 44px right, and the design contract asserts equal H1 left edges
+      // across routes. Same optics, honest geometry.
+      title={
         displayEmoji ? (
-          <span className="text-2xl leading-none" aria-hidden="true">
-            {displayEmoji}
+          <span className="flex items-center gap-3">
+            <span className="text-2xl leading-none" aria-hidden="true">
+              {displayEmoji}
+            </span>
+            <span className="min-w-0 truncate">{displayName}</span>
           </span>
-        ) : undefined
+        ) : (
+          displayName
+        )
       }
-      title={displayName}
       meta={
         <PageScaffold.MetaRow>
           {[
