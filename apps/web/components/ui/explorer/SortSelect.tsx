@@ -29,9 +29,9 @@ export function SortSelect({
       <SelectPrimitive.Trigger
         aria-label="Sort"
         className={cn(
-          "flex h-8 min-w-[116px] items-center justify-between gap-2 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2.5 font-sans text-[0.8rem] text-[var(--ink)] outline-none",
-          "transition-[background-color,border-color] duration-[120ms] ease-out",
-          "hover:bg-[var(--sd-hover)] focus-visible:border-[var(--sd-accent)]",
+          "flex h-8 min-w-[116px] items-center justify-between gap-2 rounded-lg bg-[var(--sd-box)] px-3 font-sans text-meta text-[var(--ink)] outline-none",
+          "transition-[background-color,border-color] duration-[160ms] ease-out",
+          "hover:bg-[var(--sd-hover)]",
           className
         )}
       >
@@ -45,8 +45,8 @@ export function SortSelect({
           align="end"
           sideOffset={6}
           className={cn(
-            "z-50 min-w-[132px] overflow-hidden rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-menu)] p-1 font-sans text-[0.8rem] text-[var(--ink)]",
-            "shadow-[0_14px_34px_hsl(235_15%_0%_/_0.42)]",
+            "z-50 min-w-[132px] overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-menu)] p-1 font-sans text-meta text-[var(--ink)]",
+            "shadow-[0_4px_16px_rgb(0_0_0_/_0.06)] dark:shadow-[0_4px_16px_rgb(0_0_0_/_0.30)]",
             "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1",
             "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1"
           )}
@@ -56,7 +56,7 @@ export function SortSelect({
               <SelectPrimitive.Item
                 key={option}
                 value={option}
-                className="relative flex h-7 select-none items-center rounded-[4px] px-2 pr-7 outline-none transition-colors duration-[120ms] ease-out focus:bg-[var(--sd-menu-hover)] data-[state=checked]:text-[var(--sd-accent)]"
+                className="relative flex h-7 select-none items-center rounded px-2 pr-7 outline-none transition-colors duration-[160ms] ease-out focus:bg-[var(--sd-menu-hover)] data-[state=checked]:text-[var(--sd-accent)]"
               >
                 <SelectPrimitive.ItemText>{sortLabels[option]}</SelectPrimitive.ItemText>
                 <SelectPrimitive.ItemIndicator className="absolute right-2 inline-flex items-center">

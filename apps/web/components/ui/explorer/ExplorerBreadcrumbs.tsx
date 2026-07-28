@@ -35,11 +35,11 @@ export function ExplorerBreadcrumbs({
               aria-current={isLast ? "page" : undefined}
               {...segment.buttonProps}
               className={cn(
-                "min-w-0 truncate rounded-[6px] px-2 py-1 text-[0.8rem]",
-                "transition-[background-color,color] duration-[120ms] ease-out",
+                "min-w-0 truncate rounded-lg px-2 py-1 text-meta",
+                "transition-[background-color,color] duration-[160ms] ease-out",
                 isLast
                   ? "pointer-events-none text-[var(--ink)]"
-                  : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:outline-none focus-visible:bg-[var(--sd-hover)] focus-visible:text-[var(--sd-ink)] focus-visible:shadow-[inset_0_0_0_1px_var(--sd-accent)]",
+                  : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:bg-[var(--sd-hover)] focus-visible:text-[var(--sd-ink)]",
                 segment.buttonProps?.className
               )}
             >

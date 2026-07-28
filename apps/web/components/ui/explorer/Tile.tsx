@@ -53,7 +53,7 @@ export function Tile({
       <div className="mt-1 min-w-0 max-w-full">
         <div
           className={cn(
-            "rounded-[6px] px-1.5 py-0.5 font-sans text-[0.8rem] font-medium text-[var(--sd-ink)]",
+            "rounded px-1 py-0.5 font-sans text-meta font-medium text-[var(--sd-ink)]",
             labelLines === 2 ? "line-clamp-2" : "truncate",
             selected && "bg-[var(--sd-accent)] text-white"
           )}
@@ -61,7 +61,7 @@ export function Tile({
           {label}
         </div>
         {caption != null ? (
-          <div className="truncate rounded-[6px] px-1.5 py-px font-sans text-[0.65rem] text-[var(--sd-ink-dull)]">
+          <div className="truncate rounded px-1 py-px font-sans text-micro text-[var(--sd-ink-dull)]">
             {caption}
           </div>
         ) : null}

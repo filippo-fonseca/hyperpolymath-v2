@@ -29,7 +29,7 @@ export function Toolbar({
   return (
     <div
       className={cn(
-        "flex h-12 items-center gap-3.5 border-b border-[var(--sd-sidebar-divider,var(--sd-line))] bg-[color-mix(in_srgb,var(--sd-app)_90%,transparent)] px-3.5 font-sans text-[0.8rem] text-[var(--sd-ink)] backdrop-blur-[18px]",
+        "flex h-12 items-center gap-3 border-b border-[var(--sd-sidebar-divider,var(--sd-line))] bg-[color-mix(in_srgb,var(--sd-app)_90%,transparent)] px-4 font-sans text-meta text-[var(--sd-ink)] backdrop-blur-[18px]",
         className
       )}
     >

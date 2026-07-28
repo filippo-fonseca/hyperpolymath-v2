@@ -18,7 +18,7 @@ export function ViewToggle({
   return (
     <fieldset
       className={cn(
-        "flex h-8 items-center overflow-hidden rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] font-sans",
+        "flex h-8 items-center overflow-hidden rounded-lg bg-[var(--sd-box)] font-sans",
         className
       )}
     >
@@ -52,10 +52,9 @@ function ViewToggleButton({
       onClick={onClick}
       className={cn(
         "flex h-full min-w-8 items-center justify-center border-r border-r-[var(--sd-line)] px-2 text-[var(--sd-ink-dull)] last:border-r-0",
-        "transition-[background-color,border-color,color] duration-180 ease-out",
+        "transition-[background-color,border-color,color] duration-[160ms] ease-out",
         active && "bg-[var(--sd-selected)] text-[var(--sd-accent)]",
-        !active && "hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
-        "focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_1px_var(--sd-accent)] focus-visible:text-[var(--sd-ink)]"
+        !active && "hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]"
       )}
     >
       {children}
