@@ -97,6 +97,11 @@ export interface RunChannelTurnOptions {
   linkedProjectIds?: string[];
   linkedHashtags?: string[];
   linkedPeople?: Array<{ id: string; name: string }>;
+  /**
+   * Facts about the channel the model should know but the user did not type
+   * (reply-length constraints, unreadable attachments). Model-visible only.
+   */
+  channelNotes?: string[];
   /** Computer-control steering, from the desktop `X-Jarvis-Mode` header. */
   mode?: "computer";
   /** True when the reply is spoken aloud (injects the spoken-output contract). */
@@ -145,6 +150,7 @@ export async function runChannelTurn(
     linkedProjectIds: opts.linkedProjectIds,
     linkedHashtags: opts.linkedHashtags,
     linkedPeople: opts.linkedPeople,
+    channelNotes: opts.channelNotes,
   });
 
   // Resolve history BEFORE persisting the current user turn, so this utterance

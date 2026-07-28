@@ -53,6 +53,14 @@ export interface TurnHintInput {
   linkedProjectIds?: string[];
   linkedHashtags?: string[];
   linkedPeople?: Array<{ id: string; name: string }>;
+  /**
+   * Facts about the CHANNEL this turn arrived on that the model should know but
+   * the user did not type: "this came in by text message, keep the reply
+   * short", "two images were attached and you cannot open them". Appended to
+   * the model-visible message only, so the persisted user turn stays the raw
+   * utterance.
+   */
+  channelNotes?: string[];
 }
 
 export interface TurnHints {
@@ -125,6 +133,9 @@ export function buildTurnHints(opts: TurnHintInput): TurnHints {
       parts.push(`people=${JSON.stringify(opts.linkedPeople)}`);
     }
     userContent += `\n\n[Linked references in this message (client-validated): ${parts.join(", ")}]`;
+  }
+  for (const note of opts.channelNotes ?? []) {
+    if (note.trim()) userContent += `\n\n[CHANNEL NOTE: ${note.trim()}]`;
   }
   if (isClarificationReply) {
     userContent += `\n\n[INTERNAL: This message is a reply to your previous ask_clarification. Do NOT emit another ask_clarification this turn — execute the action now using the user's clarification, or fall back to capture-first if still ambiguous. Depth cap enforced (Pitfall 2).]`;
