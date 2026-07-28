@@ -1,7 +1,8 @@
 "use client";
 
-import { EmptyState, SelectionRubberBand } from "@/components/wiki/explorer";
+import { SelectionRubberBand } from "@/components/wiki/explorer";
 import type { ExplorerViewMode } from "@/components/wiki/explorer";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ExplorerEmptySpaceMenu } from "@/components/wiki/explorer-parts/ExplorerEmptySpaceMenu";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { ExplorerGridView } from "@/components/wiki/explorer-views/ExplorerGridView";
@@ -11,7 +12,7 @@ import type { ExplorerSearchHit } from "@/components/wiki/explorer-views/Explore
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import { cn } from "@/lib/utils";
 import { useDroppable } from "@dnd-kit/core";
-import { Plus, Search } from "lucide-react";
+import { FilePlus2, Search } from "lucide-react";
 import type { ReactNode, RefObject } from "react";
 
 interface RubberBandRect {
@@ -86,7 +87,8 @@ export function ExplorerCanvasBody({
         {searchActive ? (
           searchHits.length === 0 ? (
             <EmptyState
-              icon={<Search size={22} strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
+              size="section"
+              icon={<Search strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
               title="No matches"
               description={`Nothing in the wiki matches "${search.trim()}".`}
             />
@@ -106,52 +108,18 @@ export function ExplorerCanvasBody({
           )
         ) : isEmptyWiki ? (
           <EmptyState
+            size="section"
+            icon={<FilePlus2 strokeWidth={1.25} className="text-[var(--ink-muted)]" />}
             title="A brand new wiki"
             description="Create your first folder or page and it lands here."
-            action={
-              <>
-                <button
-                  type="button"
-                  onClick={onCreatePage}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] px-3 py-1.5 text-[0.78rem] text-[var(--ink)]",
-                    "hover:bg-[var(--sd-hover)]"
-                  )}
-                >
-                  <Plus size={12} strokeWidth={1.8} />
-                  New page
-                </button>
-                <button
-                  type="button"
-                  onClick={onOpenNewFolder}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] px-3 py-1.5 text-[0.78rem] text-[var(--ink)]",
-                    "hover:bg-[var(--sd-hover)]"
-                  )}
-                >
-                  <Plus size={12} strokeWidth={1.8} />
-                  New folder
-                </button>
-              </>
-            }
+            action={{ label: "New page", onClick: onCreatePage }}
           />
         ) : visibleItems.length === 0 ? (
           <EmptyState
+            size="section"
             title="Empty folder"
             description="Drop something in, or make a new page here."
-            action={
-              <button
-                type="button"
-                onClick={onCreatePage}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] px-3 py-1.5 text-[0.78rem] text-[var(--ink)]",
-                  "hover:bg-[var(--sd-hover)]"
-                )}
-              >
-                <Plus size={12} strokeWidth={1.8} />
-                New page here
-              </button>
-            }
+            action={{ label: "New page here", onClick: onCreatePage }}
           />
         ) : view === "grid" ? (
           <ExplorerGridView

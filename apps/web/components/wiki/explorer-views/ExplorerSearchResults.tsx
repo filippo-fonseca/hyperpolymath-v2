@@ -41,17 +41,14 @@ export function ExplorerSearchResults({
           type="button"
           onClick={(event) => onSelect?.(hit.page, event)}
           onDoubleClick={() => onOpen(hit.page)}
-          className={cn(
-            "group flex flex-col gap-1 rounded-[8px] outline-none",
-            "focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
-          )}
+          className={cn("group flex flex-col gap-1 rounded-lg outline-none")}
         >
           <PagePreviewCard
             page={hit.page}
             icon={hit.page.emoji ?? null}
             selected={selectedId === `page:${hit.page.id}`}
           />
-          <span className="truncate px-1 font-sans text-[0.65rem] text-[var(--sd-ink-dull)]">
+          <span className="truncate px-1 font-sans text-micro text-[var(--sd-ink-dull)]">
             {hit.location || "Wiki"}
           </span>
         </button>
