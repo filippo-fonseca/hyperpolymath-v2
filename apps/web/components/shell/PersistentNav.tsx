@@ -366,15 +366,29 @@ export function SidebarGcalAlert({ collapsed }: Props) {
               data-slot="gcal-sidebar-alert"
               className={chrome}
             >
-              <span
-                aria-hidden="true"
-                className="h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: "var(--ink-coral)" }}
-              />
-              {!collapsed && (
-                <span className="truncate text-micro font-medium text-[var(--ink-coral)]">
-                  {badge.short}
+              {collapsed ? (
+                // 56px of rail has no room for the label, so the glyph has to
+                // say which connection dropped. Same corner-dot shape the
+                // collapsed nav badge uses, so the two read as one language.
+                <span className="relative flex h-[18px] w-[18px] items-center justify-center text-[var(--ink-coral)]">
+                  <Calendar size={16} strokeWidth={1.75} aria-hidden="true" />
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ring-2 ring-[var(--sd-sidebar)]"
+                    style={{ backgroundColor: "var(--ink-coral)" }}
+                  />
                 </span>
+              ) : (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: "var(--ink-coral)" }}
+                  />
+                  <span className="truncate text-micro font-medium text-[var(--ink-coral)]">
+                    {badge.short}
+                  </span>
+                </>
               )}
             </Link>
           </TooltipTrigger>
