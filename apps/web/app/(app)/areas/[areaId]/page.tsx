@@ -1,6 +1,4 @@
-import { AreaDetailHeader } from "@/components/areas/AreaDetailHeader";
-import { AreaProjectList } from "@/components/areas/AreaProjectList";
-import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
+import { AreaDetailClient } from "@/components/areas/AreaDetailClient";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
@@ -12,12 +10,10 @@ interface Props {
 }
 
 /**
- * /areas/[areaId] — single-area page. Shows every project under this area
- * (active by default; archived hidden so the page reads as the live shape
- * of the area). Each project is a small card linking into its own page.
- *
- * CRUD affordances added in Quick 260611-g2z: AreaDetailHeader (Edit area +
- * New project) and per-card AreaProjectCardMenu (Rename / Edit / Move / Delete).
+ * /areas/[areaId] — single-area page: a calm register of the area's work.
+ * PageScaffold header (live-bound name via the ['areas', userId] cache) over
+ * the area's projects. Each project row links into its own page; per-row
+ * AreaProjectCardMenu keeps Rename / Edit / Move / Delete.
  */
 export default async function AreaDetailPage({ params }: Props) {
   const { areaId } = await params;
@@ -80,36 +76,13 @@ export default async function AreaDetailPage({ params }: Props) {
 
   return (
     <main className="min-h-full bg-[var(--canvas)] text-[var(--ink)]">
-      <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pt-6 pb-20">
-        <Breadcrumbs
-          className="mb-6"
-          items={[
-            { label: "Areas", href: "/areas" },
-            { label: area.name, glyph: area.emoji ?? undefined },
-          ]}
-        />
-
-        <AreaDetailHeader
-          area={area}
-          allAreas={allActiveAreas}
-          graduationYear={user.graduationYear}
-          projectCount={projectRows.length}
-        />
-
-        <div className="flex items-baseline gap-3 mb-4">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-            Projects
-          </h2>
-        </div>
-
-        <AreaProjectList
-          areaId={areaId}
-          area={area}
-          userId={user.id}
-          projects={projectRows}
-          allAreas={allActiveAreas}
-        />
-      </div>
+      <AreaDetailClient
+        userId={user.id}
+        area={area}
+        projects={projectRows}
+        allAreas={allActiveAreas}
+        graduationYear={user.graduationYear}
+      />
     </main>
   );
 }
