@@ -105,9 +105,9 @@ export const getUserOrRedirect = cache(async (): Promise<AuthenticatedUser> => {
 /**
  * The signed-in user's id, and nothing else.
  *
- * Same gate as getUserOrRedirect — getClaims validates the JWT signature, and
- * an invalid or absent session still redirects to /sign-in — but it stops
- * there instead of also selecting the public.users row. Use it where the id is
+ * Same gate as getUserOrRedirect (getClaims validates the JWT signature, and an
+ * invalid or absent session still redirects to /sign-in), but it stops there
+ * instead of also selecting the public.users row. Use it where the id is
  * genuinely all that is wanted, such as a server action whose whole job is to
  * refetch a user-scoped list.
  *

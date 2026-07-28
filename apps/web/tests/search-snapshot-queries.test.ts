@@ -14,8 +14,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
  * back. It now has narrow queries of its own, which is eight fewer Postgres
  * statements per snapshot. The thing that has to stay true is that the slices
  * are byte-identical, so each test below derives the expected value from the
- * OLD code path — the entity helper plus the mapping snapshot.ts used to do
- * inline — and compares.
+ * OLD code path (the entity helper plus the mapping snapshot.ts used to do
+ * inline) and compares.
  *
  * The fixture deliberately gives every entity the links the narrow queries
  * stopped fetching (task hashtags and people, capture projects and people,

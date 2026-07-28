@@ -16,11 +16,11 @@
  * Auth: the claims-only gate, NOT `requireOnboarded()`, because this endpoint
  * can be hit from settings (a pre-onboarded surface) as well as onboarded
  * pages. It used to take `getUserOrRedirect()`, which selects the whole
- * public.users row, to read one field off it — the id — and then hand that to
- * a query that selects the two gcal columns anyway. Two statements where one
+ * public.users row, to read one field off it (the id) and then hand that to a
+ * query that selects the two gcal columns anyway. Two statements where one
  * does, on a route PersistentNav polls on every page. The hook fails
- * gracefully — if the route returns 302/401, the client returns
- * "not_connected" and falls back to the badge-off behavior.
+ * gracefully: if the route returns 302/401, the client returns "not_connected"
+ * and falls back to the badge-off behavior.
  *
  * Response shape: `{ status: "connected" | "not_connected" | "expired" }`.
  */
