@@ -2,13 +2,12 @@
 
 import { AmbientGlow } from "@/components/ui/ambient";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
-import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import { useReducedMotion } from "motion/react";
 import { usePathname } from "next/navigation";
-import { JarvisSidePanel } from "./JarvisSidePanel";
 import { ProductTour } from "./ProductTour";
 import { Rail } from "./cockpit/Rail";
 import { RightSlot } from "./cockpit/RightSlot";
+import { SplitJarvisPanel } from "./cockpit/SplitJarvisPanel";
 import { Stage } from "./cockpit/Stage";
 import {
   RightSlotProvider,
@@ -29,8 +28,6 @@ interface Props {
   };
   children: React.ReactNode;
 }
-
-const JARVIS_PATH = "/today";
 
 /**
  * AppShell — the control-center cockpit (D3, SDC-1 §2.1).
@@ -76,14 +73,10 @@ export function AppShell(props: Props) {
  */
 function CockpitGrid({ userId, activeAreas, allAreas, graduationYear, profile, children }: Props) {
   const pathname = usePathname() ?? "";
-  const { splitOn } = useSplitScreen();
   const reduceMotion = useReducedMotion();
   const slot = useRightSlot();
 
-  const onJarvis = pathname === JARVIS_PATH || pathname.startsWith(`${JARVIS_PATH}/`);
-  const onOnboarding = pathname.startsWith("/onboarding");
   const onWikiHome = pathname === "/wiki";
-  const showPanel = splitOn && !onJarvis && !onOnboarding;
 
   const rightWidth = computeRightSlotWidth({
     panel: slot.panelChrome,
@@ -125,22 +118,14 @@ function CockpitGrid({ userId, activeAreas, allAreas, graduationYear, profile, c
         profile={profile}
       />
 
-      <Stage
-        userId={userId}
-        onWikiHome={onWikiHome}
-        sidePane={
-          showPanel ? (
-            <aside
-              aria-label="JARVIS side panel"
-              className="agent-mode-scope hidden w-[30%] min-w-[360px] max-w-[520px] flex-col overflow-hidden border-l border-[var(--edge)] bg-[var(--canvas)] lg:flex"
-            >
-              <JarvisSidePanel />
-            </aside>
-          ) : null
-        }
-      >
+      <Stage userId={userId} onWikiHome={onWikiHome}>
         {children}
       </Stage>
+
+      {/* Renders no DOM in the grid: at `lg` and above it registers into the
+          right slot, and below `lg` it portals a sheet. Either way it takes no
+          track of its own, which is the whole point of the shared slot. */}
+      <SplitJarvisPanel />
 
       <RightSlot />
     </div>

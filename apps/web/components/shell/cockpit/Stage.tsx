@@ -26,19 +26,12 @@ export function Stage({
   userId,
   onWikiHome,
   children,
-  sidePane,
   footer,
 }: {
   userId: string;
   /** The wiki home owns its own scroll, so the stage must not add a second one. */
   onWikiHome: boolean;
   children: ReactNode;
-  /**
-   * The legacy split-screen JARVIS pane, still a sibling of the scroll box.
-   * It moves to the cockpit's right slot in the next commit; keeping it here
-   * for now is what makes this change a pure layout-topology move.
-   */
-  sidePane?: ReactNode;
   /** Fixed-height furniture pinned below the scroll box. */
   footer?: ReactNode;
 }) {
@@ -55,7 +48,6 @@ export function Stage({
         >
           {children}
         </div>
-        {sidePane}
       </div>
       {footer}
     </main>

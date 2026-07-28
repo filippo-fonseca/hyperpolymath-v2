@@ -57,6 +57,13 @@ export type SidePanelProps = {
   /** Right side of the header. */
   actions?: ReactNode;
   footer?: ReactNode;
+  /**
+   * Overrides the body box. The default is `flex-1 overflow-y-auto p-4`, which
+   * is right for the overwhelming majority of panels. Pass this only when the
+   * content owns its own scroll and padding (an embedded console, a board), so
+   * the panel does not nest two scroll containers.
+   */
+  bodyClassName?: string;
   children: ReactNode;
 };
 

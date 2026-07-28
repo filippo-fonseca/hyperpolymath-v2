@@ -95,6 +95,7 @@ export function SidePanel(props: SidePanelProps) {
           footer={footer}
           onClose={onClose}
           fadeKey={generatedId}
+          bodyClassName={props.bodyClassName}
           inSheet
         >
           {children}
@@ -115,11 +116,13 @@ function PanelChrome({
   onClose,
   fadeKey,
   inSheet = false,
+  bodyClassName,
   children,
 }: {
   title?: SidePanelProps["title"];
   actions?: SidePanelProps["actions"];
   footer?: SidePanelProps["footer"];
+  bodyClassName?: SidePanelProps["bodyClassName"];
   onClose: () => void;
   /** Restarts the content fade when a different panel takes the slot. */
   fadeKey: string;
@@ -163,7 +166,7 @@ function PanelChrome({
         initial={reduceMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={reduceMotion ? { duration: 0 } : { duration: 0.16, delay: 0.08 }}
-        className="sd-scroll-hover min-h-0 flex-1 overflow-y-auto p-4"
+        className={cn("sd-scroll-hover min-h-0 flex-1 overflow-y-auto p-4", bodyClassName)}
       >
         {children}
       </motion.div>
@@ -229,6 +232,7 @@ export function SidePanelHost() {
         actions={props.actions}
         footer={props.footer}
         onClose={props.onClose}
+        bodyClassName={props.bodyClassName}
         fadeKey={registration.id}
       >
         {props.children}
