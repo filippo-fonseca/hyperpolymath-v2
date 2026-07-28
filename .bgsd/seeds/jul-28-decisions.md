@@ -93,7 +93,33 @@ capturing screenshots as evidence. No unit reaches done without a verified pass.
 
 ## D10 — Performance is its own unit, and it is not optional
 The cockpit restructure is a design win, not a performance fix. The perf scout found the
-real cause: every route render costs 25–34 serialized Postgres queries, driven by
+real cause: every route render costs 25 to 34 serialized Postgres queries, driven by
 `getSearchSnapshot()` sitting on the blocking path of the root layout, plus 32
 `router.refresh()` call sites that re-run the whole server tree on every mutation. The
 shell and the perf unit ship together, or the app is merely prettier and just as slow.
+
+## D11 — The dock is a registry, not a hardcoded strip
+U0 must expose the dock as a **widget registry seam**, not a fixed set of panels. A widget
+declares its id, title, compact render, optional expanded render, and its own data hook;
+the dock composes whatever is registered and lets Filippo choose which widgets are docked,
+persisting that choice and the collapse state across sessions.
+
+This is load-bearing: U12 plugs a habits widget in during wave 2, and the queued XP system
+(issue #345) will want the same hook without touching shell code. A dock that hardcodes its
+contents forces every future widget to re-open the shell, which is exactly the coupling the
+cockpit restructure exists to remove.
+
+## D12 — Habits (U12, wave 2, `claude-fable-5`)
+Filippo's words: Habits "does not feel like it's too usable", and he wants it "on the
+persistent bar on the side as well so it's more integrated into my routine". Two deliverables
+in one unit:
+
+1. **Habits UI overhaul** on the stage, inside the cockpit and against the shared design
+   contract. The bar to clear: marking today's habit done must be one tap, optimistic, with no
+   `router.refresh()`, and today's remaining habits plus streak state must be legible at a
+   glance without interaction.
+2. **A compact habits dock widget** registered through the D11 seam: today's habits with
+   one-tap completion, sharing the same optimistic mutation and realtime invalidation as the
+   page so the two surfaces never disagree.
+
+Scout `s7-habits.md` grounds this unit.
