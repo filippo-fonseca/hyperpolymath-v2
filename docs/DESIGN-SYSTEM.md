@@ -257,3 +257,25 @@ Tailwind's Oxide scan can miss an **arbitrary utility used in only one file** (v
 3. **Route the token through an inline `style={{}}`** — e.g. `style={{ backgroundColor: "var(--sd-box)" }}` or `style={{ fontFamily: "var(--font-mono)" }}`. Inline style is not a smell here; it is the escape hatch for the scan gap, and the sd charts and legends use it deliberately (series colors, mono axis fonts).
 
 After introducing any new arbitrary utility, **verify it in the compiled CSS or computed styles before claiming done.** Never assume an arbitrary class emitted.
+
+## 24. The cockpit shell (SDC-1 §2.1, §2.2, §2.8)
+
+The app is a three-zone control centre. One CSS grid, one row, three tracks:
+
+```
+┌────────┐ ┌──────────────────────────┐ ┌───────────────┐
+│  RAIL  │ │          STAGE           │ │  RIGHT SLOT   │
+│ nav +  │ │   active feature route   │ │ Dock (default)│
+│  tree  │ ├──────────────────────────┤ │      OR       │
+│        │ │  🥝 ask kiwi…          ⏎ │ │  SidePanel    │
+└────────┘ └──────────────────────────┘ └───────────────┘
+```
+
+- **RAIL** (`components/shell/cockpit/Rail.tsx`), track `auto`. Feature nav plus the contextual tree. The Sidebar's own `w-14` / `w-[230px]` transition sizes the track; collapse persists under `sidebar-collapsed`. The rail wrapper stays `overflow-visible` at rest so the collapsed rail's hover-peek overlay can float past it.
+- **STAGE** (`Stage.tsx`), track `minmax(0,1fr)`. The only zone that swaps on navigation, and the only zone that scrolls. Its scroll container carries the app's **only** `@container/main`; every `@3xl/main` and `@4xl/main` variant in the app resolves against it, so it must not be renamed or re-boxed.
+- **JARVIS command bar** (`JarvisCommandBar.tsx`), a fixed-height flex sibling pinned below the scroll box. It never overlays content and therefore never fights editors. `⌘J` focuses it, `⌘⇧J` expands to the console, `Enter` sends, `Escape` collapses the answer strip then blurs. **It never autofocuses.** It consumes the existing `POST /api/jarvis` SSE contract; it does not duplicate `GlobalJarvisDialog`, and `⌘K` stays the dialog's.
+- **RIGHT SLOT** (`RightSlot.tsx`), the only animated track. The Dock by default, a `SidePanel` when one opens, and **never both**: rail + stage + dock + a detail panel is four live columns, which starves the stage to roughly 600px on a 14-inch screen. Opening a panel slides the Dock out; closing it restores the Dock at its prior collapse state. `≥1280` the Dock may be expanded (280px); `1024-1279` it is forced collapsed (44px), derived and never persisted; `<1024` it is absent and a `SidePanel` degrades to an overlay-less sheet.
+
+**`<SidePanel>` is the only detail-panel mechanism.** No portal, no `position: fixed`, no overlay, no backdrop, no dimming, no shadow, no focus trap, no scroll lock. Content reflows around it; you keep working with it open. Anything that reads or edits an entity is a `SidePanel`; modals are reserved for destructive confirmation and blocking multi-field creation. Exactly one `SidePanelHost` exists, in the shell. Never mount a second, and never re-introduce a `fixed` detail panel.
+
+**The Dock is a registry, not a strip** (`cockpit/dock-registry.ts`). A widget declares `{ id, title, defaultDocked?, order?, useData, Compact, Expanded? }` and registers by adding one file under `components/dock-widgets/` plus one appended line in `manifest.ts`. **Zero shell edits.** The Dock calls `useData()` inside the widget's own error boundary, so its fetching, its subscription and its failure mode stay its own. Widget ids are persistence keys (`cockpit-dock-widgets`, alongside `cockpit-dock-collapsed`), so they are stable kebab-case forever. Treat `DockWidgetDef` as published API: additive changes only.

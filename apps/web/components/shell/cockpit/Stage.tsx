@@ -2,6 +2,7 @@
 
 import { DailyAutoOpen } from "@/components/shell/DailyAutoOpen";
 import { TopTabBar } from "@/components/shell/TopTabBar";
+import { JarvisCommandBar } from "@/components/shell/cockpit/JarvisCommandBar";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -10,11 +11,11 @@ import type { ReactNode } from "react";
  * on navigation.
  *
  * It is a flex column: the tab bar on top, the scroll container in the middle,
- * and (from the JARVIS command bar onward) fixed-height furniture at the
- * bottom. Because those are flex siblings rather than overlays, nothing pinned
- * to the stage can ever cover route content, fight a sticky editor toolbar, or
- * collide with a BlockNote menu: everything that scrolls lives inside the
- * middle box and simply has less viewport.
+ * the JARVIS command bar pinned at the bottom. Because those are flex siblings
+ * rather than overlays, nothing pinned to the stage can ever cover route
+ * content, fight a sticky editor toolbar, or collide with a BlockNote menu:
+ * everything that scrolls lives inside the middle box and simply has less
+ * viewport.
  *
  * The scroll container is moved here verbatim, and its class set is not
  * negotiable. It carries the app's ONLY `@container/main`, so every
@@ -26,14 +27,11 @@ export function Stage({
   userId,
   onWikiHome,
   children,
-  footer,
 }: {
   userId: string;
   /** The wiki home owns its own scroll, so the stage must not add a second one. */
   onWikiHome: boolean;
   children: ReactNode;
-  /** Fixed-height furniture pinned below the scroll box. */
-  footer?: ReactNode;
 }) {
   return (
     <main className="flex min-w-0 flex-col overflow-hidden">
@@ -49,7 +47,7 @@ export function Stage({
           {children}
         </div>
       </div>
-      {footer}
+      <JarvisCommandBar />
     </main>
   );
 }
