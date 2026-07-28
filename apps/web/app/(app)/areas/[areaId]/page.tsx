@@ -1,9 +1,10 @@
+import type { AreaCaptureRow } from "@/components/areas/AreaCapturesSection";
 import { AreaDetailClient } from "@/components/areas/AreaDetailClient";
 import type { AreaTaskRow } from "@/components/areas/AreaTasksRollup";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
-import { areas, projects, tasks, tasksProjects } from "@/lib/db/schema";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { areas, captures, capturesProjects, projects, tasks, tasksProjects } from "@/lib/db/schema";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
 interface Props {
@@ -23,7 +24,7 @@ export default async function AreaDetailPage({ params }: Props) {
   // The three reads are independent (the area row, its projects, and the picker's
   // area list all key off areaId / user.id), so they go out together instead of
   // serially. Same shape as the project detail page already uses.
-  const [areaRows, projectRows, allActiveAreas, taskRows] = await Promise.all([
+  const [areaRows, projectRows, allActiveAreas, taskRows, captureRows] = await Promise.all([
     db
       .select({
         id: areas.id,
@@ -92,6 +93,27 @@ export default async function AreaDetailPage({ params }: Props) {
       )
       .where(eq(tasksProjects.userId, user.id))
       .orderBy(asc(tasks.dueDate), asc(tasks.createdAt)),
+
+    // Captures linked to the area's projects, newest first. Same shape as the
+    // tasks rollup join; capped because the section shows a handful and points
+    // to /captures for the rest.
+    db
+      .select({
+        id: captures.id,
+        content: captures.content,
+        createdAt: captures.createdAt,
+        projectId: projects.id,
+        projectName: projects.name,
+      })
+      .from(capturesProjects)
+      .innerJoin(captures, eq(captures.id, capturesProjects.captureId))
+      .innerJoin(
+        projects,
+        and(eq(projects.id, capturesProjects.projectId), eq(projects.areaId, areaId))
+      )
+      .where(eq(capturesProjects.userId, user.id))
+      .orderBy(desc(captures.createdAt))
+      .limit(50),
   ]);
 
   const [area] = areaRows;
@@ -116,6 +138,23 @@ export default async function AreaDetailPage({ params }: Props) {
   }
   const areaTasks = [...taskById.values()];
 
+  // Same fold for captures linked to more than one of the area's projects.
+  const captureById = new Map<string, AreaCaptureRow>();
+  for (const row of captureRows) {
+    const existing = captureById.get(row.id);
+    if (existing) {
+      existing.projects.push({ id: row.projectId, name: row.projectName });
+    } else {
+      captureById.set(row.id, {
+        id: row.id,
+        content: row.content,
+        createdAt: row.createdAt,
+        projects: [{ id: row.projectId, name: row.projectName }],
+      });
+    }
+  }
+  const areaCaptures = [...captureById.values()];
+
   return (
     <main className="min-h-full bg-[var(--canvas)] text-[var(--ink)]">
       <AreaDetailClient
@@ -123,6 +162,7 @@ export default async function AreaDetailPage({ params }: Props) {
         area={area}
         projects={projectRows}
         tasks={areaTasks}
+        captures={areaCaptures}
         allAreas={allActiveAreas}
         graduationYear={user.graduationYear}
       />

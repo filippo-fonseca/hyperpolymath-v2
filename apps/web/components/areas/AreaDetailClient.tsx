@@ -4,6 +4,10 @@ import { deleteArea, getAreasForCurrentUser, updateArea } from "@/app/actions/ar
 import type { AreaDetailArea, AreaProject } from "@/components/areas/AreaProjectList";
 import { AreaProjectList } from "@/components/areas/AreaProjectList";
 import {
+  type AreaCaptureRow,
+  AreaCapturesSection,
+} from "@/components/areas/AreaCapturesSection";
+import {
   type AreaTaskRow,
   AreaTasksRollup,
   useAreaTasks,
@@ -42,6 +46,7 @@ interface Props {
   area: AreaDetailArea;
   projects: AreaProject[];
   tasks: AreaTaskRow[];
+  captures: AreaCaptureRow[];
   allAreas: { id: string; name: string }[];
   graduationYear: number | null;
 }
@@ -61,6 +66,7 @@ export function AreaDetailClient({
   area,
   projects,
   tasks,
+  captures,
   allAreas,
   graduationYear,
 }: Props) {
@@ -226,6 +232,22 @@ export function AreaDetailClient({
         }
       >
         <AreaTasksRollup userId={userId} areaProjectIds={areaProjectIds} initialTasks={tasks} />
+      </PageScaffold.Section>
+
+      <PageScaffold.Section
+        title="Captures"
+        divided
+        action={
+          <Button asChild variant="ghost" size="sm" className="rounded-lg">
+            <Link href="/captures">All captures</Link>
+          </Button>
+        }
+      >
+        <AreaCapturesSection
+          userId={userId}
+          areaProjectIds={areaProjectIds}
+          initialCaptures={captures}
+        />
       </PageScaffold.Section>
 
       {/* Edit area dialog */}
