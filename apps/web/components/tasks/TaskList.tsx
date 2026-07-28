@@ -31,9 +31,19 @@ interface Props {
   tasks: TaskWithProjects[];
   onTaskClick: (id: string | null) => void;
   addOptimistic: TasksOptimisticDispatch;
+  /** Hide the column-caption row (grouped sections repeat the list). */
+  showHeader?: boolean;
+  /** Distinguishes multiple lists mounted at once (grouped view). */
+  id?: string;
 }
 
-export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
+export function TaskList({
+  tasks,
+  onTaskClick,
+  addOptimistic,
+  showHeader = true,
+  id = "tasks-list",
+}: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -95,19 +105,20 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
 
   return (
     <DndContext
-      id="tasks-list"
+      id={id}
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <SortableContext
-        id="tasks-list-sortable"
+        id={`${id}-sortable`}
         items={tasks.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
       >
         <div className="flex flex-col">
           {/* Header row — mono metadata chrome, sd hairline divider */}
+          {showHeader && (
           <div className="flex items-center gap-2 h-8 px-2 border-b border-[var(--sd-line)]">
             <div className="w-4 flex-shrink-0" /> {/* drag handle placeholder */}
             <div className="w-4 flex-shrink-0" /> {/* checkbox placeholder */}
@@ -126,6 +137,7 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
             </span>
             <div className="w-6 flex-shrink-0" />
           </div>
+          )}
 
           {/* AnimatePresence drives TaskListRow exit animation (opacity 0 + height 0)
               on delete per UI-SPEC §7c / felt-quality mandate. `mode="popLayout"`

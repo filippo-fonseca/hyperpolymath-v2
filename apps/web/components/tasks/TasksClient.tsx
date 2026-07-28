@@ -13,6 +13,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageScaffold } from "@/components/ui/PageScaffold";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { tableKey } from "@/lib/realtime/query-keys";
@@ -23,11 +29,12 @@ import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { endOfMonth, endOfWeek, isAfter, isBefore, isSameDay, startOfDay } from "date-fns";
-import { Check, Maximize2, Minimize2, Plus, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronDown, Maximize2, Minimize2, Plus, SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
 import { parseAsArrayOf, parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { GroupedBoard } from "./GroupedBoard";
 import { InboxColumn } from "./InboxColumn";
 import { KanbanBoard } from "./KanbanBoard";
 import { OverdueTasksPanel } from "./OverdueTasksPanel";
@@ -55,8 +62,16 @@ interface ProjectOption {
   icon: string | null;
   isClass: boolean;
   courseCode: string | null;
+  areaId: string | null;
   areaName: string | null;
   areaEmoji: string | null;
+}
+
+/** One segment of a grouped board or list (`?group=project|area`). */
+export interface TaskGroup {
+  key: string;
+  label: string;
+  tasks: TaskWithProjects[];
 }
 
 interface Props {
@@ -142,6 +157,7 @@ export function TasksClient({
         icon: null,
         isClass: false,
         courseCode: null,
+        areaId: input.areaId,
         areaName: area?.name ?? null,
         areaEmoji: area?.emoji ?? null,
       };
@@ -193,6 +209,13 @@ export function TasksClient({
 
   // Day-aware kanban — URL ?date=YYYY-MM-DD, defaults to today.
   const [dateYmd, setDateYmd] = useQueryState("date", parseAsString.withDefault(toYmd(new Date())));
+
+  // Segmentation — URL ?group=project|area. Applies to the board and the
+  // list; the overview is inherently day-grouped and ignores it.
+  const [groupParam, setGroupParam] = useQueryState("group", parseAsString);
+  const grouping: "project" | "area" | null =
+    groupParam === "project" || groupParam === "area" ? groupParam : null;
+  const activeGrouping = view === "overview" ? null : grouping;
 
   // Selection state (kanban day view). Cleared on view/date change.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -376,6 +399,56 @@ export function TasksClient({
       })
       .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
   }, [optimisticTasks, pendingDeleteIds]);
+
+  // Groups derived from the full `filtered` list (not the day slice):
+  // segmentation answers "what is on this project / in this area", which
+  // spans days. The rule for the many-to-many edges: under group=project a
+  // task appears once per project it belongs to, and zero-project tasks land
+  // in an explicit "No project" group pinned last. group=area works the same
+  // through each project's area; a task whose projects have no area (or which
+  // has no project) lands in "No area", pinned last.
+  const groups = useMemo<TaskGroup[] | null>(() => {
+    if (!activeGrouping) return null;
+    const map = new Map<string, TaskGroup>();
+    const push = (key: string, label: string, task: TaskWithProjects) => {
+      const existing = map.get(key);
+      if (existing) existing.tasks.push(task);
+      else map.set(key, { key, label, tasks: [task] });
+    };
+    if (activeGrouping === "project") {
+      for (const t of filtered) {
+        if (t.projects.length === 0) push("__none__", "No project", t);
+        else for (const p of t.projects) push(p.id, p.name, t);
+      }
+    } else {
+      const areaByProject = new Map(
+        projects.map((p) => [
+          p.id,
+          p.areaId
+            ? {
+                id: p.areaId,
+                label: `${p.areaEmoji ? `${p.areaEmoji} ` : ""}${p.areaName ?? "Area"}`,
+              }
+            : null,
+        ])
+      );
+      for (const t of filtered) {
+        const seen = new Set<string>();
+        for (const p of t.projects) {
+          const area = areaByProject.get(p.id);
+          if (area && !seen.has(area.id)) {
+            seen.add(area.id);
+            push(area.id, area.label, t);
+          }
+        }
+        if (seen.size === 0) push("__none__", "No area", t);
+      }
+    }
+    const list = [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
+    const noneIndex = list.findIndex((g) => g.key === "__none__");
+    if (noneIndex >= 0) list.push(...list.splice(noneIndex, 1));
+    return list;
+  }, [activeGrouping, filtered, projects]);
 
   // Reschedule a set of overdue tasks to a new day. REUSES the existing
   // bulkUpdateTaskDueDate server action (no new endpoint). Works for the
@@ -682,8 +755,12 @@ export function TasksClient({
     };
   }, [tasks]);
 
+  // Grouped views are a cross-day register; the day-scoped triage rail and
+  // day switcher step aside while one is active.
   const showTriageRail =
-    view !== "overview" && (overdueTasks.length > 0 || (!inboxHidden && inboxTasks.length > 0));
+    view !== "overview" &&
+    !activeGrouping &&
+    (overdueTasks.length > 0 || (!inboxHidden && inboxTasks.length > 0));
 
   return (
     <>
@@ -746,6 +823,9 @@ export function TasksClient({
             onChange={(v) => void setView(v)}
             ariaLabel="Tasks view"
           />
+          {view !== "overview" && (
+            <GroupMenu grouping={grouping} onChange={(g) => void setGroupParam(g)} />
+          )}
           <div className="min-w-0 flex-1">
             <TaskFilters projects={projects} filters={filters} onChange={handleFiltersChange} />
           </div>
@@ -814,10 +894,34 @@ export function TasksClient({
                 page-wide) so it visually governs the central tasks and makes
                 clear it does NOT scope the dateless Inbox. Overview is
                 inherently multi-day and hides it. */}
-            {view !== "overview" && (
+            {view !== "overview" && !activeGrouping && (
               <DaySwitcher dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
             )}
-            {view === "list" ? (
+            {groups && view === "list" ? (
+              <div className="flex flex-col gap-8">
+                {groups.map((group) => (
+                  <section key={group.key} aria-label={group.label}>
+                    <div className="mb-2 flex items-baseline gap-2">
+                      <h2 className="min-w-0 truncate text-subtitle font-medium text-[var(--ink)]">
+                        {group.label}
+                      </h2>
+                      <span className="text-micro tabular-nums text-[var(--ink-faint)]">
+                        {group.tasks.length}
+                      </span>
+                    </div>
+                    <TaskList
+                      id={`tasks-list-${group.key}`}
+                      tasks={group.tasks}
+                      onTaskClick={setOpenTaskId}
+                      addOptimistic={addOptimistic}
+                      showHeader={false}
+                    />
+                  </section>
+                ))}
+              </div>
+            ) : groups ? (
+              <GroupedBoard groups={groups} onTaskClick={setOpenTaskId} />
+            ) : view === "list" ? (
               <div
                 ref={listDropRef}
                 onDragOver={(e) => {
@@ -981,6 +1085,55 @@ function SegmentedControl<T extends string>({
         );
       })}
     </div>
+  );
+}
+
+const GROUP_OPTIONS: { value: "project" | "area" | null; label: string }[] = [
+  { value: null, label: "No grouping" },
+  { value: "project", label: "Project" },
+  { value: "area", label: "Area" },
+];
+
+/** Segment the board or list by project or area (`?group=`). */
+function GroupMenu({
+  grouping,
+  onChange,
+}: {
+  grouping: "project" | "area" | null;
+  onChange: (next: "project" | "area" | null) => void;
+}) {
+  const activeLabel = grouping === "project" ? "Project" : grouping === "area" ? "Area" : null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 cursor-pointer-always",
+            "text-meta transition-colors duration-[160ms] ease-out",
+            activeLabel
+              ? "bg-[var(--selected)] text-[var(--ink)]"
+              : "text-[var(--ink-muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]",
+            "data-[state=open]:bg-[var(--selected)] data-[state=open]:text-[var(--ink)]"
+          )}
+        >
+          {activeLabel ? `Group: ${activeLabel}` : "Group"}
+          <ChevronDown size={13} strokeWidth={1.75} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {GROUP_OPTIONS.map((opt) => (
+          <DropdownMenuItem
+            key={opt.label}
+            onClick={() => onChange(opt.value)}
+            className="text-meta"
+          >
+            <span className="flex-1">{opt.label}</span>
+            {grouping === opt.value ? <Check size={13} strokeWidth={2} /> : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

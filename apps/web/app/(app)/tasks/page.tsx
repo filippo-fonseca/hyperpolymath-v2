@@ -39,6 +39,7 @@ export default async function TasksPage({ searchParams }: Props) {
         icon: projects.icon,
         isClass: projects.isClass,
         courseCode: projects.courseCode,
+        areaId: projects.areaId,
         areaName: areas.name,
         areaEmoji: areas.emoji,
       })
