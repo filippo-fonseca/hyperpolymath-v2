@@ -73,6 +73,7 @@ import { UrlField } from "@/components/shared/UrlField";
 import { PersonListField } from "@/components/shared/PersonListField";
 import { MoveToMenu } from "./MoveToMenu";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
+import { STATUS_DOT } from "./status";
 import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 import type { RecurrenceRule } from "@/lib/tasks/recurrence";
@@ -134,16 +135,6 @@ interface Props {
    */
   mode?: "edit" | "create";
 }
-
-// Per-status functional ink. Token-only (SDC-1 §2.3): functional hues appear as
-// 6px dots, never as chrome. Mirrors the kanban column header dots exactly.
-export const STATUS_DOT: Record<Status, string> = {
-  "not started": "var(--ink-faint)",
-  "up next": "var(--ink-amber)",
-  "in progress": "var(--ink-blue)",
-  "almost done": "var(--ink-violet)",
-  lesno: "var(--ink-sage)",
-};
 
 const STATUS_PILL: { value: Status; label: string }[] = [
   { value: "not started", label: "Not started" },

@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { GroupedBoard } from "./GroupedBoard";
 import { InboxColumn } from "./InboxColumn";
 import { KanbanBoard } from "./KanbanBoard";
+import { type CardFields, DEFAULT_CARD_FIELDS } from "./TaskCard";
 import { OverdueTasksPanel } from "./OverdueTasksPanel";
 import { DaySwitcher } from "./DaySwitcher";
 import { TaskOverviewView } from "./TaskOverviewView";
@@ -279,6 +280,26 @@ export function TasksClient({
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem("tasks-show-lesno", String(showLesno));
   }, [showLesno]);
+
+  // Which property pills show on task cards, from the display-options menu.
+  // Persisted under the same key the board previously owned, so the
+  // preference survives this lift unchanged.
+  const [cardFields, setCardFields] = useState<CardFields>(DEFAULT_CARD_FIELDS);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = localStorage.getItem("tasks-card-fields");
+    if (stored) {
+      try {
+        setCardFields({ ...DEFAULT_CARD_FIELDS, ...JSON.parse(stored) });
+      } catch {
+        /* ignore malformed persisted value */
+      }
+    }
+  }, []);
+  useEffect(() => {
+    if (typeof window !== "undefined")
+      localStorage.setItem("tasks-card-fields", JSON.stringify(cardFields));
+  }, [cardFields]);
 
   // Hide/unhide the persistent Inbox column, from the display-options menu.
   const [inboxHidden, setInboxHidden] = useState(false);
@@ -835,6 +856,8 @@ export function TasksClient({
             onShowLesnoChange={setShowLesno}
             inboxHidden={inboxHidden}
             onInboxHiddenChange={setInboxHidden}
+            cardFields={cardFields}
+            onCardFieldsChange={setCardFields}
           />
         </div>
 
@@ -961,6 +984,7 @@ export function TasksClient({
               <KanbanBoard
                 tasks={dayFilteredTasks}
                 userId={userId}
+                cardFields={cardFields}
                 onTaskClick={setOpenTaskId}
                 onCreateTask={handleCreateTask}
                 onStartCreate={(s) => setDraftStatus(s)}
@@ -1142,18 +1166,28 @@ function GroupMenu({
  * quiet menu. Nothing in here ever renders disabled; options that do not
  * apply to the current view are simply absent.
  */
+const CARD_FIELD_ROWS: { key: keyof CardFields; label: string }[] = [
+  { key: "priority", label: "Priority" },
+  { key: "dueDate", label: "Due date" },
+  { key: "project", label: "Project" },
+];
+
 function DisplayMenu({
   view,
   showLesno,
   onShowLesnoChange,
   inboxHidden,
   onInboxHiddenChange,
+  cardFields,
+  onCardFieldsChange,
 }: {
   view: string;
   showLesno: boolean;
   onShowLesnoChange: (next: boolean) => void;
   inboxHidden: boolean;
   onInboxHiddenChange: (next: boolean) => void;
+  cardFields: CardFields;
+  onCardFieldsChange: (next: CardFields) => void;
 }) {
   return (
     <Popover>
@@ -1187,6 +1221,19 @@ function DisplayMenu({
               onToggle={() => onShowLesnoChange(!showLesno)}
             />
           )}
+        </div>
+        <p className="px-2 pb-1.5 pt-3 text-micro font-medium text-[var(--ink-faint)]">
+          Show on cards
+        </p>
+        <div className="flex flex-col">
+          {CARD_FIELD_ROWS.map(({ key, label }) => (
+            <DisplayToggleRow
+              key={key}
+              label={label}
+              checked={cardFields[key]}
+              onToggle={() => onCardFieldsChange({ ...cardFields, [key]: !cardFields[key] })}
+            />
+          ))}
         </div>
       </PopoverContent>
     </Popover>

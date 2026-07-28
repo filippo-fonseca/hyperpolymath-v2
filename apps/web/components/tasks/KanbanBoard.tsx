@@ -3,18 +3,15 @@
 import { updateTaskStatus } from "@/app/actions/tasks";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
-import { tableKey } from "@/lib/realtime/query-keys";
 import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { KanbanColumn } from "./KanbanColumn";
 import { type CardFields, DEFAULT_CARD_FIELDS, TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
+import { STATUS_DOT, type TaskStatus as Status } from "./status";
 import type { TasksOptimisticDispatch } from "./TasksClient";
-
-type Status = "not started" | "up next" | "in progress" | "almost done" | "lesno";
 
 const CARD_FIELDS_KEY = "tasks-card-fields";
 const CARD_FIELD_LABELS: { key: keyof CardFields; label: string }[] = [
@@ -23,7 +20,7 @@ const CARD_FIELD_LABELS: { key: keyof CardFields; label: string }[] = [
   { key: "project", label: "Project(s)" },
 ];
 
-// All five statuses — used for grouping. "not started"is rendered above the
+// All five statuses — used for grouping. "not started" is rendered above the
 // kanban in a separate tray, so it's excluded from the column render order.
 const ALL_STATUSES: Status[] = ["not started", "up next", "in progress", "almost done", "lesno"];
 const COLUMN_ORDER: Status[] = ["up next", "in progress", "almost done", "lesno"];
@@ -36,6 +33,14 @@ interface Props {
   /** Opens the detail panel as a draft for the given column (Add task flow). */
   onStartCreate?: (status: Status) => void;
   addOptimistic: TasksOptimisticDispatch;
+  /**
+   * Which property pills show on cards. When the page owns this preference
+   * (TasksClient's display menu) it passes the state down and the board
+   * renders no toolbar of its own. When absent (ProjectTasksSection), the
+   * board falls back to its internal localStorage-backed state + popover, so
+   * existing consumers keep working unchanged.
+   */
+  cardFields?: CardFields;
   selectionActive?: boolean;
   selectedIds?: Set<string>;
   onToggleSelected?: (id: string, ev: React.MouseEvent | React.KeyboardEvent) => void;
@@ -53,11 +58,12 @@ interface Props {
 
 export function KanbanBoard({
   tasks,
-  userId,
+  userId: _userId,
   onTaskClick,
   onCreateTask,
   onStartCreate,
   addOptimistic,
+  cardFields: cardFieldsProp,
   selectionActive,
   selectedIds,
   onToggleSelected,
@@ -68,7 +74,6 @@ export function KanbanBoard({
   onExternalDragEnd,
   onExternalDropOnStatus,
 }: Props) {
-  const queryClient = useQueryClient();
   const [internalDraggedTaskId, setInternalDraggedTaskId] = useState<string | null>(null);
   const draggedTaskId = externalDraggedTaskId ?? internalDraggedTaskId;
   const setDraggedTaskId = onExternalDragStart
@@ -80,8 +85,8 @@ export function KanbanBoard({
   const [, startTransition] = useTransition();
   const [trayExpanded, setTrayExpanded] = useState(true);
   // Id of the card that just landed in a column, for the drop success-moment
-  // spring (dossier §8). Cleared shortly after so the pop plays once. A single
-  // state set post-drop (not per dragover) keeps this off the jank path.
+  // spring. Cleared shortly after so the pop plays once. A single state set
+  // post-drop (not per dragover) keeps this off the jank path.
   const [settledTaskId, setSettledTaskId] = useState<string | null>(null);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const markSettled = (id: string) => {
@@ -95,42 +100,51 @@ export function KanbanBoard({
   useEffect(() => () => {
     if (settleTimer.current) clearTimeout(settleTimer.current);
   }, []);
-  // Which property pills show on each task card. Persisted so the user's
-  // view preferences survive reloads. Shared by the tasks page + project page.
-  const [cardFields, setCardFields] = useState<CardFields>(DEFAULT_CARD_FIELDS);
+  // Internal card-fields fallback for consumers that do not pass the prop.
+  const [internalCardFields, setInternalCardFields] = useState<CardFields>(DEFAULT_CARD_FIELDS);
+  const cardFields = cardFieldsProp ?? internalCardFields;
 
   // Persist tray expanded state across reloads.
   useEffect(() => {
     const stored = localStorage.getItem("tasks-tray-expanded");
     if (stored === "false") setTrayExpanded(false);
-    const fields = localStorage.getItem(CARD_FIELDS_KEY);
-    if (fields) {
-      try {
-        setCardFields({ ...DEFAULT_CARD_FIELDS, ...JSON.parse(fields) });
-      } catch {
-        /* ignore malformed persisted value */
+    if (!cardFieldsProp) {
+      const fields = localStorage.getItem(CARD_FIELDS_KEY);
+      if (fields) {
+        try {
+          setInternalCardFields({ ...DEFAULT_CARD_FIELDS, ...JSON.parse(fields) });
+        } catch {
+          /* ignore malformed persisted value */
+        }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     localStorage.setItem("tasks-tray-expanded", String(trayExpanded));
   }, [trayExpanded]);
   useEffect(() => {
-    localStorage.setItem(CARD_FIELDS_KEY, JSON.stringify(cardFields));
-  }, [cardFields]);
+    if (!cardFieldsProp) localStorage.setItem(CARD_FIELDS_KEY, JSON.stringify(internalCardFields));
+  }, [internalCardFields, cardFieldsProp]);
 
-  const tasksByStatus = ALL_STATUSES.reduce<Record<Status, TaskWithProjects[]>>(
-    (acc, s) => {
-      acc[s] = tasks.filter((t) => t.status === s);
-      return acc;
-    },
-    {
-      "not started": [],
-      "up next": [],
-      "in progress": [],
-      "almost done": [],
-      lesno: [],
-    }
+  // Memoized: five stable arrays per `tasks` identity, not five fresh arrays
+  // per render (every column re-rendered on any board state change before).
+  const tasksByStatus = useMemo(
+    () =>
+      ALL_STATUSES.reduce<Record<Status, TaskWithProjects[]>>(
+        (acc, s) => {
+          acc[s] = tasks.filter((t) => t.status === s);
+          return acc;
+        },
+        {
+          "not started": [],
+          "up next": [],
+          "in progress": [],
+          "almost done": [],
+          lesno: [],
+        }
+      ),
+    [tasks]
   );
 
   const draggedTask = draggedTaskId ? (tasks.find((t) => t.id === draggedTaskId) ?? null) : null;
@@ -172,75 +186,74 @@ export function KanbanBoard({
         addOptimistic({ type: "revert", id: taskId });
         return;
       }
-      // Belt-and-suspenders: force a TanStack Query refetch so the canonical
-      // cache catches up to the DB write BEFORE the transition closes and
-      // useOptimistic reverts. Without this, if the Realtime echo lags (or
-      // fails — common in dev), the card snaps back to its old column and
-      // the user needs to refresh to see the move. Realtime stays as a
-      // cross-device sync path; this guarantees the local case.
-      await queryClient.invalidateQueries({
-        queryKey: tableKey("tasks", userId),
-      });
+      // The Realtime echo invalidates the tasks cache; the optimistic overlay
+      // holds the move until canonical catches up. One drag, one refetch.
       if (r.data.becameLesno) toast("Lesno.");
     });
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Board toolbar — view settings (which property pills show on cards). */}
-      <div className="flex items-center justify-end">
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 cursor-pointer-always",
-                "font-mono text-[11px] uppercase tracking-[0.08em] border border-[var(--edge)]",
-                "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
-                "bg-[var(--surface)] transition-colors duration-150 ease-out"
-              )}
-            >
-              <SlidersHorizontal size={12} strokeWidth={1.5} />
-              View
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-52 p-2">
-            <p className="px-2 pb-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-              Show on cards
-            </p>
-            <div className="flex flex-col">
-              {CARD_FIELD_LABELS.map(({ key, label }) => {
-                const on = cardFields[key];
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setCardFields((prev) => ({ ...prev, [key]: !prev[key] }))}
-                    aria-pressed={on}
-                    className={cn(
-                      "flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 cursor-pointer-always",
-                      "font-sans text-[13px] transition-colors duration-150 ease-out",
-                      "text-[var(--ink)] hover:bg-[var(--surface)]"
-                    )}
-                  >
-                    {label}
-                    <span
+      {/* Card-fields popover, only for consumers that have no page-level
+          display menu (the page passes cardFields and this row disappears). */}
+      {!cardFieldsProp && (
+        <div className="flex items-center justify-end">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 cursor-pointer-always",
+                  "text-meta text-[var(--ink-muted)]",
+                  "transition-colors duration-[160ms] ease-out",
+                  "hover:bg-[var(--hover)] hover:text-[var(--ink)]",
+                  "data-[state=open]:bg-[var(--selected)] data-[state=open]:text-[var(--ink)]"
+                )}
+              >
+                <SlidersHorizontal size={14} strokeWidth={1.75} />
+                Display
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-52 rounded-xl border-[var(--edge)] p-2">
+              <p className="px-2 pb-1.5 text-micro font-medium text-[var(--ink-faint)]">
+                Show on cards
+              </p>
+              <div className="flex flex-col">
+                {CARD_FIELD_LABELS.map(({ key, label }) => {
+                  const on = cardFields[key];
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        setInternalCardFields((prev) => ({ ...prev, [key]: !prev[key] }))
+                      }
+                      aria-pressed={on}
                       className={cn(
-                        "flex h-4 w-4 items-center justify-center rounded border transition-colors",
-                        on
-                          ? "border-[var(--edge-hud)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                          : "border-[var(--edge)] text-transparent"
+                        "flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 cursor-pointer-always",
+                        "text-meta text-[var(--ink)] transition-colors duration-[160ms] ease-out",
+                        "hover:bg-[var(--hover)]"
                       )}
                     >
-                      <Check size={11} strokeWidth={2.5} />
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
+                      {label}
+                      <span
+                        className={cn(
+                          "flex size-4 items-center justify-center rounded-sm border transition-colors duration-[160ms]",
+                          on
+                            ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
+                            : "border-[var(--edge)] text-transparent"
+                        )}
+                      >
+                        <Check size={11} strokeWidth={2.5} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
 
       <NotStartedTray
         tasks={tasksByStatus["not started"]}
@@ -262,7 +275,7 @@ export function KanbanBoard({
         settledTaskId={settledTaskId}
       />
 
-      <div className="flex flex-col @4xl/main:flex-row gap-3 @4xl/main:gap-4 pb-4 pr-2 @4xl/main:items-stretch">
+      <div className="flex flex-col gap-3 pb-4 @4xl/main:flex-row @4xl/main:items-stretch @4xl/main:gap-4">
         {COLUMN_ORDER.map((status) => (
           <KanbanColumn
             key={status}
@@ -334,20 +347,20 @@ function NotStartedTray({
   settledTaskId,
 }: TrayProps) {
   const ref = useRef<HTMLDivElement>(null);
-  // Direct-DOM drop affordance (matches the column, D1d zero-jank): on a valid
-  // drag-over the tray washes to --sd-selected-item and gains a dashed accent
-  // outline. outline (not border) avoids any layout shift; no React state.
+  // Direct-DOM drop affordance (matches the column): on a valid drag-over the
+  // tray washes to --selected and gains a dashed accent outline. outline (not
+  // border) avoids any layout shift; no React state.
   const isValidTargetFn = (): boolean =>
     draggedTaskId !== null && draggedFromStatus !== "not started";
   const lightUp = () => {
     if (!ref.current) return;
-    ref.current.style.background = "var(--sd-selected-item)";
-    ref.current.style.outline = "2px dashed var(--sd-accent)";
+    ref.current.style.background = "var(--selected)";
+    ref.current.style.outline = "2px dashed var(--accent)";
     ref.current.style.outlineOffset = "-2px";
   };
   const dimDown = () => {
     if (!ref.current) return;
-    ref.current.style.background = "var(--sd-darker-box)";
+    ref.current.style.background = "var(--surface)";
     ref.current.style.outline = "none";
   };
   const trayIds = tasks.map((t) => t.id);
@@ -357,7 +370,7 @@ function NotStartedTray({
   return (
     <div
       ref={ref}
-      className="rounded-lg border border-[var(--sd-line)]"
+      className="rounded-xl"
       data-status="not started"
       onDragOver={(e) => {
         if (!isValidTargetFn()) return;
@@ -375,25 +388,29 @@ function NotStartedTray({
         dimDown();
         if (isValidTargetFn()) onDropOnTray();
       }}
-      // Recessed well matching the columns (seed §Columns): --sd-darker-box,
-      // 8px radius, 1px hairline, no glass.
-      style={{ background: "var(--sd-darker-box)", transition: "background-color 120ms ease-out" }}
+      // Recessed --surface well matching the columns; fill, no border.
+      style={{ background: "var(--surface)", transition: "background-color 160ms ease-out" }}
     >
       <div className="group/trayhdr flex items-center gap-2 px-4 pt-3 pb-2">
         <button
           type="button"
           onClick={onToggle}
-          className="flex items-center gap-2 cursor-pointer min-w-0"
+          className="flex min-w-0 cursor-pointer items-center gap-2"
           aria-expanded={expanded}
         >
           <ChevronDown
             className={cn(
-              "h-3.5 w-3.5 transition-transform shrink-0 text-[var(--sd-ink-dull)]",
+              "size-3.5 shrink-0 text-[var(--ink-muted)] transition-transform duration-[160ms]",
               !expanded && "-rotate-90"
             )}
           />
-          <span className="sd-stat-label">Not Started</span>
-          <span className="inline-flex items-center rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)] px-1.5 py-0.5 font-mono text-[10px] leading-none tabular-nums text-[var(--sd-ink-dull)] shrink-0">
+          <span
+            aria-hidden
+            className="size-1.5 shrink-0 rounded-full"
+            style={{ background: STATUS_DOT["not started"] }}
+          />
+          <span className="truncate text-meta font-medium text-[var(--ink)]">Not started</span>
+          <span className="shrink-0 text-micro tabular-nums text-[var(--ink-faint)]">
             {tasks.length}
           </span>
         </button>
@@ -402,12 +419,12 @@ function NotStartedTray({
             type="button"
             onClick={() => onToggleColumnSelection("not started", trayIds)}
             className={cn(
-              "ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity",
+              "ml-auto shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-medium cursor-pointer-always transition-opacity duration-[160ms]",
               allSelected
-                ? "bg-[var(--sd-box)] text-[var(--sd-ink)] opacity-100"
+                ? "bg-[var(--selected)] text-[var(--ink)] opacity-100"
                 : selectionActive || selectedInTray > 0
-                  ? "text-[var(--sd-ink-dull)] opacity-100 hover:text-[var(--sd-ink)]"
-                  : "text-[var(--sd-ink-dull)] opacity-0 group-hover/trayhdr:opacity-100 hover:text-[var(--sd-ink)]"
+                  ? "text-[var(--ink-muted)] opacity-100 hover:text-[var(--ink)]"
+                  : "text-[var(--ink-muted)] opacity-0 group-hover/trayhdr:opacity-100 hover:text-[var(--ink)]"
             )}
             title={allSelected ? "Deselect all in tray" : "Select all in tray"}
           >
@@ -417,7 +434,7 @@ function NotStartedTray({
       </div>
 
       {expanded && (
-        <div className="flex flex-wrap gap-2.5 px-3 pb-3 min-h-[44px]">
+        <div className="flex min-h-[44px] flex-wrap gap-2 px-3 pb-3">
           {tasks.map((task) => (
             <div key={task.id} className="w-[280px]">
               <TaskCard
@@ -435,7 +452,7 @@ function NotStartedTray({
               />
             </div>
           ))}
-          <div className="w-[280px] flex items-center">
+          <div className="flex w-[280px] items-center">
             <TaskCreateInline
               status="not started"
               onCreateTask={onCreateTask}
