@@ -1,8 +1,8 @@
 import { ProjectDetailClient } from "@/components/projects/ProjectDetailClient";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
+import { getHashtagSuggestionsCached } from "@/lib/db/cached";
 import { getCapturesForProject } from "@/lib/db/queries/captures";
-import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
 import { getPagesForProject } from "@/lib/db/queries/pages";
 import { getTasksForProject } from "@/lib/db/queries/tasks";
 import { areas, projects } from "@/lib/db/schema";
@@ -64,7 +64,9 @@ export default async function ProjectDetailPage({ params }: Props) {
     getCapturesForProject(user.id, projectId),
     getPagesForProject(user.id, projectId),
     // Composer needs the user's existing hashtag set for autocomplete.
-    getHashtagSuggestions(user.id),
+    // The cached wrapper, because the (app) layout already fetched exactly
+    // this list for the Cmd+K composer in the same request.
+    getHashtagSuggestionsCached(user.id),
     // Composer's project multi-select uses ACTIVE projects only (archived
     // are not link targets). Same shape as in app/(app)/layout.tsx.
     db

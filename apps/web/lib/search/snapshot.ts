@@ -1,14 +1,12 @@
 import "server-only";
 
 import {
-  getAllTasksForUserCached,
-  getCapturesForUserCached,
   getJournalEntriesForUserCached,
-  getPagesForUserCached,
   getSidebarTreeCached,
   loadHabitsCached,
 } from "@/lib/db/cached";
 import type { SearchSnapshot } from "@/lib/search";
+import { getSearchCaptures, getSearchPages, getSearchTasks } from "@/lib/search/snapshot-queries";
 import { format } from "date-fns";
 
 /** Format a "YYYY-MM-DD" calendar day at local time (avoids UTC day-shift). */
@@ -28,14 +26,18 @@ const CAPTURE_LIMIT = 1000;
  * so search can still surface them.
  */
 export async function getSearchSnapshot(userId: string): Promise<SearchSnapshot> {
-  // The cached wrappers, not the raw helpers: the sidebar tree and the task
-  // list are each fetched again by the layout or the route, and this is where
-  // the duplicate would otherwise land.
+  // Tasks, captures and pages go through `snapshot-queries`, which reads only
+  // the fields the index actually uses. The entity helpers this used to call
+  // return whole entities, and the eight extra statements that cost bought
+  // hashtag pills, people mentions and custom fields that the index throws
+  // away. The tree, the journal and the habits are already minimal, so they
+  // keep the cached wrappers, which also dedupe them against any server render
+  // in the same request.
   const [tree, tasks, captures, pages, journal, habitNodes] = await Promise.all([
     getSidebarTreeCached(userId, true),
-    getAllTasksForUserCached(userId),
-    getCapturesForUserCached(userId, CAPTURE_LIMIT),
-    getPagesForUserCached(userId),
+    getSearchTasks(userId),
+    getSearchCaptures(userId, CAPTURE_LIMIT),
+    getSearchPages(userId),
     getJournalEntriesForUserCached(userId),
     loadHabitsCached(userId),
   ]);
@@ -48,30 +50,10 @@ export async function getSearchSnapshot(userId: string): Promise<SearchSnapshot>
   return {
     areas,
     projects,
-    tasks: tasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      priority: t.priority,
-      status: t.status,
-      dueDate: t.dueDate,
-      createdAt: t.createdAt.toISOString(),
-      projectIds: t.projects.map((p) => p.id),
-    })),
-    captures: captures.map((c) => ({
-      id: c.id,
-      text: c.content,
-      tags: c.hashtags.map((h) => h.displayName),
-      createdAt: c.createdAt.toISOString(),
-      updatedAt: c.updatedAt.toISOString(),
-    })),
-    pages: pages.map((p) => ({
-      id: p.id,
-      title: p.title,
-      content: p.content,
-      emoji: p.emoji,
-      createdAt: p.createdAt.toISOString(),
-      updatedAt: p.updatedAt.toISOString(),
-    })),
+    // tasks, captures and pages already arrive in the snapshot's own shape.
+    tasks,
+    captures,
+    pages,
     journalEntries: journal.map((j) => ({
       id: j.id,
       title: journalTitle(j.date),

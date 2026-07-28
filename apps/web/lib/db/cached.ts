@@ -1,12 +1,9 @@
 import "server-only";
 
 import { loadHabits } from "@/lib/context/nodes/habits";
-import { getCapturesForUser } from "@/lib/db/queries/captures";
 import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
 import { getJournalEntriesForUser } from "@/lib/db/queries/journal";
-import { getPagesForUser } from "@/lib/db/queries/pages";
 import { getSidebarTree } from "@/lib/db/queries/sidebar";
-import { getAllTasksForUser } from "@/lib/db/queries/tasks";
 import { cache } from "react";
 
 /**
@@ -36,29 +33,30 @@ import { cache } from "react";
  *     invisibly. Every argument is required here.
  */
 
-/** Deduped across `layout.tsx` (both the archived and non-archived trees) and the search snapshot. */
+/**
+ * Deduped across `layout.tsx` and the search snapshot. The layout now asks only
+ * for the archived-inclusive tree and derives the active one from it with
+ * `activeSidebarTree`, so the two-cache-keys-for-one-question problem is gone
+ * as well.
+ */
 export const getSidebarTreeCached = cache((userId: string, includeArchived: boolean) =>
   getSidebarTree(userId, includeArchived)
 );
 
-/**
- * Deduped between the search snapshot and any route that also loads the full
- * task list. `app/(app)/tasks/page.tsx` still calls the raw helper: it is not
- * this unit's file, and once the snapshot leaves the layout's blocking path the
- * duplicate stops happening on that route anyway.
- */
-export const getAllTasksForUserCached = cache((userId: string) => getAllTasksForUser(userId));
-
+/** Deduped between `layout.tsx`'s Cmd+K composer and the routes that also render a composer. */
 export const getHashtagSuggestionsCached = cache((userId: string) => getHashtagSuggestions(userId));
-
-export const getCapturesForUserCached = cache((userId: string, limit: number) =>
-  getCapturesForUser(userId, { limit })
-);
-
-export const getPagesForUserCached = cache((userId: string) => getPagesForUser(userId));
 
 export const getJournalEntriesForUserCached = cache((userId: string) =>
   getJournalEntriesForUser(userId)
 );
 
 export const loadHabitsCached = cache((userId: string) => loadHabits(userId));
+
+/*
+ * There are deliberately no wrappers here for `getAllTasksForUser`,
+ * `getCapturesForUser` or `getPagesForUser` any more. Their only caller in
+ * common with a route was the search snapshot, and the snapshot now reads
+ * through `lib/search/snapshot-queries.ts`, which fetches the six or so fields
+ * the index uses instead of whole entities. A wrapper whose two callers live in
+ * different requests memoizes nothing and only reads as though it does.
+ */
