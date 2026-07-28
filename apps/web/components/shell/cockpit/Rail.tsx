@@ -53,7 +53,7 @@ export function Rail({
           initial={false}
           animate={{ width: "auto", opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
-          transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
           onAnimationStart={() => setAnimating(true)}
           onAnimationComplete={() => setAnimating(false)}
           // `relative z-40` lifts the wrapper (and the collapsed-mode hover

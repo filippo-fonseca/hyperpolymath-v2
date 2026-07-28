@@ -233,7 +233,7 @@ export function Sidebar({
       aria-label="Sidebar"
       className={cn(
         "relative h-full shrink-0",
-        animateWidth && "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+        animateWidth && "transition-[width] duration-[280ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
         // Below md the outer aside is ALWAYS the rail — expansion is the
         // floating overlay, so the route width never changes with it.
         railMode ? "w-14" : "w-[230px]",
@@ -254,7 +254,7 @@ export function Sidebar({
           "group/sidebar absolute inset-y-0 left-0 flex flex-col gap-2.5 overflow-hidden p-2.5 pb-2",
           "border-r border-[var(--sd-line)]",
           SIDEBAR_SURFACE,
-          animateWidth && "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+          animateWidth && "transition-[width] duration-[280ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
           effectiveCollapsed ? "w-14" : "w-[230px]",
           // Expanded-while-railed floats above the page as an overlay: desktop
           // hover-peek and the below-md toggle sheet share this one path.

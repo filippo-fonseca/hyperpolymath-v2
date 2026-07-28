@@ -60,12 +60,8 @@ export function JarvisSidePanel() {
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-        <p className="text-[14px] text-[var(--ink)]">
-          JARVIS panel failed to load
-        </p>
-        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-          {error}
-        </p>
+        <p className="text-body text-[var(--ink)]">JARVIS panel failed to load</p>
+        <p className="text-micro text-[var(--ink-muted)]">{error}</p>
       </div>
     );
   }
@@ -81,9 +77,7 @@ export function JarvisSidePanel() {
           aria-hidden="true"
           className="text-[var(--hud-cyan)] animate-pulse"
         />
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ink-muted)]">
-          Loading JARVIS
-        </p>
+        <p className="text-micro text-[var(--ink-muted)]">Loading JARVIS</p>
       </div>
     );
   }
