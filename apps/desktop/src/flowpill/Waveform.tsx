@@ -41,7 +41,12 @@ export function Waveform({ source, active }: Props) {
   const incomingRef = useRef(0);
   const activeRef = useRef(active);
 
-  activeRef.current = active;
+  // Written in an effect rather than during render: the draw loop reads this
+  // ref outside React's control, and a render-phase write can be discarded or
+  // replayed under concurrent rendering.
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
 
   useEffect(() => {
     // The only cross-boundary contract in this file: `onLevel` returns its own
@@ -60,6 +65,11 @@ export function Waveform({ source, active }: Props) {
     const reduced =
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // `roundRect` is WKWebView 16.4+, which every macOS this app targets has.
+    // Checked once rather than trusted, because a missing method would throw on
+    // every animation frame and take the whole overlay down with it.
+    const rounded = typeof context.roundRect === "function";
 
     let frame = 0;
     let width = 0;
@@ -105,9 +115,13 @@ export function Waveform({ source, active }: Props) {
         const age = index / Math.max(1, visible - 1);
         context.globalAlpha = 0.22 + age * 0.68;
         context.fillStyle = SD_ACCENT;
-        context.beginPath();
-        context.roundRect(x, y, BAR_WIDTH, barHeight, BAR_WIDTH / 2);
-        context.fill();
+        if (rounded) {
+          context.beginPath();
+          context.roundRect(x, y, BAR_WIDTH, barHeight, BAR_WIDTH / 2);
+          context.fill();
+        } else {
+          context.fillRect(x, y, BAR_WIDTH, barHeight);
+        }
       }
       context.globalAlpha = 1;
     };
