@@ -11,7 +11,7 @@
  *   minor (columnsForWindow)      — the grid tier: days / weeks / months respectively
  *
  * Typography is the canonical date line (DESIGN-SYSTEM.md §66): mono 11px
- * uppercase, 0.1em tracking, --sd-ink-faint, tabular-nums on the numerals. The
+ * text-micro mono, --ink-faint, tabular-nums on the numerals. The
  * current column takes the accent, mirroring CalendarGrid's isToday header.
  *
  * `sticky top-0` keeps the dates visible while the lanes scroll vertically.
@@ -46,8 +46,8 @@ export function TimelineHeader({ majorGroups, minorColumns, totalWidthPx }: Prop
             className={cn(
               "absolute top-0 bottom-0 flex items-center overflow-hidden whitespace-nowrap",
               "border-[var(--sd-line)] border-l px-1.5",
-              "font-mono text-[11px] uppercase tracking-[0.1em] tabular-nums",
-              "text-[var(--sd-ink-faint)]",
+              "font-mono text-micro tabular-nums",
+              "text-[var(--sd-ink-faint)]"
             )}
             style={{ left: group.leftPx, width: group.widthPx }}
             title={group.label}
@@ -68,8 +68,8 @@ export function TimelineHeader({ majorGroups, minorColumns, totalWidthPx }: Prop
             className={cn(
               "absolute top-0 bottom-0 flex items-center overflow-hidden whitespace-nowrap",
               "border-[var(--sd-line)] border-l px-1.5",
-              "font-mono text-[11px] uppercase tracking-[0.1em] tabular-nums",
-              column.isCurrent ? "text-[var(--sd-accent)]" : "text-[var(--sd-ink-faint)]",
+              "font-mono text-micro tabular-nums",
+              column.isCurrent ? "text-[var(--sd-accent)]" : "text-[var(--sd-ink-faint)]"
             )}
             style={{ left: column.leftPx, width: column.widthPx }}
             data-current={column.isCurrent || undefined}

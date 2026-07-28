@@ -16,20 +16,20 @@
  * changes re-layout instantly rather than tweening a lane's geometry.
  */
 
-import type { PointerEvent as ReactPointerEvent } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
-import type { DragMode } from "@/components/projects/timeline/drag-plan";
 import {
   ProjectBarPopover,
   type TimelineDatePatch,
 } from "@/components/projects/timeline/ProjectBarPopover";
 import { TimelineBar } from "@/components/projects/timeline/TimelineBar";
+import type { DragMode } from "@/components/projects/timeline/drag-plan";
 import {
-  barGeometry,
   type TimelineGroup as TimelineGroupData,
   type TimelineRowProject,
   type TimelineWindow,
+  barGeometry,
 } from "@/lib/projects/timeline";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +50,7 @@ interface Props {
   onBeginDrag?: (
     project: TimelineRowProject,
     mode: DragMode,
-    event: ReactPointerEvent<HTMLElement>,
+    event: ReactPointerEvent<HTMLElement>
   ) => void;
   /** Running row index across all groups, for the entrance stagger. */
   rowIndexOffset: number;
@@ -93,14 +93,14 @@ export function TimelineGroup({
         >
           <div className="sticky left-0 z-[2] flex items-center gap-2 bg-[var(--sd-box)] py-1 pr-4 pl-3">
             {group.area.emoji ? (
-              <span className="shrink-0 text-[13px] leading-none" aria-hidden="true">
+              <span className="shrink-0 text-meta leading-none" aria-hidden="true">
                 {group.area.emoji}
               </span>
             ) : null}
-            <span className="font-medium text-[14px] text-[var(--sd-ink)] leading-none">
+            <span className="font-medium text-body text-[var(--sd-ink)] leading-none">
               {group.area.name}
             </span>
-            <span className="font-semibold font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.08em] tabular-nums leading-none">
+            <span className="font-medium text-micro text-[var(--ink-faint)] tabular-nums leading-none">
               {group.projects.length} {group.projects.length === 1 ? "project" : "projects"}
             </span>
           </div>
@@ -113,7 +113,7 @@ export function TimelineGroup({
           style={{ width: totalWidthPx, height: TIMELINE_ROW_HEIGHT_PX }}
           data-testid="timeline-empty-lane"
         >
-          <span className="sticky left-0 pl-3 font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.08em]">
+          <span className="sticky left-0 pl-3 font-sans text-micro font-medium text-[var(--ink-faint)]">
             No projects
           </span>
         </div>
@@ -129,7 +129,7 @@ export function TimelineGroup({
                 "relative overflow-hidden border-[var(--sd-line)] border-b",
                 // Selection is a neutral backplate on the row, never an
                 // accent-filled row or an accent ring (§37).
-                isOpen && "bg-[var(--sd-selected)]",
+                isOpen && "bg-[var(--sd-selected)]"
               )}
               style={{ width: totalWidthPx, height: TIMELINE_ROW_HEIGHT_PX }}
               data-testid="timeline-row"

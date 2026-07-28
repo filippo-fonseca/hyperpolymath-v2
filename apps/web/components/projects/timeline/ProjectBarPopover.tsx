@@ -22,13 +22,9 @@
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
 
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { isProjectExpired } from "@/lib/projects/archive-status";
 import type { TimelineRowProject } from "@/lib/projects/timeline";
 
@@ -83,7 +79,8 @@ export function ProjectBarPopover({
 
   // ISO YYYY-MM-DD strings compare correctly as strings — never parse them into
   // Date, which reads them as UTC midnight and lands a day early west of GMT.
-  const inverted = patch.startDate !== null && patch.endDate !== null && patch.startDate > patch.endDate;
+  const inverted =
+    patch.startDate !== null && patch.endDate !== null && patch.startDate > patch.endDate;
 
   // Only a trap if the edit CREATES it. A project already sitting in the past
   // has nothing left to warn about.
@@ -119,21 +116,19 @@ export function ProjectBarPopover({
         <div className="space-y-1">
           <Link
             href={`/projects/${project.id}`}
-            className="block truncate font-medium text-[14px] text-[var(--sd-ink)] hover:underline"
+            className="block truncate font-medium text-body text-[var(--sd-ink)] hover:underline"
           >
             {project.icon ? <span className="mr-1.5">{project.icon}</span> : null}
             {project.name}
           </Link>
           {project.isGhost ? (
-            <p className="font-mono text-[10.5px] text-[var(--sd-ink-faint)] uppercase tracking-[0.08em]">
-              Archived
-            </p>
+            <p className="font-sans text-micro font-medium text-[var(--ink-faint)]">Archived</p>
           ) : null}
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <label className="space-y-1">
-            <span className="block font-mono text-[10.5px] text-[var(--sd-ink-faint)] uppercase tracking-[0.08em]">
+            <span className="block font-sans text-micro font-medium text-[var(--ink-faint)]">
               Start
             </span>
             <Input
@@ -145,7 +140,7 @@ export function ProjectBarPopover({
             />
           </label>
           <label className="space-y-1">
-            <span className="block font-mono text-[10.5px] text-[var(--sd-ink-faint)] uppercase tracking-[0.08em]">
+            <span className="block font-sans text-micro font-medium text-[var(--ink-faint)]">
               End
             </span>
             <Input
@@ -159,25 +154,38 @@ export function ProjectBarPopover({
         </div>
 
         {inverted ? (
-          <p className="text-[12px] text-[var(--ink-coral)]" data-testid="timeline-inverted-warning">
+          <p className="text-meta text-[var(--ink-coral)]" data-testid="timeline-inverted-warning">
             End date is before the start date.
           </p>
         ) : null}
 
         {confirmingTrap ? (
           <div
-            className="space-y-2 rounded-[8px] bg-[color-mix(in_oklch,var(--ink-amber)_15%,transparent)] p-2.5"
+            className="space-y-2 rounded-lg bg-[color-mix(in_oklch,var(--ink-amber)_15%,transparent)] p-2.5"
             data-testid="timeline-archive-warning"
           >
-            <p className="text-[12px] text-[var(--sd-ink-dull)] leading-snug">
-              An end date in the past archives <strong className="text-[var(--sd-ink)]">{project.name}</strong>. It
-              disappears from the sidebar, /areas, and /lifeos until you clear the date or show archived.
+            <p className="text-meta text-[var(--sd-ink-dull)] leading-snug">
+              An end date in the past archives{" "}
+              <strong className="text-[var(--sd-ink)]">{project.name}</strong>. It disappears from
+              the sidebar, /areas, and /lifeos until you clear the date or show archived.
             </p>
             <div className="flex justify-end gap-1.5">
-              <Button type="button" variant="ghost" size="sm" className="h-7" onClick={() => setConfirmingTrap(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7"
+                onClick={() => setConfirmingTrap(false)}
+              >
                 Cancel
               </Button>
-              <Button type="button" size="sm" className="h-7" onClick={commit} data-testid="timeline-archive-confirm">
+              <Button
+                type="button"
+                size="sm"
+                className="h-7"
+                onClick={commit}
+                data-testid="timeline-archive-confirm"
+              >
                 Archive anyway
               </Button>
             </div>
