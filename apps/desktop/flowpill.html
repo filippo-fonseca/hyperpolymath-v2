@@ -2,76 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>JARVIS Flow</title>
-    <!--
-      PLACEHOLDER ENTRY POINT (owned by unit u1).
-
-      u0 owns the native window only: a 440x300 fully transparent,
-      non-activating, always-on-top surface (see src-tauri/src/flowpill.rs).
-      This file exists so that window has something to load and can be proven
-      to open before the pill UI lands. It deliberately declares NO module
-      script: a `<script type="module" src="/src/flowpill/...">` pointing at a
-      file that does not exist yet would break `vite build` for everyone.
-
-      u1 replaces the body below with the real pill (waveform, Cancel, Done)
-      and adds its own module script. Keep the transparent html/body rules and
-      the bottom-anchored layout: the visible pill sits at the BOTTOM edge of
-      the 440x300 window, the rest of the window is empty click-through space
-      that gives the pill room to grow upward.
-    -->
+    <title>JARVIS dictation</title>
+    <!-- The sd register, linked exactly as index.html links it: the @font-face
+         rules resolve absolute /fonts/* paths under the Vite public root, so
+         they belong in the document rather than in a bundled import. The pill's
+         own sheet is imported from main.tsx. -->
+    <link rel="stylesheet" href="/src/styles/sd-fonts.css" />
+    <link rel="stylesheet" href="/src/styles/sd-tokens.css" />
     <style>
-      :root {
-        color-scheme: dark;
-      }
-      * {
-        box-sizing: border-box;
-      }
+      /* Inline, and before the module loads, on purpose. This window is
+         transparent and floats over whatever application the user is working
+         in. If the default white canvas paints for even one frame before the
+         bundle arrives, a 440x300 white rectangle flashes over their editor.
+         Alpha zero from the very first paint is the fix, and it is also what
+         lets macOS hit-test clicks straight through the empty region. -->
       html,
       body {
-        height: 100%;
         margin: 0;
-        /* Fully transparent: the window itself is transparent + shadowless, so
-           any opaque background here would paint a 440x300 black rectangle over
-           whatever app the user is dictating into. */
-        background: transparent;
-        overflow: hidden;
-        user-select: none;
-        -webkit-user-select: none;
-      }
-      /* Bottom-anchored stage. The pill lives on the bottom edge; everything
-         above it stays empty so u1 can animate the pill upward into it. */
-      .stage {
         height: 100%;
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-        padding: 0;
-      }
-      .pill {
-        height: 70px;
-        min-width: 180px;
-        padding: 0 22px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        border-radius: 35px;
-        background: rgba(18, 18, 20, 0.86);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.72);
-        font:
-          13px/1 ui-sans-serif,
-          system-ui,
-          sans-serif;
-        letter-spacing: 0.04em;
-        -webkit-backdrop-filter: blur(18px);
-        backdrop-filter: blur(18px);
+        overflow: hidden;
+        background: transparent;
       }
     </style>
   </head>
   <body>
-    <div class="stage">
-      <div class="pill" data-flowpill-placeholder>flowpill</div>
-    </div>
+    <div id="flowpill-root"></div>
+    <script type="module" src="/src/flowpill/main.tsx"></script>
   </body>
 </html>

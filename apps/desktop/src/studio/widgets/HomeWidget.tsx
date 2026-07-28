@@ -1,4 +1,5 @@
-import * as React, { useEffect } from "react";
+import * as React from "react";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "motion/react";
 import { Lightbulb, RefreshCw } from "lucide-react";
