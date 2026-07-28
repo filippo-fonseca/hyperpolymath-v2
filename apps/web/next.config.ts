@@ -4,6 +4,23 @@ import path from "node:path";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // Client-side Router Cache. Next's default for dynamic routes is 0, which
+  // means a route's RSC payload is thrown away the moment you leave it: every
+  // back/forward between two (app) routes re-runs the whole server tree,
+  // layout queries included. Every route under (app) is dynamic (the layout
+  // reads the Supabase auth cookie), so that default applied app-wide.
+  //
+  // 30s is safe here because Realtime, not the router cache, is what keeps
+  // data fresh: each surface hydrates from the cached payload and its
+  // TanStack Query subscriptions reconcile to canonical immediately. The
+  // window only has to be short enough that a payload never outlives a
+  // session's attention span.
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+    },
+  },
+
   // Issue #329 (device wiki API): the bearer-authed wiki routes regenerate the
   // markdown mirror server-side via `@blocknote/server-util`
   // (ServerBlockNoteEditor.blocksToMarkdownLossy). That package transitively

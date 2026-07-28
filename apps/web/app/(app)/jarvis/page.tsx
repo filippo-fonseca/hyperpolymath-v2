@@ -32,8 +32,6 @@ import {
 import { JarvisIcon } from "@/components/ui/icons";
 import { JarvisClient, type JarvisSection } from "./JarvisClient";
 
-export const dynamic = "force-dynamic";
-
 const VALID_SECTIONS: readonly JarvisSection[] = ["routines", "personality", "startup"];
 
 function resolveSection(raw: string | string[] | undefined): JarvisSection {

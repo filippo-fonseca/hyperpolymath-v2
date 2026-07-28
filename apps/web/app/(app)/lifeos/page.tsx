@@ -19,8 +19,6 @@ import { getActivitiesInRange, getDistanceUnit } from "@/lib/db/queries/training
 import { projects } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 
-export const dynamic = "force-dynamic";
-
 /**
  * /lifeos — canonical homepage for the life-OS view.
  *

@@ -3,8 +3,6 @@ import { requireOnboarded } from "@/lib/auth/get-user";
 import { listDesktopDevices } from "@/app/actions/desktop-devices";
 import { DesktopDevicesClient } from "./DesktopDevicesClient";
 
-export const dynamic = "force-dynamic";
-
 /**
  * /settings/desktop — manage device tokens for the Tauri desktop app.
  *

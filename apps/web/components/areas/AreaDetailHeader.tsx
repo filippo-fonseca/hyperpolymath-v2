@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   area: { id: string; name: string; emoji: string | null };
@@ -33,7 +33,13 @@ interface Props {
  * - "Edit area" — opens a dialog to rename + edit emoji
  * - "New project" — opens ProjectCreateDialog pre-scoped to this area
  *
- * All mutations use router.refresh() (SSR page, no optimistic dispatcher).
+ * The rename settles into local state rather than refetching the route: the
+ * only thing on this page that reads the area's name and emoji is this header
+ * (the breadcrumb above it is rendered from the same server props and is
+ * corrected on the next navigation), and the sidebar reconciles itself off the
+ * Realtime echo on ['areas', userId]. Deleting the area still refreshes,
+ * because it navigates to /areas and that destination must not be served from
+ * a router-cache entry that still lists the deleted area.
  */
 export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount }: Props) {
   const router = useRouter();
@@ -46,6 +52,15 @@ export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount 
   const [name, setName] = useState(area.name);
   const [emoji, setEmoji] = useState(area.emoji ?? "");
 
+  // What the H1 shows. Seeded from the server prop, re-seeded whenever the
+  // server sends a new one, and updated in place on a successful rename.
+  const [displayName, setDisplayName] = useState(area.name);
+  const [displayEmoji, setDisplayEmoji] = useState(area.emoji);
+  useEffect(() => {
+    setDisplayName(area.name);
+    setDisplayEmoji(area.emoji);
+  }, [area.name, area.emoji]);
+
   // New project dialog
   const [newProjectOpen, setNewProjectOpen] = useState(false);
 
@@ -56,7 +71,8 @@ export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount 
       success: "Area updated.",
       onSuccess: () => {
         setEditOpen(false);
-        router.refresh();
+        setDisplayName(trimmed);
+        setDisplayEmoji(emoji.trim() || null);
       },
     });
   }
@@ -83,13 +99,13 @@ export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount 
       <header className="mt-2 mb-10 space-y-2">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-baseline gap-3">
-            {area.emoji ? (
+            {displayEmoji ? (
               <span className="text-3xl leading-none" aria-hidden="true">
-                {area.emoji}
+                {displayEmoji}
               </span>
             ) : null}
             <h1 className="text-4xl font-semibold tracking-tight text-[var(--ink)]">
-              {area.name}
+              {displayName}
             </h1>
           </div>
           <div className="flex items-center gap-2 shrink-0 pt-1">

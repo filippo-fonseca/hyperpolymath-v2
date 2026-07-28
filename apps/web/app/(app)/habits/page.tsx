@@ -11,8 +11,6 @@ import { HabitsClient } from "@/components/habits/HabitsClient";
 import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import { HabitIcon } from "@/components/ui/icons";
 
-export const dynamic = "force-dynamic";
-
 /**
  * /habits — dashboard for the habits primitive.
  *

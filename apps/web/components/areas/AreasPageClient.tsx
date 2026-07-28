@@ -97,6 +97,23 @@ export function AreasPageClient({
     setAreas((prev) => prev.filter((area) => area.id !== id));
   }
 
+  // Edits and deletes from the per-area menu settle here rather than through
+  // router.refresh(). The whole route tree, layout queries included, used to
+  // re-run so one row could change its label. The sidebar is unaffected: it
+  // reconciles independently off the Realtime echo on ['areas', userId].
+  function handleAreaUpdated(
+    id: string,
+    patch: { name: string; emoji: string | null },
+  ) {
+    setAreas((prev) =>
+      prev.map((area) => (area.id === id ? { ...area, ...patch } : area)),
+    );
+  }
+
+  function handleAreaDeleted(id: string) {
+    setAreas((prev) => prev.filter((area) => area.id !== id));
+  }
+
   const isSentinel = (a: { name: string; emoji: string | null }) =>
     a.name === "No Area" && a.emoji === null;
 
@@ -215,7 +232,13 @@ export function AreasPageClient({
                   {area.projects.length} project
                   {area.projects.length === 1 ? "" : "s"}
                 </span>
-                <AreaCardMenu areaId={area.id} areaName={area.name} areaEmoji={area.emoji} />
+                <AreaCardMenu
+                  areaId={area.id}
+                  areaName={area.name}
+                  areaEmoji={area.emoji}
+                  onUpdated={handleAreaUpdated}
+                  onDeleted={handleAreaDeleted}
+                />
               </li>
             ))}
           </ul>

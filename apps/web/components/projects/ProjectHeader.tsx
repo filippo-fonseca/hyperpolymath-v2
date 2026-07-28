@@ -1,11 +1,12 @@
 "use client";
 
 import { moveProjectToArea, updateProject } from "@/app/actions/projects";
+import { tableKey } from "@/lib/realtime/query-keys";
 import { cn } from "@/lib/utils";
 import { parseBanner } from "@/lib/utils/banner";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ImagePlus, Settings2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AreaPicker } from "./AreaPicker";
 import { BannerPicker } from "./BannerPicker";
@@ -39,11 +40,14 @@ interface Props {
   project: ProjectData;
   graduationYear: number | null;
   addOptimisticProject: ProjectOptimisticDispatch;
+  /** Owning user — the collection query key every project mutation settles on. */
+  userId: string;
   /** Parent area — rendered as a small pill above the title so the user
-      always knows where this project sits in the hierarchy. */
+      always knows where this project sits in the hierarchy. Resolved by the
+      parent from the project's live areaId, so it follows a move. */
   area: { id: string; name: string; emoji: string | null } | null;
   /** All active areas — for the "move to area" control in settings. */
-  allAreas: { id: string; name: string }[];
+  allAreas: { id: string; name: string; emoji?: string | null }[];
 }
 
 function formatTerm(term: string): string {
@@ -91,32 +95,35 @@ export function ProjectHeader({
   project,
   graduationYear,
   addOptimisticProject,
+  userId,
   area,
   allAreas,
 }: Props) {
   const [, startTransition] = useTransition();
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
-  // Optimistic parent-area override for the inline badge picker. Holds the
-  // freshly-picked area so the badge label swaps instantly; cleared once the
-  // canonical `area` prop (re-fetched via router.refresh) catches up.
-  const [optimisticArea, setOptimisticArea] = useState<{ id: string; name: string } | null>(null);
-  useEffect(() => {
-    if (optimisticArea && area?.id === optimisticArea.id) setOptimisticArea(null);
-  }, [area?.id, optimisticArea]);
-
+  // Moving the project is the same optimistic shape as every other header
+  // edit: patch `areaId` through the shared dispatcher, and the parent
+  // re-resolves the badge and the breadcrumb off the live row. Settling then
+  // costs one refetch of the projects collection instead of a router.refresh,
+  // which re-ran the entire route tree, layout queries included, to update a
+  // pill. Awaiting the invalidation inside the transition keeps the optimistic
+  // value on screen until canonical data has landed, so there is no flicker.
   function handleAreaChange(newAreaId: string) {
-    const target = allAreas.find((a) => a.id === newAreaId);
-    if (!target) return;
-    setOptimisticArea(target);
+    if (newAreaId === project.areaId) return;
+    if (!allAreas.some((a) => a.id === newAreaId)) return;
+    addOptimisticProject({
+      type: "update",
+      id: project.id,
+      patch: { areaId: newAreaId },
+    });
     startTransition(async () => {
       const result = await moveProjectToArea({ projectId: project.id, newAreaId });
       if (!result.success) {
         toast.error(result.error);
-        setOptimisticArea(null);
         return;
       }
-      router.refresh();
+      await queryClient.invalidateQueries({ queryKey: tableKey("projects", userId) });
     });
   }
 
@@ -192,10 +199,10 @@ export function ProjectHeader({
 
   const classMeta = project.isClass ? buildClassMeta(project) : "";
 
-  // The badge shows the optimistic pick first (name only — emoji is unknown
-  // until the canonical area re-fetches), otherwise the server-supplied area.
-  const displayedArea = optimisticArea ?? (area ? { id: area.id, name: area.name } : null);
-  const displayedEmoji = optimisticArea ? null : (area?.emoji ?? null);
+  // The badge reads straight off the resolved area, which already follows the
+  // project's live areaId.
+  const displayedArea = area ? { id: area.id, name: area.name } : null;
+  const displayedEmoji = area?.emoji ?? null;
 
   return (
     <>
@@ -391,6 +398,7 @@ export function ProjectHeader({
         }}
         allAreas={allAreas}
         addOptimisticProject={addOptimisticProject}
+        userId={userId}
       />
     </>
   );

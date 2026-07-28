@@ -2,8 +2,6 @@ import { headers } from "next/headers";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 
-export const dynamic = "force-dynamic";
-
 /**
  * Phase 6.1 Plan 06.1-03: /health pure instrument panel (UI-SPEC §5c).
  *

@@ -13,8 +13,6 @@ import { getAnthropicApiRequestTrends } from "@/lib/integrations/anthropic-api/t
 import { getFlowSessions } from "@/lib/integrations/flow/sessions";
 import { getStravaActivities } from "@/lib/integrations/strava/activities";
 
-export const dynamic = "force-dynamic";
-
 type Tab = "life" | "habits" | "jarvis" | "development";
 
 export default async function InsightsPage({

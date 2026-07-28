@@ -100,6 +100,15 @@ export function ProjectDetailClient({
 
   const semesterTerm = liveProject.semesterTerm as "fall" | "spring" | "summer" | null;
 
+  // Parent area, derived rather than taken straight from the server prop.
+  // Moving a project to another area only changes `areaId` on the project row,
+  // which is live (optimistic dispatch, then the Realtime echo), so resolving
+  // the area against `allAreas` keeps the badge and the breadcrumb correct
+  // without refetching the route. `area` remains the fallback for the case
+  // where the project sits under an archived area, which `allAreas` omits.
+  const currentArea =
+    allAreas.find((a) => a.id === liveProject.areaId) ?? area;
+
   return (
     // Notion-document register. Banner sits flush at top via ProjectHeader.
     // Body is a single centered measure (max-w-[1080px]) of stacked sections
@@ -115,9 +124,9 @@ export function ProjectDetailClient({
           items={[
             { label: "Areas", href: "/areas" },
             {
-              label: area.name,
-              href: `/areas/${area.id}`,
-              glyph: area.emoji ?? undefined,
+              label: currentArea.name,
+              href: `/areas/${currentArea.id}`,
+              glyph: currentArea.emoji ?? undefined,
             },
             { label: liveProject.name },
           ]}
@@ -145,7 +154,8 @@ export function ProjectDetailClient({
         }}
         graduationYear={graduationYear}
         addOptimisticProject={addOptimisticProject}
-        area={area}
+        userId={userId}
+        area={currentArea}
         allAreas={allAreas}
       />
 

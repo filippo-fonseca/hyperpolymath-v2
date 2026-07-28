@@ -40,43 +40,48 @@ export async function getSidebarTree(
   userId: string,
   includeArchived = false,
 ): Promise<SidebarArea[]> {
-  const areaRows = await db
-    .select({
-      id: areas.id,
-      name: areas.name,
-      emoji: areas.emoji,
-      orderIndex: areas.orderIndex,
-      archivedAt: areas.archivedAt,
-      createdAt: areas.createdAt,
-    })
-    .from(areas)
-    .where(
-      includeArchived
-        ? eq(areas.userId, userId)
-        : and(eq(areas.userId, userId), isNull(areas.archivedAt)),
-    )
-    .orderBy(asc(areas.orderIndex), asc(areas.createdAt));
+  // Areas and projects are both keyed on userId alone; the tree is assembled
+  // in memory below. One wave, not two serial trips. This helper sits on the
+  // blocking path of every (app) render, more than once.
+  const [areaRows, projectRows] = await Promise.all([
+    db
+      .select({
+        id: areas.id,
+        name: areas.name,
+        emoji: areas.emoji,
+        orderIndex: areas.orderIndex,
+        archivedAt: areas.archivedAt,
+        createdAt: areas.createdAt,
+      })
+      .from(areas)
+      .where(
+        includeArchived
+          ? eq(areas.userId, userId)
+          : and(eq(areas.userId, userId), isNull(areas.archivedAt)),
+      )
+      .orderBy(asc(areas.orderIndex), asc(areas.createdAt)),
 
-  const projectRows = await db
-    .select({
-      id: projects.id,
-      areaId: projects.areaId,
-      name: projects.name,
-      icon: projects.icon,
-      orderIndex: projects.orderIndex,
-      isClass: projects.isClass,
-      archivedAt: projects.archivedAt,
-      endDate: projects.endDate,
-      semesterTerm: projects.semesterTerm,
-      semesterYear: projects.semesterYear,
-    })
-    .from(projects)
-    .where(
-      includeArchived
-        ? eq(projects.userId, userId)
-        : and(eq(projects.userId, userId), isNull(projects.archivedAt)),
-    )
-    .orderBy(asc(projects.orderIndex), asc(projects.createdAt));
+    db
+      .select({
+        id: projects.id,
+        areaId: projects.areaId,
+        name: projects.name,
+        icon: projects.icon,
+        orderIndex: projects.orderIndex,
+        isClass: projects.isClass,
+        archivedAt: projects.archivedAt,
+        endDate: projects.endDate,
+        semesterTerm: projects.semesterTerm,
+        semesterYear: projects.semesterYear,
+      })
+      .from(projects)
+      .where(
+        includeArchived
+          ? eq(projects.userId, userId)
+          : and(eq(projects.userId, userId), isNull(projects.archivedAt)),
+      )
+      .orderBy(asc(projects.orderIndex), asc(projects.createdAt)),
+  ]);
 
   const today = todayISODate();
   const projectsByArea = new Map<string, SidebarProject[]>();

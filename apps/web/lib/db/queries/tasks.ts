@@ -58,20 +58,59 @@ export async function getAllTasksForUser(
 
   const taskIds = taskRows.map((t) => t.id);
 
-  const links = await db
-    .select({
-      taskId: tasksProjects.taskId,
-      projectId: projects.id,
-      projectName: projects.name,
-    })
-    .from(tasksProjects)
-    .innerJoin(projects, eq(projects.id, tasksProjects.projectId))
-    .where(
-      and(
-        eq(tasksProjects.userId, userId),
-        inArray(tasksProjects.taskId, taskIds),
+  // The three link fan-outs below depend only on `taskIds`, never on each
+  // other, so they go out as one wave instead of three serial round trips.
+  // With the pooler that turns 4 round trips into 2 for the /tasks render.
+  const [links, tagRows, peopleRows] = await Promise.all([
+    db
+      .select({
+        taskId: tasksProjects.taskId,
+        projectId: projects.id,
+        projectName: projects.name,
+      })
+      .from(tasksProjects)
+      .innerJoin(projects, eq(projects.id, tasksProjects.projectId))
+      .where(
+        and(
+          eq(tasksProjects.userId, userId),
+          inArray(tasksProjects.taskId, taskIds),
+        ),
       ),
-    );
+
+    // Issue #159 — linked hashtags per task.
+    db
+      .select({
+        taskId: tasksHashtags.taskId,
+        id: hashtags.id,
+        name: hashtags.name,
+        displayName: hashtags.displayName,
+      })
+      .from(tasksHashtags)
+      .innerJoin(hashtags, eq(hashtags.id, tasksHashtags.hashtagId))
+      .where(
+        and(
+          eq(tasksHashtags.userId, userId),
+          inArray(tasksHashtags.taskId, taskIds),
+        ),
+      ),
+
+    // Issue #159 — @-mentioned people per task (polymorphic people_references).
+    db
+      .select({
+        taskId: peopleReferences.fromId,
+        id: people.id,
+        name: people.name,
+      })
+      .from(peopleReferences)
+      .innerJoin(people, eq(people.id, peopleReferences.personId))
+      .where(
+        and(
+          eq(peopleReferences.userId, userId),
+          eq(peopleReferences.fromType, "task"),
+          inArray(peopleReferences.fromId, taskIds),
+        ),
+      ),
+  ]);
 
   const linksByTask = new Map<string, { id: string; name: string }[]>();
   for (const l of links) {
@@ -80,19 +119,6 @@ export async function getAllTasksForUser(
     linksByTask.set(l.taskId, list);
   }
 
-  // Issue #159 — linked hashtags per task.
-  const tagRows = await db
-    .select({
-      taskId: tasksHashtags.taskId,
-      id: hashtags.id,
-      name: hashtags.name,
-      displayName: hashtags.displayName,
-    })
-    .from(tasksHashtags)
-    .innerJoin(hashtags, eq(hashtags.id, tasksHashtags.hashtagId))
-    .where(
-      and(eq(tasksHashtags.userId, userId), inArray(tasksHashtags.taskId, taskIds)),
-    );
   const tagsByTask = new Map<
     string,
     { id: string; name: string; displayName: string }[]
@@ -103,22 +129,6 @@ export async function getAllTasksForUser(
     tagsByTask.set(r.taskId, list);
   }
 
-  // Issue #159 — @-mentioned people per task (polymorphic people_references).
-  const peopleRows = await db
-    .select({
-      taskId: peopleReferences.fromId,
-      id: people.id,
-      name: people.name,
-    })
-    .from(peopleReferences)
-    .innerJoin(people, eq(people.id, peopleReferences.personId))
-    .where(
-      and(
-        eq(peopleReferences.userId, userId),
-        eq(peopleReferences.fromType, "task"),
-        inArray(peopleReferences.fromId, taskIds),
-      ),
-    );
   const peopleByTask = new Map<string, { id: string; name: string }[]>();
   for (const r of peopleRows) {
     const list = peopleByTask.get(r.taskId) ?? [];

@@ -129,20 +129,55 @@ export async function getPagesForUser(
   if (pageRows.length === 0) return [];
   const pageIds = pageRows.map((p) => p.id);
 
-  const projLinks = await db
-    .select({
-      pageId: pagesProjects.pageId,
-      id: projects.id,
-      name: projects.name,
-    })
-    .from(pagesProjects)
-    .innerJoin(projects, eq(projects.id, pagesProjects.projectId))
-    .where(
-      and(
-        eq(pagesProjects.userId, userId),
-        inArray(pagesProjects.pageId, pageIds),
+  // The project links, the custom-field definitions and the per-page field
+  // values are mutually independent (each needs only `userId` / `pageIds`), so
+  // they go out as one wave. Only the folder parent map below has to wait, and
+  // only when folder-scoped definitions actually exist.
+  const [projLinks, defRows, valueRows] = await Promise.all([
+    db
+      .select({
+        pageId: pagesProjects.pageId,
+        id: projects.id,
+        name: projects.name,
+      })
+      .from(pagesProjects)
+      .innerJoin(projects, eq(projects.id, pagesProjects.projectId))
+      .where(
+        and(
+          eq(pagesProjects.userId, userId),
+          inArray(pagesProjects.pageId, pageIds),
+        ),
       ),
-    );
+
+    // Custom fields (issue #165). A page's applicable defs = every wiki-scoped def
+    // plus the folder-scoped defs of the page's ROOT-ANCESTOR folder (folder defs
+    // live on a top-level folder and cascade to descendants). Values + the
+    // per-page hidden override are merged in from page_field_values.
+    db
+      .select({
+        id: pageFieldDefinitions.id,
+        name: pageFieldDefinitions.name,
+        type: pageFieldDefinitions.type,
+        scope: pageFieldDefinitions.scope,
+        folderId: pageFieldDefinitions.folderId,
+        options: pageFieldDefinitions.options,
+        allowMultiple: pageFieldDefinitions.allowMultiple,
+        orderIndex: pageFieldDefinitions.orderIndex,
+      })
+      .from(pageFieldDefinitions)
+      .where(eq(pageFieldDefinitions.userId, userId))
+      .orderBy(asc(pageFieldDefinitions.orderIndex), asc(pageFieldDefinitions.name)),
+
+    db
+      .select({
+        pageId: pageFieldValues.pageId,
+        fieldDefinitionId: pageFieldValues.fieldDefinitionId,
+        value: pageFieldValues.value,
+        hidden: pageFieldValues.hidden,
+      })
+      .from(pageFieldValues)
+      .where(and(eq(pageFieldValues.userId, userId), inArray(pageFieldValues.pageId, pageIds))),
+  ]);
 
   const projsByPage = new Map<string, PageProjectLink[]>();
   for (const p of projLinks) {
@@ -150,25 +185,6 @@ export async function getPagesForUser(
     list.push({ id: p.id, name: p.name });
     projsByPage.set(p.pageId, list);
   }
-
-  // Custom fields (issue #165). A page's applicable defs = every wiki-scoped def
-  // plus the folder-scoped defs of the page's ROOT-ANCESTOR folder (folder defs
-  // live on a top-level folder and cascade to descendants). Values + the
-  // per-page hidden override are merged in from page_field_values.
-  const defRows = await db
-    .select({
-      id: pageFieldDefinitions.id,
-      name: pageFieldDefinitions.name,
-      type: pageFieldDefinitions.type,
-      scope: pageFieldDefinitions.scope,
-      folderId: pageFieldDefinitions.folderId,
-      options: pageFieldDefinitions.options,
-      allowMultiple: pageFieldDefinitions.allowMultiple,
-      orderIndex: pageFieldDefinitions.orderIndex,
-    })
-    .from(pageFieldDefinitions)
-    .where(eq(pageFieldDefinitions.userId, userId))
-    .orderBy(asc(pageFieldDefinitions.orderIndex), asc(pageFieldDefinitions.name));
 
   const wikiDefs = defRows.filter((d) => d.scope === "wiki");
   const folderDefsByFolder = new Map<string, typeof defRows>();
@@ -189,16 +205,6 @@ export async function getPagesForUser(
       .where(eq(pageFolders.userId, userId));
     parentById = new Map(folderRows.map((f) => [f.id, f.parentId]));
   }
-
-  const valueRows = await db
-    .select({
-      pageId: pageFieldValues.pageId,
-      fieldDefinitionId: pageFieldValues.fieldDefinitionId,
-      value: pageFieldValues.value,
-      hidden: pageFieldValues.hidden,
-    })
-    .from(pageFieldValues)
-    .where(and(eq(pageFieldValues.userId, userId), inArray(pageFieldValues.pageId, pageIds)));
 
   const valueByKey = new Map<string, { value: unknown; hidden: boolean }>();
   for (const v of valueRows) {

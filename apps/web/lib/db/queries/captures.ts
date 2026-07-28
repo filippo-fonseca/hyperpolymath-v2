@@ -191,48 +191,52 @@ export async function getCapturesForUser(
   if (captureRows.length === 0) return [];
   const captureIds = captureRows.map((c) => c.id);
 
-  const tagLinks = await db
-    .select({
-      captureId: capturesHashtags.captureId,
-      id: hashtags.id,
-      name: hashtags.name,
-      displayName: hashtags.displayName,
-    })
-    .from(capturesHashtags)
-    .innerJoin(hashtags, eq(hashtags.id, capturesHashtags.hashtagId))
-    .where(
-      and(eq(capturesHashtags.userId, userId), inArray(capturesHashtags.captureId, captureIds))
-    );
+  // All three link fan-outs depend only on `captureIds` and are independent of
+  // each other, so they go out as one wave rather than three serial trips.
+  const [tagLinks, projLinks, peopleLinks] = await Promise.all([
+    db
+      .select({
+        captureId: capturesHashtags.captureId,
+        id: hashtags.id,
+        name: hashtags.name,
+        displayName: hashtags.displayName,
+      })
+      .from(capturesHashtags)
+      .innerJoin(hashtags, eq(hashtags.id, capturesHashtags.hashtagId))
+      .where(
+        and(eq(capturesHashtags.userId, userId), inArray(capturesHashtags.captureId, captureIds))
+      ),
 
-  const projLinks = await db
-    .select({
-      captureId: capturesProjects.captureId,
-      id: projects.id,
-      name: projects.name,
-    })
-    .from(capturesProjects)
-    .innerJoin(projects, eq(projects.id, capturesProjects.projectId))
-    .where(
-      and(eq(capturesProjects.userId, userId), inArray(capturesProjects.captureId, captureIds))
-    );
+    db
+      .select({
+        captureId: capturesProjects.captureId,
+        id: projects.id,
+        name: projects.name,
+      })
+      .from(capturesProjects)
+      .innerJoin(projects, eq(projects.id, capturesProjects.projectId))
+      .where(
+        and(eq(capturesProjects.userId, userId), inArray(capturesProjects.captureId, captureIds))
+      ),
 
-  // Phase C: @-mentioned people linked to these captures, via the polymorphic
-  // people_references join (fromType='capture').
-  const peopleLinks = await db
-    .select({
-      captureId: peopleReferences.fromId,
-      id: people.id,
-      name: people.name,
-    })
-    .from(peopleReferences)
-    .innerJoin(people, eq(people.id, peopleReferences.personId))
-    .where(
-      and(
-        eq(peopleReferences.userId, userId),
-        eq(peopleReferences.fromType, "capture"),
-        inArray(peopleReferences.fromId, captureIds)
-      )
-    );
+    // Phase C: @-mentioned people linked to these captures, via the polymorphic
+    // people_references join (fromType='capture').
+    db
+      .select({
+        captureId: peopleReferences.fromId,
+        id: people.id,
+        name: people.name,
+      })
+      .from(peopleReferences)
+      .innerJoin(people, eq(people.id, peopleReferences.personId))
+      .where(
+        and(
+          eq(peopleReferences.userId, userId),
+          eq(peopleReferences.fromType, "capture"),
+          inArray(peopleReferences.fromId, captureIds)
+        )
+      ),
+  ]);
 
   const tagsByCapture = new Map<string, CaptureWithLinks["hashtags"]>();
   for (const t of tagLinks) {

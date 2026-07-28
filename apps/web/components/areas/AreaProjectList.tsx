@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { getProjectsForCurrentUser, type ProjectRow } from "@/app/actions/projects";
 import { AreaProjectCardMenu } from "@/components/areas/AreaProjectCardMenu";
@@ -73,7 +73,31 @@ function isPast(p: AreaProject): boolean {
  *  - Active / Archived tabs — archived or past-end-date projects move out of the
  *    live view into their own tab instead of vanishing.
  */
-export function AreaProjectList({ areaId, area, userId, projects, allAreas }: Props) {
+export function AreaProjectList({
+  areaId,
+  area,
+  userId,
+  projects: initialProjects,
+  allAreas,
+}: Props) {
+  // The grid renders from the server props, so a rename or a delete from a
+  // card menu used to settle by refetching the whole route. Holding the list
+  // as state (re-seeded whenever the server sends a new one, exactly as the
+  // areas index does) lets those mutations settle in place instead.
+  const [projects, setProjects] = useState(initialProjects);
+  useEffect(() => {
+    setProjects(initialProjects);
+  }, [initialProjects]);
+
+  function handleProjectUpdated(id: string, patch: Partial<AreaProject>) {
+    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }
+
+  /** Delete and move-to-another-area both remove the card from this area. */
+  function handleProjectRemoved(id: string) {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+  }
+
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [hideClasses, setHideClasses] = useState(false);
   const { view, setView } = useAreaDetailView();
@@ -272,6 +296,8 @@ export function AreaProjectList({ areaId, area, userId, projects, allAreas }: Pr
                   isClass={p.isClass}
                   currentAreaId={areaId}
                   allAreas={allAreas}
+                  onUpdated={handleProjectUpdated}
+                  onRemoved={handleProjectRemoved}
                 />
               </div>
             </li>

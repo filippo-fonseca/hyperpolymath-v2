@@ -23,8 +23,6 @@ import { db } from "@/lib/db";
 import { personalContextSnapshots } from "@/lib/db/schema";
 import { ContextSnapshotClient } from "./ContextSnapshotClient";
 
-export const dynamic = "force-dynamic";
-
 interface SnapshotPayloadMeta {
   totalNodes?: number;
   totalEdges?: number;
