@@ -1,6 +1,7 @@
 mod audio;
 mod commands;
 mod computer;
+mod flowpill;
 mod say;
 mod studio_webview;
 mod whatsapp;
@@ -175,6 +176,10 @@ pub fn run() {
             // `go run`. Forwards QR/ready events to the HUD; restarts on crash.
             whatsapp::start(app.handle());
 
+            // Flowpill voice overlay: make its window non-activating and park it
+            // in the persisted corner while it is still hidden.
+            flowpill::init(app.handle());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -207,6 +212,10 @@ pub fn run() {
             studio_webview::studio_webview_scroll,
             studio_webview::studio_webview_click,
             whatsapp::whatsapp_reconnect,
+            flowpill::flowpill_show,
+            flowpill::flowpill_hide,
+            flowpill::flowpill_set_corner,
+            flowpill::flowpill_get_corner,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
