@@ -63,6 +63,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -190,6 +191,11 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   );
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showSaved, setShowSaved] = useState(false);
+  // A save that fails must never look like a save that worked. This holds the
+  // last failure so the indicator can say "Not saved" until a later save wins;
+  // unlike `showSaved` it deliberately does not fade, because the user's text
+  // is only in the browser at that point and silence is what lost it before.
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [emojiInput, setEmojiInput] = useState(serverPage.emoji ?? "");
   const [emojiOpen, setEmojiOpen] = useState(false);
   // Cover/banner image (issue #28). Optimistic local mirrors of
@@ -358,23 +364,55 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     ) => {
       const savedJson =
         overrides && "contentJson" in overrides ? overrides.contentJson : contentJson;
-      await updatePage({
-        id: initialPage.id,
-        title: overrides?.title ?? title,
-        content: overrides?.content ?? content,
-        contentJson: savedJson,
-        emoji: overrides?.emoji !== undefined ? overrides.emoji : emoji,
-        url: overrides?.url !== undefined ? overrides.url : url,
-        projectIds: overrides?.projectIds !== undefined ? overrides.projectIds : linkedProjectIds,
-      });
+
+      // updatePage can fail two ways and both used to pass unnoticed: it returns
+      // { success: false } for auth/validation, and it *throws* when its
+      // transaction rolls back (issue #343 — a missing entity_references table
+      // rolled back every content write while the UI kept flashing "Saved").
+      // Treat both as a failed save and say so; the page text only exists in
+      // this browser tab until the write lands.
+      let res: Awaited<ReturnType<typeof updatePage>>;
+      try {
+        res = await updatePage({
+          id: initialPage.id,
+          title: overrides?.title ?? title,
+          content: overrides?.content ?? content,
+          contentJson: savedJson,
+          emoji: overrides?.emoji !== undefined ? overrides.emoji : emoji,
+          url: overrides?.url !== undefined ? overrides.url : url,
+          projectIds: overrides?.projectIds !== undefined ? overrides.projectIds : linkedProjectIds,
+        });
+      } catch (err) {
+        res = {
+          success: false,
+          error: err instanceof Error ? err.message : "The server rejected the save.",
+        };
+      }
+
+      if (!res.success) {
+        setShowSaved(false);
+        setSaveError(res.error);
+        // One stable id so a failing autosave replaces its own toast every
+        // 1.5s instead of stacking a new one on each attempt.
+        toast.error(`Could not save this page: ${res.error}`, { id: `page-save-${initialPage.id}` });
+        return;
+      }
+      setSaveError(null);
+
       // Keep people_references in sync with the page's @-mentions on the same
       // (debounced) cadence as the content save. Idempotent: it diffs the
       // desired ids against the stored rows, so unchanged content is a no-op.
-      await reconcilePersonReferences({
-        fromType: "page",
-        fromId: initialPage.id,
-        personIds: extractPersonIdsFromBlockNote(savedJson),
-      });
+      // Non-fatal: the page content is already committed by this point, so a
+      // failure here must not report the save itself as lost.
+      try {
+        await reconcilePersonReferences({
+          fromType: "page",
+          fromId: initialPage.id,
+          personIds: extractPersonIdsFromBlockNote(savedJson),
+        });
+      } catch (err) {
+        console.error("[page-save] person reference reconcile failed", err);
+      }
       // Realtime title/create/delete propagation (issue: rename in the page
       // view must reach the wiki home live). updatePage bumps pages.updated_at,
       // which the app-shell SearchProvider + PagesListClient useTableSubscription
@@ -764,11 +802,21 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           Pinned top-right, opaque canvas background so body content scrolling
           under it stays hidden. */}
       <div className="sticky top-0 z-10 self-end ml-auto flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-darker-box)] px-2 py-1 shadow-[0_1px_0_hsl(235_15%_0%_/_0.12)]">
-        {showSaved && (
-          <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] sd-fade-in mr-0.5">
-            <Check size={11} strokeWidth={2} />
-            Saved
+        {saveError ? (
+          <span
+            title={`${saveError} — your changes are still in this tab. Press Cmd+S to retry.`}
+            className="flex items-center gap-1 text-[11px] font-mono text-red-500 sd-fade-in mr-0.5"
+          >
+            <TriangleAlert size={11} strokeWidth={2} />
+            Not saved
           </span>
+        ) : (
+          showSaved && (
+            <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] sd-fade-in mr-0.5">
+              <Check size={11} strokeWidth={2} />
+              Saved
+            </span>
+          )
         )}
 
         <button
