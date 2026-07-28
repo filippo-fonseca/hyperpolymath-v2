@@ -70,3 +70,7 @@ tools/kiwi-autodev/logs/
 
 # Verify harness artifacts (storage state, fixture credentials, dev-server log)
 .verify/
+
+# Playwright run output
+test-results/
+playwright-report/
