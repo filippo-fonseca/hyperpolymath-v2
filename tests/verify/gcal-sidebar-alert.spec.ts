@@ -64,7 +64,7 @@ for (const viewport of VIEWPORTS) {
             localStorage.setItem("hyperpolymath-theme", themeValue);
             localStorage.setItem("sidebar-collapsed", collapsedValue);
           },
-          [theme, String(rail.collapsed)] as const,
+          [theme, String(rail.collapsed)] as const
         );
 
         await page.goto("/tasks", { waitUntil: "domcontentloaded" });
@@ -87,7 +87,7 @@ for (const viewport of VIEWPORTS) {
         expect(box.y, `${label}: alert starts above the viewport`).toBeGreaterThanOrEqual(0);
         expect(
           box.y + box.height,
-          `${label}: alert bottom (${box.y + box.height}) is below the ${viewport.height}px fold`,
+          `${label}: alert bottom (${box.y + box.height}) is below the ${viewport.height}px fold`
         ).toBeLessThanOrEqual(viewport.height);
 
         // 2. Hit test at its own centre. `document.querySelector` finding an
@@ -97,7 +97,7 @@ for (const viewport of VIEWPORTS) {
             const hit = document.elementFromPoint(x, y);
             return !!hit?.closest('[data-slot="gcal-sidebar-alert"]');
           },
-          [box.x + box.width / 2, box.y + box.height / 2] as const,
+          [box.x + box.width / 2, box.y + box.height / 2] as const
         );
         expect(hitIsSelf, `${label}: something is painted over the alert`).toBe(true);
 
