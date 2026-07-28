@@ -1,6 +1,6 @@
--- 0055 — page-images storage bucket for wiki page image uploads.
+-- 0057 — page-images storage bucket for wiki page image uploads.
 --
--- Mirror of drizzle/0039_page_images_bucket.sql. Issue #349 (jul-28 U2):
+-- Mirror of drizzle/0040_page_images_bucket.sql. Issue #349 (jul-28 U2):
 -- drag-drop, clipboard paste, and the `/` slash menu's Image item all upload
 -- here through BlockNote's `uploadFile` seam.
 --
