@@ -14,7 +14,15 @@ import { toast } from "sonner";
 /**
  * All mutations the Explorer fires: move + reorder + rename, each with the
  * exact optimistic cache patch shape wave-1 established (patch, fire action,
- * invalidate on failure).
+ * then invalidate).
+ *
+ * The invalidation runs on success as well as on failure. The optimistic patch
+ * is a hand-built row, not server truth: it carries no server-assigned
+ * `positionKey`, no `updatedAt` bump, and none of the derived joins. Leaving it
+ * in the cache after a successful write means a later navigate-back renders the
+ * stub instead of the row the database actually holds. Invalidate-only, no
+ * payload merge (CLAUDE.md Critical Pattern 3): the patch keeps the UI instant,
+ * the refetch makes it true.
  */
 export function useExplorerMutations(userId: string) {
   const qc = useQueryClient();
@@ -47,10 +55,8 @@ export function useExplorerMutations(userId: string) {
     async (pageId: string, folderId: string | null) => {
       patchPages((old) => old.map((p) => (p.id === pageId ? { ...p, folderId } : p)));
       const r = await setPageFolder({ pageId, folderId });
-      if (!r.success) {
-        toast.error(r.error);
-        invalidatePages();
-      }
+      if (!r.success) toast.error(r.error);
+      invalidatePages();
     },
     [invalidatePages, patchPages]
   );
@@ -59,10 +65,8 @@ export function useExplorerMutations(userId: string) {
     async (folderId: string, parentId: string | null) => {
       patchFolders((old) => old.map((f) => (f.id === folderId ? { ...f, parentId } : f)));
       const r = await setParentFolder({ folderId, parentId });
-      if (!r.success) {
-        toast.error(r.error);
-        invalidateFolders();
-      }
+      if (!r.success) toast.error(r.error);
+      invalidateFolders();
     },
     [invalidateFolders, patchFolders]
   );
@@ -74,10 +78,8 @@ export function useExplorerMutations(userId: string) {
         return old.map((p) => (set.has(p.id) ? { ...p, folderId } : p));
       });
       const r = await movePagesBulk({ pageIds, folderId });
-      if (!r.success) {
-        toast.error(r.error);
-        invalidatePages();
-      }
+      if (!r.success) toast.error(r.error);
+      invalidatePages();
     },
     [invalidatePages, patchPages]
   );
@@ -136,10 +138,11 @@ export function useExplorerMutations(userId: string) {
         });
       }
       const r = await reorderItem(input);
-      if (!r.success) {
-        toast.error(r.error);
-        input.kind === "page" ? invalidatePages() : invalidateFolders();
-      }
+      if (!r.success) toast.error(r.error);
+      // The server re-keys the whole sibling run, so the locally generated keys
+      // are a stand-in until the refetch lands, win or lose.
+      if (input.kind === "page") invalidatePages();
+      else invalidateFolders();
     },
     [invalidateFolders, invalidatePages, patchFolders, patchPages]
   );
@@ -148,10 +151,8 @@ export function useExplorerMutations(userId: string) {
     async (id: string, title: string) => {
       patchPages((old) => old.map((p) => (p.id === id ? { ...p, title } : p)));
       const r = await updatePage({ id, title });
-      if (!r.success) {
-        toast.error(r.error);
-        invalidatePages();
-      }
+      if (!r.success) toast.error(r.error);
+      invalidatePages();
     },
     [invalidatePages, patchPages]
   );
