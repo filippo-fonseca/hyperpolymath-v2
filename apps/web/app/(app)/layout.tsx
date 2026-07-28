@@ -15,6 +15,7 @@ import { PhysicalExtensionListener } from "@/components/voice/PhysicalExtensionL
 import { getAuthAvatar, getUserOrRedirect } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { getHashtagSuggestionsCached, getSidebarTreeCached } from "@/lib/db/cached";
+import { activeSidebarTree } from "@/lib/db/queries/sidebar";
 import { projects } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
@@ -31,14 +32,13 @@ export default async function AppLayout({
 
   // Fetch sidebar + composer data server-side in parallel.
   // hashtags + projects feed the Cmd+K composer (single-source-of-truth per D-09).
-  const [
-    activeAreas,
-    allAreas,
-    hashtagsForComposer,
-    projectsForComposer,
-    oauthAvatar,
-  ] = await Promise.all([
-    getSidebarTreeCached(user.id, false),
+  //
+  // One sidebar tree, not two. The shell needs both the active tree and the
+  // archived-inclusive one, and asking for them separately is two different
+  // cache keys and therefore two round trips that differ only by a WHERE
+  // clause. The archived-inclusive tree already contains the active one, so it
+  // is fetched once and narrowed in memory by `activeSidebarTree`.
+  const [allAreas, hashtagsForComposer, projectsForComposer, oauthAvatar] = await Promise.all([
     getSidebarTreeCached(user.id, true),
     getHashtagSuggestionsCached(user.id),
     db
@@ -52,6 +52,8 @@ export default async function AppLayout({
       .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
     getAuthAvatar(),
   ]);
+
+  const activeAreas = activeSidebarTree(allAreas);
 
   return (
     <NuqsAdapter>
