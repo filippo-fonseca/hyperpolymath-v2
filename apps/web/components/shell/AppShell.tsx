@@ -1,18 +1,19 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AmbientGlow } from "@/components/ui/ambient";
-import { Sidebar } from "./Sidebar";
-import { TopTabBar } from "./TopTabBar";
-import { DailyAutoOpen } from "./DailyAutoOpen";
-import { JarvisSidePanel } from "./JarvisSidePanel";
-import { ProductTour } from "./ProductTour";
-import { useSplitScreen } from "@/lib/ui/useSplitScreen";
-import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
-import { cn } from "@/lib/utils";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
+import { useReducedMotion } from "motion/react";
+import { usePathname } from "next/navigation";
+import { ProductTour } from "./ProductTour";
+import { Rail } from "./cockpit/Rail";
+import { RightSlot } from "./cockpit/RightSlot";
+import { SplitJarvisPanel } from "./cockpit/SplitJarvisPanel";
+import { Stage } from "./cockpit/Stage";
+import {
+  RightSlotProvider,
+  computeRightSlotWidth,
+  useRightSlot,
+} from "./cockpit/right-slot-context";
 
 interface Props {
   userId: string;
@@ -28,115 +29,104 @@ interface Props {
   children: React.ReactNode;
 }
 
-const JARVIS_PATH = "/today";
+/**
+ * AppShell — the control-center cockpit (D3, SDC-1 §2.1).
+ *
+ * Three zones, one CSS grid, one row:
+ *
+ *   ┌────────┐ ┌──────────────────────────┐ ┌───────────────┐
+ *   │  RAIL  │ │          STAGE           │ │  RIGHT SLOT   │
+ *   │ nav +  │ │   active feature route   │ │ Dock (default)│
+ *   │  tree  │ ├──────────────────────────┤ │      OR       │
+ *   │        │ │  🥝 ask kiwi…          ⏎ │ │  SidePanel    │
+ *   └────────┘ └──────────────────────────┘ └───────────────┘
+ *
+ * The tool frame stays put; only the stage swaps on navigation. The rail track
+ * is `auto` and sizes itself from the Sidebar's own width transition. The stage
+ * is `minmax(0,1fr)`, which is what lets it genuinely reflow (rather than be
+ * covered) when the right track widens. The right track is the single animated
+ * value in the layout, and it is the one sanctioned width animation in the app
+ * because it runs on `grid-template-columns` rather than on the width of a flex
+ * child.
+ *
+ * `gridTemplateColumns` is set inline rather than as an arbitrary Tailwind
+ * class deliberately: it is the animated property, and an arbitrary utility
+ * used in exactly one file is exactly the case Tailwind 4's scan gap can miss.
+ *
+ * `isolate` on the root is load-bearing. It scopes AmbientGlow's fixed,
+ * negative-z layer so the glow paints above the canvas fill and below the rail
+ * and stage content.
+ */
+export function AppShell(props: Props) {
+  return (
+    <RightSlotProvider>
+      <CockpitGrid {...props} />
+    </RightSlotProvider>
+  );
+}
 
 /**
- * AppShell — sidebar + main column with optional JARVIS side panel.
- *
- * Layout grid: sidebar-left + main-right, unchanged from Phase 6. The main
- * column now stacks the TopTabBar above a content area that may split
- * horizontally when split-screen mode is on: left ~70% (the route) + right
- * ~30% (an embedded JARVIS console). The divider is a 1px hairline, matching
- * macOS/Arc browser split panes.
- *
- * The side panel is suppressed on /today (avoids two JARVIS consoles) and on
- * /onboarding (no chrome there). It also collapses on narrow viewports
- * (< lg) to keep the route legible.
+ * The grid itself, one level below the provider so it can read the arbitrated
+ * track width. It re-renders when a panel opens or the Dock collapses; the
+ * route subtree does not, because `children` arrives as a prop from `AppShell`
+ * (which does not re-render) and React bails out on an identical element.
  */
-export function AppShell({
-  userId,
-  activeAreas,
-  allAreas,
-  graduationYear,
-  profile,
-  children,
-}: Props) {
+function CockpitGrid({ userId, activeAreas, allAreas, graduationYear, profile, children }: Props) {
   const pathname = usePathname() ?? "";
-  const { splitOn } = useSplitScreen();
-  const { expanded } = useTasksExpanded();
   const reduceMotion = useReducedMotion();
-  // Clip the sidebar wrapper ONLY while the fullscreen-collapse width animation
-  // is running. At rest we must NOT clip, or the collapsed sidebar's hover
-  // overlay (an absolute 260px panel that floats past the 64px rail) gets cut
-  // off and trapped behind the main content.
-  const [sidebarAnimating, setSidebarAnimating] = useState(false);
+  const slot = useRightSlot();
 
-  const onJarvis =
-    pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
-  const onOnboarding = pathname.startsWith("/onboarding");
   const onWikiHome = pathname === "/wiki";
-  const showPanel = splitOn && !onJarvis && !onOnboarding;
+
+  const rightWidth = computeRightSlotWidth({
+    panel: slot.panelChrome,
+    // The Dock is the slot's default occupant, and it is absent below 1024px.
+    dockAvailable: slot.atLeastLg,
+    dockCollapsed: slot.dockCollapsed,
+    atLeastXl: slot.atLeastXl,
+  });
 
   return (
-    <div className="isolate flex h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]">
-      {/* Whisper-level ambient glow behind every route. `isolate` on the root
-          scopes this fixed, negative-z layer so it paints above the canvas fill
-          and below the sidebar/main content. Static (no drift) at whisper, and
-          halved again here: with the Life OS hero plate gone this is the only
-          glow left in the app, and it must stay barely-there (UI-CONTRACT §0). */}
+    <div
+      className="isolate grid h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]"
+      style={{
+        gridTemplateColumns: `auto minmax(0,1fr) ${rightWidth}`,
+        gridTemplateRows: "minmax(0,1fr)",
+        // The one sanctioned width animation in the app. It runs on the grid
+        // template rather than on an element's width, so the stage genuinely
+        // reflows mid-transition instead of being slid over.
+        transition: reduceMotion ? undefined : "grid-template-columns 260ms var(--ease-collapse)",
+      }}
+    >
+      {/* Whisper-level ambient glow behind every route. Fixed and negative-z,
+          so it takes no grid track. With the Life OS hero plate gone this is
+          the only glow left in the app, and it must stay barely-there. */}
       <AmbientGlow intensity="whisper" className="opacity-50" />
 
       {/* Product tour — mounts once globally; runs only when hp_tour_pending
           is set in localStorage (written by onboarding-flow before redirect)
-          and hp_tour_v1_done is NOT set. Client-side only. */}
+          and hp_tour_v1_done is NOT set. Renders a fixed overlay or nothing,
+          so it takes no grid track either. */}
       <ProductTour />
 
-      {/* Sidebar collapses to width 0 when tasks fullscreen is on (D-08 /
-          UI-SPEC I-6). 200ms ease-out-quart; respects reduced motion. */}
-      <AnimatePresence initial={false}>
-        {!expanded && (
-          <motion.div
-            key="sidebar"
-            initial={false}
-            animate={{ width: "auto", opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={
-              reduceMotion
-                ? { duration: 0 }
-                : { duration: 0.2, ease: [0.25, 1, 0.5, 1] }
-            }
-            onAnimationStart={() => setSidebarAnimating(true)}
-            onAnimationComplete={() => setSidebarAnimating(false)}
-            // `relative z-40` lifts the wrapper (and the collapsed-mode hover
-            // overlay inside it) above the main content. overflow is clipped
-            // only mid-animation; visible at rest so the overlay can escape.
-            className={cn(
-              "relative z-40 shrink-0",
-              sidebarAnimating ? "overflow-hidden" : "overflow-visible"
-            )}
-          >
-            <Sidebar
-              userId={userId}
-              initialActiveAreas={activeAreas}
-              initialAllAreas={allAreas}
-              graduationYear={graduationYear}
-              profile={profile}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <DailyAutoOpen userId={userId} />
-        <TopTabBar userId={userId} />
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <div
-            className={cn(
-              "@container/main min-h-0 flex-1",
-              onWikiHome ? "h-full overflow-hidden" : "overflow-auto"
-            )}
-          >
-            {children}
-          </div>
-          {showPanel && (
-            <aside
-              aria-label="JARVIS side panel"
-              className="hidden lg:flex w-[30%] min-w-[360px] max-w-[520px] flex-col border-l border-[var(--edge)] bg-[var(--canvas)] overflow-hidden agent-mode-scope"
-            >
-              <JarvisSidePanel />
-            </aside>
-          )}
-        </div>
-      </main>
+      <Rail
+        userId={userId}
+        activeAreas={activeAreas}
+        allAreas={allAreas}
+        graduationYear={graduationYear}
+        profile={profile}
+      />
+
+      <Stage userId={userId} onWikiHome={onWikiHome}>
+        {children}
+      </Stage>
+
+      {/* Renders no DOM in the grid: at `lg` and above it registers into the
+          right slot, and below `lg` it portals a sheet. Either way it takes no
+          track of its own, which is the whole point of the shared slot. */}
+      <SplitJarvisPanel />
+
+      <RightSlot />
     </div>
   );
 }

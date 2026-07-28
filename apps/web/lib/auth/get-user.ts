@@ -1,8 +1,9 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { cache } from "react";
 
 export interface AuthenticatedUser {
   id: string;
@@ -51,10 +52,17 @@ export async function getAuthAvatar(): Promise<{
 /**
  * Validates session and returns the public.users row.
  * Redirects to /sign-in if not authenticated.
+ *
+ * Memoized per request with React.cache. It ran twice on every (app) render:
+ * once as the layout's auth gate and once more through requireOnboarded on the
+ * page below it, each time paying a getClaims round-trip plus a users select.
+ * The redirect still works inside a cached function: it throws, and the cache
+ * stores the settled rejection for the request, which is the correct behaviour
+ * for a repeated call within the same render.
  * Used by (app)/layout.tsx as the single AUTH-03 gate, and by /onboarding (which doesn't require onboarded).
  * PITFALLS Pitfall 2: uses getClaims (NOT getSession) — JWT signature validation, no spoof risk.
  */
-export async function getUserOrRedirect(): Promise<AuthenticatedUser> {
+export const getUserOrRedirect = cache(async (): Promise<AuthenticatedUser> => {
   const supabase = await createClient();
   const { data: claimsData, error } = await supabase.auth.getClaims();
   if (error || !claimsData?.claims) {
@@ -92,7 +100,7 @@ export async function getUserOrRedirect(): Promise<AuthenticatedUser> {
   const healed = await db.select(cols).from(users).where(eq(users.id, userId)).limit(1);
   if (healed.length === 0) redirect("/sign-in");
   return healed[0];
-}
+});
 
 /**
  * Same as getUserOrRedirect but also forces /onboarding if onboarded_at is NULL.

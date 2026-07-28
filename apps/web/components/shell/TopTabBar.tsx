@@ -196,7 +196,7 @@ export function TopTabBar({ userId }: { userId: string }) {
         title="Open command palette (⌘⇧K)"
         className={cn(
           "inline-flex shrink-0 items-center justify-center rounded-md p-1.5",
-          "text-[var(--sd-ink-faint)] transition-colors duration-[80ms] ease-out",
+          "text-[var(--sd-ink-faint)] transition-colors duration-[160ms] ease-out",
           "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
         )}
@@ -221,7 +221,7 @@ function SplitToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
       title={on ? "Exit split screen" : "Split screen with JARVIS"}
       className={cn(
         "inline-flex h-6 w-6 items-center justify-center rounded-md",
-        "transition-colors duration-[50ms] ease-out",
+        "transition-colors duration-[160ms] ease-out",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
         on
           ? "bg-[color-mix(in_oklch,var(--sd-accent)_14%,transparent)] text-[var(--sd-accent)]"
@@ -264,7 +264,7 @@ function TabPill({
         // kbd-hint padding room) only applies at md+. flex-1 + truncate share
         // the row cleanly at narrow widths; >= md is byte-for-byte unchanged.
         "group/tab relative flex h-9 min-w-0 max-w-[480px] flex-1 items-center rounded-full md:min-w-[220px]",
-        "transition-colors duration-[80ms] ease-out",
+        "transition-colors duration-[160ms] ease-out",
         active
           ? "bg-[var(--sd-selected)]"
           : "bg-transparent hover:bg-[color-mix(in_oklch,var(--sd-hover)_40%,transparent)]"
@@ -281,7 +281,7 @@ function TabPill({
           // that padding only clips the label there. Restore it at md+.
           "flex h-full w-full items-center justify-center gap-1.5 rounded-full px-3 md:px-9",
           "font-sans text-[14px] font-medium tracking-[-0.005em] outline-none",
-          "transition-colors duration-[80ms] ease-out",
+          "transition-colors duration-[160ms] ease-out",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           active
             ? "text-[var(--sd-ink)]"
@@ -300,7 +300,7 @@ function TabPill({
           className={cn(
             "absolute left-2 inline-flex items-center justify-center rounded p-1",
             "text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
-            "opacity-0 group-hover/tab:opacity-100 transition-opacity duration-[80ms] ease-out"
+            "opacity-0 group-hover/tab:opacity-100 transition-opacity duration-[160ms] ease-out"
           )}
         >
           <X size={14} strokeWidth={2} />

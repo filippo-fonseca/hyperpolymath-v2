@@ -28,10 +28,8 @@
 
      EB Garamond is now reachable through exactly one token, `--font-logotype`,
      whose only consumer is components/ui/Logotype.tsx (the wordmark). */
-  --font-sans: var(--font-space-grotesk), system-ui, -apple-system,
-    BlinkMacSystemFont, sans-serif;
-  --font-serif: var(--font-space-grotesk), system-ui, -apple-system,
-    BlinkMacSystemFont, sans-serif;
+  --font-sans: var(--font-space-grotesk), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: var(--font-space-grotesk), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-logotype: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 
@@ -46,13 +44,24 @@
        - Tailwind 4 --color-* bindings rewired to new base palette
      ===================================================================== */
 
-  /* Base palette — warm parchment (light) */
-  --canvas: oklch(97% 0.005 75);
-  --surface: oklch(94% 0.008 75);
-  --surface-raised: oklch(99% 0.003 75);
-  --ink: oklch(22% 0.01 60);
-  --ink-muted: oklch(50% 0.01 60);
-  --edge: oklch(86% 0.008 75);
+  /* Base palette — warm parchment (light).
+
+     jul-28 SDC-1 §2.3, the calmed scale. Body ink drops from 14.4:1 to 12.4:1
+     (Notion sits at 12.26), hairlines drop to a 1.22 contrast ratio, and the
+     accent desaturates and moves from hue 210 to 225. Every value here is
+     pre-measured; do not substitute a hex by eye. Units consume the --sd-*
+     aliases below, so the whole app re-tints from this block alone. */
+  --canvas: oklch(98.5% 0.003 75); /* #fbfaf8 */
+  --surface: oklch(96.8% 0.004 75); /* #f6f4f1  1.05 vs canvas */
+  --surface-raised: #ffffff; /* cards lift by being lighter */
+  --ink: oklch(31.5% 0.012 60); /* #36302c  12.4:1 */
+  --ink-muted: oklch(55.5% 0.01 60); /* #78726d   4.6:1 */
+  --ink-faint: oklch(66.5% 0.008 60); /* #98938f   2.9:1  decorative only */
+  --edge: oklch(91.8% 0.004 75); /* #e5e3e1   1.22 Notion-parity hairline */
+  --edge-strong: oklch(87.5% 0.005 75); /* #d8d5d2   1.40 dividers that must read */
+  --hover: oklch(95.5% 0.004 75); /* #f2f0ed */
+  --selected: oklch(93.5% 0.005 75); /* #ebe9e6 */
+  --accent: oklch(55% 0.09 225); /* #277c99   4.53 desaturated */
   --edge-hud: oklch(72% 0.05 210);
 
   /* HUD cyan family (agent-mode signature) */
@@ -88,10 +97,33 @@
      wiring needed). --ring-doc + --ring-hud now alias --ring-focus so every
      existing consumer (buttons, links, role=button, tabindex, inputs) inherits
      the same cyan treatment. Apply the .focus-ring utility to opt new elements
-     in without touching globals again. */
-  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan);
+     in without touching globals again.
+
+     jul-28 SDC-1 §2.3 retires the 4px double-cyan halo: one 2px ring in the
+     calmed --accent, offset by a 2px canvas gap. --ring-doc / --ring-hud keep
+     aliasing it, so every existing consumer updates for free. */
+  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 3.5px var(--accent);
   --ring-doc: var(--ring-focus);
   --ring-hud: var(--ring-focus);
+
+  /* Type ladder — jul-28 SDC-1 §2.4. One ladder, six steps, no arbitrary px.
+     Registered as Tailwind text steps so `text-display` … `text-micro` are real
+     utilities. Weight and colour stay per-use (see the contract table); only
+     size, line-height and tracking are baked in. */
+  --text-display: 30px;
+  --text-display--line-height: 1.2;
+  --text-display--letter-spacing: -0.02em;
+  --text-title: 20px;
+  --text-title--line-height: 1.35;
+  --text-title--letter-spacing: -0.01em;
+  --text-subtitle: 16px;
+  --text-subtitle--line-height: 1.45;
+  --text-body: 14.5px;
+  --text-body--line-height: 1.6;
+  --text-meta: 13px;
+  --text-meta--line-height: 1.5;
+  --text-micro: 11.5px;
+  --text-micro--line-height: 1.4;
 
   /* Motion easing tokens */
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
@@ -919,12 +951,20 @@ select,
    Activates via .dark class on <html> (next-themes attribute='class').
    ===================================================================== */
 .dark {
-  --canvas: oklch(15% 0.005 240);
-  --surface: oklch(19% 0.006 240);
-  --surface-raised: oklch(23% 0.007 240);
-  --ink: oklch(92% 0.01 90);
-  --ink-muted: oklch(65% 0.01 90);
-  --edge: oklch(28% 0.008 240);
+  /* jul-28 SDC-1 §2.3, the calmed dark scale. The canvas lifts off near-black
+     (#090b0d was the cascade bug's doing plus a 15% lightness base) to #15171a,
+     and body ink drops from 15.7:1 to 12.7:1. Hue moves 240 → 255. */
+  --canvas: oklch(20.5% 0.006 255); /* #15171a */
+  --surface: oklch(24.5% 0.007 255); /* #1e2124  1.10 */
+  --surface-raised: oklch(28.5% 0.008 255); /* #272a2e  1.25 */
+  --ink: oklch(88.5% 0.006 255); /* #d6d9dd  12.7:1 */
+  --ink-muted: oklch(70.5% 0.008 255); /* #9da0a5   6.8:1 */
+  --ink-faint: oklch(58.5% 0.008 255); /* #797c81   4.3:1 */
+  --edge: oklch(30.5% 0.008 255); /* #2c2f33 */
+  --edge-strong: oklch(36% 0.009 255); /* #3a3d42 */
+  --hover: oklch(26.5% 0.007 255);
+  --selected: oklch(30% 0.008 255);
+  --accent: oklch(74% 0.095 225); /* #62b8d8 */
   --edge-hud: oklch(45% 0.06 210);
   --hud-cyan: oklch(72% 0.13 210);
   --hud-cyan-bright: oklch(78% 0.16 210);
@@ -935,10 +975,11 @@ select,
   --ink-coral: oklch(68% 0.15 25);
   --ink-violet: oklch(68% 0.12 295);
   --ink-blue: oklch(67% 0.12 255);
-  /* Issue #140 — cyan focus identity (dark). See light block for rationale.
+  /* Issue #140 — single focus identity (dark). See light block for rationale.
      sd3 closeout / Tester-r5 D1: the third layer (0 0 12px --hud-cyan-glow) was
-     a banned glow blur; stripped. The crisp cyan ring (canvas gap + accent) stays. */
-  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan);
+     a banned glow blur; stripped. jul-28 SDC-1 §2.3 narrows the outer ring to
+     3.5px and repoints it at the calmed --accent. */
+  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 3.5px var(--accent);
   --ring-doc: var(--ring-focus);
   --ring-hud: var(--ring-focus);
 }
@@ -1166,7 +1207,6 @@ button.entity-pill:focus-visible {
 
 /* react-big-calendar styles removed — CalendarGrid is now hand-rolled. */
 
-
 /* ─── Phase 6.1 Plan 06.1-01 — Focus-visible ring system (UI-SPEC §11a) ─────────
    Applied via focus-visible: only — keyboard navigation surfaces rings;
    mouse clicks do not (UI-SPEC §11a explicit rule).
@@ -1301,21 +1341,43 @@ select:focus-visible,
 
 /* Pill enter/exit: fade + 4px slide, 150ms. */
 @keyframes orb-sfx-pill-enter {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes orb-sfx-pill-leave {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(4px); }
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
-.orb-sfx-pill-enter { animation: orb-sfx-pill-enter 150ms ease-out both; }
-.orb-sfx-pill-leave { animation: orb-sfx-pill-leave 150ms ease-in both; }
+.orb-sfx-pill-enter {
+  animation: orb-sfx-pill-enter 150ms ease-out both;
+}
+.orb-sfx-pill-leave {
+  animation: orb-sfx-pill-leave 150ms ease-in both;
+}
 
 /* Brand mark: a single 2deg tilt-settle on each state change. */
 @keyframes orb-sfx-bird-tilt {
-  0% { transform: rotate(0deg); }
-  45% { transform: rotate(2deg); }
-  100% { transform: rotate(0deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  45% {
+    transform: rotate(2deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
 }
 .orb-sfx-bird {
   display: inline-flex;
@@ -1325,8 +1387,15 @@ select:focus-visible,
 
 /* Thinking dots — three staggered bounces in the pill's currentColor. */
 @keyframes orb-sfx-dot {
-  0%, 100% { opacity: 0.3; transform: translateY(0); }
-  50% { opacity: 1; transform: translateY(-2px); }
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
 }
 .orb-sfx-dot {
   display: inline-block;
@@ -1339,8 +1408,15 @@ select:focus-visible,
 
 /* Recording/speaking mini equalizer — transform-only scaleY on 11px bars. */
 @keyframes orb-sfx-bar {
-  0%, 100% { transform: scaleY(0.35); opacity: 0.55; }
-  50% { transform: scaleY(1); opacity: 1; }
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
 }
 .orb-sfx-bar {
   display: inline-block;
@@ -1425,38 +1501,21 @@ select:focus-visible,
   text-decoration: none;
 }
 
-/* Explorer (Spacedrive) tokens */
+/* Explorer (Spacedrive) tokens.
+
+   jul-28 / U0 C2: the literal hsl(235 …) surface ladder that used to live here
+   is gone. Every --sd-* surface is now an alias onto the SDC-1 base palette, so
+   both themes re-tint from the @theme / .dark blocks alone and the two ladders
+   can never drift apart again. Only the theme-invariant bits (icon shadow) stay
+   literal. The full alias table lives in the D11 remap further down; this block
+   keeps just what that one does not cover. */
 :root {
-  --sd-app: hsl(235 15% 87%);
-  --sd-box: hsl(235 15% 82%);
-  --sd-dark-box: hsl(235 15% 85%);
-  --sd-darker-box: hsl(235 16% 89%);
-  --sd-input: hsl(235 15% 80%);
-  --sd-line: hsl(235 15% 77%);
-  --sd-divider: hsl(235 15% 95%);
-  --sd-hover: hsl(235 15% 81%);
-  --sd-selected: hsl(235 15% 76%);
-  --sd-active: hsl(235 15% 70%);
-  --sd-menu: hsl(235 15% 90%);
-  --sd-menu-hover: hsl(235 15% 70%);
   --sd-icon-shadow: hsl(235 15% 0%);
   --sd-icon-shadow-opacity: 0.18;
 }
 
 .dark {
-  --sd-app: hsl(235 15% 13%);
-  --sd-box: hsl(235 15% 18%);
-  --sd-dark-box: hsl(235 15% 15%);
-  --sd-darker-box: hsl(235 16% 11%);
-  --sd-input: hsl(235 15% 20%);
-  --sd-line: hsl(235 15% 23%);
-  --sd-divider: hsl(235 15% 5%);
-  --sd-sidebar-divider: hsl(235 15% 17%);
-  --sd-hover: hsl(235 15% 19%);
-  --sd-selected: hsl(235 15% 24%);
-  --sd-active: hsl(235 15% 30%);
-  --sd-menu: hsl(235 15% 10%);
-  --sd-menu-hover: hsl(235 15% 30%);
+  --sd-sidebar-divider: var(--edge);
   --sd-icon-shadow-opacity: 0.28;
 }
 
@@ -1518,29 +1577,37 @@ select:focus-visible,
    The --sd-ink* ladder is promoted to global scope (previously only
    defined inside .wiki-explorer) so the whole --sd-* register — and the
    utilities below — resolve app-wide in both themes (D1c). */
+/* jul-28 / U0 C2: the accent trio and the ink ladder are aliases onto the SDC-1
+   base palette in BOTH themes, so there is nothing theme-specific left to
+   declare in .dark. The accent moves off the HUD cyan family (hue 210, high
+   chroma) onto the calmed --accent (hue 225, chroma 0.09). The HUD cyan family
+   itself is untouched, so agent-mode surfaces keep their signature, and
+   .wiki-explorer redeclares --sd-accent locally so the wiki stays cyan. */
 :root {
-  --sd-accent: var(--hud-cyan-light);
-  --sd-accent-faint: oklch(54% 0.14 210);
-  --sd-accent-deep: oklch(40% 0.11 210);
+  --sd-accent: var(--accent);
+  --sd-accent-faint: color-mix(in oklch, var(--accent) 55%, var(--canvas));
+  --sd-accent-deep: color-mix(in oklch, var(--accent) 70%, var(--ink));
 
-  --sd-ink: hsl(235 20% 16%);
-  --sd-ink-dull: hsl(235 12% 40%);
-  --sd-ink-faint: hsl(235 10% 52%);
+  --sd-ink: var(--ink);
+  --sd-ink-dull: var(--ink-muted);
+  --sd-ink-faint: var(--ink-faint);
 
   /* Campaign easings. --ease-out-back already exists in @theme (identical
      value) so it is intentionally not re-declared; use it directly. */
   --ease-soft-landing: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-collapse: cubic-bezier(0.32, 0.72, 0, 1);
-}
 
-.dark {
-  --sd-accent: var(--hud-cyan);
-  --sd-accent-faint: var(--hud-cyan-bright);
-  --sd-accent-deep: var(--hud-cyan-dim);
+  /* Motion durations — jul-28 SDC-1 §2.7. Consume the names, not the numbers.
+     Nothing under 140ms, nothing over 320ms.
 
-  --sd-ink: hsl(235 35% 92%);
-  --sd-ink-dull: hsl(235 10% 70%);
-  --sd-ink-faint: hsl(235 10% 55%);
+     These live here rather than in @theme deliberately. Tailwind 4 tree-shakes
+     theme variables it cannot see used, so declaring them up there emitted
+     nothing and `var(--duration-panel)` resolved empty (verified in computed
+     styles). A plain :root block always emits. */
+  --duration-micro: 160ms; /* colour, background, border, opacity */
+  --duration-enter: 220ms; /* enter / exit */
+  --duration-panel: 260ms; /* layout and panel */
+  --duration-collapse: 280ms; /* collapse */
 }
 
 /* --- D11 (Conductor amendment, sesh-1783963573841) ------------------ */
@@ -1558,34 +1625,62 @@ select:focus-visible,
 
    Dark scope: the cool hsl(235 ...) sd ladder already reads correctly;
    we only fill in the sidebar / state members the global .dark block was
-   missing so consumers resolve them outside .wiki-explorer. */
-:root {
+   missing so consumers resolve them outside .wiki-explorer.
+
+   jul-28 / U0 C1 — CASCADE FIX. This block was written as `:root`, which also
+   matches `html.dark`. Both it and the `.dark` sd block above are specificity
+   (0,1,0), so source order decided and this later block won: dark mode resolved
+   `--sd-app` to the dark `--canvas` (oklch(15% 0.005 240), near-black) instead
+   of the intended hsl(235 15% 13%) ladder. Scoping to `:root:where(:not(.dark))`
+   keeps the specificity identical (`:where()` contributes zero) and simply stops
+   the block matching in dark, so the `.dark` ladder wins again. No block moves,
+   no specificity arms race. `--sd-sidebar` was only ever declared here, so the
+   `.dark` block below now declares it too. */
+:root:where(:not(.dark)) {
   --sd-app: var(--canvas);
   --sd-box: var(--surface-raised);
   --sd-dark-box: var(--surface);
-  --sd-darker-box: color-mix(in oklch, var(--ink) 6%, var(--surface));
-  /* The sidebar column's own surface (UI-CONTRACT §1) — the darkest member of
-     the family. An alias rather than a new colour: both themes already ship a
-     correct darkest surface, and custom properties resolve lazily, so this
-     picks up whichever --sd-darker-box is in scope at the consuming element. */
-  --sd-sidebar: var(--sd-darker-box);
+  /* "darker" is directional, not literal: one step of separation away from the
+     canvas, which means darker in light and lighter in dark. --surface is
+     exactly that step in both themes, so the recessed chrome (sidebar, rails)
+     reads the same way either side of the theme toggle. */
+  --sd-darker-box: var(--surface);
+  --sd-sidebar: var(--surface);
   --sd-input: var(--surface);
   --sd-line: var(--edge);
   --sd-divider: var(--edge);
-  --sd-hover: color-mix(in oklch, var(--ink) 5%, var(--surface));
-  --sd-selected: color-mix(in oklch, var(--ink) 9%, var(--surface));
+  --sd-hover: var(--hover);
+  --sd-selected: var(--selected);
   --sd-selected-item: var(--surface);
   --sd-active: color-mix(in oklch, var(--ink) 13%, var(--surface));
-  --sd-frame: var(--edge);
+  --sd-frame: var(--edge-strong);
   --sd-menu: var(--surface-raised);
   --sd-menu-line: var(--edge);
-  --sd-menu-hover: var(--surface);
+  --sd-menu-hover: var(--hover);
 }
 
+/* The same alias table, dark side. It is duplicated rather than hoisted into a
+   single unscoped :root deliberately: the C1 cascade bug happened precisely
+   because one unscoped :root block silently outranked .dark at equal
+   specificity. With both themes declared explicitly at the same place in the
+   cascade, a future literal added to either side can never clobber the other. */
 .dark {
-  --sd-selected-item: hsl(235 15% 18%);
-  --sd-frame: hsl(235 15% 25%);
-  --sd-menu-line: hsl(235 15% 14%);
+  --sd-app: var(--canvas);
+  --sd-box: var(--surface-raised);
+  --sd-dark-box: var(--surface);
+  --sd-darker-box: var(--surface);
+  --sd-sidebar: var(--surface);
+  --sd-input: var(--surface);
+  --sd-line: var(--edge);
+  --sd-divider: var(--edge);
+  --sd-hover: var(--hover);
+  --sd-selected: var(--selected);
+  --sd-selected-item: var(--surface);
+  --sd-active: color-mix(in oklch, var(--ink) 13%, var(--surface));
+  --sd-frame: var(--edge-strong);
+  --sd-menu: var(--surface-raised);
+  --sd-menu-line: var(--edge);
+  --sd-menu-hover: var(--hover);
 }
 
 /* --- 1. Panel grammar ----------------------------------------------- */
@@ -1722,12 +1817,14 @@ select:focus-visible,
 }
 
 /* --- 5. Selective-mono stat label ----------------------------------- */
+/* jul-28 SDC-1 §2.4: a stat label is a micro label, which means sans, sentence
+   case, 11.5px, no tracking. Mono is for dates, kbd hints and numeric units
+   only, and uppercase is banned outside kbd and the sidebar eyebrows. */
 .sd-stat-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--sd-ink-faint);
+  font-size: 11.5px;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--ink-faint);
 }
 
 /* --- 5b. Sidebar chrome primitives (UI-CONTRACT §1, §11) ------------- */
@@ -1752,11 +1849,7 @@ select:focus-visible,
 /* Rows dissolve into the footer instead of hard-clipping at the scroll edge
    (§1.8). Static — nothing animates, so it needs no reduced-motion guard. */
 .mask-fade-out {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black calc(100% - 40px),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
   mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
 }
 
@@ -1771,11 +1864,7 @@ select:focus-visible,
    labels ride, and fading those would dissolve the one anchor telling you which
    area you are looking at while scrolled deep into the canvas. */
 .timeline-edge-fade {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    black calc(100% - 28px),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
   mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
 }
 
@@ -1784,29 +1873,13 @@ select:focus-visible,
    the window; `-lr` is both. The fade is capped at 40% of the bar so a short
    bar fades proportionally instead of vanishing entirely. */
 .timeline-bar-fade-r {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to right,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - min(32px, 40%)), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - min(32px, 40%)), transparent 100%);
 }
 
 .timeline-bar-fade-l {
-  -webkit-mask-image: linear-gradient(
-    to left,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to left,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to left, black calc(100% - min(32px, 40%)), transparent 100%);
+  mask-image: linear-gradient(to left, black calc(100% - min(32px, 40%)), transparent 100%);
 }
 
 .timeline-bar-fade-lr {
@@ -1866,10 +1939,8 @@ select:focus-visible,
   background: var(--sd-accent);
   border-radius: 9999px;
   color: hsl(235 45% 9%);
-  box-shadow:
-    color-mix(in srgb, var(--sd-accent) 30%, transparent) 0 4px 20px,
-    rgba(255, 255, 255, 0.2) 0 2px 0 inset,
-    rgba(0, 0, 0, 0.1) 0 -2px 0 inset;
+  box-shadow: color-mix(in srgb, var(--sd-accent) 30%, transparent) 0 4px 20px,
+    rgba(255, 255, 255, 0.2) 0 2px 0 inset, rgba(0, 0, 0, 0.1) 0 -2px 0 inset;
 }
 .sd-btn-ghost {
   background: rgb(255 255 255 / 0.1);
@@ -1952,9 +2023,7 @@ select:focus-visible,
   border: 1px solid var(--sd-line);
 }
 .dark .sd-modal-surface {
-  box-shadow:
-    rgba(255, 255, 255, 0.09) 0 1px 0 inset,
-    0 24px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: rgba(255, 255, 255, 0.09) 0 1px 0 inset, 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
 /* =====================================================================
@@ -1974,9 +2043,7 @@ select:focus-visible,
   border: 1px solid var(--sd-line);
   border-radius: 12px;
   box-shadow: none;
-  transition:
-    border-color 140ms var(--ease-out-quart),
-    background-color 140ms var(--ease-out-quart);
+  transition: border-color 140ms var(--ease-out-quart), background-color 140ms var(--ease-out-quart);
 }
 .dark .receipt-card {
   box-shadow: rgba(255, 255, 255, 0.06) 0 1px 0 inset;
@@ -2042,9 +2109,7 @@ select:focus-visible,
   opacity: 0;
   cursor: nwse-resize;
   touch-action: none;
-  transition:
-    opacity 140ms ease,
-    color 140ms ease;
+  transition: opacity 140ms ease, color 140ms ease;
 }
 @media (pointer: fine) {
   @container main (min-width: 48rem) {
