@@ -134,21 +134,29 @@ async function openMic(opts: CaptureOptions): Promise<{ ok: true } | { ok: false
     config,
   };
 
+  // Published before the device is asked to open, not after: a frame that
+  // arrives while `start` is still settling belongs in the pre-roll, and a
+  // handler that read a not-yet-assigned `mic` would drop exactly the leading
+  // audio this whole path exists to keep. Rolled back if the open fails.
+  mic = state;
+  micDenied = null;
+
   try {
     await source.start((chunk) => {
-      const current = mic;
-      if (!current) return;
-      current.framesReceived += 1;
-      current.sampleRate = chunk.sampleRate || current.sampleRate;
-      if (current.openWatchdog) {
-        clearTimeout(current.openWatchdog);
-        current.openWatchdog = null;
+      if (mic !== state) return;
+      state.framesReceived += 1;
+      state.sampleRate = chunk.sampleRate || state.sampleRate;
+      if (state.openWatchdog) {
+        clearTimeout(state.openWatchdog);
+        state.openWatchdog = null;
       }
       micDenied = null;
-      if (current.sink) current.sink(chunk);
-      else current.preroll.push(chunk.samples);
+      if (state.sink) state.sink(chunk);
+      else state.preroll.push(chunk.samples);
     });
   } catch (err) {
+    if (mic === state) mic = null;
+    clearMicTimers(state);
     const message =
       err instanceof MicBusyError
         ? err.message
@@ -159,8 +167,8 @@ async function openMic(opts: CaptureOptions): Promise<{ ok: true } | { ok: false
     return { ok: false, message };
   }
 
-  mic = state;
-  micDenied = null;
+  // A close that landed while the device was opening wins; do not resurrect it.
+  if (mic !== state) return { ok: false, message: "the microphone was closed while opening" };
   state.openWatchdog = setTimeout(onMicSilentOpen, config.micOpenTimeoutMs);
   armIdleTimer(state);
   return { ok: true };
