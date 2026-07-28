@@ -146,11 +146,15 @@ export function WikiExplorer({
   // Selection must not survive a folder change. The breadcrumb and drill-down
   // handlers clear it themselves, but browser Back/Forward moves `folderId`
   // through nuqs without passing through either, so this stays as the backstop.
-  // The old `folderId !== undefined` guard was always true (folderId is
-  // `string | null`), and `clear()` now bails out when nothing is selected, so
-  // the common path costs no extra render.
+  // It fires on a real change of folder, compared against the last one seen:
+  // the old `folderId !== undefined` guard was always true (folderId is
+  // `string | null`), so it cleared on every run. `clear()` also bails out now
+  // when nothing is selected, so the common path costs no extra render.
   const clearSelection = selection.clear;
+  const lastClearedFolder = useRef(folderId);
   useEffect(() => {
+    if (lastClearedFolder.current === folderId) return;
+    lastClearedFolder.current = folderId;
     clearSelection();
   }, [clearSelection, folderId]);
 
