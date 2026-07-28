@@ -605,6 +605,56 @@ mod imp {
             })
             .ok();
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        /// Links the CoreGraphics TCC symbols and proves the preflight is a
+        /// safe, non-prompting query: it must return on a headless test runner
+        /// with no permission granted, rather than blocking or aborting. This
+        /// is the whole basis of the "degrade gracefully" path.
+        #[test]
+        fn preflight_is_non_prompting_and_never_panics() {
+            // Either answer is legitimate depending on the machine's TCC state,
+            // so the assertion is on stability: preflight must be a repeatable
+            // query, not a one-shot that flips or prompts on the second call.
+            let granted = permission_granted();
+            assert_eq!(granted, permission_granted());
+            assert_eq!(granted, permission_granted());
+        }
+
+        /// With no tap installed, `listening()` must report false rather than
+        /// optimistically claiming the overlay works.
+        #[test]
+        fn listening_is_false_before_any_tap_is_installed() {
+            assert!(!listening());
+        }
+
+        #[test]
+        fn only_intent_bearing_modifiers_contaminate_a_gesture() {
+            // Caps Lock and the numeric-pad bit are incidental state, not a
+            // deliberate chord, so they must not void a gesture.
+            assert!(!contaminating(CGEventFlags::CGEventFlagAlphaShift));
+            assert!(!contaminating(CGEventFlags::CGEventFlagNumericPad));
+            assert!(!contaminating(CGEventFlags::CGEventFlagAlternate));
+
+            assert!(contaminating(CGEventFlags::CGEventFlagCommand));
+            assert!(contaminating(CGEventFlags::CGEventFlagShift));
+            assert!(contaminating(CGEventFlags::CGEventFlagControl));
+            assert!(contaminating(CGEventFlags::CGEventFlagSecondaryFn));
+            assert!(contaminating(
+                CGEventFlags::CGEventFlagAlternate | CGEventFlags::CGEventFlagCommand
+            ));
+        }
+
+        #[test]
+        fn monotonic_clock_never_runs_backwards() {
+            let a = monotonic_ms();
+            let b = monotonic_ms();
+            assert!(b >= a);
+        }
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
