@@ -51,6 +51,7 @@ import { PERSON_MENTION_TYPE, personMentionInlineSpec } from "./PersonMentionInl
 import { calloutBlock } from "./blocks/CalloutBlock";
 import { linkEmbedBlock } from "./blocks/LinkEmbedBlock";
 import { linkEmbedSlashItems, useLinkEmbedPaste } from "./PageLinkEmbedControls";
+import { usePageImageDrop, usePageImageUploader } from "./page-image-upload";
 import { withSdSlashChrome } from "./slash-menu-chrome";
 
 const schema = BlockNoteSchema.create({
@@ -193,13 +194,21 @@ export default function PageBlockEditor({
   onEditorReady,
   onPersonCreated,
 }: Props) {
+  // Uploads to the page-images bucket. Every BlockNote insertion surface (the
+  // `/` Image item's file panel, the drop plugin, the clipboard file path) is
+  // gated on this option existing, so passing it is what turns all three on at
+  // once. Issue #349.
+  const uploadPageImage = usePageImageUploader(userId, pageId);
+
   const editor = useCreateBlockNote({
     schema,
     initialContent: normalizeInitial(initialContentJson),
+    uploadFile: uploadPageImage,
   });
 
   const queryClient = useQueryClient();
   const linkPaste = useLinkEmbedPaste(editor);
+  const imageDrop = usePageImageDrop(editor, uploadPageImage);
 
   // Local ref to the editor wrapper. Used to scope the Cmd+K keydown listener
   // (below) so it only fires when the user is actually inside the editor. The
@@ -509,7 +518,16 @@ export default function PageBlockEditor({
         className="flex flex-1 flex-col cursor-text"
         data-hide-receipts={hideReceipts ? "true" : "false"}
         onMouseDown={handleSurfaceMouseDown}
+        // The capture handlers run before BlockNote's own ProseMirror
+        // listeners, which is the only place a disallowed file can be vetoed
+        // before an empty block is inserted for it. `linkPaste.onPaste` stays
+        // on the bubble phase and still unfurls a pasted URL: a file paste
+        // carries no text/plain, so the two never contend.
+        onPasteCapture={imageDrop.onPasteCapture}
         onPaste={linkPaste.onPaste}
+        onDragOver={imageDrop.onDragOver}
+        onDropCapture={imageDrop.onDropCapture}
+        onDrop={imageDrop.onDrop}
       >
         {linkPaste.menu}
         <BlockNoteView
