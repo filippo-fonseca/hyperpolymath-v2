@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
-import { formatDistanceToNow } from "date-fns";
 import { ProjectPill } from "@/components/pages/ProjectPill";
+import { type PreviewModel, extractPreviewModel } from "@/lib/pages/preview";
 import { cn } from "@/lib/utils";
-import { extractPreviewModel, type PreviewModel } from "@/lib/pages/preview";
+import { formatDistanceToNow } from "date-fns";
+import type { ReactNode } from "react";
 import { PagePreviewThumb } from "./PagePreviewThumb";
 
 export interface PagePreviewCardProject {

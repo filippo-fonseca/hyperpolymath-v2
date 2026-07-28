@@ -1,8 +1,8 @@
 "use client";
 
+import { EmptyState } from "@/components/ui/EmptyState";
 import { SelectionRubberBand } from "@/components/wiki/explorer";
 import type { ExplorerViewMode } from "@/components/wiki/explorer";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { ExplorerEmptySpaceMenu } from "@/components/wiki/explorer-parts/ExplorerEmptySpaceMenu";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { ExplorerGridView } from "@/components/wiki/explorer-views/ExplorerGridView";

@@ -1,12 +1,12 @@
 "use client";
 
 import { Tile } from "@/components/ui/explorer";
+import { FolderIcon } from "@/components/ui/icons/FolderIcon";
+import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { partitionExplorerItems } from "@/components/wiki/explorer-hooks/explorer-items";
 import type { SelectionClickModifiers } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
-import { FolderIcon } from "@/components/ui/icons/FolderIcon";
-import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -121,9 +121,7 @@ function ExplorerGridBand({
       className="space-y-2"
       exit={{ opacity: 0, transition: { duration: reduceMotion ? 0 : ENTER_DURATION } }}
     >
-      <h2 className="px-0.5 font-sans text-micro font-medium text-[var(--sd-ink-dull)]">
-        {label}
-      </h2>
+      <h2 className="px-0.5 font-sans text-micro font-medium text-[var(--sd-ink-dull)]">{label}</h2>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(118px,1fr))] gap-2">
         {items.map((item, index) => {
           const id = explorerItemId(item);

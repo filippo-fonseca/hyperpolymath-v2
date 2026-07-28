@@ -1,8 +1,8 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { Slot } from "radix-ui"
+import { type VariantProps, cva } from "class-variance-authority";
+import { Slot } from "radix-ui";
+import type * as React from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 /**
  * sd register (sesh-sd3, unit-primitives) — Button.
@@ -44,8 +44,7 @@ const buttonVariants = cva(
         ghost:
           "bg-transparent text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] active:bg-[var(--sd-selected)]",
         // Link — underlined affordance
-        link:
-          "bg-transparent text-[var(--sd-ink)] underline-offset-4 hover:underline active:opacity-80",
+        link: "bg-transparent text-[var(--sd-ink)] underline-offset-4 hover:underline active:opacity-80",
       },
       size: {
         default: "h-9 px-4 py-2 text-base has-[>svg]:px-3",
@@ -63,7 +62,7 @@ const buttonVariants = cva(
       size: "default",
     },
   }
-)
+);
 
 function Button({
   className,
@@ -73,9 +72,9 @@ function Button({
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
+    asChild?: boolean;
   }) {
-  const Comp = asChild ? Slot.Root : "button"
+  const Comp = asChild ? Slot.Root : "button";
 
   return (
     <Comp
@@ -85,7 +84,7 @@ function Button({
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
-  )
+  );
 }
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

@@ -1,5 +1,5 @@
+import { type PreviewBlock, type PreviewModel, extractPreviewModel } from "@/lib/pages/preview";
 import { cn } from "@/lib/utils";
-import { extractPreviewModel, type PreviewBlock, type PreviewModel } from "@/lib/pages/preview";
 
 export interface PagePreviewThumbPage {
   title?: string | null;

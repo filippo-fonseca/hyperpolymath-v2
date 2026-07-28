@@ -1,8 +1,8 @@
 "use client";
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Volume2, VolumeX } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function ExplorerSfxToggle() {
   const [enabled, setEnabled] = useState(true);

@@ -1,25 +1,21 @@
 "use client";
 
-import {
-  getFolderProjectsForCurrentUser,
-  getFoldersForCurrentUser,
-} from "@/app/actions/folders";
+import { getFolderProjectsForCurrentUser, getFoldersForCurrentUser } from "@/app/actions/folders";
+import { getFieldDefinitionsForCurrentUser } from "@/app/actions/page-fields";
 import {
   getDailyPagesForCurrentUser,
   getPagesForCurrentUser,
   openDailyPage,
 } from "@/app/actions/pages";
-import { getFieldDefinitionsForCurrentUser } from "@/app/actions/page-fields";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
-import { Button } from "@/components/ui/button";
 import { PageScaffold } from "@/components/ui/PageScaffold";
-import { PropertiesManagerModal } from "./PropertiesManagerModal";
-import { JournalRail } from "@/components/wiki/journal/JournalRail";
+import { Button } from "@/components/ui/button";
 import { WikiExplorer } from "@/components/wiki/WikiExplorer";
+import { JournalRail } from "@/components/wiki/journal/JournalRail";
+import type { DailyPageRef, PageWithProjects } from "@/lib/db/queries/pages";
+import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import { buildTreeZip, downloadZipFiles } from "@/lib/pages/markdown-export";
 import { buildPagesTree } from "@/lib/pages/tree";
-import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
-import type { DailyPageRef, PageWithProjects } from "@/lib/db/queries/pages";
 import { useEnsureTodayDailyPage } from "@/lib/pages/useEnsureTodayDailyPage";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
@@ -27,6 +23,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import { PropertiesManagerModal } from "./PropertiesManagerModal";
 
 interface Props {
   userId: string;
@@ -111,9 +108,7 @@ export function PagesListClient({
     queryKey: fieldDefsKey,
     queryFn: () => getFieldDefinitionsForCurrentUser(),
   });
-  const { data: dailyPages = [], isSuccess: dailyFetched } = useQuery<
-    DailyPageRef[]
-  >({
+  const { data: dailyPages = [], isSuccess: dailyFetched } = useQuery<DailyPageRef[]>({
     queryKey: ["daily-pages", userId],
     queryFn: () => getDailyPagesForCurrentUser(),
     initialData: initialDailyPages,
@@ -137,7 +132,7 @@ export function PagesListClient({
     (pageId: string) => {
       router.push(`/wiki/${pageId}`);
     },
-    [router],
+    [router]
   );
 
   const handleCreateForDate = useCallback(
@@ -151,7 +146,7 @@ export function PagesListClient({
         setOpeningDate(null);
       }
     },
-    [openingDate, router],
+    [openingDate, router]
   );
 
   function handleExportAll() {

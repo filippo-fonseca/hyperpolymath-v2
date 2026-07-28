@@ -1,11 +1,11 @@
 "use client";
 
+import { FolderIcon } from "@/components/ui/icons/FolderIcon";
+import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { partitionExplorerItems } from "@/components/wiki/explorer-hooks/explorer-items";
 import type { SelectionClickModifiers } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
-import { FolderIcon } from "@/components/ui/icons/FolderIcon";
-import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { formatDistanceToNow } from "date-fns";

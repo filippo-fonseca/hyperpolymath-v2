@@ -1,9 +1,9 @@
 "use client";
 
-import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MetaRow, MetaSection } from "@/components/ui/explorer";
 import { FolderIcon } from "@/components/ui/icons/FolderIcon";
+import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { PagePreviewThumb } from "@/components/wiki/preview/PagePreviewThumb";
 import { extractPreviewModel } from "@/lib/pages/preview";
 import { format, formatDistanceToNow } from "date-fns";
