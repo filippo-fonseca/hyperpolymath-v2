@@ -63,7 +63,7 @@ export function AreaPicker({ currentAreaId, areas, onSelect, renderTrigger }: Pr
             placeholder="Search areas..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 text-[13px]"
+            className="h-8 text-meta text-[var(--ink)]"
             autoFocus
           />
         </div>
@@ -83,9 +83,9 @@ export function AreaPicker({ currentAreaId, areas, onSelect, renderTrigger }: Pr
                 aria-selected={isSelected}
                 onClick={() => handleSelect(a.id)}
                 className={cn(
-                  "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
-                  "font-sans text-[13px] text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
-                  isSelected && "bg-[var(--sd-selected)]"
+                  "flex h-8 w-full items-center justify-between gap-2 rounded-lg px-2 text-left transition-colors duration-[160ms] ease-out",
+                  "font-sans text-meta text-[var(--ink)] hover:bg-[var(--hover)]",
+                  isSelected && "bg-[var(--selected)]"
                 )}
               >
                 <span className="min-w-0 truncate">{a.name}</span>
@@ -96,7 +96,7 @@ export function AreaPicker({ currentAreaId, areas, onSelect, renderTrigger }: Pr
             );
           })}
           {filtered.length === 0 ? (
-            <p className="font-sans text-[13px] text-[var(--sd-ink-faint)] text-center py-6">
+            <p className="py-6 text-center font-sans text-meta text-[var(--ink-faint)]">
               No areas match &ldquo;{search}&rdquo;
             </p>
           ) : null}

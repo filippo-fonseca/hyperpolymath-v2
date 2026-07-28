@@ -407,6 +407,7 @@ export function ProjectHeader({
         project={{
           id: project.id,
           name: project.name,
+          description: project.description,
           areaId: project.areaId,
           startDate: project.startDate,
           endDate: project.endDate,

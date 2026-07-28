@@ -172,13 +172,13 @@ export function ProjectCreateDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-sans text-xl">New Project</DialogTitle>
+          <DialogTitle className="font-sans text-title font-semibold">New project</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           {/* Area */}
-          <div className="flex flex-col gap-1.5">
-            <Label className="font-sans text-[13px]">Area</Label>
+          <div className="flex flex-col gap-2">
+            <Label className="font-sans text-meta">Area</Label>
             <Controller
               name="areaId"
               control={control}
@@ -201,8 +201,8 @@ export function ProjectCreateDialog({
           </div>
 
           {/* Name */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="proj-name" className="font-sans text-[13px]">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="proj-name" className="font-sans text-meta">
               Name <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -214,8 +214,8 @@ export function ProjectCreateDialog({
           </div>
 
           {/* Description */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="proj-desc" className="font-sans text-[13px]">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="proj-desc" className="font-sans text-meta">
               Description
             </Label>
             <Textarea
@@ -228,16 +228,16 @@ export function ProjectCreateDialog({
 
           {/* Icon + Banner */}
           <div className="flex gap-4 items-end">
-            <div className="flex flex-col gap-1.5">
-              <Label className="font-sans text-[13px]">Icon</Label>
+            <div className="flex flex-col gap-2">
+              <Label className="font-sans text-meta">Icon</Label>
               <Controller
                 name="icon"
                 control={control}
                 render={({ field }) => <IconPicker value={field.value} onChange={field.onChange} />}
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="font-sans text-[13px]">Banner</Label>
+            <div className="flex flex-col gap-2">
+              <Label className="font-sans text-meta">Banner</Label>
               <Controller
                 name="bannerUrl"
                 control={control}
@@ -250,14 +250,14 @@ export function ProjectCreateDialog({
 
           {/* Dates */}
           <div className="flex gap-3">
-            <div className="flex flex-col gap-1.5 flex-1">
-              <Label htmlFor="proj-start" className="font-sans text-[13px]">
+            <div className="flex flex-col gap-2 flex-1">
+              <Label htmlFor="proj-start" className="font-sans text-meta">
                 Start date
               </Label>
               <Input id="proj-start" type="date" {...register("startDate")} className="h-9" />
             </div>
-            <div className="flex flex-col gap-1.5 flex-1">
-              <Label htmlFor="proj-end" className="font-sans text-[13px]">
+            <div className="flex flex-col gap-2 flex-1">
+              <Label htmlFor="proj-end" className="font-sans text-meta">
                 End date
               </Label>
               <Input id="proj-end" type="date" {...register("endDate")} className="h-9" />
@@ -277,7 +277,7 @@ export function ProjectCreateDialog({
                 />
               )}
             />
-            <Label htmlFor="proj-is-class" className="font-sans text-[13px] cursor-pointer">
+            <Label htmlFor="proj-is-class" className="font-sans text-meta cursor-pointer">
               This is a class
             </Label>
           </div>
@@ -286,8 +286,8 @@ export function ProjectCreateDialog({
           {isClass && (
             <div className="flex flex-col gap-3 pl-4 border-l-2 border-border">
               {/* Course code */}
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="proj-course-code" className="font-sans text-[13px]">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="proj-course-code" className="font-sans text-meta">
                   Course code <span className="text-destructive">*</span>
                 </Label>
                 <Input
@@ -299,8 +299,8 @@ export function ProjectCreateDialog({
               </div>
 
               {/* Course title */}
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="proj-course-title" className="font-sans text-[13px]">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="proj-course-title" className="font-sans text-meta">
                   Course title
                 </Label>
                 <Input
@@ -312,8 +312,8 @@ export function ProjectCreateDialog({
               </div>
 
               {/* Instructor */}
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="proj-instructor" className="font-sans text-[13px]">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="proj-instructor" className="font-sans text-meta">
                   Instructor
                 </Label>
                 <Input
@@ -326,8 +326,8 @@ export function ProjectCreateDialog({
 
               {/* Semester term + year */}
               <div className="flex gap-3">
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <Label className="font-sans text-[13px]">Term</Label>
+                <div className="flex flex-col gap-2 flex-1">
+                  <Label className="font-sans text-meta">Term</Label>
                   <Controller
                     name="semesterTerm"
                     control={control}
@@ -345,8 +345,8 @@ export function ProjectCreateDialog({
                     )}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <Label className="font-sans text-[13px]">Year</Label>
+                <div className="flex flex-col gap-2 flex-1">
+                  <Label className="font-sans text-meta">Year</Label>
                   <Controller
                     name="semesterYear"
                     control={control}
@@ -369,8 +369,8 @@ export function ProjectCreateDialog({
               </div>
 
               {/* Grade */}
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="proj-grade" className="font-sans text-[13px]">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="proj-grade" className="font-sans text-meta">
                   Grade
                 </Label>
                 <Input
@@ -382,8 +382,8 @@ export function ProjectCreateDialog({
               </div>
 
               {/* Credits */}
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="proj-credits" className="font-sans text-[13px]">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="proj-credits" className="font-sans text-meta">
                   Credits
                 </Label>
                 <Input
@@ -398,8 +398,8 @@ export function ProjectCreateDialog({
               </div>
 
               {/* Distributionals */}
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="proj-dist" className="font-sans text-[13px]">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="proj-dist" className="font-sans text-meta">
                   Distributionals
                 </Label>
                 <Input
@@ -413,10 +413,16 @@ export function ProjectCreateDialog({
           )}
 
           <DialogFooter className="mt-2">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={pending}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-lg"
+              onClick={handleClose}
+              disabled={pending}
+            >
               {isDirty ? "Discard changes" : "Never mind"}
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" className="rounded-lg" disabled={pending}>
               {pending ? (
                 <>
                   <Spinner size={14} label="Creating project" />

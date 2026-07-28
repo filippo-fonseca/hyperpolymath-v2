@@ -158,15 +158,15 @@ export function ProjectEditClassDialog({
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : handleClose())}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-sans text-xl font-semibold">
+          <DialogTitle className="font-sans text-title font-semibold">
             Edit class metadata
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           {/* Course code */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ec-code" className="font-sans text-[13px]">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="ec-code" className="font-sans text-meta">
               Course code <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -178,8 +178,8 @@ export function ProjectEditClassDialog({
           </div>
 
           {/* Course title */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ec-title" className="font-sans text-[13px]">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="ec-title" className="font-sans text-meta">
               Course title
             </Label>
             <Input
@@ -191,8 +191,8 @@ export function ProjectEditClassDialog({
           </div>
 
           {/* Instructor */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ec-instructor" className="font-sans text-[13px]">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="ec-instructor" className="font-sans text-meta">
               Instructor
             </Label>
             <Input
@@ -205,8 +205,8 @@ export function ProjectEditClassDialog({
 
           {/* Semester term + year */}
           <div className="flex gap-3">
-            <div className="flex flex-col gap-1.5 flex-1">
-              <Label className="font-sans text-[13px]">Term</Label>
+            <div className="flex flex-col gap-2 flex-1">
+              <Label className="font-sans text-meta">Term</Label>
               <Controller
                 name="semesterTerm"
                 control={control}
@@ -224,8 +224,8 @@ export function ProjectEditClassDialog({
                 )}
               />
             </div>
-            <div className="flex flex-col gap-1.5 flex-1">
-              <Label className="font-sans text-[13px]">Year</Label>
+            <div className="flex flex-col gap-2 flex-1">
+              <Label className="font-sans text-meta">Year</Label>
               <Controller
                 name="semesterYear"
                 control={control}
@@ -248,8 +248,8 @@ export function ProjectEditClassDialog({
           </div>
 
           {/* Grade */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ec-grade" className="font-sans text-[13px]">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="ec-grade" className="font-sans text-meta">
               Grade
             </Label>
             <Input
@@ -261,8 +261,8 @@ export function ProjectEditClassDialog({
           </div>
 
           {/* Credits */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ec-credits" className="font-sans text-[13px]">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="ec-credits" className="font-sans text-meta">
               Credits
             </Label>
             <Input
@@ -277,8 +277,8 @@ export function ProjectEditClassDialog({
           </div>
 
           {/* Distributionals */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ec-dist" className="font-sans text-[13px]">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="ec-dist" className="font-sans text-meta">
               Distributionals
             </Label>
             <Input
@@ -290,10 +290,16 @@ export function ProjectEditClassDialog({
           </div>
 
           <DialogFooter className="mt-2">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={saving}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-lg"
+              onClick={handleClose}
+              disabled={saving}
+            >
               {isDirty ? "Discard changes" : "Never mind"}
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" className="rounded-lg" disabled={saving}>
               {saving ? (
                 <>
                   <Spinner size={14} label="Saving project" />
