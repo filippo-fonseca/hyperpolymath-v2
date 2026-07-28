@@ -151,7 +151,7 @@ export function JournalRail({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2.5 text-[0.78rem] text-[var(--ink)] transition-colors duration-150 ease-out hover:bg-[var(--sd-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+              className="flex h-7 cursor-pointer items-center gap-2 rounded-lg bg-[var(--sd-box)] px-3 text-meta text-[var(--ink)] transition-colors duration-[160ms] ease-out hover:bg-[var(--sd-hover)]"
               aria-label="Open calendar"
             >
               <CalendarDays size={12} strokeWidth={1.5} />

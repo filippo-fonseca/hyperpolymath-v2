@@ -24,11 +24,12 @@ export function JournalCardStagger({
   disabled: boolean;
 }) {
   if (disabled) return <div className="contents">{children}</div>;
+  // SDC-1 §2.7: enter is 220ms on --ease-out-quart, stagger min(i, 12) * 20ms.
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.16, ease: "easeOut", delay: Math.min(index, 24) * 0.01 }}
+      transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1], delay: Math.min(index, 12) * 0.02 }}
       className="flex"
     >
       {children}
@@ -51,17 +52,16 @@ export function JournalTodayCard({ iso, page, exists, loading, onActivate }: Jou
       onClick={onActivate}
       disabled={loading}
       className={cn(
-        "group relative flex w-[300px] flex-shrink-0 snap-start cursor-pointer flex-col overflow-hidden rounded-[8px] border border-[var(--sd-accent)] bg-[var(--sd-box)] p-3 text-left",
-        "transition-colors duration-150 ease-out hover:bg-[var(--sd-hover)] disabled:cursor-progress",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+        "group relative flex w-[300px] flex-shrink-0 snap-start cursor-pointer flex-col overflow-hidden rounded-xl border border-[var(--edge-strong)] bg-[var(--sd-box)] p-3 text-left",
+        "transition-colors duration-[160ms] ease-out hover:bg-[var(--sd-hover)] disabled:cursor-progress"
       )}
       aria-label={`${exists ? "Open" : "Create"} today's daily page`}
     >
       <div className="mb-2 flex items-start justify-between gap-2">
-        <span className="min-w-0 truncate font-sans text-[16px] leading-tight text-[var(--sd-ink)]">
+        <span className="min-w-0 truncate font-sans text-subtitle font-medium text-[var(--sd-ink)]">
           {format(parseISO(iso), "EEEE, MMMM d")}
         </span>
-        <span className="rounded-full bg-[var(--sd-accent)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-white">
+        <span className="rounded-full bg-[var(--sd-accent)] px-2 py-0.5 text-micro font-medium text-white">
           Today
         </span>
       </div>
@@ -74,7 +74,7 @@ export function JournalTodayCard({ iso, page, exists, loading, onActivate }: Jou
             coverImageUrl: page.coverImageUrl,
           }}
           size="card"
-          className="!rounded-[6px]"
+          className="!rounded-lg"
         />
       ) : (
         <EmptyToday loading={loading} />
@@ -92,20 +92,19 @@ export function JournalTrailCard({ iso, page, exists, loading, onActivate }: Jou
       disabled={loading}
       title={dailyPageTitle(iso)}
       className={cn(
-        "group relative flex w-[120px] flex-shrink-0 snap-start cursor-pointer flex-col rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-2.5 text-left",
-        "transition-colors duration-150 ease-out hover:bg-[var(--sd-hover)] disabled:cursor-progress",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+        "group relative flex w-[120px] flex-shrink-0 snap-start cursor-pointer flex-col rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-3 text-left",
+        "transition-colors duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:bg-[var(--sd-hover)] disabled:cursor-progress",
         !exists && "text-[var(--sd-ink-faint)]"
       )}
       aria-label={`${exists ? "Open" : "Create"} daily page for ${dailyPageTitle(iso)}`}
     >
-      <span className="font-sans text-[17px] leading-none text-[var(--sd-ink)]">
+      <span className="font-sans text-subtitle font-medium leading-none text-[var(--sd-ink)]">
         {format(parseISO(iso), "d MMM")}
       </span>
-      <span className="mt-1 text-[0.65rem] uppercase tracking-wide text-[var(--sd-ink-faint)]">
+      <span className="mt-1 text-micro text-[var(--sd-ink-faint)]">
         {format(parseISO(iso), "EEEE")}
       </span>
-      <span className="mt-3 truncate text-[0.7rem] text-[var(--sd-ink-dull)]">{preview}</span>
+      <span className="mt-3 truncate text-micro text-[var(--sd-ink-dull)]">{preview}</span>
       <span className="mt-auto flex h-4 items-end justify-end pt-1 text-[var(--sd-ink-faint)]">
         {loading ? <Loader2 size={11} className="animate-spin motion-reduce:animate-none" /> : null}
         {!loading && !exists ? <Plus size={11} /> : null}
@@ -125,11 +124,11 @@ function previewLine(page: JournalPage, exists: boolean): string {
 
 function EmptyToday({ loading }: { loading: boolean }) {
   return (
-    <div className="flex aspect-[16/10] w-full items-center justify-center rounded-[6px] border border-dashed border-[var(--sd-line)] bg-[var(--sd-darker-box)] text-[var(--sd-ink-faint)]">
+    <div className="flex aspect-[16/10] w-full items-center justify-center rounded-lg border border-dashed border-[var(--sd-line)] bg-[var(--sd-darker-box)] text-[var(--sd-ink-faint)]">
       {loading ? (
         <Loader2 size={16} className="animate-spin motion-reduce:animate-none" />
       ) : (
-        <span className="flex items-center gap-1.5 text-[0.78rem]">
+        <span className="flex items-center gap-2 text-meta">
           <Plus size={14} /> Create today&apos;s page
         </span>
       )}
