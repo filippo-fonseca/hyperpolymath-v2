@@ -35,7 +35,7 @@ import { Label } from "@/components/ui/label";
 import { PageScaffold } from "@/components/ui/PageScaffold";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -71,6 +71,7 @@ export function AreaDetailClient({
   graduationYear,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // Realtime invalidation source. The sidebar also subscribes; the channel
   // layer dedupes, so this is just this page declaring its own dependency.
@@ -124,6 +125,9 @@ export function AreaDetailClient({
       onSuccess: () => {
         setEditOpen(false);
         setOverride({ name: trimmed, emoji: emoji.trim() || null });
+        // The Realtime echo also lands here eventually, but invalidating
+        // directly keeps the sidebar tree in step even if the channel drops.
+        queryClient.invalidateQueries({ queryKey: tableKey("areas", userId) });
       },
     });
   }
@@ -133,6 +137,7 @@ export function AreaDetailClient({
       success: "Area deleted.",
       onSuccess: () => {
         setDeleteOpen(false);
+        queryClient.invalidateQueries({ queryKey: tableKey("areas", userId) });
         router.push("/areas");
         router.refresh();
       },
