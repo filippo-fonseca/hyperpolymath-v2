@@ -15,9 +15,17 @@
     "lint": "pnpm --filter web lint",
     "db:generate": "pnpm --filter web db:generate",
     "db:migrate": "pnpm --filter web db:migrate",
+    "verify:bootstrap": "pnpm --filter web exec node scripts/verify/bootstrap.mjs",
+    "verify:seed": "pnpm --filter web exec node scripts/verify/seed.mjs",
+    "verify:auth": "pnpm --filter web exec node scripts/verify/storage-state.mjs",
+    "verify:drift": "pnpm --filter web exec node scripts/schema-drift-report.mjs",
+    "verify:e2e": "playwright test",
+    "verify:typecheck": "pnpm --filter web exec tsc -p ../../tsconfig.verify.json",
+    "verify": "pnpm verify:bootstrap && pnpm verify:e2e",
     "prepare": "husky"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50.0",
     "husky": "^9.0.0"
   }
 }

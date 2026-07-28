@@ -67,3 +67,10 @@ tools/kiwi-autodev/logs/
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Verify harness artifacts (storage state, fixture credentials, dev-server log)
+.verify/
+
+# Playwright run output
+test-results/
+playwright-report/
