@@ -56,6 +56,7 @@ import { describeAction, handleAction, parseAction, routeOpenUrl } from "@/actio
 import { onConfirmPendingChange, onMessageSent, startConfirmGate } from "@/actions/confirm-gate";
 import { playSendSound } from "@/studio/sound/studio-sfx";
 import { startWhatsappQrOverlay } from "@/hud/whatsapp-qr";
+import { startFlowpillHudSide } from "@/flowpill/hud-side";
 import {
   getJarvisState,
   onJarvisState,
@@ -954,6 +955,14 @@ async function boot(): Promise<void> {
   // Settings surface (widgets/settings/use-whatsapp-health.ts), which owns its
   // own polling + event subscriptions with proper unmount cleanup.
   void startWhatsappQrOverlay();
+
+  // The flow pill's half in this window. The pill itself is a separate,
+  // non-activating overlay webview with its own controller; two things can only
+  // be done from here, so they are done from here and nowhere else: releasing
+  // the single microphone when a global Option gesture preempts a HUD turn, and
+  // holding a global Escape while the pill is listening. Nothing about the HUD's
+  // conversational path is touched. See src/flowpill/hud-side.ts.
+  startFlowpillHudSide();
 
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);
