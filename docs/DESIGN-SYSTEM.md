@@ -4,20 +4,43 @@ The canonical reference for every surface and every agent working on this codeba
 
 A living, interactive reference for the sections below renders at [`/design`](/design), sourced directly from the shipped `.sd-*` utilities, tokens, and primitives so it can never drift from the implementation.
 
+> **Amended 2026-07-28 by SDC-1** (the jul-28 shared design contract, `.bgsd/seeds/jul-28-seed.md` §2). SDC-1 supersedes §2, §3, §5, §7 and §14 below, and those sections have been rewritten in place to state its values. The short version: the palette is calmed (body ink 12.4:1 light and 12.7:1 dark, Notion-parity hairlines, a desaturated hue-225 accent that replaces JARVIS cyan outside agent surfaces and the wiki), type runs on one six-step ladder with no arbitrary px, radii collapse to four values, page chrome comes from `<PageScaffold>` rather than six ad-hoc containers, and motion runs on four named durations with nothing under 140ms.
+
 ## 1. Register
 
 One chrome dialect app-wide: the `--sd-*` register. Engineered density (Spacedrive) + polished translucency (Raycast) + the app's Renaissance editorial soul (a serif logotype, parchment light mode). Frosted-white neumorphic glass is retired. Spacedrive-native translucency (dark translucent chrome + backdrop blur) is part of the register, but it lives in chrome only, never in content cards.
 
 The v2 posture, in one line: **full structural commitment, zero theatrics.** Density, hairlines, and a single accent do the work. Glow, gradient, and scale do not.
 
-## 2. Tokens (globals.css is the source of truth)
+## 2. Tokens (globals.css is the source of truth) — SDC-1
 
-- Surfaces (dark): the hue-235 sd ladder. `--sd-app` (canvas), `--sd-box` (cards), `--sd-dark-box` / `--sd-darker-box` (recessed), `--sd-sidebar` (aliases `--sd-darker-box`; the darkest surface in the app), `--sd-input` (insets, chip and pill fills), `--sd-line` (THE hairline), `--sd-divider`, `--sd-hover`, `--sd-selected`, `--sd-selected-item` (neutral selection backplate), `--sd-active`, plus the `--sd-menu*` family.
-- Surfaces (light): sd tokens map onto the warm parchment neutrals (`--canvas` / `--surface` family). Light mode keeps the academic-paper identity; dark mode wears Spacedrive's indigo-black skin. (D11)
-- Ink: `--sd-ink` / `--sd-ink-dull` / `--sd-ink-faint`. Never raw gray hex.
-- Accent: JARVIS cyan owns the app. `--sd-accent` = `--hud-cyan` (oklch 72% 0.13 210), plus `-faint` and `-deep`; the light theme uses the dampened base. **One hue.** Functional inks (`--ink-sage` active, `--ink-amber` warn, `--ink-coral` danger) appear ONLY as 5-6px status dots and 15%-alpha tinted chips, never as chrome.
+**One base palette, two themes, and the whole `--sd-*` register is an alias onto it.** There are no literal surface values left outside `.wiki-explorer` (which redeclares its own ladder by design). Change a base token and the app re-tints; do not chase the 800+ call sites.
+
+Base palette, pre-measured, do not substitute by eye:
+
+| token | light | dark | note |
+|---|---|---|---|
+| `--canvas` | `oklch(98.5% 0.003 75)` `#fbfaf8` | `oklch(20.5% 0.006 255)` `#15171a` | the app background |
+| `--surface` | `oklch(96.8% 0.004 75)` | `oklch(24.5% 0.007 255)` | recessed chrome (rail, panels) |
+| `--surface-raised` | `#ffffff` | `oklch(28.5% 0.008 255)` | cards lift by being lighter |
+| `--ink` | `oklch(31.5% 0.012 60)` 12.4:1 | `oklch(88.5% 0.006 255)` 12.7:1 | body, headings |
+| `--ink-muted` | `oklch(55.5% 0.010 60)` 4.6:1 | `oklch(70.5% 0.008 255)` 6.8:1 | meta, secondary lines |
+| `--ink-faint` | `oklch(66.5% 0.008 60)` 2.9:1 | `oklch(58.5% 0.008 255)` 4.3:1 | decorative only |
+| `--edge` | `oklch(91.8% 0.004 75)` 1.22 | `oklch(30.5% 0.008 255)` | THE hairline, Notion parity |
+| `--edge-strong` | `oklch(87.5% 0.005 75)` 1.40 | `oklch(36% 0.009 255)` | dividers that must read |
+| `--hover` | `oklch(95.5% 0.004 75)` | `oklch(26.5% 0.007 255)` | |
+| `--selected` | `oklch(93.5% 0.005 75)` | `oklch(30% 0.008 255)` | |
+| `--accent` | `oklch(55% 0.09 225)` 4.53 | `oklch(74% 0.095 225)` | desaturated, hue 225 |
+
+The sd register maps straight onto it: `--sd-app`→`--canvas`, `--sd-box`→`--surface-raised`, `--sd-dark-box` / `--sd-darker-box` / `--sd-sidebar`→`--surface`, `--sd-line` / `--sd-divider` / `--sd-menu-line`→`--edge`, `--sd-frame`→`--edge-strong`, `--sd-ink`→`--ink`, `--sd-ink-dull`→`--ink-muted`, `--sd-ink-faint`→`--ink-faint`, `--sd-hover`→`--hover`, `--sd-selected`→`--selected`, `--sd-accent`→`--accent`.
+
+- **The accent budget is two per viewport.** Legal: the focus ring, one primary button, one active-state indicator, the primary data series. Illegal: hover borders, card borders, section headings, icon fills, a dot on every row. A card hover moves `border-color` to `--edge-strong`, never to the accent.
+- **JARVIS cyan is no longer the app accent.** The `--hud-cyan*` family survives untouched as the agent-mode signature (`.agent-mode-scope`) and inside `.wiki-explorer`, which redeclares `--sd-accent` locally. Everywhere else the accent is the calmed hue-225 value.
+- Focus is **one 2px ring**: `--ring-focus` = `0 0 0 2px var(--canvas), 0 0 0 3.5px var(--accent)`. The 4px double-cyan halo is retired; `--ring-doc` / `--ring-hud` still alias it.
+- Functional inks (`--ink-sage` active, `--ink-amber` warn, `--ink-coral` danger) appear ONLY as 5-6px status dots and 12%-alpha tinted chips, never as chrome.
 - `--sd-sidebar` is a **surface color, not a width**. The sidebar width is fixed (230px expanded, 56px rail).
-- NO new hex literals in components. Consume tokens.
+- NO new hex literals in components. Consume tokens. A new value is a token and lands in `@theme` / `:root` / `.dark` with **both** themes filled in.
+- Both theme blocks declare the sd alias table explicitly rather than sharing one unscoped `:root`. That is deliberate: an unscoped `:root` block silently outranks `.dark` at equal specificity, which is exactly how dark mode ended up painting near-black.
 
 ## 3. Typography
 
@@ -27,10 +50,27 @@ The v2 posture, in one line: **full structural commitment, zero theatrics.** Den
 
 **JetBrains Mono** (`--font-mono`) is for micro-labels only: dates, eyebrows, kbd hints, unit captions, status micro-copy. It is not a UI font.
 
+**SDC-1: one type ladder, six steps, registered in `@theme`.** New code may not use `text-[Npx]`.
+
+| step | size / line-height | weight | colour | use |
+|---|---|---|---|---|
+| `text-display` | 30px / 1.2, `-0.02em` | 600 | `--ink` | page H1 only |
+| `text-title` | 20px / 1.35, `-0.01em` | 600 | `--ink` | section H2, panel header, card title |
+| `text-subtitle` | 16px / 1.45 | 500 | `--ink` | H3, list-item primary |
+| `text-body` | 14.5px / 1.6 | 400 | `--ink` | default body, the baseline |
+| `text-meta` | 13px / 1.5 | 400 | `--ink-muted` | secondary lines, meta rows, descriptions |
+| `text-micro` | 11.5px / 1.4 | 500 | `--ink-faint` | counts, chips, timestamps. Sentence case. |
+
+Size, line-height and tracking are baked into the step; weight and colour stay per-use.
+
 Sizing and tracking:
-- Space Grotesk runs tight at display sizes. Greeting and stat values take `tracking-[-0.01em]`; section titles `tracking-[-0.01em]`.
-- Uppercase micro-labels take `tracking-[0.08em]`; mono eyebrows go wider (`0.1em`–`0.16em`).
-- Body is dull ink, headings are bright ink.
+- **Uppercase is banned** except `kbd` hints and the sidebar section eyebrows (which keep the `SB_*` grammar exported from `components/shell/Sidebar.tsx`). Never add one; delete them on sight when you are already in a file.
+- **One surviving tracking value** for that surviving uppercase case: `0.06em`. `0.1 / 0.12 / 0.14 / 0.16 / 0.18 / 0.22em` are deleted.
+- **Mono is for dates, `kbd` hints and numeric units only.** Never a label, heading, button, eyebrow, or empty state.
+- H1 is `text-display` on every page, no exceptions.
+- Numeric values get `tabular-nums`.
+- Text blocks cap at `max-w-[68ch]`.
+- Body is `--ink`; meta is `--ink-muted`; `--ink-faint` is decorative and never carries information a user has to read.
 
 ## 4. Selection: the two-tier law
 
@@ -38,8 +78,11 @@ Selected tiles and rows get the NEUTRAL backplate (`--sd-selected` / `--sd-selec
 
 ## 5. Chrome grammar
 
-- **Radii ladder** (deliberate, not a free choice): 6px sidebar and menu rows, buttons, small chrome. 8px tiles, icon buttons, area-tree chips. 10px workspace pill and inset sub-cards. 12px panels (`.sd-panel`) and mini entity cards. **14px widget cards** (the one deliberate step above 12px, and the reason widget cards read as the app's primary object). Full for pills. The verbatim `Chip` uses bare `rounded` (4px).
-- **Elevation** = grey ladder + 1px `--sd-line` border + a white inset top hairline. `.sd-panel` carries `rgba(255,255,255,.15) 0 1px 0 inset`; the widget card uses a quieter `rgba(255,255,255,.09) 0 1px 0 inset`, applied in **dark scope only** (light mode gets its lift from the parchment ladder alone). Shadows stay ≤10% shade.
+- **Radius ladder, SDC-1: exactly four values.** `4px` chips and badges. `8px` buttons, inputs, rows, small chrome. `12px` cards, panels, popovers, dialogs. `9999px` pills and avatars. Any other radius in new code is a defect. `WidgetCard`'s 14px is grandfathered; new cards use 12px. Delete `rounded-[9px]`, `[7px]`, `[5px]`, `[3px]`, `[10px]` and `[6px]` on sight.
+- **Elevation is fill, not shadow.** canvas `--canvas` → card `--surface-raised` → popover `--surface-raised` plus `0 4px 16px rgb(0 0 0 / 0.06)` light, `/ 0.30` dark. Cards, panels and the inline `SidePanel` get **no shadow**. The legacy white inset top hairline on `.sd-panel` survives as chrome texture; do not add it to new content surfaces.
+- **One border per nesting level.** If the parent has a border, the child does not. Chips inside cards lose their border and use `bg-[var(--hover)]`. Never a bordered plate wrapping another bordered plate. Section separation prefers whitespace, then a single `--edge` hairline.
+- **Card hover moves `border-color` to `--edge-strong` and nothing else.** No scale, no lift, no glow, no accent.
+- **Spacing steps: 4, 8, 12, 16, 24, 32, 48** only (`gap-1 gap-2 gap-3 gap-4 gap-6 gap-8 gap-12`). `gap-0.5`, `gap-1.5`, `gap-2.5`, `gap-3.5` are banned in new code. Interactive row min-height 32px (`h-8`), list rows 36px (`h-9`), nothing below 28px. Card padding 20px (`p-5`), panel padding 16px (`p-4`), page gutter 32px. 32px between page sections, 16px inside a section, 12px inside a card.
 - **Translucency**: `.sd-topbar-blur` (saturate 120% blur 18px) for toolbars, `.sd-pill-blur` for floating pills. The sidebar is **solid** (`--sd-sidebar` at 100%); web reads cleaner than the desktop vibrancy it borrows from.
 - **Buttons**: `.sd-btn-primary` = accent fill, rounded-full, "lit from above" (accent ambient glow + white top bevel + dark bottom bevel). `.sd-btn-ghost` = white/10 fill, white/20 border, blur(8px).
 
@@ -55,10 +98,27 @@ Selected tiles and rows get the NEUTRAL backplate (`--sd-selected` / `--sd-selec
 - **Structure**: workspace pill (h-9, `rounded-[10px]`, `--sd-box` + 50% line, 8px cyan status dot + `<Logotype/>` + chevron) → scroll column (MAIN nav, then AREAS with the tree) → **SYSTEM pinned to the footer**, outside the scroll, above the status row, identity block, and utility strip.
 - **Scroll**: `sd-scroll-hover mask-fade-out ... pb-10`. No visible scrollbar until hover; the bottom 40px fades out under a mask rather than a hard edge.
 
-## 7. Page scaffold and tab bar
+## 7. Page scaffold and tab bar — SDC-1
 
-- Canvas is `--sd-app`, edge to edge. Content column has **no max-width**: `px-6 pt-5 pb-12`, sections stacked on a **28px rhythm** (`gap-7`). No hero plate, no banner, no gradient wash, no vignette, no noise on content.
-- **Tab bar** (`components/shell/TopTabBar.tsx`) sits above every route: `h-11` container, tabs are `h-9 rounded-full` pills, `min-w-[220px] max-w-[480px] flex-1`. Active = `bg-[var(--sd-selected)]` + ink label; inactive = transparent + ink-faint. Transitions are **color-only, 80ms**. Close ✕ reveals on hover at the left; the kbd hint (`⌃1`) sits mono and ink-faint at the right.
+**Every route uses `components/ui/PageScaffold.tsx`.** It replaces the six ad-hoc containers the repo grew (`px-8 py-10`, `px-6 pt-5`, `max-w-[1080px]`, `[920px]`, `[720px]`, `[1200px]`, …) so left edges line up across routes. The anatomy is fixed; do not vary it, and do not add props that vary spacing.
+
+```tsx
+<PageScaffold eyebrow? icon? title subtitle? meta? actions?>
+  <PageScaffold.Section title? action?>…</PageScaffold.Section>
+</PageScaffold>
+```
+
+- Outer: `mx-auto w-full max-w-[1120px] px-8 pt-10 pb-24`, centred **within the stage**, not the viewport.
+- Eyebrow → 8px → title row (`icon` + `h1.text-display`, `gap-3`, `items-start`, actions right-aligned) → 8px → subtitle → 12px → meta row.
+- Meta row: `flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-[var(--ink-muted)]`; the separator is a `·` at `--ink-faint`, not a chip and not a border. Values are plain text; only status uses `StatusPill`.
+- `actions` carries **at most one** primary Button; everything else is ghost or icon.
+- **The header block has no border and no background.** It sits on the canvas. The first hairline on a page is the first section divider.
+- `PageScaffold.Section`: `mt-8` between sections, optional `h2.text-title` plus a 12px gap, optional `border-t border-[var(--edge)] pt-8` when a page has three or more sections.
+- **No banner by default.** A route that already has one keeps it flush and edge to edge above the scaffold, and it gains no chrome.
+- Inline-editable titles keep the click-to-edit pattern; the edit underline is `--edge-strong`, never a functional ink.
+- **Empty states use `components/ui/EmptyState.tsx`.** `page` = `py-24`, `section` = `py-16`, `inline` = `py-8` with no icon and no action. Centred, `gap-3`, no border, no card, no background, no serif, no italic, no uppercase.
+- **Tab bar** (`components/shell/TopTabBar.tsx`) sits above every route: `h-11` container, tabs are `h-9 rounded-full` pills, `min-w-[220px] max-w-[480px] flex-1`. Active = `bg-[var(--sd-selected)]` + ink label; inactive = transparent + ink-faint. Transitions are **color-only, 160ms**. Close ✕ reveals on hover at the left; the kbd hint (`⌃1`) sits mono and ink-faint at the right.
+- **The shell is a three-zone cockpit** (rail / stage / right slot). The stage owns scroll and carries the app's only `@container/main`. The right slot is one grid track shared by the Dock and any `SidePanel`; there are never four live columns.
 
 ## 8. Greeting row and stat strip
 
@@ -126,13 +186,26 @@ The two registers, restated because it is the most commonly broken rule: **nouns
 
 **The shared recipe** (`components/ui/icons/shared.tsx`): every dimensional icon is an 80x80 SVG built from ONE recipe — `useIconIds` for collision-free scoped defs, `BodyGradient` for the cool-indigo body material, `ICON_INNER_SHADOW` / `ICON_CREASE` for embossed depth, and a token-driven `feDropShadow` riding `--sd-icon-shadow*` (both themes first-class, no per-theme file). **A new feature icon is a local file composing that recipe, never a fork of it.** Add `XIcon.tsx` that pulls in the shared helpers and draws only its motif, then re-export it from `components/ui/icons/index.ts`. Never restate the material, the shadow, or the id-scoping; never fill the body with accent (accent lives in the `dropTarget` frame only).
 
-## 14. Motion law
+## 14. Motion law — SDC-1
 
-- Entrances: opacity 0→1, y 4→0, 160ms, `ease [0.25, 1, 0.5, 1]`, stagger `min(i,24) * 10ms`.
-- Collapses: `AnimatePresence` height 0↔auto, 200-320ms on `cubic-bezier(0.32, 0.72, 0, 1)` (`--ease-collapse`).
-- Micro (color / bg / border): 120-150ms ease-out. Tab transitions are 80ms and **color-only**. Sidebar easing is `[0.25, 1, 0.5, 1]`.
-- Press: transform 100ms. Spring overshoot (~4%) ONLY on success and confirm moments.
-- **The zero-jank law**: animate `opacity` / `transform` / `filter` and nothing else. Never animate `width`, `height` (outside a measured collapse), or layout. Everything is interruptible, guarded by `useReducedMotion()`, and never transitions on first paint. No hover-scale anywhere.
+**Four named durations, registered in `@theme`. Nothing under 140ms, nothing over 320ms.**
+
+| token | value | use |
+|---|---|---|
+| `--duration-micro` | 160ms | colour, background, border, opacity |
+| `--duration-enter` | 220ms | enter / exit |
+| `--duration-panel` | 260ms | layout and panel |
+| `--duration-collapse` | 280ms | collapse |
+
+Easings: enter/exit `--ease-out-quart` `cubic-bezier(0.25,1,0.5,1)`; layout, panel and collapse `--ease-collapse` `cubic-bezier(0.32,0.72,0,1)`; micro `ease-out`.
+
+- **Animate `opacity`, `transform`, `color`, `background-color`, `border-color` only.** The one sanctioned width animation in the app is the cockpit's right slot, and it runs on `grid-template-columns`, never on the `width` of a flex child.
+- **Never put `layout` and a `y` transform on the same node.** Motion's layout projection and the `y` animation both write `transform`; an interrupted animation settles at `translateY(4px)`. This is the literal root cause of the drooping wiki tiles.
+- Entrances: opacity 0→1, y 4→0, 220ms `--ease-out-quart`. Stagger `min(i, 12) * 20ms`, capped at 240ms.
+- Press: transform 100ms is the one sanctioned sub-140ms case. Spring overshoot (~4%) ONLY on success and confirm moments.
+- **Never**: hover scale, page-level slides, anything looping on a content surface. The `hud-*` keyframes stay quarantined inside `.agent-mode-scope` and must not appear on a page surface.
+- **Route swaps snap.** No template, no fade, no slide, no stagger; `app/(app)/template.tsx` is deleted. Perceived transition quality comes from `app/(app)/loading.tsx` and per-route skeletons, not from a remount.
+- Every `motion` component guards with `useReducedMotion()`; every CSS animation guards with `@media (prefers-reduced-motion: reduce)`. No transition on first paint: `initial={false}` on every `AnimatePresence`. Everything is interruptible.
 
 ## 15. Ambient layer
 
@@ -142,9 +215,11 @@ The two registers, restated because it is the most commonly broken rule: **nouns
 
 Gradient washes (green/teal especially). Noise on content surfaces. Orbs above 40px. Serif anywhere but the logotype. Glow rings. Card glassmorphism. Accent-filled rows and accent rings for selection. Hover scales. Hover fills on sidebar nav rows. Italic serif empty states. More than one accent hue. `width`-animated progress. New hex literals.
 
+SDC-1 adds: uppercase outside `kbd` and the sidebar eyebrows. Mono outside dates, `kbd` hints and numeric units. `text-[Npx]` in new code. Off-ladder radii. `gap-1.5` / `gap-2.5` / `gap-3.5`. `transition-all`. `hover:border-[var(--sd-accent)]`. More than two accent-coloured elements per viewport. A bordered plate wrapping another bordered plate. A shadow on a card, panel or side panel. `layout` and `y` on the same motion node. A second `SidePanelHost`, or any re-introduced `fixed` detail panel.
+
 ## 17. Utilities index (globals.css)
 
-`.sd-panel` (12px panel shell) · `.sd-status-pill` + `.sd-dot-*` + `.sd-tint-*` · `.sd-progress` / `-fill` / `-hatched` · `.sd-btn-primary` / `.sd-btn-ghost` · `.sd-topbar-blur` / `.sd-pill-blur` · `.sd-glow-*` / `.sd-noise-overlay` (chrome and hero only) · `.text-tiny` (0.65rem) · `.mask-fade-out` (40px bottom mask) · `.sd-scroll-hover` (scrollbar on hover only) · `.sd-stat-label` (legacy mono, kanban only) · easings `--ease-soft-landing`, `--ease-collapse`.
+`.sd-panel` (12px panel shell) · `.sd-status-pill` + `.sd-dot-*` + `.sd-tint-*` · `.sd-progress` / `-fill` / `-hatched` · `.sd-btn-primary` / `.sd-btn-ghost` · `.sd-topbar-blur` / `.sd-pill-blur` · `.sd-glow-*` / `.sd-noise-overlay` (chrome and hero only) · `.text-tiny` (0.65rem) · `.mask-fade-out` (40px bottom mask) · `.sd-scroll-hover` (scrollbar on hover only) · `.sd-stat-label` (micro label: 11.5px sans, sentence case) · easings `--ease-soft-landing`, `--ease-collapse` · durations `--duration-micro` / `-enter` / `-panel` / `-collapse`.
 
 ## 18. Both themes, zero jank
 
