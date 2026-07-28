@@ -1,10 +1,14 @@
 "use client";
 
 import { PolypadIndicatorDot } from "@/components/polypad/PolypadIndicatorDot";
+import {
+  type GcalBadge,
+  GcalStatusDot,
+  useGcalBadge,
+} from "@/components/shell/GcalStatusIndicator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DiscreetToggleButton } from "@/components/voice/DiscreetToggleButton";
 import { MicIndicatorDot } from "@/components/voice/MicIndicatorDot";
-import { useGcalConnectionStatus } from "@/lib/gcal/useGcalConnectionStatus";
 import {
   type PolypadConnectionState,
   subscribeToPolypadState,
@@ -123,17 +127,18 @@ const SYSTEM_ITEMS: readonly NavItem[] = [
 ] as const;
 
 /**
- * One nav row. `badge` renders the 6px functional dot (§1.4) — today only
- * Settings uses it, to flag a dropped Google Calendar connection.
+ * One nav row. `badge` renders the 6px functional dot (§1.4) and, when set,
+ * gives the row a tooltip that says what is wrong and where to fix it. Calendar
+ * and Settings both carry it when the Google Calendar connection is down.
  */
 function NavRow({
   item,
   collapsed,
-  badge = false,
+  badge = null,
 }: {
   item: NavItem;
   collapsed: boolean;
-  badge?: boolean;
+  badge?: GcalBadge | null;
 }) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
@@ -183,13 +188,7 @@ function NavRow({
         ) : item.icon ? (
           <item.icon size={16} strokeWidth={1.75} />
         ) : null}
-        {badge && collapsed && (
-          <span
-            className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ring-2 ring-[var(--sd-sidebar)]"
-            style={{ backgroundColor: "var(--ink-coral)" }}
-            aria-label="Google Calendar disconnected"
-          />
-        )}
+        {badge && collapsed && <GcalStatusDot badge={badge} collapsed />}
       </span>
 
       {!collapsed && <span className="relative z-10 ml-2 flex-1 truncate">{item.label}</span>}
@@ -205,13 +204,7 @@ function NavRow({
       )}
 
       {/* Functional dot (§1.4) — 6px, right-aligned. */}
-      {badge && !collapsed && (
-        <span
-          className="relative z-10 h-1.5 w-1.5 shrink-0 rounded-full"
-          style={{ backgroundColor: "var(--ink-coral)" }}
-          aria-label="Google Calendar disconnected"
-        />
-      )}
+      {badge && !collapsed && <GcalStatusDot badge={badge} collapsed={false} />}
     </span>
   );
 
@@ -230,37 +223,74 @@ function NavRow({
     );
   }
 
+  const link = (
+    <Link href={item.href} className="w-full" data-tour={tourKey}>
+      {inner}
+    </Link>
+  );
+
+  // A badged row explains itself in both rail states. A bare dot reports that
+  // something is wrong without saying what or how to clear it, which is the one
+  // way this indicator could end up worse than no indicator. The copy is a
+  // sentence, so it opts out of the tooltip's mono-uppercase machine register.
+  if (badge) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent
+          side="right"
+          className="max-w-[240px] font-sans normal-case tracking-normal"
+        >
+          {collapsed ? (
+            <span className="flex flex-col gap-1">
+              <span className="text-[var(--sd-ink)]">{item.label}</span>
+              <span>{badge.tooltip}</span>
+            </span>
+          ) : (
+            badge.tooltip
+          )}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
   if (collapsed) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Link href={item.href} className="w-full" data-tour={tourKey}>
-            {inner}
-          </Link>
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
         <TooltipContent side="right">{item.label}</TooltipContent>
       </Tooltip>
     );
   }
 
-  return (
-    <Link href={item.href} className="w-full" data-tour={tourKey}>
-      {inner}
-    </Link>
-  );
+  return link;
 }
 
 interface Props {
   collapsed: boolean;
 }
 
-/** MAIN rail (§1.3) — no section header; the labels speak for themselves. */
+/**
+ * MAIN rail (§1.3) — no section header; the labels speak for themselves.
+ *
+ * Calendar carries the Google Calendar badge, because the row that owns the
+ * feature is where a dropped connection should first be legible. Settings keeps
+ * its own copy of the badge (below) for the case where you are nowhere near the
+ * Calendar row.
+ */
 export function PersistentNav({ collapsed }: Props) {
+  const gcalBadge = useGcalBadge();
+
   return (
     <TooltipProvider delayDuration={300}>
       <nav className="flex flex-col gap-0.5" aria-label="Main navigation">
         {MAIN_ITEMS.map((item) => (
-          <NavRow key={item.href} item={item} collapsed={collapsed} />
+          <NavRow
+            key={item.href}
+            item={item}
+            collapsed={collapsed}
+            badge={item.href === "/calendar" ? gcalBadge : null}
+          />
         ))}
       </nav>
     </TooltipProvider>
@@ -273,10 +303,9 @@ export function PersistentNav({ collapsed }: Props) {
  * one-click path back even when the user is nowhere near /calendar.
  */
 export function SidebarSystemNav({ collapsed }: Props) {
-  const { data: gcalStatus } = useGcalConnectionStatus();
-  // `undefined` = still loading; treated as "no badge" so we never flash a red
-  // dot before the hook resolves.
-  const showGcalBadge = gcalStatus !== undefined && gcalStatus !== "connected";
+  // `undefined` (still loading) resolves to no badge inside the hook, so we
+  // never flash a red dot before the status arrives.
+  const gcalBadge = useGcalBadge();
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -286,7 +315,7 @@ export function SidebarSystemNav({ collapsed }: Props) {
             key={item.href}
             item={item}
             collapsed={collapsed}
-            badge={item.href === "/settings" && showGcalBadge}
+            badge={item.href === "/settings" ? gcalBadge : null}
           />
         ))}
       </nav>
