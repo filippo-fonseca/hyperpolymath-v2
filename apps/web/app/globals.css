@@ -1558,8 +1558,18 @@ select:focus-visible,
 
    Dark scope: the cool hsl(235 ...) sd ladder already reads correctly;
    we only fill in the sidebar / state members the global .dark block was
-   missing so consumers resolve them outside .wiki-explorer. */
-:root {
+   missing so consumers resolve them outside .wiki-explorer.
+
+   jul-28 / U0 C1 — CASCADE FIX. This block was written as `:root`, which also
+   matches `html.dark`. Both it and the `.dark` sd block above are specificity
+   (0,1,0), so source order decided and this later block won: dark mode resolved
+   `--sd-app` to the dark `--canvas` (oklch(15% 0.005 240), near-black) instead
+   of the intended hsl(235 15% 13%) ladder. Scoping to `:root:where(:not(.dark))`
+   keeps the specificity identical (`:where()` contributes zero) and simply stops
+   the block matching in dark, so the `.dark` ladder wins again. No block moves,
+   no specificity arms race. `--sd-sidebar` was only ever declared here, so the
+   `.dark` block below now declares it too. */
+:root:where(:not(.dark)) {
   --sd-app: var(--canvas);
   --sd-box: var(--surface-raised);
   --sd-dark-box: var(--surface);
@@ -1586,6 +1596,9 @@ select:focus-visible,
   --sd-selected-item: hsl(235 15% 18%);
   --sd-frame: hsl(235 15% 25%);
   --sd-menu-line: hsl(235 15% 14%);
+  /* jul-28 / U0 C1 — the light remap above no longer matches in dark, and it
+     was the only declaration of --sd-sidebar. Same alias, dark-side. */
+  --sd-sidebar: var(--sd-darker-box);
 }
 
 /* --- 1. Panel grammar ----------------------------------------------- */
