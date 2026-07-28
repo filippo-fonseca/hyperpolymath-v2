@@ -190,6 +190,7 @@ export function AreaDetailClient({ userId, area, projects, allAreas, graduationY
           userId={userId}
           projects={projects}
           allAreas={allAreas}
+          onNewProject={() => setNewProjectOpen(true)}
         />
       </PageScaffold.Section>
 

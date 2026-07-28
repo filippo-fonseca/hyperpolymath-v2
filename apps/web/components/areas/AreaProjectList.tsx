@@ -9,6 +9,8 @@ import { AreaProjectCardMenu } from "@/components/areas/AreaProjectCardMenu";
 import { useAreaDetailView } from "@/components/areas/useAreaDetailView";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
 import { ProjectsTimeline } from "@/components/projects/timeline/ProjectsTimeline";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { StatusPill } from "@/components/lifeos/entity-card";
 import {
   type SemesterTerm,
   isProjectExpired,
@@ -27,7 +29,7 @@ export interface AreaProject {
   courseCode: string | null;
   description: string | null;
   // startDate / createdAt / orderIndex are carried for the timeline view (u5);
-  // the grid does not read them.
+  // the register does not read them.
   startDate: string | null;
   endDate: string | null;
   archivedAt: string | Date | null;
@@ -52,12 +54,14 @@ interface Props {
   userId: string;
   projects: AreaProject[];
   allAreas: { id: string; name: string }[];
+  /** Opens the New project dialog owned by AreaDetailClient (empty-state CTA). */
+  onNewProject?: () => void;
 }
 
 const TODAY = todayISODate();
 
 /**
- * Archived, or its run has ended — either way it's no longer "live". A class
+ * Archived, or its run has ended; either way it's no longer "live". A class
  * ends with its semester; everything else ends with its end date (issue #55).
  */
 function isPast(p: AreaProject): boolean {
@@ -66,12 +70,13 @@ function isPast(p: AreaProject): boolean {
 }
 
 /**
- * Area project list with three behaviors layered on the simple grid:
- *  - CLASS badge on class projects.
- *  - "Hide classes" toggle so non-class work can be isolated (Yale-style areas
- *    that mix classes with standalone projects).
- *  - Active / Archived tabs — archived or past-end-date projects move out of the
- *    live view into their own tab instead of vanishing.
+ * The area's projects as an AturnDeck-style register: generous full-width
+ * rows, plain-text meta separated by a faint middle dot, one quiet StatusPill
+ * per row, hover moving only the border. Three behaviors layer on top:
+ *  - Active / Archived tabs; archived or past-end-date projects move out of
+ *    the live view into their own tab instead of vanishing.
+ *  - "Hide classes" toggle so non-class work can be isolated.
+ *  - Grid | Timeline view switch (the timeline is U9-owned and reused as-is).
  */
 export function AreaProjectList({
   areaId,
@@ -79,11 +84,12 @@ export function AreaProjectList({
   userId,
   projects: initialProjects,
   allAreas,
+  onNewProject,
 }: Props) {
-  // The grid renders from the server props, so a rename or a delete from a
-  // card menu used to settle by refetching the whole route. Holding the list
-  // as state (re-seeded whenever the server sends a new one, exactly as the
-  // areas index does) lets those mutations settle in place instead.
+  // The register renders from the server props, so a rename or a delete from a
+  // row menu used to settle by refetching the whole route. Holding the list as
+  // state (re-seeded whenever the server sends a new one, exactly as the areas
+  // index does) lets those mutations settle in place instead.
   const [projects, setProjects] = useState(initialProjects);
   useEffect(() => {
     setProjects(initialProjects);
@@ -93,7 +99,7 @@ export function AreaProjectList({
     setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
 
-  /** Delete and move-to-another-area both remove the card from this area. */
+  /** Delete and move-to-another-area both remove the row from this area. */
   function handleProjectRemoved(id: string) {
     setProjects((prev) => prev.filter((p) => p.id !== id));
   }
@@ -105,7 +111,7 @@ export function AreaProjectList({
   const timelineActive = view === "timeline";
 
   // Live projects for the timeline. getProjectsForCurrentUser is the only read
-  // path carrying start_date, and — keyed on the shared ["projects", userId] —
+  // path carrying start_date, and, keyed on the shared ["projects", userId],
   // the realtime subscription's own invalidation refetches it, so external date
   // changes refresh the bars. Until it resolves the widened RSC props render the
   // timeline instantly (no loading flash). Semantics of that action are left
@@ -135,10 +141,7 @@ export function AreaProjectList({
   const baseList = tab === "active" ? active : archived;
   const list = tab === "active" && hideClasses ? baseList.filter((p) => !p.isClass) : baseList;
 
-  const timelineAreas = useMemo<TimelineAreaInput[]>(
-    () => [areaToTimelineInput(area)],
-    [area],
-  );
+  const timelineAreas = useMemo<TimelineAreaInput[]>(() => [areaToTimelineInput(area)], [area]);
   const timelineProjects = useMemo<TimelineProjectInput[]>(() => {
     if (liveRows) {
       return liveRows.filter((r) => r.areaId === areaId).map(projectRowToTimeline);
@@ -152,35 +155,19 @@ export function AreaProjectList({
 
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-end">
-          <ViewToggle view={view} onChange={setView} />
-        </div>
-        {timelineActive ? (
-          <ProjectsTimeline
-            areas={timelineAreas}
-            projects={timelineProjects}
-            showArchived={showArchived}
-            scope="area"
-          />
-        ) : (
-          <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-10 text-center">
-            <p className="text-base text-[var(--ink-muted)]">
-              No projects in this area yet.
-            </p>
-            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]/70 mt-2">
-              Use the New project button above to get started.
-            </p>
-          </div>
-        )}
-      </div>
+      <EmptyState
+        size="section"
+        title="No projects in this area yet"
+        description="Projects group this area's tasks, captures, and pages into bodies of work."
+        action={onNewProject ? { label: "New project", onClick: onNewProject } : undefined}
+      />
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
       {/* Tab + filter row */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-1">
           <TabButton
             label="Active"
@@ -197,18 +184,18 @@ export function AreaProjectList({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* hideClasses filters the grid only — the timeline has no class filter. */}
+          {/* hideClasses filters the register only; the timeline has no class filter. */}
           {view === "grid" && tab === "active" && activeHasClasses ? (
             <button
               type="button"
               onClick={() => setHideClasses((v) => !v)}
               aria-pressed={hideClasses}
               className={cn(
-                "px-2.5 py-1 rounded-sm font-mono text-[11px] uppercase tracking-[0.08em] cursor-pointer-always",
-                "border transition-colors duration-150 ease-out",
+                "h-8 rounded-lg px-3 text-meta cursor-pointer-always",
+                "transition-colors duration-[160ms] ease-out",
                 hideClasses
-                  ? "border-[var(--edge-hud)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                  : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]"
+                  ? "bg-[var(--selected)] text-[var(--ink)]"
+                  : "text-[var(--ink-muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
               )}
             >
               {hideClasses ? "Show classes" : "Hide classes"}
@@ -226,86 +213,97 @@ export function AreaProjectList({
           scope="area"
         />
       ) : list.length === 0 ? (
-        <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-8 text-center">
-          <p className="text-base text-[var(--ink-muted)]">
-            {tab === "archived"
-              ? "Nothing archived or past its end date."
+        <EmptyState
+          size="section"
+          title={
+            tab === "archived"
+              ? "Nothing archived or past its end date"
               : hideClasses
-                ? "No non-class projects here."
-                : "No active projects."}
-          </p>
-        </div>
+                ? "No non-class projects here"
+                : "No active projects"
+          }
+        />
       ) : (
-        <ul className="grid grid-cols-1 @sm/main:grid-cols-2 @2xl/main:grid-cols-3 gap-4">
-          {list.map((p) => (
-            <li key={p.id} className="relative group">
-              <Link
-                href={`/projects/${p.id}`}
-                className={cn(
-                  "group flex flex-col gap-2 rounded-xl border border-[var(--edge)] bg-[var(--surface)] px-4 py-4 h-full",
-                  "hover:border-[var(--edge-hud)] hover:bg-[var(--surface-raised)] transition-colors duration-150 ease-out cursor-pointer-always",
-                  isPast(p) && "opacity-70"
-                )}
-              >
-                <div className="flex items-start gap-2.5">
+        <ul className="flex flex-col gap-3">
+          {list.map((p) => {
+            const status = statusFor(p);
+            const meta = [
+              p.isClass && p.courseCode ? p.courseCode : null,
+              p.description,
+            ].filter(Boolean) as string[];
+            return (
+              <li key={p.id} className="group relative">
+                <Link
+                  href={`/projects/${p.id}`}
+                  className={cn(
+                    "flex items-center gap-4 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-5 py-4",
+                    "transition-colors duration-[160ms] ease-out hover:border-[var(--edge-strong)] cursor-pointer-always",
+                    isPast(p) && "opacity-70"
+                  )}
+                >
                   <DynamicIcon
                     name={p.icon}
                     size={18}
                     strokeWidth={1.5}
-                    className="text-[var(--ink-muted)] shrink-0 mt-0.5 group-hover:text-[var(--ink)] transition-colors"
+                    className="shrink-0 text-[var(--ink-muted)] transition-colors group-hover:text-[var(--ink)]"
                   />
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-lg font-semibold text-[var(--ink)] leading-tight truncate">
-                        {p.name}
-                      </span>
-                      {p.isClass ? (
-                        <span className="shrink-0 px-1.5 py-0.5 rounded-sm font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)] border border-[var(--edge)] bg-[var(--surface-raised)]">
-                          Class
-                        </span>
-                      ) : null}
-                      {p.archivedAt ? (
-                        <span className="shrink-0 px-1.5 py-0.5 rounded-sm font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)] border border-[var(--edge)]">
-                          Archived
-                        </span>
-                      ) : isPast(p) ? (
-                        <span className="shrink-0 px-1.5 py-0.5 rounded-sm font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)] border border-[var(--edge)]">
-                          Ended
-                        </span>
-                      ) : null}
-                    </div>
-                    {p.isClass && p.courseCode ? (
-                      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-                        {p.courseCode}
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="truncate text-subtitle font-medium leading-snug text-[var(--ink)]">
+                      {p.name}
+                    </span>
+                    {meta.length > 0 ? (
+                      <span className="truncate text-meta text-[var(--ink-muted)]">
+                        {meta.map((m, i) => (
+                          // Positional meta fragments; the index is the identity.
+                          // biome-ignore lint/suspicious/noArrayIndexKey: positional by design
+                          <span key={i}>
+                            {i > 0 ? (
+                              <span aria-hidden className="mx-2 text-[var(--ink-faint)]">
+                                ·
+                              </span>
+                            ) : null}
+                            {m}
+                          </span>
+                        ))}
                       </span>
                     ) : null}
                   </div>
+                  {status ? <StatusPill tone="idle" label={status} /> : null}
+                  {/* Spacer keeps the pill clear of the absolutely-placed row menu. */}
+                  <span className="w-6 shrink-0" aria-hidden />
+                </Link>
+                <div className="absolute top-1/2 right-4 z-10 -translate-y-1/2">
+                  <AreaProjectCardMenu
+                    projectId={p.id}
+                    projectName={p.name}
+                    projectDescription={p.description}
+                    projectIcon={p.icon}
+                    isClass={p.isClass}
+                    currentAreaId={areaId}
+                    allAreas={allAreas}
+                    onUpdated={handleProjectUpdated}
+                    onRemoved={handleProjectRemoved}
+                  />
                 </div>
-                {p.description ? (
-                  <p className="text-sm text-[var(--ink-muted)] line-clamp-2">
-                    {p.description}
-                  </p>
-                ) : null}
-              </Link>
-              <div className="absolute top-2 right-2 z-10">
-                <AreaProjectCardMenu
-                  projectId={p.id}
-                  projectName={p.name}
-                  projectDescription={p.description}
-                  projectIcon={p.icon}
-                  isClass={p.isClass}
-                  currentAreaId={areaId}
-                  allAreas={allAreas}
-                  onUpdated={handleProjectUpdated}
-                  onRemoved={handleProjectRemoved}
-                />
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
+}
+
+/**
+ * One quiet pill per row (never chip-on-chip): lifecycle first, then kind.
+ * Archived and Ended outrank Class because the course code in the meta line
+ * already marks a class.
+ */
+function statusFor(p: AreaProject): string | null {
+  if (p.archivedAt) return "Archived";
+  if (isPast(p)) return "Ended";
+  if (p.isClass) return "Class";
+  return null;
 }
 
 function TabButton({
@@ -324,11 +322,11 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "px-3 py-1 rounded-sm font-mono text-[11px] font-semibold uppercase tracking-[0.12em] cursor-pointer-always",
-        "transition-colors duration-150 ease-out",
+        "h-8 rounded-lg px-3 text-meta cursor-pointer-always",
+        "transition-colors duration-[160ms] ease-out",
         active
-          ? "bg-[var(--surface-raised)] text-[var(--ink)]"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          ? "bg-[var(--selected)] font-medium text-[var(--ink)]"
+          : "text-[var(--ink-muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
       )}
     >
       {label} <span className="tabular-nums text-[var(--ink-muted)]">({count})</span>
@@ -342,8 +340,9 @@ const VIEW_SEGMENTS: { value: "grid" | "timeline"; label: string }[] = [
 ];
 
 /**
- * Grid|Timeline segmented control. Same grammar as the /areas index
- * TREE|TIMELINE toggle (AreasPageClient) so the two surfaces read as one system.
+ * Grid | Timeline segmented control. Same grammar as the /areas index
+ * Tree | Timeline toggle (AreasPageClient) so the two surfaces read as one
+ * system: 8px shell, 4px segments, sentence case, ladder radii only.
  */
 function ViewToggle({
   view,
@@ -355,7 +354,7 @@ function ViewToggle({
   return (
     <div
       data-testid="area-detail-view-toggle"
-      className="flex items-center gap-0.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5"
+      className="flex items-center gap-1 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-1"
     >
       {VIEW_SEGMENTS.map((seg) => (
         <button
@@ -364,12 +363,11 @@ function ViewToggle({
           onClick={() => onChange(seg.value)}
           aria-pressed={view === seg.value}
           className={cn(
-            "cursor-pointer-always rounded-[5px] px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em]",
-            "transition-colors duration-150 ease-out",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+            "cursor-pointer-always rounded px-2 py-1 text-meta",
+            "transition-colors duration-[160ms] ease-out",
             view === seg.value
-              ? "bg-[var(--sd-selected)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]"
-              : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
+              ? "bg-[var(--selected)] font-medium text-[var(--ink)]"
+              : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
           )}
         >
           {seg.label}
