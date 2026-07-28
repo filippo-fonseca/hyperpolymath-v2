@@ -26,7 +26,11 @@
  */
 
 import { useGcalBadge } from "@/components/shell/GcalStatusIndicator";
-import { PersistentNav, SidebarSystemNav } from "@/components/shell/PersistentNav";
+import {
+  PersistentNav,
+  SidebarGcalAlert,
+  SidebarSystemNav,
+} from "@/components/shell/PersistentNav";
 import type { GcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
 import { render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -113,5 +117,58 @@ describe("Google Calendar nav badge", () => {
 
     status = "connected";
     expect(renderHook(() => useGcalBadge()).result.current).toBeNull();
+  });
+});
+
+/**
+ * The pinned copy of the same signal.
+ *
+ * The Calendar row's badge is correct and unreachable: MAIN is the sidebar's
+ * scroll column, Calendar is its thirteenth row, and at 1280x720 the column
+ * shows about nine. `SidebarGcalAlert` mounts in the pinned footer stack
+ * instead, so the fault is on screen at every laptop height without a scroll.
+ * A DOM-only assertion cannot tell the two apart, so these tests pin the
+ * properties that make the pinned one worth having: it exists in both rail
+ * states, it links to the reconnect control, and it costs nothing when the
+ * connection is healthy.
+ */
+function alert() {
+  return document.querySelector('[data-slot="gcal-sidebar-alert"]');
+}
+
+describe("pinned Google Calendar fault row", () => {
+  it("renders in both rail states and links to the reconnect control", () => {
+    status = "not_connected";
+
+    for (const collapsed of [false, true]) {
+      const { unmount } = render(<SidebarGcalAlert collapsed={collapsed} />);
+      const row = alert();
+
+      expect(row).not.toBeNull();
+      expect(row).toHaveAttribute("href", "/settings#integrations");
+      expect(row?.getAttribute("aria-label")).toContain("Google Calendar disconnected");
+      unmount();
+    }
+  });
+
+  it("spells the fault out in words when the rail is expanded", () => {
+    status = "not_connected";
+
+    const { unmount } = render(<SidebarGcalAlert collapsed={false} />);
+    expect(alert()?.textContent).toBe("Calendar offline");
+    unmount();
+
+    // Collapsed is 56px of rail: the dot carries it, the label would not fit.
+    render(<SidebarGcalAlert collapsed={true} />);
+    expect(alert()?.textContent).toBe("");
+  });
+
+  it("occupies no vertical space when the connection is healthy or still loading", () => {
+    for (const settled of ["connected", undefined] as const) {
+      status = settled;
+      const { unmount } = render(<SidebarGcalAlert collapsed={false} />);
+      expect(alert()).toBeNull();
+      unmount();
+    }
   });
 });
