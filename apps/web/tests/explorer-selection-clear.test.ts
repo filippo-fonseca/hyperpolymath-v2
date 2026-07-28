@@ -14,9 +14,9 @@
  *   2. clear() with a live selection actually empties it, and resets the cursor
  *   3. A second clear() after a real clear is itself a no-op
  */
-import { renderHook, act } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
 import { useExplorerSelection } from "@/components/wiki/explorer-hooks/useExplorerSelection";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 describe("useExplorerSelection.clear", () => {
   it("preserves state identity when nothing is selected", () => {
