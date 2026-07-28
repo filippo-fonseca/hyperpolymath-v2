@@ -25,6 +25,15 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      // Issue #349 — wiki page images uploaded to the public "page-images"
+      // Supabase Storage bucket. The project ref is the subdomain and differs
+      // between local, preview, and prod, so match the level rather than
+      // pinning one host. The pathname keeps this scoped to public objects.
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
   // Next 16: Turbopack is default; no explicit flag needed
