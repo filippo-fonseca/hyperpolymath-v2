@@ -80,9 +80,8 @@ function CockpitGrid({ userId, activeAreas, allAreas, graduationYear, profile, c
 
   const rightWidth = computeRightSlotWidth({
     panel: slot.panelChrome,
-    // The Dock is the slot's default occupant, and it lands two commits from
-    // here. Until then the track closes to zero whenever no panel is open.
-    dockAvailable: false,
+    // The Dock is the slot's default occupant, and it is absent below 1024px.
+    dockAvailable: slot.atLeastLg,
     dockCollapsed: slot.dockCollapsed,
     atLeastXl: slot.atLeastXl,
   });

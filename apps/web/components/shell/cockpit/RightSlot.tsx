@@ -1,5 +1,7 @@
 "use client";
 
+import { Dock } from "@/components/shell/cockpit/Dock";
+import { useRightSlot } from "@/components/shell/cockpit/right-slot-context";
 import { SidePanelHost } from "@/components/ui/SidePanel";
 
 /**
@@ -15,9 +17,17 @@ import { SidePanelHost } from "@/components/ui/SidePanel";
  * registered, so an empty slot costs nothing.
  */
 export function RightSlot() {
+  const { panelChrome, atLeastLg } = useRightSlot();
+
+  // A panel slides the Dock out; closing it brings the Dock back at whatever
+  // collapse state it had. Below 1024px the Dock is not rendered at all, and a
+  // SidePanel degrades to a sheet, so the track is empty either way.
+  const occupant = panelChrome ? "panel" : atLeastLg ? "dock" : "none";
+
   return (
     <div className="min-w-0 overflow-hidden">
-      <SidePanelHost />
+      {occupant === "panel" ? <SidePanelHost /> : null}
+      {occupant === "dock" ? <Dock /> : null}
     </div>
   );
 }
