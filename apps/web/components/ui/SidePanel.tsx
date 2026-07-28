@@ -49,25 +49,33 @@ export function SidePanel(props: SidePanelProps) {
   const atLeastLg = slot?.atLeastLg ?? false;
   const inSlot = Boolean(slot) && atLeastLg;
 
+  // Pull the STABLE members out of the context value. Depending on `slot`
+  // itself would be a live infinite loop: acquiring the slot sets provider
+  // state, which rebuilds the context value, which changes the dependency,
+  // which releases and re-acquires, forever. These three never change identity.
+  const panelStore = slot?.panelStore;
+  const acquireSlot = slot?.acquireSlot;
+  const releaseSlot = slot?.releaseSlot;
+
   // Re-register on EVERY render while open. `children` are React elements, i.e.
   // plain objects recreated each render, so anything less leaves the host
   // rendering last render's content. Only the host subscribes to this store, so
   // re-registering cannot cascade back into this component.
   useIsomorphicLayoutEffect(() => {
-    if (!inSlot || !open || !slot) return;
-    slot.panelStore.set({ id: generatedId, props });
+    if (!inSlot || !open || !panelStore) return;
+    panelStore.set({ id: generatedId, props });
   });
 
   // The scalar half: what the grid needs to size the track. Guarded by real
   // dependencies so the provider re-renders on user action, not on every render.
   useEffect(() => {
-    if (!inSlot || !open || !slot) return;
-    slot.acquireSlot({ id: generatedId, width: clampPanelWidth(width), side });
+    if (!inSlot || !open || !acquireSlot || !releaseSlot || !panelStore) return;
+    acquireSlot({ id: generatedId, width: clampPanelWidth(width), side });
     return () => {
-      slot.releaseSlot(generatedId);
-      slot.panelStore.clear(generatedId);
+      releaseSlot(generatedId);
+      panelStore.clear(generatedId);
     };
-  }, [inSlot, open, slot, generatedId, width, side]);
+  }, [inSlot, open, acquireSlot, releaseSlot, panelStore, generatedId, width, side]);
 
   if (inSlot) return null;
 

@@ -237,8 +237,19 @@ export function RightSlotProvider({ children }: { children: ReactNode }) {
 
   // Last open wins. The releasing panel checks ownership by id so a panel that
   // has already been replaced cannot clobber its replacement on the way out.
+  //
+  // The equality check matters: a panel re-acquiring with identical chrome must
+  // not produce a new state object, or the context value churns and every
+  // consumer re-renders for nothing.
   const acquireSlot = useCallback((chrome: PanelChrome) => {
-    setPanelChrome(chrome);
+    setPanelChrome((current) =>
+      current &&
+      current.id === chrome.id &&
+      current.width === chrome.width &&
+      current.side === chrome.side
+        ? current
+        : chrome
+    );
   }, []);
 
   const releaseSlot = useCallback((id: string) => {
