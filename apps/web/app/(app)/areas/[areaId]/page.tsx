@@ -1,7 +1,8 @@
 import { AreaDetailClient } from "@/components/areas/AreaDetailClient";
+import type { AreaTaskRow } from "@/components/areas/AreaTasksRollup";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
-import { areas, projects } from "@/lib/db/schema";
+import { areas, projects, tasks, tasksProjects } from "@/lib/db/schema";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
@@ -22,7 +23,7 @@ export default async function AreaDetailPage({ params }: Props) {
   // The three reads are independent (the area row, its projects, and the picker's
   // area list all key off areaId / user.id), so they go out together instead of
   // serially. Same shape as the project detail page already uses.
-  const [areaRows, projectRows, allActiveAreas] = await Promise.all([
+  const [areaRows, projectRows, allActiveAreas, taskRows] = await Promise.all([
     db
       .select({
         id: areas.id,
@@ -69,10 +70,51 @@ export default async function AreaDetailPage({ params }: Props) {
       .from(areas)
       .where(and(eq(areas.userId, user.id), isNull(areas.archivedAt)))
       .orderBy(asc(areas.orderIndex), asc(areas.createdAt)),
+
+    // The area-level tasks rollup: every task linked (via tasks_projects) to a
+    // project that lives in this area. Constraining the projects join on
+    // areaId keeps the query independent of the projects fetch above, so it
+    // rides the same Promise.all instead of serializing behind it.
+    db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        status: tasks.status,
+        dueDate: tasks.dueDate,
+        projectId: projects.id,
+        projectName: projects.name,
+      })
+      .from(tasksProjects)
+      .innerJoin(tasks, eq(tasks.id, tasksProjects.taskId))
+      .innerJoin(
+        projects,
+        and(eq(projects.id, tasksProjects.projectId), eq(projects.areaId, areaId))
+      )
+      .where(eq(tasksProjects.userId, user.id))
+      .orderBy(asc(tasks.dueDate), asc(tasks.createdAt)),
   ]);
 
   const [area] = areaRows;
   if (!area) notFound();
+
+  // A task linked to two of this area's projects comes back twice; fold the
+  // join rows into one rollup row per task, collecting its in-area projects.
+  const taskById = new Map<string, AreaTaskRow>();
+  for (const row of taskRows) {
+    const existing = taskById.get(row.id);
+    if (existing) {
+      existing.projects.push({ id: row.projectId, name: row.projectName });
+    } else {
+      taskById.set(row.id, {
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        dueDate: row.dueDate,
+        projects: [{ id: row.projectId, name: row.projectName }],
+      });
+    }
+  }
+  const areaTasks = [...taskById.values()];
 
   return (
     <main className="min-h-full bg-[var(--canvas)] text-[var(--ink)]">
@@ -80,6 +122,7 @@ export default async function AreaDetailPage({ params }: Props) {
         userId={user.id}
         area={area}
         projects={projectRows}
+        tasks={areaTasks}
         allAreas={allActiveAreas}
         graduationYear={user.graduationYear}
       />

@@ -3,6 +3,11 @@
 import { deleteArea, getAreasForCurrentUser, updateArea } from "@/app/actions/areas";
 import type { AreaDetailArea, AreaProject } from "@/components/areas/AreaProjectList";
 import { AreaProjectList } from "@/components/areas/AreaProjectList";
+import {
+  type AreaTaskRow,
+  AreaTasksRollup,
+  useAreaTasks,
+} from "@/components/areas/AreaTasksRollup";
 import { ProjectCreateDialog } from "@/components/projects/ProjectCreateDialog";
 import { Spinner } from "@/components/shared/Spinner";
 import { usePendingAction } from "@/components/shared/use-pending-action";
@@ -30,12 +35,13 @@ import { useQuery } from "@tanstack/react-query";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface Props {
   userId: string;
   area: AreaDetailArea;
   projects: AreaProject[];
+  tasks: AreaTaskRow[];
   allAreas: { id: string; name: string }[];
   graduationYear: number | null;
 }
@@ -50,7 +56,14 @@ interface Props {
  * Kiwi, or from the edit dialog here settles into that one cache entry and
  * this H1 re-renders live, without a navigation.
  */
-export function AreaDetailClient({ userId, area, projects, allAreas, graduationYear }: Props) {
+export function AreaDetailClient({
+  userId,
+  area,
+  projects,
+  tasks,
+  allAreas,
+  graduationYear,
+}: Props) {
   const router = useRouter();
 
   // Realtime invalidation source. The sidebar also subscribes; the channel
@@ -90,6 +103,12 @@ export function AreaDetailClient({ userId, area, projects, allAreas, graduationY
 
   const activeCount = projects.filter((p) => !p.archivedAt).length;
   const archivedCount = projects.length - activeCount;
+
+  // Live open-task count for the meta row. Same query key and select the
+  // rollup section uses, so TanStack dedupes the fetch and both stay in step.
+  const areaProjectIds = useMemo(() => projects.map((p) => p.id), [projects]);
+  const liveTasks = useAreaTasks(userId, areaProjectIds, tasks);
+  const openTaskCount = liveTasks.filter((t) => t.status !== "lesno").length;
 
   async function handleSaveEdit() {
     const trimmed = name.trim();
@@ -145,6 +164,9 @@ export function AreaDetailClient({ userId, area, projects, allAreas, graduationY
               {activeCount} active project{activeCount === 1 ? "" : "s"}
             </span>,
             archivedCount > 0 ? <span key="archived">{archivedCount} archived</span> : null,
+            <span key="tasks">
+              {openTaskCount} open task{openTaskCount === 1 ? "" : "s"}
+            </span>,
           ]}
         </PageScaffold.MetaRow>
       }
@@ -192,6 +214,18 @@ export function AreaDetailClient({ userId, area, projects, allAreas, graduationY
           allAreas={allAreas}
           onNewProject={() => setNewProjectOpen(true)}
         />
+      </PageScaffold.Section>
+
+      <PageScaffold.Section
+        title="Tasks"
+        divided
+        action={
+          <Button asChild variant="ghost" size="sm" className="rounded-lg">
+            <Link href="/tasks">All tasks</Link>
+          </Button>
+        }
+      >
+        <AreaTasksRollup userId={userId} areaProjectIds={areaProjectIds} initialTasks={tasks} />
       </PageScaffold.Section>
 
       {/* Edit area dialog */}
