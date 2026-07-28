@@ -34,6 +34,16 @@ const UNSPLASH_HOST = "images.unsplash.com";
  */
 export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  // The picker's Radix Dialog used to be mounted on every page view, open or
+  // not, so every wiki page carried a live modal layer it almost never needed.
+  // Overlapping Radix modal layers are how `pointer-events: none` gets stranded
+  // on <body>, which kills every click on the page. Mount it on first open and
+  // keep it mounted after that, so the close animation still runs.
+  const [everOpened, setEverOpened] = useState(false);
+  const openPicker = () => {
+    setEverOpened(true);
+    setPickerOpen(true);
+  };
 
   function handleSelect(selection: CoverSelection) {
     onChange(selection);
@@ -59,13 +69,15 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
       <>
         <button
           type="button"
-          onClick={() => setPickerOpen(true)}
+          onClick={openPicker}
           className="group inline-flex w-fit items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[11px] text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)] cursor-pointer"
         >
           <ImagePlus size={13} strokeWidth={1.5} />
           Add cover
         </button>
-        <CoverImagePicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelect} />
+        {everOpened ? (
+          <CoverImagePicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelect} />
+        ) : null}
       </>
     );
   }
@@ -94,7 +106,7 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
         <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
           <button
             type="button"
-            onClick={() => setPickerOpen(true)}
+            onClick={openPicker}
             title="Change cover"
             className="inline-flex items-center gap-1 rounded-sm bg-black/55 px-2 py-1 font-mono text-[11px] text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70 cursor-pointer"
           >
@@ -121,7 +133,9 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
         )}
       </div>
 
-      <CoverImagePicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelect} />
+      {everOpened ? (
+        <CoverImagePicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelect} />
+      ) : null}
     </>
   );
 }

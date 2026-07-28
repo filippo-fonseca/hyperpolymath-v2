@@ -82,10 +82,15 @@ export function useExplorerSelection(
     setCursor(ids[ids.length - 1] ?? null);
   }, []);
 
+  // Functional updates that return `prev` unchanged when the selection is
+  // already empty, so React bails out. `clear` is called on every folder
+  // navigation; allocating a fresh Set there forced a second render pass and a
+  // new `selection` identity through the memo below, which in turn refired every
+  // effect keyed on it. Clearing nothing now costs nothing.
   const clear = useCallback(() => {
-    setSelected(new Set());
-    setAnchor(null);
-    setCursor(null);
+    setSelected((prev) => (prev.size === 0 ? prev : new Set()));
+    setAnchor((prev) => (prev === null ? prev : null));
+    setCursor((prev) => (prev === null ? prev : null));
   }, []);
 
   const onItemClick = useCallback(
