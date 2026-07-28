@@ -7,13 +7,12 @@ import {
   emitJarvisToolCall,
   emitPhysicalTranscript,
 } from "@/lib/voice/physical-extension/bus";
-import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
-import { buildRecentHistory } from "@/lib/jarvis/recent-history";
-import { getUserKeyOrNull } from "@/lib/byok/keys";
+import {
+  runChannelTurn,
+  type ChannelMessage,
+} from "@/lib/jarvis/run-channel-turn";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { isOwnerUser } from "@/lib/auth/owner";
-import { db } from "@/lib/db";
-import { jarvisTurns } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,15 +40,14 @@ function readJarvisMode(req: NextRequest): "computer" | undefined {
  * (mobile app text bar, desktop fallback). Accepts JSON { text } with a
  * device bearer token, skips STT, and spawns the same server-side JARVIS
  * turn — response streams to all listeners via the physical SSE bus.
+ *
+ * This route is now a THIN WRAPPER: auth, the physical-bus emits and the
+ * request contract live here, while key resolution, hint injection,
+ * tool_choice, history and jarvis_turns persistence live in
+ * lib/jarvis/run-channel-turn.ts, shared with every other text channel. The
+ * roughly 180 lines this file used to duplicate from app/api/jarvis/route.ts
+ * (and the "keep the two in sync" comment that came with them) are gone.
  */
-// ContentBlock mirrors the Anthropic API content-block shapes.
-// Mobile clients (Phase 16 parity) send prior-turn history so the model can
-// resolve entity references across turns (e.g. "the task I just created").
-type ContentBlock =
-  | { type: "text"; text: string }
-  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_result"; tool_use_id: string; content: string };
-
 interface VoiceTextBody {
   text?: unknown;
   parsedDates?: Array<{ text: string; start: string; end?: string; allDay?: boolean }>;
@@ -62,8 +60,9 @@ interface VoiceTextBody {
    * Each entry is a prior assistant or user turn. The last entry MUST be a
    * user turn carrying tool_result blocks for any tool_use in the preceding
    * assistant turn (Anthropic API Pitfall 1). Max 10 entries enforced below.
+   * When absent or empty, the shared core falls back to buildRecentHistory.
    */
-  history?: Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }>;
+  history?: ChannelMessage[];
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -98,186 +97,48 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  // Slash-command forcing + system hints — mirrors /api/jarvis (browser
-  // route). Keep the two in sync: /task|/capture|/event force the matching
-  // tool, /ask (or a bare meta-question) forbids tools, hints are appended
-  // to the model-visible message only — the persisted user turn stays clean.
-  const META_QUESTION_RE =
-    /^(what\s+(?:did|do|does|are|is|was|were|have|will)|did\s+(?:i|we|you)|do\s+(?:i|we|you)|have\s+(?:i|we|you)|show\s+me|tell\s+me|list\s+|summari[sz]e|recap|how\s+many|how\s+much)\b/i;
-  const askMode =
-    body.slashCommand === "ask" || (!body.slashCommand && META_QUESTION_RE.test(text));
-
-  const toolChoice: { type: "auto" } | { type: "none" } | { type: "tool"; name: string } =
-    askMode
-      ? { type: "none" as const }
-      : body.slashCommand
-        ? { type: "tool" as const, name: `create_${body.slashCommand}` }
-        : { type: "auto" as const };
-
-  let userContent = text;
-  if (body.parsedDates && body.parsedDates.length > 0) {
-    userContent += `\n\n[SYSTEM-PARSED DATES — MANDATORY: copy these ISO strings verbatim into the relevant tool field (due/start/end). Do NOT call new Date() or re-parse. If allDay=true the user gave no time-of-day; use the start value as-is. ${JSON.stringify(body.parsedDates)}]`;
-  }
-  if (body.parsedPriority) {
-    userContent += `\n\n[SYSTEM-PARSED PRIORITY — MANDATORY: the user typed an explicit priority token. Set create_task.priority to exactly "${body.parsedPriority}". Do not default to P3.]`;
-  }
-  if (askMode) {
-    userContent += `\n\n[META-QUESTION MODE${body.slashCommand === "ask" ? " (/ask)" : ""}: this turn answers a question; do NOT call any tool. Reply with 1-3 plain English sentences using the visible conversation history. The "OUTPUT FORMAT: emit tool calls only" rule does NOT apply this turn. Your prose IS the response and WILL render to the user.]`;
-  }
-  if ((body.linkedProjectIds?.length ?? 0) > 0 || (body.linkedHashtags?.length ?? 0) > 0) {
-    const parts: string[] = [];
-    if (body.linkedProjectIds && body.linkedProjectIds.length > 0) {
-      parts.push(`projects=${JSON.stringify(body.linkedProjectIds)}`);
-    }
-    if (body.linkedHashtags && body.linkedHashtags.length > 0) {
-      parts.push(`hashtags=${JSON.stringify(body.linkedHashtags)}`);
-    }
-    userContent += `\n\n[Linked references in this message (client-validated): ${parts.join(", ")}]`;
-  }
-
   const receivedAt = Date.now();
   // Mint the reply turnId BEFORE the echo emit and stamp it on the echo so the
   // desktop reducer can pair the user bubble to its reply by identity (FIFO is
   // the fallback for turnless echoes; identity is exact under any overlap).
   const turnId = crypto.randomUUID();
   emitPhysicalTranscript({ transcript: text, sttDoneAt: receivedAt, at: receivedAt, turnId });
-
-  const userTurnId = crypto.randomUUID();
-  const userTurnCreatedAt = new Date();
-  const assistantTurnCreatedAt = new Date(userTurnCreatedAt.getTime() + 1);
-
-  // Resolve conversation history BEFORE persisting the current user turn, so
-  // the current utterance is never double-counted in the server-side fallback
-  // window. When the client sends its own history, honor it and skip the
-  // fallback entirely. Fail-open: a load error degrades to no history.
-  let historyEntries: Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }> =
-    Array.isArray(body.history) ? body.history.slice(-10) : [];
-  if (historyEntries.length === 0) {
-    try {
-      historyEntries = await buildRecentHistory(userId);
-    } catch (err) {
-      console.error("[voice/text] buildRecentHistory failed; running without history", err);
-      historyEntries = [];
-    }
-  }
-
-  void db
-    .insert(jarvisTurns)
-    .values({
-      id: userTurnId,
-      userId,
-      kind: "user",
-      text,
-      textDelta: null,
-      actions: [],
-      clarification: null,
-      status: null,
-      errorMessage: null,
-      createdAt: userTurnCreatedAt,
-    })
-    .onConflictDoNothing()
-    .catch((err: unknown) => {
-      console.error("[voice/text] failed to persist user turn", err);
-    });
-
   emitJarvisResponseStart({ turnId, at: Date.now() });
 
-  let assistantText = "";
-  const assistantActions: Array<{ toolUseId: string; name: string; result: unknown }> = [];
+  // Client-supplied history wins when present; otherwise the core loads the
+  // server-side recency window itself.
+  const clientHistory = Array.isArray(body.history) ? body.history.slice(-10) : [];
 
-  // Prior history (client-supplied or server fallback, resolved above) followed
-  // by the current user turn with system hints injected.
-  const messages: Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }> = [
-    ...historyEntries,
-    { role: "user", content: userContent },
-  ];
-
-  // BYOK — owner-only physical/voice bus. Use the bound user's own Anthropic
-  // key when configured; fall back to the owner's env key for the hardware
-  // bridge path.
-  const anthropicKey =
-    (await getUserKeyOrNull(userId, "anthropic")) ??
-    process.env.ANTHROPIC_API_KEY ??
-    "";
-
-  void runJarvisTurnStream({
+  // Fire and forget: the caller only needs the turnId, and every downstream
+  // event reaches listeners over the physical bus.
+  void runChannelTurn({
     userId,
-    apiKey: anthropicKey,
-    input: text,
-    messages,
-    toolChoice,
+    text,
+    deviceLabel: identity.deviceName,
+    turnId,
+    history: clientHistory.length > 0 ? clientHistory : undefined,
+    slashCommand: body.slashCommand ?? null,
+    parsedDates: body.parsedDates,
     parsedPriority: body.parsedPriority,
+    linkedProjectIds: body.linkedProjectIds,
+    linkedHashtags: body.linkedHashtags,
     mode: jarvisMode,
-    source: { device: identity.deviceName, input: "text" },
     isVoice: false,
-    sttDoneAt: null,
-    vadEndAt: undefined,
     onTextDelta: (delta) => {
-      assistantText += delta;
       emitJarvisResponseChunk({ turnId, delta, at: Date.now() });
     },
     onAction: (toolUseId, name, result) => {
-      assistantActions.push({ toolUseId, name, result });
       emitJarvisToolCall({ turnId, toolUseId, name, result, at: Date.now() });
     },
     onDone: () => {
       emitJarvisResponseEnd({ turnId, at: Date.now() });
-      void db
-        .insert(jarvisTurns)
-        .values({
-          id: turnId,
-          userId,
-          kind: "assistant",
-          text: null,
-          textDelta: assistantText,
-          actions: assistantActions,
-          clarification: null,
-          status: "done",
-          errorMessage: null,
-          createdAt: assistantTurnCreatedAt,
-        })
-        .onConflictDoUpdate({
-          target: jarvisTurns.id,
-          set: {
-            textDelta: assistantText,
-            actions: assistantActions,
-            status: "done",
-            errorMessage: null,
-          },
-        })
-        .catch((err: unknown) => {
-          console.error("[voice/text] failed to persist assistant turn", err);
-        });
     },
-    onError: (message) => {
+    onError: () => {
       emitJarvisResponseEnd({ turnId, at: Date.now() });
-      void db
-        .insert(jarvisTurns)
-        .values({
-          id: turnId,
-          userId,
-          kind: "assistant",
-          text: null,
-          textDelta: assistantText || null,
-          actions: assistantActions,
-          clarification: null,
-          status: "error",
-          errorMessage: message,
-          createdAt: assistantTurnCreatedAt,
-        })
-        .onConflictDoUpdate({
-          target: jarvisTurns.id,
-          set: {
-            textDelta: assistantText || null,
-            actions: assistantActions,
-            status: "error",
-            errorMessage: message,
-          },
-        })
-        .catch((err: unknown) => {
-          console.error("[voice/text] failed to persist error turn", err);
-        });
     },
+  }).catch((err: unknown) => {
+    console.error("[voice/text] channel turn failed", err);
+    emitJarvisResponseEnd({ turnId, at: Date.now() });
   });
 
   return Response.json({ turnId }, { headers: CORS });

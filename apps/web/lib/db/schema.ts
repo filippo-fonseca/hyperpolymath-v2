@@ -121,6 +121,28 @@ export const users = pgTable("users", {
   }),
   pagesBackupLastStatus: text("pages_backup_last_status"),
   pagesBackupLastError: text("pages_backup_last_error"),
+  // Issue #352 — JARVIS over text message (Twilio SMS/MMS). Per-user gate on
+  // the whole inbound channel plus last-reply telemetry for /settings#messaging.
+  // See migration 0039.
+  //   smsJarvisEnabled     — DEFAULT FALSE, deliberately. An assistant that
+  //                          starts auto-replying to text messages the moment
+  //                          the code ships is the bad failure mode, so the
+  //                          channel stays dark until it is switched on. The
+  //                          webhook checks this BEFORE spending a turn, so an
+  //                          inbound message costs zero Anthropic calls while
+  //                          the flag is off.
+  //   smsJarvisLastReplyAt — timestamp of the last inbound handled (success OR
+  //                          failure).
+  //   smsJarvisLastStatus  — short machine-readable status of that attempt:
+  //                          "done" | "disabled" | "ignored_sender" | "error".
+  //   smsJarvisLastError   — human-readable detail when it failed (null on
+  //                          success). Surfaced in the settings UI.
+  smsJarvisEnabled: boolean("sms_jarvis_enabled").notNull().default(false),
+  smsJarvisLastReplyAt: timestamp("sms_jarvis_last_reply_at", {
+    withTimezone: true,
+  }),
+  smsJarvisLastStatus: text("sms_jarvis_last_status"),
+  smsJarvisLastError: text("sms_jarvis_last_error"),
 });
 
 // BYOK — per-user third-party API keys (Anthropic / Groq / ElevenLabs), stored
@@ -884,6 +906,47 @@ export const agentmailIngestEvents = pgTable(
   (t) => [
     index("agentmail_ingest_events_message_idx").on(t.inboxId, t.messageId),
     index("agentmail_ingest_events_created_idx").on(sql`created_at DESC`),
+  ],
+);
+
+// jarvis_sms_events — Issue #352. Idempotency ledger for inbound Twilio
+// SMS/MMS webhooks, mirroring agentmail_ingest_events above.
+//
+// Twilio retries a webhook it considers failed, and a retry must never spend a
+// second Anthropic turn or file a duplicate task. `message_sid` is Twilio's
+// durable per-message id, so making it the primary key turns the insert into
+// the replay lock: `insert(...).onConflictDoNothing().returning()` returning an
+// empty array means "already seen, stop here".
+//
+// The row is also the audit trail for messages that were deliberately NOT
+// answered, which is why `status` carries the reason rather than the row simply
+// being absent:
+//   received       — accepted, turn in flight
+//   ignored_sender — sender not in the allowlist (or our own number looping back)
+//   disabled       — the per-user settings toggle is off; no turn was spent
+//   done           — replied
+//   error          — the turn or the outbound send failed; `error` has detail
+//
+// user_id is nullable because sender resolution happens after the row exists.
+// RLS is enabled with no policies (migration 0039) exactly as
+// agentmail_ingest_events is: the server connects as an RLS-bypassing role, and
+// no browser should ever read a table of phone numbers.
+export const jarvisSmsEvents = pgTable(
+  "jarvis_sms_events",
+  {
+    messageSid: text("message_sid").primaryKey(),
+    fromNumber: text("from_number").notNull(),
+    toNumber: text("to_number").notNull(),
+    userId: uuid("user_id"),
+    turnId: uuid("turn_id"),
+    status: text("status").notNull().default("received"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("jarvis_sms_events_from_idx").on(t.fromNumber, t.createdAt),
+    index("jarvis_sms_events_created_idx").on(sql`created_at DESC`),
   ],
 );
 
