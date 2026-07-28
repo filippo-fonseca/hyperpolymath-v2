@@ -225,3 +225,14 @@ down. `pnpm verify:bootstrap` starts it.
 
 **The dev server did not come up.** Read `.verify/dev-server.log`. Port 3100 is
 the default so it does not collide with a normal `pnpm dev` on 3000.
+
+**The dev server died right after the command finished.** It is spawned
+detached and survives a normal shell, but some agent harnesses and CI wrappers
+kill the whole process group when the command they invoked exits, which takes
+the server with it. If you are driving this from such a wrapper, run
+`pnpm verify:bootstrap` and `pnpm verify:e2e` as two separate invocations rather
+than chaining them through `pnpm verify`, so the server is not a child of the
+process being reaped.
+
+**Stopping the server.** `lsof -ti:3100 | xargs kill`. Nothing stops it
+automatically, by design: the Tester lane wants it to stay up between runs.
