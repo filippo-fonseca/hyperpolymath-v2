@@ -513,6 +513,10 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   async function handleDelete() {
     await deletePage(initialPage.id);
+    // Mirror save() / handleToggleNoExport() / handleCoverChange(): mark the
+    // pages query stale before leaving, so the wiki home we are about to land
+    // on refetches instead of re-rendering the deleted page from cache.
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
     router.push("/wiki");
   }
 
