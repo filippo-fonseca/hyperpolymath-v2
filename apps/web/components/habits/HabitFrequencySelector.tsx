@@ -58,24 +58,14 @@ export function HabitFrequencySelector({
             aria-label={full}
             title={full}
             className={cn(
-              "inline-flex h-8 w-8 items-center justify-center rounded-md",
-              "font-mono text-[11px] uppercase tracking-[0.04em] cursor-pointer-always",
-              "border transition-colors duration-150 ease-out",
+              "inline-flex h-8 w-8 items-center justify-center rounded-lg",
+              "text-micro font-medium cursor-pointer-always",
+              "border transition-colors duration-[160ms] ease-out",
               on
-                ? "border-transparent text-[var(--sd-accent)]"
-                : "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-faint)] hover:border-[color-mix(in_srgb,var(--sd-ink)_18%,var(--sd-line))] hover:text-[var(--sd-ink)]",
+                ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
+                : "border-[var(--edge)] bg-transparent text-[var(--ink-faint)] hover:border-[var(--edge-strong)] hover:text-[var(--ink)]",
               disabled && "cursor-not-allowed opacity-40",
             )}
-            style={
-              on
-                ? {
-                    borderColor:
-                      "color-mix(in srgb, var(--sd-accent) 40%, var(--sd-line))",
-                    background:
-                      "color-mix(in srgb, var(--sd-accent) 14%, var(--sd-input))",
-                  }
-                : undefined
-            }
           >
             {short}
           </button>
@@ -96,7 +86,7 @@ export function HabitFrequencyBadges({ value }: { value: boolean[] }) {
     <div
       role="group"
       aria-label="Days of the week"
-      className="inline-flex items-center gap-0.5"
+      className="inline-flex items-center gap-1"
     >
       {DISPLAY_ORDER.map(({ idx, short, full }) => {
         const on = !!value[idx];
@@ -105,23 +95,12 @@ export function HabitFrequencyBadges({ value }: { value: boolean[] }) {
             key={idx}
             title={full}
             className={cn(
-              "inline-flex h-[18px] w-[18px] items-center justify-center rounded-sm",
-              "font-mono text-[9px] uppercase tracking-[0.02em]",
-              "border",
+              "inline-flex h-[18px] w-[18px] items-center justify-center rounded",
+              "text-micro",
               on
-                ? "text-[var(--sd-accent)]"
-                : "border-transparent text-[var(--sd-ink-faint)]",
+                ? "bg-[var(--selected)] text-[var(--ink)]"
+                : "text-[var(--ink-faint)]",
             )}
-            style={
-              on
-                ? {
-                    borderColor:
-                      "color-mix(in srgb, var(--sd-accent) 45%, transparent)",
-                    background:
-                      "color-mix(in srgb, var(--sd-accent) 16%, transparent)",
-                  }
-                : undefined
-            }
           >
             {short}
           </span>

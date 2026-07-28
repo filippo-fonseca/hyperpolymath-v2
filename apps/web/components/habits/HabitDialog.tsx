@@ -123,8 +123,8 @@ export function HabitDialog(props: Props) {
 
         <div className="flex flex-col gap-4 mt-2">
           {/* Name */}
-          <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+          <label className="flex flex-col gap-2">
+            <span className="text-micro font-medium text-[var(--ink-muted)]">
               Name
             </span>
             <Input
@@ -137,8 +137,8 @@ export function HabitDialog(props: Props) {
           </label>
 
           {/* Description */}
-          <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+          <label className="flex flex-col gap-2">
+            <span className="text-micro font-medium text-[var(--ink-muted)]">
               Description <span className="opacity-60">(optional)</span>
             </span>
             <Textarea
@@ -151,8 +151,8 @@ export function HabitDialog(props: Props) {
           </label>
 
           {/* Schedule */}
-          <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+          <div className="flex flex-col gap-2">
+            <span className="text-micro font-medium text-[var(--ink-muted)]">
               Schedule
             </span>
             <HabitFrequencySelector
@@ -178,8 +178,8 @@ export function HabitDialog(props: Props) {
           </div>
 
           {/* Areas */}
-          <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+          <div className="flex flex-col gap-2">
+            <span className="text-micro font-medium text-[var(--ink-muted)]">
               Areas <span className="opacity-60">(zero or more)</span>
             </span>
             {areas.length === 0 ? (
@@ -187,7 +187,7 @@ export function HabitDialog(props: Props) {
                 No areas yet — create one from the sidebar first.
               </p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {areas.map((a) => {
                   const selected = areaIds.includes(a.id);
                   return (
@@ -203,23 +203,13 @@ export function HabitDialog(props: Props) {
                       }
                       aria-pressed={selected}
                       className={cn(
-                        "inline-flex items-center gap-1.5 rounded-md px-2 py-1",
-                        "text-[13px]",
-                        "border transition-colors duration-150 ease-out cursor-pointer-always",
+                        "inline-flex items-center gap-2 rounded-lg px-2 py-1",
+                        "text-meta",
+                        "border transition-colors duration-[160ms] ease-out cursor-pointer-always",
                         selected
-                          ? "border-transparent text-[var(--sd-accent)]"
-                          : "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)] hover:border-[color-mix(in_srgb,var(--sd-ink)_18%,var(--sd-line))] hover:text-[var(--sd-ink)]",
+                          ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
+                          : "border-[var(--edge)] bg-transparent text-[var(--ink-muted)] hover:border-[var(--edge-strong)] hover:text-[var(--ink)]",
                       )}
-                      style={
-                        selected
-                          ? {
-                              borderColor:
-                                "color-mix(in srgb, var(--sd-accent) 40%, var(--sd-line))",
-                              background:
-                                "color-mix(in srgb, var(--sd-accent) 14%, var(--sd-input))",
-                            }
-                          : undefined
-                      }
                     >
                       {selected ? (
                         <Check size={12} className="shrink-0" />
