@@ -28,10 +28,8 @@
 
      EB Garamond is now reachable through exactly one token, `--font-logotype`,
      whose only consumer is components/ui/Logotype.tsx (the wordmark). */
-  --font-sans: var(--font-space-grotesk), system-ui, -apple-system,
-    BlinkMacSystemFont, sans-serif;
-  --font-serif: var(--font-space-grotesk), system-ui, -apple-system,
-    BlinkMacSystemFont, sans-serif;
+  --font-sans: var(--font-space-grotesk), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: var(--font-space-grotesk), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-logotype: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 
@@ -132,13 +130,6 @@
   --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
   --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-in-fast: cubic-bezier(0.7, 0, 0.84, 0);
-
-  /* Motion durations — jul-28 SDC-1 §2.7. Consume the names, not the numbers.
-     Nothing under 140ms, nothing over 320ms. */
-  --duration-micro: 160ms; /* colour, background, border, opacity */
-  --duration-enter: 220ms; /* enter / exit */
-  --duration-panel: 260ms; /* layout and panel */
-  --duration-collapse: 280ms; /* collapse */
 
   /* Tailwind 4 color bindings — preserved names, NEW source values */
   --color-background: var(--canvas);
@@ -1216,7 +1207,6 @@ button.entity-pill:focus-visible {
 
 /* react-big-calendar styles removed — CalendarGrid is now hand-rolled. */
 
-
 /* ─── Phase 6.1 Plan 06.1-01 — Focus-visible ring system (UI-SPEC §11a) ─────────
    Applied via focus-visible: only — keyboard navigation surfaces rings;
    mouse clicks do not (UI-SPEC §11a explicit rule).
@@ -1351,21 +1341,43 @@ select:focus-visible,
 
 /* Pill enter/exit: fade + 4px slide, 150ms. */
 @keyframes orb-sfx-pill-enter {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes orb-sfx-pill-leave {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(4px); }
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
-.orb-sfx-pill-enter { animation: orb-sfx-pill-enter 150ms ease-out both; }
-.orb-sfx-pill-leave { animation: orb-sfx-pill-leave 150ms ease-in both; }
+.orb-sfx-pill-enter {
+  animation: orb-sfx-pill-enter 150ms ease-out both;
+}
+.orb-sfx-pill-leave {
+  animation: orb-sfx-pill-leave 150ms ease-in both;
+}
 
 /* Brand mark: a single 2deg tilt-settle on each state change. */
 @keyframes orb-sfx-bird-tilt {
-  0% { transform: rotate(0deg); }
-  45% { transform: rotate(2deg); }
-  100% { transform: rotate(0deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  45% {
+    transform: rotate(2deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
 }
 .orb-sfx-bird {
   display: inline-flex;
@@ -1375,8 +1387,15 @@ select:focus-visible,
 
 /* Thinking dots — three staggered bounces in the pill's currentColor. */
 @keyframes orb-sfx-dot {
-  0%, 100% { opacity: 0.3; transform: translateY(0); }
-  50% { opacity: 1; transform: translateY(-2px); }
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
 }
 .orb-sfx-dot {
   display: inline-block;
@@ -1389,8 +1408,15 @@ select:focus-visible,
 
 /* Recording/speaking mini equalizer — transform-only scaleY on 11px bars. */
 @keyframes orb-sfx-bar {
-  0%, 100% { transform: scaleY(0.35); opacity: 0.55; }
-  50% { transform: scaleY(1); opacity: 1; }
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
 }
 .orb-sfx-bar {
   display: inline-block;
@@ -1570,6 +1596,18 @@ select:focus-visible,
      value) so it is intentionally not re-declared; use it directly. */
   --ease-soft-landing: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-collapse: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Motion durations — jul-28 SDC-1 §2.7. Consume the names, not the numbers.
+     Nothing under 140ms, nothing over 320ms.
+
+     These live here rather than in @theme deliberately. Tailwind 4 tree-shakes
+     theme variables it cannot see used, so declaring them up there emitted
+     nothing and `var(--duration-panel)` resolved empty (verified in computed
+     styles). A plain :root block always emits. */
+  --duration-micro: 160ms; /* colour, background, border, opacity */
+  --duration-enter: 220ms; /* enter / exit */
+  --duration-panel: 260ms; /* layout and panel */
+  --duration-collapse: 280ms; /* collapse */
 }
 
 /* --- D11 (Conductor amendment, sesh-1783963573841) ------------------ */
@@ -1811,11 +1849,7 @@ select:focus-visible,
 /* Rows dissolve into the footer instead of hard-clipping at the scroll edge
    (§1.8). Static — nothing animates, so it needs no reduced-motion guard. */
 .mask-fade-out {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black calc(100% - 40px),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
   mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
 }
 
@@ -1830,11 +1864,7 @@ select:focus-visible,
    labels ride, and fading those would dissolve the one anchor telling you which
    area you are looking at while scrolled deep into the canvas. */
 .timeline-edge-fade {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    black calc(100% - 28px),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
   mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
 }
 
@@ -1843,29 +1873,13 @@ select:focus-visible,
    the window; `-lr` is both. The fade is capped at 40% of the bar so a short
    bar fades proportionally instead of vanishing entirely. */
 .timeline-bar-fade-r {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to right,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - min(32px, 40%)), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - min(32px, 40%)), transparent 100%);
 }
 
 .timeline-bar-fade-l {
-  -webkit-mask-image: linear-gradient(
-    to left,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to left,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to left, black calc(100% - min(32px, 40%)), transparent 100%);
+  mask-image: linear-gradient(to left, black calc(100% - min(32px, 40%)), transparent 100%);
 }
 
 .timeline-bar-fade-lr {
@@ -1925,10 +1939,8 @@ select:focus-visible,
   background: var(--sd-accent);
   border-radius: 9999px;
   color: hsl(235 45% 9%);
-  box-shadow:
-    color-mix(in srgb, var(--sd-accent) 30%, transparent) 0 4px 20px,
-    rgba(255, 255, 255, 0.2) 0 2px 0 inset,
-    rgba(0, 0, 0, 0.1) 0 -2px 0 inset;
+  box-shadow: color-mix(in srgb, var(--sd-accent) 30%, transparent) 0 4px 20px,
+    rgba(255, 255, 255, 0.2) 0 2px 0 inset, rgba(0, 0, 0, 0.1) 0 -2px 0 inset;
 }
 .sd-btn-ghost {
   background: rgb(255 255 255 / 0.1);
@@ -2011,9 +2023,7 @@ select:focus-visible,
   border: 1px solid var(--sd-line);
 }
 .dark .sd-modal-surface {
-  box-shadow:
-    rgba(255, 255, 255, 0.09) 0 1px 0 inset,
-    0 24px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: rgba(255, 255, 255, 0.09) 0 1px 0 inset, 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
 /* =====================================================================
@@ -2033,9 +2043,7 @@ select:focus-visible,
   border: 1px solid var(--sd-line);
   border-radius: 12px;
   box-shadow: none;
-  transition:
-    border-color 140ms var(--ease-out-quart),
-    background-color 140ms var(--ease-out-quart);
+  transition: border-color 140ms var(--ease-out-quart), background-color 140ms var(--ease-out-quart);
 }
 .dark .receipt-card {
   box-shadow: rgba(255, 255, 255, 0.06) 0 1px 0 inset;
@@ -2101,9 +2109,7 @@ select:focus-visible,
   opacity: 0;
   cursor: nwse-resize;
   touch-action: none;
-  transition:
-    opacity 140ms ease,
-    color 140ms ease;
+  transition: opacity 140ms ease, color 140ms ease;
 }
 @media (pointer: fine) {
   @container main (min-width: 48rem) {
