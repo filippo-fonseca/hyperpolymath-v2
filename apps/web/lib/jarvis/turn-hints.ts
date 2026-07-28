@@ -95,7 +95,7 @@ export function buildTurnHints(opts: TurnHintInput): TurnHints {
 
   const toolChoice: TurnToolChoice = askMode
     ? { type: "none" }
-    : slashCommand && slashCommand !== "help" && slashCommand !== "ask"
+    : slashCommand && slashCommand !== "help"
       ? { type: "tool", name: `create_${slashCommand}` }
       : { type: "auto" };
 

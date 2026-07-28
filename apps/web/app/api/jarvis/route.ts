@@ -26,6 +26,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
+import { buildTurnHints } from "@/lib/jarvis/turn-hints";
 import { createClient } from "@/lib/supabase/server";
 import { getUserKey, MissingKeyError } from "@/lib/byok/keys";
 import { checkRateLimit } from "@/lib/ratelimit/in-memory";
@@ -152,55 +153,25 @@ export async function POST(req: NextRequest) {
     body.history = [];
   }
 
-  // 4. Slash-command forcing via tool_choice
-  //    /task | /capture | /event → force the matching create_* tool
-  //    /ask                       → forbid all tools (text-only meta-question)
-  //    /help                      → no override (client renders help locally)
-  //    (none + bare meta-question) → treat as /ask automatically
-  //    (none)                     → auto-infer
-  const META_QUESTION_RE =
-    /^(what\s+(?:did|do|does|are|is|was|were|have|will)|did\s+(?:i|we|you)|do\s+(?:i|we|you)|have\s+(?:i|we|you)|show\s+me|tell\s+me|list\s+|summari[sz]e|recap|how\s+many|how\s+much)\b/i;
-  const bareMetaQuestion = !body.slashCommand && META_QUESTION_RE.test(body.input.trim());
-  const askMode = body.slashCommand === "ask" || bareMetaQuestion;
-  const isClarificationReply = body.input.trimStart().startsWith("[CLARIFICATION REPLY]");
-
-  const toolChoice: { type: "auto" } | { type: "none" } | { type: "tool"; name: string } = askMode
-    ? { type: "none" as const }
-    : body.slashCommand && body.slashCommand !== "help"
-      ? { type: "tool" as const, name: `create_${body.slashCommand}` }
-      : { type: "auto" as const };
-
-  // 5. Build user content with system hints
-  let userContent = body.input;
-  if (body.parsedDates && body.parsedDates.length > 0) {
-    userContent += `\n\n[SYSTEM-PARSED DATES — MANDATORY: copy these ISO strings verbatim into the relevant tool field (due/start/end). Do NOT call new Date() or re-parse. If allDay=true the user gave no time-of-day; use the start value as-is. ${JSON.stringify(body.parsedDates)}]`;
-  }
-  if (body.parsedPriority) {
-    userContent += `\n\n[SYSTEM-PARSED PRIORITY — MANDATORY: the user typed an explicit priority token. Set create_task.priority to exactly "${body.parsedPriority}". Do not default to P3.]`;
-  }
-  if (askMode) {
-    userContent += `\n\n[META-QUESTION MODE${body.slashCommand === "ask" ? " (/ask)" : ""}: this turn answers a question; do NOT call any tool. Reply with 1-3 plain English sentences using the visible conversation history. The "OUTPUT FORMAT: emit tool calls only" rule does NOT apply this turn. Your prose IS the response and WILL render to the user.]`;
-  }
-  if (
-    (body.linkedProjectIds?.length ?? 0) > 0 ||
-    (body.linkedHashtags?.length ?? 0) > 0 ||
-    (body.linkedPeople?.length ?? 0) > 0
-  ) {
-    const parts: string[] = [];
-    if (body.linkedProjectIds && body.linkedProjectIds.length > 0) {
-      parts.push(`projects=${JSON.stringify(body.linkedProjectIds)}`);
-    }
-    if (body.linkedHashtags && body.linkedHashtags.length > 0) {
-      parts.push(`hashtags=${JSON.stringify(body.linkedHashtags)}`);
-    }
-    if (body.linkedPeople && body.linkedPeople.length > 0) {
-      parts.push(`people=${JSON.stringify(body.linkedPeople)}`);
-    }
-    userContent += `\n\n[Linked references in this message (client-validated): ${parts.join(", ")}]`;
-  }
-  if (isClarificationReply) {
-    userContent += `\n\n[INTERNAL: This message is a reply to your previous ask_clarification. Do NOT emit another ask_clarification this turn — execute the action now using the user's clarification, or fall back to capture-first if still ambiguous. Depth cap enforced (Pitfall 2).]`;
-  }
+  // 4 + 5. Slash-command forcing via tool_choice, and the model-visible user
+  //        message with system hints appended. Both rules now live in
+  //        lib/jarvis/turn-hints.ts, shared with every other text channel:
+  //          /task | /capture | /event → force the matching create_* tool
+  //          /ask                       → forbid all tools (meta-question)
+  //          /help                      → no override (client renders locally)
+  //          (none + bare meta-question) → treat as /ask automatically
+  //          (none)                     → auto-infer
+  //        The persisted user turn keeps `body.input`; only `userContent`
+  //        carries the hints.
+  const { userContent, toolChoice } = buildTurnHints({
+    input: body.input,
+    slashCommand: body.slashCommand ?? null,
+    parsedDates: body.parsedDates,
+    parsedPriority: body.parsedPriority,
+    linkedProjectIds: body.linkedProjectIds,
+    linkedHashtags: body.linkedHashtags,
+    linkedPeople: body.linkedPeople,
+  });
 
   const messages: Array<{
     role: "user" | "assistant";
