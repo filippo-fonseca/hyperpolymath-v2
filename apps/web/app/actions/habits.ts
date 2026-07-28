@@ -15,6 +15,8 @@ import {
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
+import { addDaysISO, dayOfWeekISO, toISODate } from "@/lib/habits/dates";
+import { computeHabitStreak, groupCompletedDates } from "@/lib/habits/streak";
 import {
   areas,
   habitCompletions,
@@ -200,6 +202,148 @@ export async function getHabitCompletionsInRange(
         ? r.completedDate
         : (r.completedDate as Date).toISOString().slice(0, 10),
   }));
+}
+
+/** How far back the streak walk can see. Streaks that exhaust an unbroken
+ * window this size are reported as a floor (`streakSaturated`), never capped
+ * silently. */
+const STREAK_WINDOW_DAYS = 365;
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export type HabitTodayEntry = {
+  id: string;
+  name: string;
+  daysOfWeek: boolean[];
+  /** Server-decided: scheduled on `todayISO` and already created by then. */
+  scheduledToday: boolean;
+  /** Consecutive scheduled-and-done days ending before today (shared streak
+   * semantics, `lib/habits/streak.ts`). Display adds today's live credit. */
+  streakBase: number;
+  /** True when the streak walk exhausted the fetched window unbroken. */
+  streakSaturated: boolean;
+};
+
+export type HabitDockToday = {
+  /** Every active habit, ordered; the dock renders only `scheduledToday`. */
+  habits: HabitTodayEntry[];
+  /** Habit ids with a done completion on `todayISO`. */
+  doneIds: string[];
+  /** Scheduled/done counts over the 28 days ENDING YESTERDAY. Today is
+   * excluded so the client can fold its live state in optimistically. */
+  rate28: { scheduled: number; done: number };
+};
+
+/**
+ * The one narrow read behind the habits dock widget and the /habits header
+ * stats. One habits select (no area join — a one-tap strip renders none of
+ * that) plus one indexed completions select covering today back through the
+ * streak window. Schedule filtering happens HERE, server side, so no surface
+ * can ever again count a Monday-only habit on a Sunday (the old
+ * TodayHabitsWidget defect).
+ *
+ * `todayISO` is the client's local date — the whole codebase's timezone
+ * contract. Habit `createdAt` converts to a date in the server's timezone, so
+ * a habit created minutes ago can look like "tomorrow" from a server ahead of
+ * the client; the guard below only excludes rows created two or more days
+ * ahead (data corruption), never a just-created habit.
+ */
+export async function getHabitDockToday(
+  todayISO: string,
+): Promise<HabitDockToday> {
+  const userId = await getUserId();
+  if (!userId) throw new Error("Unauthorized");
+  if (!ISO_DATE_RE.test(todayISO)) throw new Error("Invalid date");
+
+  const windowStartISO = addDaysISO(todayISO, -(STREAK_WINDOW_DAYS - 1));
+
+  const [habitRows, completionRows] = await Promise.all([
+    db
+      .select({
+        id: habits.id,
+        name: habits.name,
+        daysOfWeek: habits.daysOfWeek,
+        createdAt: habits.createdAt,
+      })
+      .from(habits)
+      .where(and(eq(habits.userId, userId), isNull(habits.archivedAt)))
+      .orderBy(asc(habits.orderIndex), asc(habits.createdAt)),
+    db
+      .select({
+        habitId: habitCompletions.habitId,
+        completedDate: habitCompletions.completedDate,
+      })
+      .from(habitCompletions)
+      .where(
+        and(
+          eq(habitCompletions.userId, userId),
+          eq(habitCompletions.status, "done"),
+          gte(habitCompletions.completedDate, windowStartISO),
+          lte(habitCompletions.completedDate, todayISO),
+        ),
+      ),
+  ]);
+
+  const completedByHabit = groupCompletedDates(
+    completionRows.map((r) => ({
+      habitId: r.habitId,
+      completedDate:
+        typeof r.completedDate === "string"
+          ? r.completedDate
+          : (r.completedDate as Date).toISOString().slice(0, 10),
+    })),
+  );
+
+  const dow = dayOfWeekISO(todayISO);
+  const notAfter = addDaysISO(todayISO, 1);
+  const rate28Start = addDaysISO(todayISO, -28);
+  const yesterdayISO = addDaysISO(todayISO, -1);
+
+  const entries: HabitTodayEntry[] = [];
+  const doneIds: string[] = [];
+  let scheduled28 = 0;
+  let done28 = 0;
+
+  for (const h of habitRows) {
+    const createdISO = toISODate(h.createdAt);
+    if (createdISO > notAfter) continue;
+
+    const completed = completedByHabit.get(h.id) ?? new Set<string>();
+    const { base, saturated } = computeHabitStreak({
+      daysOfWeek: h.daysOfWeek,
+      createdAtISO: createdISO,
+      completed,
+      todayISO,
+      windowStartISO,
+    });
+
+    entries.push({
+      id: h.id,
+      name: h.name,
+      daysOfWeek: h.daysOfWeek,
+      scheduledToday: Boolean(h.daysOfWeek[dow]),
+      streakBase: base,
+      streakSaturated: saturated,
+    });
+    if (completed.has(todayISO)) doneIds.push(h.id);
+
+    // 28-day completion rate, today excluded (the client folds today in live).
+    for (
+      let iso = yesterdayISO;
+      iso >= rate28Start && iso >= createdISO;
+      iso = addDaysISO(iso, -1)
+    ) {
+      if (!h.daysOfWeek[dayOfWeekISO(iso)]) continue;
+      scheduled28 += 1;
+      if (completed.has(iso)) done28 += 1;
+    }
+  }
+
+  return {
+    habits: entries,
+    doneIds,
+    rate28: { scheduled: scheduled28, done: done28 },
+  };
 }
 
 // ──────────────────────────────────────────────────────────────────────────
