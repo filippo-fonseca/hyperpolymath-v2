@@ -70,29 +70,34 @@ export function PagesListClient({
   // and PageDetailClient channels — invalidate these keys on every INSERT/UPDATE/
   // DELETE, and the page-view save() mirrors that invalidation locally. While
   // /wiki is mounted, an invalidation refetches the active observer live (the
-  // concurrent-tab / rename-in-place case). When /wiki is unmounted (you're in a
-  // page view), the invalidation still marks the cached query STALE; the global
-  // QueryClient runs refetchOnMount:false, so we override to refetchOnMount:true
-  // here — on same-tab navigate-back the query refetches iff it was invalidated,
-  // making the realtime stale flag (not a blind every-mount fetch) drive the
-  // refresh. Unchanged + fresh → no refetch, so this costs nothing extra.
+  // concurrent-tab / rename-in-place case).
+  //
+  // These use refetchOnMount:"always", not `true`. `true` only refetches when
+  // the query is stale or was invalidated, and the global QueryClient runs
+  // staleTime 30s, so a navigate-back within that window is a no-op: the wiki
+  // home renders whatever the cache holds. Worse, browser Back restores the RSC
+  // payload from the client Router Cache, so `initialData` is a snapshot of
+  // whenever the route was last rendered rather than of now. Both paths show
+  // stale contents, and they compound. "always" refetches on every mount of
+  // /wiki, which is one query per navigation onto a surface whose entire job is
+  // listing rows that other surfaces mutate.
   const { data: allPages = [] } = useQuery({
     queryKey: pagesKey,
     queryFn: () => getPagesForCurrentUser(),
     initialData: initialPages,
-    refetchOnMount: true,
+    refetchOnMount: "always",
   });
   const { data: folders = [] } = useQuery({
     queryKey: foldersKey,
     queryFn: () => getFoldersForCurrentUser(),
     initialData: initialFolders,
-    refetchOnMount: true,
+    refetchOnMount: "always",
   });
   const { data: folderProjects = [] } = useQuery({
     queryKey: tableKey("folder_projects", userId),
     queryFn: () => getFolderProjectsForCurrentUser(),
     initialData: initialFolderProjects,
-    refetchOnMount: true,
+    refetchOnMount: "always",
   });
   // See wave-1 for why projects / fieldDefinitions aren't seeded with []:
   // the global QueryClient runs refetchOnMount:false, so a seed sticks.
@@ -110,7 +115,7 @@ export function PagesListClient({
     queryKey: ["daily-pages", userId],
     queryFn: () => getDailyPagesForCurrentUser(),
     initialData: initialDailyPages,
-    refetchOnMount: true,
+    refetchOnMount: "always",
   });
 
   // Wave-3: ensure today's Daily Page exists without navigating. Coordinates
