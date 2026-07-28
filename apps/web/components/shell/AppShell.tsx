@@ -3,12 +3,18 @@
 import { AmbientGlow } from "@/components/ui/ambient";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { useSplitScreen } from "@/lib/ui/useSplitScreen";
+import { useReducedMotion } from "motion/react";
 import { usePathname } from "next/navigation";
 import { JarvisSidePanel } from "./JarvisSidePanel";
 import { ProductTour } from "./ProductTour";
 import { Rail } from "./cockpit/Rail";
 import { RightSlot } from "./cockpit/RightSlot";
 import { Stage } from "./cockpit/Stage";
+import {
+  RightSlotProvider,
+  computeRightSlotWidth,
+  useRightSlot,
+} from "./cockpit/right-slot-context";
 
 interface Props {
   userId: string;
@@ -54,28 +60,50 @@ const JARVIS_PATH = "/today";
  * negative-z layer so the glow paints above the canvas fill and below the rail
  * and stage content.
  */
-export function AppShell({
-  userId,
-  activeAreas,
-  allAreas,
-  graduationYear,
-  profile,
-  children,
-}: Props) {
+export function AppShell(props: Props) {
+  return (
+    <RightSlotProvider>
+      <CockpitGrid {...props} />
+    </RightSlotProvider>
+  );
+}
+
+/**
+ * The grid itself, one level below the provider so it can read the arbitrated
+ * track width. It re-renders when a panel opens or the Dock collapses; the
+ * route subtree does not, because `children` arrives as a prop from `AppShell`
+ * (which does not re-render) and React bails out on an identical element.
+ */
+function CockpitGrid({ userId, activeAreas, allAreas, graduationYear, profile, children }: Props) {
   const pathname = usePathname() ?? "";
   const { splitOn } = useSplitScreen();
+  const reduceMotion = useReducedMotion();
+  const slot = useRightSlot();
 
-  const onJarvis = pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
+  const onJarvis = pathname === JARVIS_PATH || pathname.startsWith(`${JARVIS_PATH}/`);
   const onOnboarding = pathname.startsWith("/onboarding");
   const onWikiHome = pathname === "/wiki";
   const showPanel = splitOn && !onJarvis && !onOnboarding;
+
+  const rightWidth = computeRightSlotWidth({
+    panel: slot.panelChrome,
+    // The Dock is the slot's default occupant, and it lands two commits from
+    // here. Until then the track closes to zero whenever no panel is open.
+    dockAvailable: false,
+    dockCollapsed: slot.dockCollapsed,
+    atLeastXl: slot.atLeastXl,
+  });
 
   return (
     <div
       className="isolate grid h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]"
       style={{
-        gridTemplateColumns: "auto minmax(0,1fr) 0px",
+        gridTemplateColumns: `auto minmax(0,1fr) ${rightWidth}`,
         gridTemplateRows: "minmax(0,1fr)",
+        // The one sanctioned width animation in the app. It runs on the grid
+        // template rather than on an element's width, so the stage genuinely
+        // reflows mid-transition instead of being slid over.
+        transition: reduceMotion ? undefined : "grid-template-columns 260ms var(--ease-collapse)",
       }}
     >
       {/* Whisper-level ambient glow behind every route. Fixed and negative-z,
