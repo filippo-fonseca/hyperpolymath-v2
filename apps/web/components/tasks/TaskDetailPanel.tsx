@@ -29,11 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  InspectorShell,
-  MetaRow,
-  MetaSection,
-} from "@/components/ui/explorer";
+import { SidePanel } from "@/components/ui/SidePanel";
 import { HashtagDecorations } from "@/components/captures/hashtag-decorations";
 
 import { createPersonDecorations } from "@/components/captures/person-decorations";
@@ -126,10 +122,9 @@ interface Props {
   onClose: () => void;
   addOptimistic: TasksOptimisticDispatch;
   /**
-   * Phase 6 Plan 06-02 (RES-02): delete-task handler lifted to TasksClient so
-   * it can wrap the server action in useUndoToast. The panel only invokes
-   * the parent's handler; it no longer owns the optimistic delete or the
-   * server call.
+   * Delete-task handler lifted to TasksClient so it can wrap the server action
+   * in useUndoToast. The panel only invokes the parent's handler; it does not
+   * own the optimistic delete or the server call.
    */
   onDeleteTask?: (task: TaskWithProjects) => void;
   /**
@@ -140,18 +135,26 @@ interface Props {
   mode?: "edit" | "create";
 }
 
-// Per-status accent hue — mirrors KanbanColumn's STATUS_ACCENT so the pill
-// dot matches its column color exactly.
-const STATUS_PILL: { value: Status; label: string; dot: string }[] = [
-  { value: "not started", label: "Not Started", dot: "oklch(0.72 0.02 80)" },
-  { value: "up next", label: "Up Next", dot: "oklch(0.78 0.16 80)" },
-  { value: "in progress", label: "In Progress", dot: "oklch(0.74 0.16 240)" },
-  { value: "almost done", label: "Almost Done", dot: "oklch(0.78 0.16 305)" },
-  { value: "lesno", label: "Lesno", dot: "oklch(0.78 0.18 160)" },
+// Per-status functional ink. Token-only (SDC-1 §2.3): functional hues appear as
+// 6px dots, never as chrome. Mirrors the kanban column header dots exactly.
+export const STATUS_DOT: Record<Status, string> = {
+  "not started": "var(--ink-faint)",
+  "up next": "var(--ink-amber)",
+  "in progress": "var(--ink-blue)",
+  "almost done": "var(--ink-violet)",
+  lesno: "var(--ink-sage)",
+};
+
+const STATUS_PILL: { value: Status; label: string }[] = [
+  { value: "not started", label: "Not started" },
+  { value: "up next", label: "Up next" },
+  { value: "in progress", label: "In progress" },
+  { value: "almost done", label: "Almost done" },
+  { value: "lesno", label: "Lesno" },
 ];
 
-// Priority shares the amber dominance ladder used by PriorityChip (alpha, not
-// hue) so the document register stays calm. P∞ is the strongest signal.
+// Priority keeps the amber dominance ladder used by PriorityChip (alpha, not
+// hue) so the register stays calm. P∞ is the strongest signal.
 const PRIORITY_PILL: { value: Priority; label: string; opacity: number }[] = [
   { value: "P∞", label: "P∞", opacity: 1 },
   { value: "P1", label: "P1", opacity: 1 },
@@ -160,11 +163,9 @@ const PRIORITY_PILL: { value: Priority; label: string; opacity: number }[] = [
 ];
 
 /**
- * Single-select pill row on the sd two-tier grammar (D6): the option's
- * functional hue lives only in a 6-7px dot; selection is a NEUTRAL
- * `--sd-selected` backplate, never an accent ring around the pill. Mirrors
- * the kanban column colors through the dot while staying in inspector
- * register (11px medium, ink-dull → ink on select).
+ * Single-select pill row. The option's functional hue lives only in a 6px dot;
+ * selection is a neutral `--selected` backplate with an `--edge-strong` border,
+ * never an accent ring (accent budget, SDC-1 §2.3).
  */
 function PillGroup<T extends string>({
   options,
@@ -178,7 +179,7 @@ function PillGroup<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={ariaLabel}>
+    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={ariaLabel}>
       {options.map((opt) => {
         const selected = opt.value === value;
         return (
@@ -189,16 +190,16 @@ function PillGroup<T extends string>({
             aria-checked={selected}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "group inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 cursor-pointer-always",
-              "text-[11px] font-medium tracking-[0.01em]",
-              "transition-[color,background-color,border-color] duration-100 ease-out motion-reduce:transition-none",
+              "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 cursor-pointer-always",
+              "text-micro font-medium",
+              "transition-colors duration-[160ms] ease-out motion-reduce:transition-none",
               selected
-                ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)]"
-                : "border-[var(--sd-line)] bg-transparent text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
+                ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
+                : "border-[var(--edge)] bg-transparent text-[var(--ink-muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
             )}
           >
             <span
-              className="inline-block h-[7px] w-[7px] rounded-full shrink-0 transition-opacity duration-100 motion-reduce:transition-none"
+              className="inline-block size-1.5 shrink-0 rounded-full transition-opacity duration-[160ms] motion-reduce:transition-none"
               style={{ backgroundColor: opt.color, opacity: selected ? 1 : 0.45 }}
             />
             {opt.label}
@@ -296,6 +297,16 @@ function notesToDoc(notes: string): Record<string, unknown> {
   };
 }
 
+/**
+ * Task detail as an inline `SidePanel` (SDC-1 §2.8). The panel is part of the
+ * page: opening it slides the Dock out of the shared right slot and the stage
+ * genuinely narrows. No overlay, no backdrop, no fixed positioning, no focus
+ * trap; the user keeps working with it open.
+ *
+ * The old fixed `inset-0` outside-click backdrop is gone by design. Closing is
+ * explicit (X, Escape, route change), and every close path routes through the
+ * dirty guard before it reaches the parent's `onClose`.
+ */
 export function TaskDetailPanel({
   task,
   projects,
@@ -314,9 +325,8 @@ export function TaskDetailPanel({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hashtags] = useState(initialHashtags);
   const [people] = useState(initialPeople);
-  // Discard-confirm dialog. Same pattern as CaptureDetailPanel: when the
-  // user attempts to close (Esc, click outside, ×) or hits Cancel while
-  // dirty, queue the action and show the AlertDialog.
+  // Discard-confirm dialog. When the user attempts to close (Esc, ×) or hits
+  // Cancel while dirty, queue the action and show the AlertDialog.
   const [pendingDiscardAction, setPendingDiscardAction] = useState<"close" | "cancel" | null>(null);
   const [form, setForm] = useState<FormState>({
     title: "",
@@ -334,6 +344,8 @@ export function TaskDetailPanel({
 
   // TipTap notes editor — supports #hashtag and the universal @ inline.
   // `immediatelyRender: false` avoids SSR hydration mismatch (Next 16 + React 19).
+  // The panel itself is mounted only while open (TasksClient gates the mount),
+  // so this editor no longer costs anything on a cold /tasks load.
   const notesEditor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -385,7 +397,7 @@ export function TaskDetailPanel({
     editorProps: {
       attributes: {
         class:
-          "task-notes-editor focus:outline-none min-h-[80px] max-h-[200px] overflow-y-auto p-3 font-serif text-base",
+          "task-notes-editor focus:outline-none min-h-[80px] max-h-[200px] overflow-y-auto p-3 text-body",
         "data-placeholder": "Add a description… Use #tags and @people.",
       },
     },
@@ -459,10 +471,6 @@ export function TaskDetailPanel({
   }
 
   // Sync notes editor content when the task changes (panel opens a different task).
-  // The old getHTML() equality guard is gone with the HTML seed: a doc holding
-  // chips never round-trips to the naive `<p>…</p>` string it was compared
-  // against, so the guard could only ever be false here. This effect runs once
-  // per task open, which is exactly when a reseed is wanted anyway.
   useEffect(() => {
     if (!notesEditor) return;
     notesEditor.commands.setContent(notesToDoc(form.notes), { emitUpdate: false });
@@ -590,8 +598,8 @@ export function TaskDetailPanel({
       url: form.url,
       recurrence: form.recurrence,
     };
-    // D-04: optimistic update first (D-02 instant) — project links also flow
-    // through to optimistic state via the patch
+    // Optimistic update first — project links also flow through to optimistic
+    // state via the patch.
     const projectChips = projects
       .filter((p) => form.projectIds.includes(p.id))
       .map((p) => ({ id: p.id, name: p.name }));
@@ -613,7 +621,6 @@ export function TaskDetailPanel({
       personNames,
     });
     if (!r.success) {
-      // D-03: explicit revert (RT-06: overlay no longer auto-reverts) + toast.error
       toast.error(r.error);
       addOptimistic({ type: "revert", id: task.id });
       return;
@@ -674,11 +681,9 @@ export function TaskDetailPanel({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [open, dirty]);
 
-  // Intercept close attempts (Esc, click outside, × button). When dirty,
-  // surface the confirm dialog instead of closing immediately. With the Radix
-  // Sheet dropped (InspectorShell owns the single slide, D1d anti-jank), this
-  // is the shared dirty-guard the Esc listener and the outside-click backdrop
-  // both route through.
+  // Every close path (the host's Escape, the header ×, a route change) routes
+  // through this dirty guard. SidePanelHost owns the Escape listener, so the
+  // panel no longer needs one of its own.
   const requestClose = useCallback(() => {
     // Create mode: nothing is persisted yet; closing is always safe.
     if (isCreate) {
@@ -691,19 +696,6 @@ export function TaskDetailPanel({
     }
     onClose();
   }, [dirty, onClose, isCreate]);
-
-  // Esc closes through the dirty-guard (re-added after dropping the Sheet,
-  // which used to own this). Scoped to when the panel is open.
-  useEffect(() => {
-    if (!open) return;
-    function onEsc(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      e.preventDefault();
-      requestClose();
-    }
-    window.addEventListener("keydown", onEsc);
-    return () => window.removeEventListener("keydown", onEsc);
-  }, [open, requestClose]);
 
   // Cancel button: confirm when dirty (edit mode only); otherwise close.
   const handleCancelClick = useCallback(() => {
@@ -725,7 +717,7 @@ export function TaskDetailPanel({
     onClose();
   }, [initialForm, onClose]);
 
-  // Action-row: copy the task title (cheap copy-on-click affordance, seed §7).
+  // Action-row: copy the task title (cheap copy-on-click affordance).
   const handleCopyTitle = useCallback(() => {
     const t = (form.title || task?.title || "").trim();
     if (!t) return;
@@ -735,9 +727,8 @@ export function TaskDetailPanel({
 
   function handleDelete() {
     if (!task) return;
-    // Phase 6 Plan 06-02 (RES-02): defer to parent handler which wraps the
-    // server call in useUndoToast (5s Undo window). The parent dispatches the
-    // optimistic delete + commit/restore via the shared sonner toast helper.
+    // Defer to the parent handler, which wraps the server call in useUndoToast
+    // (5s Undo window) and owns the optimistic delete.
     if (onDeleteTask) {
       onDeleteTask(task);
       setShowDeleteConfirm(false);
@@ -755,292 +746,222 @@ export function TaskDetailPanel({
 
   return (
     <>
-      {/* Outside-click backdrop — transparent (no dimming, Linear/Spacedrive
-          register). Routes through the shared dirty-guard, mirroring the Radix
-          Sheet overlay we replaced. Rendered only while open. */}
-      {open ? (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={requestClose}
-          aria-hidden="true"
-        />
-      ) : null}
-
-      {/* Fixed host floats the shared InspectorShell on the right so the
-          primitive is consumed UNCHANGED (it owns the single slide — D1d, no
-          double-transform jank). pointer-events gate keeps the empty host inert
-          when closed. */}
-      <div className="pointer-events-none fixed inset-y-0 right-0 z-50 flex">
-        <InspectorShell
-          open={open}
-          className="pointer-events-auto h-full w-[340px]"
-          header={
-            task ? (
-              <div className="flex flex-col gap-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  {/* Name stays serif (app content identity, D9). */}
-                  <input
-                    type="text"
-                    value={form.title}
-                    onChange={(e) => set("title", e.target.value)}
-                    autoFocus={isCreate}
-                    placeholder={isCreate ? "Task title…" : undefined}
-                    className={cn(
-                      "min-w-0 flex-1 bg-transparent font-serif !text-base !font-bold text-[var(--sd-ink)]",
-                      "border-b border-transparent focus:border-[var(--sd-accent)] focus:outline-none",
-                      "transition-colors duration-[120ms] ease-out",
-                      "placeholder:font-normal placeholder:text-[var(--sd-ink-faint)]"
-                    )}
-                    aria-label="Task title"
-                  />
-                  <ActionIconButton
-                    icon={X}
-                    label="Close detail panel"
-                    onClick={requestClose}
-                  />
-                </div>
-                {/* Action row — quiet icon buttons, soft-landing hover (seed §7).
-                    Only affordances whose logic exists: copy title, open link. */}
-                <div className="-ml-1 flex items-center gap-0.5">
-                  <ActionIconButton
-                    icon={Copy}
-                    label="Copy task title"
-                    onClick={handleCopyTitle}
-                  />
-                  <ActionIconButton
-                    icon={ExternalLink}
-                    label="Open linked URL"
-                    disabled={!form.url}
-                    onClick={() => {
-                      if (form.url) window.open(form.url, "_blank", "noopener,noreferrer");
-                    }}
-                  />
-                </div>
-              </div>
-            ) : null
-          }
-        >
-          {task ? (
-            <div className="flex min-h-full flex-col">
-              <div className="flex-1">
-                <MetaSection title="Details">
-                  <div className="flex flex-col gap-4 pt-1">
-                    {/* Status — sd two-tier pills mirroring the kanban columns */}
-                    <FieldSection label="Status" icon={CircleDot}>
-                      <PillGroup
-                        ariaLabel="Status"
-                        value={form.status}
-                        onChange={(v) => set("status", v)}
-                        options={STATUS_PILL.map((s) => ({
-                          value: s.value,
-                          label: s.label,
-                          color: s.dot,
-                        }))}
-                      />
-                    </FieldSection>
-
-                    {/* Priority — same pill treatment on the amber ladder */}
-                    <FieldSection label="Priority" icon={Flag}>
-                      <PillGroup
-                        ariaLabel="Priority"
-                        value={form.priority}
-                        onChange={(v) => set("priority", v)}
-                        options={PRIORITY_PILL.map((p) => ({
-                          value: p.value,
-                          label: p.label,
-                          color: `color-mix(in oklch, var(--ink-amber) ${Math.round(p.opacity * 100)}%, var(--edge))`,
-                        }))}
-                      />
-                    </FieldSection>
-
-                    {/* Due date — sd-input register, focus ring sd-accent */}
-                    <FieldSection label="Due date" icon={Clock}>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="date"
-                          value={form.dueDate}
-                          onChange={(e) => set("dueDate", e.target.value)}
-                          className={cn(
-                            "h-8 flex-1 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-2",
-                            "font-sans text-[13px] text-[var(--sd-ink)] outline-none",
-                            "focus-visible:border-[var(--sd-accent)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-                            "transition-colors duration-[120ms] ease-out"
-                          )}
-                        />
-                        {/* I-2 (D-03): inline clear — empties the date → Inbox on
-                           save. Reversible, so no confirm dialog. */}
-                        {form.dueDate && (
-                          <button
-                            type="button"
-                            onClick={() => set("dueDate", "")}
-                            title="Clear due date (move to Inbox)"
-                            aria-label="Clear due date (move to Inbox)"
-                            className="cursor-pointer-always rounded p-0.5 text-[var(--sd-ink-faint)] transition-colors duration-[120ms] hover:text-[var(--ink-coral)]"
-                          >
-                            <X size={12} strokeWidth={1.5} />
-                          </button>
-                        )}
-                        {/* MoveToMenu kept as the secondary clear path (D-03). */}
-                        <MoveToMenu
-                          variant="inline"
-                          allowClear
-                          onPick={(ymd) => set("dueDate", ymd ?? "")}
-                        />
-                      </div>
-                      {!form.dueDate && task?.dueDate && (
-                        <p className="font-sans text-[11px] text-[var(--sd-ink-faint)]">
-                          Will move to Inbox
-                        </p>
-                      )}
-                    </FieldSection>
-
-                    {/* URL (issue #101) — Notion-style link property. */}
-                    <FieldSection label="URL" icon={Link2}>
-                      <UrlField
-                        value={form.url}
-                        onChange={(next) => set("url", next)}
-                        disabled={isPending}
-                      />
-                    </FieldSection>
-
-                    {/* Recurrence (issue #144) — recurring TASK, distinct from
-                        Habits. Accent-toned "advance to next" action. */}
-                    <FieldSection label="Repeat" icon={Repeat}>
-                      <TaskRecurrenceControl
-                        value={form.recurrence}
-                        onChange={(next) => set("recurrence", next)}
-                        disabled={isPending}
-                      />
-                      {!isCreate && form.recurrence && (
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => startTransition(() => void handleAdvanceOccurrence())}
-                          className={cn(
-                            "mt-1 inline-flex w-fit items-center gap-1.5 rounded-[6px] px-2.5 py-1",
-                            "font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-                            "border border-[var(--sd-accent)]/50 text-[var(--sd-accent)]",
-                            "hover:bg-[color-mix(in_oklch,var(--sd-accent)_12%,transparent)]",
-                            "transition-colors duration-[120ms] ease-out disabled:opacity-40"
-                          )}
-                        >
-                          Complete · advance to next
-                        </button>
-                      )}
-                    </FieldSection>
-
-                    {/* Linked projects */}
-                    <FieldSection label="Projects" icon={FolderOpen}>
-                      <ProjectAutocomplete
-                        value={form.projectIds}
-                        onChange={(ids) => set("projectIds", ids)}
-                        projects={projects}
-                        areas={areas}
-                        onCreateProject={onCreateProject}
-                      />
-                    </FieldSection>
-
-                    {/* Linked people — first-class editable property. */}
-                    <FieldSection label="People" icon={Users}>
-                      <PersonListField
-                        value={form.personNames}
-                        onChange={(next) => set("personNames", next)}
-                        suggestions={people}
-                        disabled={isPending}
-                      />
-                    </FieldSection>
-                  </div>
-                </MetaSection>
-
-                {/* Description — TipTap editor stays serif (content identity, D9). */}
-                <MetaSection title="Description">
-                  <div className="rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] transition-colors duration-[120ms] focus-within:border-[var(--sd-accent)]">
-                    <EditorContent editor={notesEditor} />
-                  </div>
-                </MetaSection>
-
-                {/* Activity — real read-only fields only (no updated/modified col). */}
-                {!isCreate && (
-                  <MetaSection title="Activity">
-                    <MetaRow
-                      label={
-                        <span className="flex items-center gap-1.5">
-                          <Calendar size={12} className="text-[var(--sd-ink-faint)]" />
-                          Created
-                        </span>
-                      }
-                      value={fmtDate(task.createdAt) ?? "--"}
-                    />
-                    <MetaRow
-                      label={
-                        <span className="flex items-center gap-1.5">
-                          <CheckCircle2 size={12} className="text-[var(--sd-ink-faint)]" />
-                          Completed
-                        </span>
-                      }
-                      value={fmtDate(task.completedAt) ?? "--"}
-                    />
-                  </MetaSection>
+      <SidePanel
+        open={open && task !== null}
+        onClose={requestClose}
+        title={isCreate ? "New task" : "Task"}
+        actions={
+          <>
+            <PanelIconButton icon={Copy} label="Copy task title" onClick={handleCopyTitle} />
+            {form.url ? (
+              <PanelIconButton
+                icon={ExternalLink}
+                label="Open linked URL"
+                onClick={() => {
+                  if (form.url) window.open(form.url, "_blank", "noopener,noreferrer");
+                }}
+              />
+            ) : null}
+          </>
+        }
+        footer={
+          <div className="flex items-center justify-between gap-2">
+            {isCreate ? (
+              <span />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isPending}
+                className={cn(
+                  "cursor-pointer-always rounded-lg px-2.5 py-1.5 text-meta font-medium text-[var(--ink-coral)]",
+                  "transition-colors duration-[160ms] ease-out disabled:opacity-40",
+                  "hover:bg-[color-mix(in_oklch,var(--ink-coral)_12%,transparent)]"
                 )}
-              </div>
-
-              {/* Footer — sticky, full-bleed divider (counters InspectorShell p-2). */}
-              <div className="sticky bottom-0 z-10 -mx-2 mt-2 flex items-center justify-between gap-2 border-t border-[var(--sd-line)] bg-[var(--sd-app)] px-4 py-3">
-                {isCreate ? (
-                  <span />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    disabled={isPending}
-                    className={cn(
-                      "cursor-pointer-always rounded-[6px] px-2.5 py-1.5 text-xs font-medium text-[var(--ink-coral)]",
-                      "transition-colors duration-[120ms] ease-out disabled:opacity-40",
-                      "hover:bg-[color-mix(in_oklch,var(--ink-coral)_12%,transparent)]"
-                    )}
-                  >
-                    Delete task
-                  </button>
-                )}
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleCancelClick}
-                    disabled={isPending}
-                    title={
-                      isCreate
-                        ? "Discard this draft"
-                        : dirty
-                          ? "Discard unsaved changes"
-                          : undefined
-                    }
-                    className={cn(
-                      "cursor-pointer-always rounded-[6px] px-3 py-1.5 text-xs font-medium text-[var(--sd-ink-dull)]",
-                      "transition-colors duration-[120ms] ease-out disabled:opacity-40",
-                      "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
-                    )}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => startTransition(() => void handleSave())}
-                    disabled={!dirty || isPending}
-                    className={cn(
-                      "cursor-pointer-always rounded-[6px] px-4 py-1.5 text-xs font-semibold text-white",
-                      "bg-[var(--sd-accent)] transition-[background-color,opacity] duration-[120ms] ease-out",
-                      "hover:bg-[var(--sd-accent-deep)] disabled:opacity-40",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sd-app)]"
-                    )}
-                  >
-                    {isCreate ? "Create task" : "Save changes"}
-                  </button>
-                </div>
-              </div>
+              >
+                Delete
+              </button>
+            )}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="rounded-lg"
+                onClick={handleCancelClick}
+                disabled={isPending}
+                title={
+                  isCreate
+                    ? "Discard this draft"
+                    : dirty
+                      ? "Discard unsaved changes"
+                      : undefined
+                }
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="rounded-lg"
+                onClick={() => startTransition(() => void handleSave())}
+                disabled={!dirty || isPending}
+              >
+                {isCreate ? "Create task" : "Save"}
+              </Button>
             </div>
-          ) : null}
-        </InspectorShell>
-      </div>
+          </div>
+        }
+      >
+        {task ? (
+          <div className="flex flex-col gap-6">
+            {/* Title — inline editable, quiet underline that only reads on focus. */}
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+              autoFocus={isCreate}
+              placeholder={isCreate ? "Task title…" : undefined}
+              className={cn(
+                "w-full bg-transparent text-subtitle font-medium text-[var(--ink)]",
+                "border-b border-transparent pb-1 focus:border-[var(--edge-strong)] focus:outline-none",
+                "transition-colors duration-[160ms] ease-out",
+                "placeholder:font-normal placeholder:text-[var(--ink-faint)]"
+              )}
+              aria-label="Task title"
+            />
+
+            <FieldSection label="Status" icon={CircleDot}>
+              <PillGroup
+                ariaLabel="Status"
+                value={form.status}
+                onChange={(v) => set("status", v)}
+                options={STATUS_PILL.map((s) => ({
+                  value: s.value,
+                  label: s.label,
+                  color: STATUS_DOT[s.value],
+                }))}
+              />
+            </FieldSection>
+
+            <FieldSection label="Priority" icon={Flag}>
+              <PillGroup
+                ariaLabel="Priority"
+                value={form.priority}
+                onChange={(v) => set("priority", v)}
+                options={PRIORITY_PILL.map((p) => ({
+                  value: p.value,
+                  label: p.label,
+                  color: `color-mix(in oklch, var(--ink-amber) ${Math.round(p.opacity * 100)}%, var(--edge))`,
+                }))}
+              />
+            </FieldSection>
+
+            <FieldSection label="Due date" icon={Clock}>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={form.dueDate}
+                  onChange={(e) => set("dueDate", e.target.value)}
+                  className={cn(
+                    "h-8 flex-1 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-2",
+                    "font-mono text-meta text-[var(--ink)] outline-none tabular-nums",
+                    "focus-visible:border-[var(--edge-strong)]",
+                    "transition-colors duration-[160ms] ease-out"
+                  )}
+                />
+                {/* Inline clear — empties the date → Inbox on save. Reversible,
+                    so no confirm dialog. */}
+                {form.dueDate && (
+                  <button
+                    type="button"
+                    onClick={() => set("dueDate", "")}
+                    title="Clear due date (move to Inbox)"
+                    aria-label="Clear due date (move to Inbox)"
+                    className="cursor-pointer-always rounded-sm p-1 text-[var(--ink-faint)] transition-colors duration-[160ms] hover:text-[var(--ink)]"
+                  >
+                    <X size={12} strokeWidth={1.5} />
+                  </button>
+                )}
+                {/* MoveToMenu kept as the shortcut path. */}
+                <MoveToMenu
+                  variant="inline"
+                  allowClear
+                  onPick={(ymd) => set("dueDate", ymd ?? "")}
+                />
+              </div>
+              {!form.dueDate && task?.dueDate && (
+                <p className="text-micro text-[var(--ink-faint)]">Will move to Inbox</p>
+              )}
+            </FieldSection>
+
+            <FieldSection label="URL" icon={Link2}>
+              <UrlField
+                value={form.url}
+                onChange={(next) => set("url", next)}
+                disabled={isPending}
+              />
+            </FieldSection>
+
+            <FieldSection label="Repeat" icon={Repeat}>
+              <TaskRecurrenceControl
+                value={form.recurrence}
+                onChange={(next) => set("recurrence", next)}
+                disabled={isPending}
+              />
+              {!isCreate && form.recurrence && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1 w-fit rounded-lg"
+                  disabled={isPending}
+                  onClick={() => startTransition(() => void handleAdvanceOccurrence())}
+                >
+                  Complete and advance to next
+                </Button>
+              )}
+            </FieldSection>
+
+            <FieldSection label="Projects" icon={FolderOpen}>
+              <ProjectAutocomplete
+                value={form.projectIds}
+                onChange={(ids) => set("projectIds", ids)}
+                projects={projects}
+                areas={areas}
+                onCreateProject={onCreateProject}
+              />
+            </FieldSection>
+
+            <FieldSection label="People" icon={Users}>
+              <PersonListField
+                value={form.personNames}
+                onChange={(next) => set("personNames", next)}
+                suggestions={people}
+                disabled={isPending}
+              />
+            </FieldSection>
+
+            <FieldSection label="Description">
+              <div className="rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] transition-colors duration-[160ms] focus-within:border-[var(--edge-strong)]">
+                <EditorContent editor={notesEditor} />
+              </div>
+            </FieldSection>
+
+            {/* Activity — real read-only fields only. */}
+            {!isCreate && (
+              <div className="flex flex-col gap-2 border-t border-[var(--edge)] pt-4">
+                <ActivityRow icon={Calendar} label="Created" value={fmtDate(task.createdAt)} />
+                <ActivityRow
+                  icon={CheckCircle2}
+                  label="Completed"
+                  value={fmtDate(task.completedAt)}
+                />
+              </div>
+            )}
+          </div>
+        ) : null}
+      </SidePanel>
 
       {/* Discard-unsaved-changes confirm */}
       <AlertDialog
@@ -1049,16 +970,18 @@ export function TaskDetailPanel({
           if (!v) setPendingDiscardAction(null);
         }}
       >
-        <AlertDialogContent className="font-serif">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-serif text-[20px]">Discard changes?</AlertDialogTitle>
-            <AlertDialogDescription className="font-serif text-base">
+            <AlertDialogTitle className="text-title font-semibold">
+              Discard changes?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-body">
               Your edits haven&apos;t been saved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="font-sans text-[13px]">Keep editing</AlertDialogCancel>
-            <AlertDialogAction className="font-sans text-[13px]" onClick={handleConfirmDiscard}>
+            <AlertDialogCancel className="text-meta">Keep editing</AlertDialogCancel>
+            <AlertDialogAction className="text-meta" onClick={handleConfirmDiscard}>
               Discard changes
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1069,8 +992,8 @@ export function TaskDetailPanel({
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-serif text-xl font-semibold">Delete task?</DialogTitle>
-            <DialogDescription className="font-serif text-base">
+            <DialogTitle className="text-title font-semibold">Delete task?</DialogTitle>
+            <DialogDescription className="text-body">
               This can&apos;t be undone.
             </DialogDescription>
           </DialogHeader>
@@ -1078,7 +1001,7 @@ export function TaskDetailPanel({
             <Button
               variant="outline"
               size="sm"
-              className="font-sans text-[13px]"
+              className="rounded-lg text-meta"
               onClick={() => setShowDeleteConfirm(false)}
             >
               Never mind
@@ -1086,7 +1009,7 @@ export function TaskDetailPanel({
             <Button
               variant="destructive"
               size="sm"
-              className="font-sans text-[13px]"
+              className="rounded-lg text-meta"
               onClick={() => startTransition(() => handleDelete())}
               disabled={isPending}
             >
@@ -1109,11 +1032,10 @@ function FieldSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      {/* MetaRow-law label: text-xs dull, Phosphor-style leading icon (D §B). */}
-      <label className="flex items-center gap-1.5 text-xs font-medium tracking-[0.01em] text-[var(--sd-ink-dull)]">
+    <div className="flex flex-col gap-2">
+      <label className="flex items-center gap-1.5 text-micro font-medium text-[var(--ink-muted)]">
         {Icon ? (
-          <Icon size={13} strokeWidth={1.75} className="text-[var(--sd-ink-faint)]" />
+          <Icon size={13} strokeWidth={1.75} className="text-[var(--ink-faint)]" />
         ) : null}
         {label}
       </label>
@@ -1122,38 +1044,54 @@ function FieldSection({
   );
 }
 
+function ActivityRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 text-meta">
+      <span className="flex items-center gap-1.5 text-[var(--ink-muted)]">
+        <Icon size={12} strokeWidth={1.75} className="text-[var(--ink-faint)]" />
+        {label}
+      </span>
+      <span className="font-mono text-micro tabular-nums text-[var(--ink-muted)]">
+        {value ?? "--"}
+      </span>
+    </div>
+  );
+}
+
 /**
- * Quiet action-row / header icon button (seed §7): 18px glyph, soft-landing
- * hover on the sd-hover backplate, focus ring on sd-accent. Disabled affordances
- * dim rather than disappear so the row layout stays stable.
+ * Quiet header icon button: 16px glyph, soft hover backplate. Rendered inside
+ * the SidePanel header's actions slot.
  */
-function ActionIconButton({
+function PanelIconButton({
   icon: Icon,
   label,
   onClick,
-  disabled,
 }: {
   icon: LucideIcon;
   label: string;
   onClick: () => void;
-  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
       aria-label={label}
       title={label}
       className={cn(
-        "inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] cursor-pointer-always",
-        "text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out",
-        "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-        "disabled:pointer-events-none disabled:opacity-35"
+        "inline-flex size-8 shrink-0 items-center justify-center rounded-lg cursor-pointer-always",
+        "text-[var(--ink-muted)] transition-colors duration-[160ms] ease-out",
+        "hover:bg-[var(--hover)] hover:text-[var(--ink)]"
       )}
     >
-      <Icon size={18} strokeWidth={1.75} />
+      <Icon size={16} strokeWidth={1.75} />
     </button>
   );
 }
