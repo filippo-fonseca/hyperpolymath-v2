@@ -92,9 +92,23 @@ One epic issue for the sesh plus one atomic issue per unit. Each PR closes its i
 merge. No PR is merged without Filippo's explicit say-so.
 
 ## D8 — Model routing
-UI and design-heavy units run on **`claude-fable-5`**; everything else runs on
-**`claude-opus-5`**. Every agent is spawned as a detached headless CLI process with the
-model pinned explicitly. Verification and evaluation lanes stay on Opus regardless.
+Filippo's instruction: use `claude-fable-5` for UI and design work, `claude-opus-5` for
+everything else. The engine pins **one build model per session**, and the risk register's
+defence against cross-unit collisions is the engine computing merge order *within* a session
+(R3 requires U0 to merge before U4; R4 requires U1 before U2). Splitting wave 1 by model would
+forfeit that. Resolved on 2026-07-28, with the mechanism put to Filippo explicitly:
+
+- **Wave 1 builds on `claude-opus-5`**, with a dedicated **Fable pre-plan** authored for U0 and
+  seeded into its brief. This is the path `BGSD.md` designed for exactly this case: Fable's
+  reasoning shapes the cockpit without Fable taking the highest-volume executor role, and merge
+  ordering stays automatic.
+- **Wave 2 builds on `claude-fable-5`** in full. Every unit in it (U6 through U11) is UI work,
+  so there is no tension to resolve.
+- Verification and evaluation lanes stay on **Opus** regardless of wave. Verification quality is
+  the floor and is never traded.
+
+Every agent is spawned with its model pinned explicitly; the in-session agent tool is never used
+for pipeline work, since it cannot reliably honour a model override.
 
 ## D9 — Verification
 `verification.usage_testing` stays **true** and `verification.headless` is set **true**:
