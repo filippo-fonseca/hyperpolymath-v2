@@ -54,3 +54,16 @@ DEPLOYMENT.md
 # Local Kiwi auto-dev worker scratch (locks, worktrees, recaps, logs)
 .kiwi-auto/
 tools/kiwi-autodev/logs/
+
+# bgsd — runtime artifacts (local only)
+# Ignore all runtime artifacts; commit only the persistent records.
+.bgsd/*
+!.bgsd/seshs/
+!.bgsd/memory/
+!.bgsd/seeds/
+!.bgsd/ledger.md
+!.bgsd/config.json
+.bgsd-tmp/
+
+# Playwright MCP scratch output
+.playwright-mcp/
