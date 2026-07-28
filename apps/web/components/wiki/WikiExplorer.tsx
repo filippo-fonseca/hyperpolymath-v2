@@ -135,12 +135,23 @@ export function WikiExplorer({
 
   // ─── Selection engine keyed to the current visible order. ────────────
   const selection = useExplorerSelection();
+  // Depend on the stable `setOrder` identity, not on the whole `selection`
+  // object: that object is re-memoized on every selection state change, so
+  // keying this effect on it re-ran the order sync for reasons unrelated to
+  // the order.
+  const setSelectionOrder = selection.setOrder;
   useEffect(() => {
-    selection.setOrder(itemOrder);
-  }, [itemOrder, selection]);
+    setSelectionOrder(itemOrder);
+  }, [itemOrder, setSelectionOrder]);
+  // Selection must not survive a folder change. The breadcrumb and drill-down
+  // handlers clear it themselves, but browser Back/Forward moves `folderId`
+  // through nuqs without passing through either, so this stays as the backstop.
+  // The old `folderId !== undefined` guard was always true (folderId is
+  // `string | null`), and `clear()` now bails out when nothing is selected, so
+  // the common path costs no extra render.
   const clearSelection = selection.clear;
   useEffect(() => {
-    if (folderId !== undefined) clearSelection();
+    clearSelection();
   }, [clearSelection, folderId]);
 
   // ─── Rubber-band on empty canvas. ────────────────────────────────────
@@ -282,7 +293,14 @@ export function WikiExplorer({
           const pointerHits = pointerWithin(args);
           return pointerHits.length > 0 ? pointerHits : rectIntersection(args);
         }}
-        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        // WhileDragging, not Always. Under `Always`, dnd-kit re-measures every
+        // registered droppable on every DndContext render, and each grid tile
+        // registers a droppable and a draggable, plus one droppable per
+        // breadcrumb segment and one for the canvas. N tiles meant N forced
+        // getBoundingClientRect() calls and a synchronous layout flush on every
+        // keystroke in the search box and every folder navigation. Drop targets
+        // only need to be measured while a drag is actually in flight.
+        measuring={{ droppable: { strategy: MeasuringStrategy.WhileDragging } }}
         onDragStart={dnd.handleDragStart}
         onDragEnd={dnd.handleDragEnd}
         onDragCancel={dnd.handleDragCancel}
