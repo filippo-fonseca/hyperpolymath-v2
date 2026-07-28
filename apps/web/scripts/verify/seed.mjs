@@ -125,8 +125,13 @@ async function seedFixtures(sql, userId) {
 
   // "lesno" is this codebase's preserved literal for done (HANDOFF.md §18); the
   // task_status enum has no "done" member. Priorities include "P∞".
+  //
+  // At least one task is due TODAY on purpose. /tasks defaults to a day-scoped
+  // kanban, so fixtures dated only in the future render an empty board that
+  // looks identical to a broken query.
   const taskRows = [
-    ["task:pset-7", "Finish problem set 7", "Sections 4.2 through 4.6.", "P1", "in progress", isoDaysFromNow(1), 0],
+    ["task:pset-7", "Finish problem set 7", "Sections 4.2 through 4.6.", "P1", "in progress", isoDaysFromNow(0), 0],
+    ["task:calibration", "Redo the calibration run", null, "P2", "not started", isoDaysFromNow(0), 1],
     ["task:reading", "Read Callen chapter 3", null, "P2", "up next", isoDaysFromNow(3), 1],
     ["task:lab-writeup", "Write up the calorimetry lab", "Include the error analysis.", "P2", "not started", isoDaysFromNow(5), 2],
     ["task:office-hours", "Ask about entropy problem in office hours", null, "P3", "not started", null, 3],
@@ -179,6 +184,36 @@ async function seedFixtures(sql, userId) {
         emoji = excluded.emoji, folder_id = excluded.folder_id
     `;
   }
+
+  // Today's Daily Page. This one is not cosmetic: components/shell/DailyAutoOpen
+  // is mounted app-wide and, when today's Daily Page does NOT exist, it creates
+  // one and router.push()es to /wiki/<id> FROM ANY ROUTE. A browser opening
+  // /tasks therefore lands on the wiki instead, which reads like a routing bug
+  // and would fail every Tester assertion on the first run of each day. Once the
+  // page exists the component leaves you where you are, so seeding it is the fix
+  // and no application code has to change. Keyed by date, so a run tomorrow
+  // seeds tomorrow's.
+  const todayIso = isoDaysFromNow(0);
+  const todayTitle = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${todayIso}T00:00:00Z`));
+  // A partial unique index enforces one Daily Page per user per day, and the
+  // app may already have created today's (DailyAutoOpen does exactly that). So
+  // this is a guarded insert rather than an ON CONFLICT on the primary key:
+  // the row that matters is "a daily page for today", whichever id it carries.
+  await sql`
+    insert into pages (id, user_id, title, content, daily_date)
+    select ${id(`page:daily:${todayIso}`)}, ${userId}, ${todayTitle},
+           ${"Seeded by the verification harness so DailyAutoOpen does not hijack navigation.\n"},
+           ${todayIso}::date
+    where not exists (
+      select 1 from pages where user_id = ${userId} and daily_date = ${todayIso}::date
+    )
+  `;
 
   const habitRows = [
     ["habit:read", "Read for 30 minutes", "Anything that is not a problem set.", "📕", 0],
