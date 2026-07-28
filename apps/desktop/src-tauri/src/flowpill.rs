@@ -243,7 +243,7 @@ fn apply_native_behaviour<R: Runtime>(window: &WebviewWindow<R>) {
 
     let handle = window.clone();
     if let Err(error) = window.run_on_main_thread(move || {
-        use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior, NSStatusWindowLevel};
+        use objc2_app_kit::{NSStatusWindowLevel, NSWindow, NSWindowCollectionBehavior};
 
         let ptr = match handle.ns_window() {
             Ok(ptr) => ptr as *mut NSWindow,
