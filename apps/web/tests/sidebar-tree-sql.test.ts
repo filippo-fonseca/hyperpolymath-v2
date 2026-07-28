@@ -117,9 +117,7 @@ describeDb("sidebar tree SQL", () => {
     expect(finished?.archivedAt?.toISOString().slice(0, 10)).toBe("2020-01-01");
 
     // A future end date is not expiry.
-    const future = tree
-      .find((a) => a.id === areaLive)
-      ?.projects.find((p) => p.id === projFuture);
+    const future = tree.find((a) => a.id === areaLive)?.projects.find((p) => p.id === projFuture);
     expect(future?.archivedAt).toBeNull();
   });
 

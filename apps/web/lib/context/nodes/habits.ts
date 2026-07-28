@@ -11,9 +11,9 @@
  * contract in types.ts.
  */
 
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { db as defaultDb } from "@/lib/db";
-import { habits as habitsTable, habitCompletions } from "@/lib/db/schema";
+import { habitCompletions, habits as habitsTable } from "@/lib/db/schema";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import type { Node } from "../types";
 
 export type DB = typeof defaultDb;
@@ -40,7 +40,7 @@ function daysFromTodayBackwards(rawDates: string[]): number {
 
 export async function loadHabits(
   userId: string,
-  db: DB = defaultDb,
+  db: DB = defaultDb
 ): Promise<{ nodes: Node[]; excluded: number }> {
   // One wave, not two serial trips. The completions query keys off userId and
   // status alone; it never needed the habit ids, so the await that separated

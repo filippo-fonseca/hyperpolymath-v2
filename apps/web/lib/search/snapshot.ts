@@ -6,11 +6,7 @@ import {
   loadHabitsCached,
 } from "@/lib/db/cached";
 import type { SearchSnapshot } from "@/lib/search";
-import {
-  getSearchCaptures,
-  getSearchPages,
-  getSearchTasks,
-} from "@/lib/search/snapshot-queries";
+import { getSearchCaptures, getSearchPages, getSearchTasks } from "@/lib/search/snapshot-queries";
 import { format } from "date-fns";
 
 /** Format a "YYYY-MM-DD" calendar day at local time (avoids UTC day-shift). */

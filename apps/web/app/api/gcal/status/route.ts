@@ -25,9 +25,9 @@
  * Response shape: `{ status: "connected" | "not_connected" | "expired" }`.
  */
 
-import { NextResponse } from "next/server";
 import { getUserIdOrRedirect } from "@/lib/auth/get-user";
 import { getGcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 

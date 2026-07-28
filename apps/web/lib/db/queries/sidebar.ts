@@ -1,4 +1,3 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
 import {
@@ -6,6 +5,7 @@ import {
   projectEffectiveEndISO,
   todayISODate,
 } from "@/lib/projects/archive-status";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 export interface SidebarArea {
   id: string;
@@ -38,7 +38,7 @@ export interface SidebarProject {
  */
 export async function getSidebarTree(
   userId: string,
-  includeArchived = false,
+  includeArchived = false
 ): Promise<SidebarArea[]> {
   // ONE round trip, not two. This helper sits on the blocking path of every
   // (app) render, so the difference is paid on every navigation.
@@ -56,11 +56,7 @@ export async function getSidebarTree(
   // by area and grouping is order-stable.
   const projectJoin = includeArchived
     ? and(eq(projects.areaId, areas.id), eq(projects.userId, userId))
-    : and(
-        eq(projects.areaId, areas.id),
-        eq(projects.userId, userId),
-        isNull(projects.archivedAt),
-      );
+    : and(eq(projects.areaId, areas.id), eq(projects.userId, userId), isNull(projects.archivedAt));
 
   const rows = await db
     .select({
@@ -85,13 +81,13 @@ export async function getSidebarTree(
     .where(
       includeArchived
         ? eq(areas.userId, userId)
-        : and(eq(areas.userId, userId), isNull(areas.archivedAt)),
+        : and(eq(areas.userId, userId), isNull(areas.archivedAt))
     )
     .orderBy(
       asc(areas.orderIndex),
       asc(areas.createdAt),
       asc(projects.orderIndex),
-      asc(projects.createdAt),
+      asc(projects.createdAt)
     );
 
   const today = todayISODate();

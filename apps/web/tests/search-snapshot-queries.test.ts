@@ -2,11 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getCapturesForUser } from "@/lib/db/queries/captures";
 import { getPagesForUser } from "@/lib/db/queries/pages";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
-import {
-  getSearchCaptures,
-  getSearchPages,
-  getSearchTasks,
-} from "@/lib/search/snapshot-queries";
+import { getSearchCaptures, getSearchPages, getSearchTasks } from "@/lib/search/snapshot-queries";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -152,18 +148,17 @@ describeDb("search snapshot queries", () => {
     }));
 
     expect(narrow).toEqual(expected);
-    expect(narrow.find((c) => c.id === capTagged)?.tags.slice().sort()).toEqual([
-      "Yale",
-      "research",
-    ]);
+    expect(
+      narrow
+        .find((c) => c.id === capTagged)
+        ?.tags.slice()
+        .sort()
+    ).toEqual(["Yale", "research"]);
     expect(narrow.find((c) => c.id === capBare)?.tags).toEqual([]);
   });
 
   it("returns the same page slice the entity helper did, in the same order", async () => {
-    const [narrow, entities] = await Promise.all([
-      getSearchPages(userId),
-      getPagesForUser(userId),
-    ]);
+    const [narrow, entities] = await Promise.all([getSearchPages(userId), getPagesForUser(userId)]);
 
     const expected = entities.map((p) => ({
       id: p.id,

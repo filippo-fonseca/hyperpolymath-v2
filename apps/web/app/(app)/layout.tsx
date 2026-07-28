@@ -66,7 +66,7 @@ export default async function AppLayout({
             RSC payload, and nothing at first paint reads it. SearchProvider
             already fetches it client-side and realtime keeps it fresh, so the
             index warms a moment after paint instead of blocking it. */}
-        <SearchProvider userId={user.id}>
+          <SearchProvider userId={user.id}>
             {/* NavHistoryProvider — in-memory Back/Forward stack. Must wrap both
             AppShell (TopTabBar → NavArrows) and GlobalHotkeys (⌘[ / ⌘]). */}
             <NavHistoryProvider>

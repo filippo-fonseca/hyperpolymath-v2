@@ -56,10 +56,7 @@ export default async function TasksPage({ searchParams }: Props) {
     // The cached wrapper, because the (app) layout already fetched exactly
     // this list for the Cmd+K composer in the same request.
     getHashtagSuggestionsCached(user.id),
-    db
-      .select({ id: people.id, name: people.name })
-      .from(people)
-      .where(eq(people.userId, user.id)),
+    db.select({ id: people.id, name: people.name }).from(people).where(eq(people.userId, user.id)),
   ]);
 
   // Per Pitfall 3: pass searchParams-derived initial filters so SSR matches client nuqs hydration.
