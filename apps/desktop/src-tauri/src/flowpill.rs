@@ -524,4 +524,60 @@ mod tests {
         let (x, y) = corner_origin(0, 0, 1920, 1080, 440, 300, 0, Corner::BottomRight);
         assert_eq!((x, y), (1920 - 440, 1080 - 300));
     }
+
+    /// The window's behaviour is decided by `tauri.conf.json`, not by this
+    /// module, so guard the config itself. `focusable: false` in particular is
+    /// the whole non-activating story: tao routes it to `canBecomeKeyWindow`,
+    /// and if it is ever dropped the pill starts stealing the caret from the app
+    /// the user is dictating into. This is the headless half of that check; the
+    /// other half is `apply_native_behaviour` reading `canBecomeKeyWindow` back
+    /// off the live `NSWindow` at runtime.
+    #[test]
+    fn the_config_still_declares_a_transparent_non_activating_440x300_window() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri.conf.json");
+        let window = config["app"]["windows"]
+            .as_array()
+            .expect("app.windows array")
+            .iter()
+            .find(|window| window["label"] == FLOWPILL_LABEL)
+            .unwrap_or_else(|| panic!("no window labelled {FLOWPILL_LABEL} in tauri.conf.json"));
+
+        assert_eq!(window["url"], "flowpill.html", "entry point moved");
+        assert_eq!(window["width"], 440, "width must stay 440");
+        assert_eq!(window["height"], 300, "height must stay 300");
+
+        for key in [
+            // Non-activating. Without this the pill steals keyboard focus.
+            "focusable",
+            // Do not even request focus on creation.
+            "focus",
+            "resizable",
+            "decorations",
+            "visible",
+        ] {
+            assert_eq!(window[key], false, "{key} must be false");
+        }
+        for key in [
+            "transparent",
+            "alwaysOnTop",
+            "skipTaskbar",
+            "visibleOnAllWorkspaces",
+        ] {
+            assert_eq!(window[key], true, "{key} must be true");
+        }
+        assert_eq!(window["shadow"], false, "shadow must be false");
+    }
+
+    /// macOS never prompts for the microphone when
+    /// `NSMicrophoneUsageDescription` is missing. It denies the request in
+    /// silence, so hold-to-talk would record nothing with no error anywhere.
+    #[test]
+    fn info_plist_declares_a_microphone_usage_description() {
+        let plist = include_str!("../Info.plist");
+        assert!(
+            plist.contains("<key>NSMicrophoneUsageDescription</key>"),
+            "Info.plist lost NSMicrophoneUsageDescription; the mic prompt will never appear"
+        );
+    }
 }
