@@ -15,7 +15,9 @@
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const processInboundSms = vi.hoisted(() => vi.fn(async () => ({ status: "done" as const, turnId: "t1" })));
+const processInboundSms = vi.hoisted(() =>
+  vi.fn(async () => ({ status: "done" as const, turnId: "t1" }))
+);
 const afterCallbacks = vi.hoisted(() => [] as Array<() => unknown>);
 
 vi.mock("@/lib/twilio/process-sms", () => ({
@@ -99,7 +101,9 @@ describe("POST /api/jarvis/sms — signature verification", () => {
   it("rejects a signature minted for a different URL", async () => {
     const body = FORM.toString();
     const res = await POST(
-      request(body, { "x-twilio-signature": signature(body, "https://evil.example.com/api/jarvis/sms") }),
+      request(body, {
+        "x-twilio-signature": signature(body, "https://evil.example.com/api/jarvis/sms"),
+      })
     );
     expect(res.status).toBe(401);
   });

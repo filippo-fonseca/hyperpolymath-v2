@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { splitSmsSegments, SMS_SEGMENT_LIMIT } from "../split-message";
+import { SMS_SEGMENT_LIMIT, splitSmsSegments } from "../split-message";
 
 describe("splitSmsSegments", () => {
   it("keeps a short reply as a single message", () => {

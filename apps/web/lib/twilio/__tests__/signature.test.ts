@@ -59,7 +59,7 @@ describe("verifyTwilioSignature", () => {
         signature: sign(URL_UNDER_TEST, PARAMS),
         url: URL_UNDER_TEST,
         params: PARAMS,
-      }),
+      })
     ).toBe(true);
   });
 
@@ -71,7 +71,7 @@ describe("verifyTwilioSignature", () => {
         signature,
         url: URL_UNDER_TEST,
         params: { ...PARAMS, Body: "delete every task" },
-      }),
+      })
     ).toBe(false);
   });
 
@@ -82,7 +82,7 @@ describe("verifyTwilioSignature", () => {
         signature: sign("https://evil.example.com/api/jarvis/sms", PARAMS),
         url: URL_UNDER_TEST,
         params: PARAMS,
-      }),
+      })
     ).toBe(false);
   });
 
@@ -93,21 +93,26 @@ describe("verifyTwilioSignature", () => {
         signature: sign(URL_UNDER_TEST, PARAMS, "some-other-token"),
         url: URL_UNDER_TEST,
         params: PARAMS,
-      }),
+      })
     ).toBe(false);
   });
 
   it("fails closed on a missing header, token or URL", () => {
     const signature = sign(URL_UNDER_TEST, PARAMS);
     expect(
-      verifyTwilioSignature({ authToken: AUTH_TOKEN, signature: null, url: URL_UNDER_TEST, params: PARAMS }),
+      verifyTwilioSignature({
+        authToken: AUTH_TOKEN,
+        signature: null,
+        url: URL_UNDER_TEST,
+        params: PARAMS,
+      })
     ).toBe(false);
     expect(
-      verifyTwilioSignature({ authToken: "", signature, url: URL_UNDER_TEST, params: PARAMS }),
+      verifyTwilioSignature({ authToken: "", signature, url: URL_UNDER_TEST, params: PARAMS })
     ).toBe(false);
-    expect(verifyTwilioSignature({ authToken: AUTH_TOKEN, signature, url: "", params: PARAMS })).toBe(
-      false,
-    );
+    expect(
+      verifyTwilioSignature({ authToken: AUTH_TOKEN, signature, url: "", params: PARAMS })
+    ).toBe(false);
   });
 
   it("rejects garbage that is not base64 of the right length", () => {
@@ -117,7 +122,7 @@ describe("verifyTwilioSignature", () => {
         signature: "not-a-real-signature",
         url: URL_UNDER_TEST,
         params: PARAMS,
-      }),
+      })
     ).toBe(false);
   });
 });
@@ -129,7 +134,7 @@ describe("resolveTwilioWebhookUrl", () => {
         requestUrl: "http://10.0.0.1:3000/api/jarvis/sms",
         headers: new Headers(),
         configuredUrl: "https://kiwi.example.com/api/jarvis/sms",
-      }),
+      })
     ).toBe("https://kiwi.example.com/api/jarvis/sms");
   });
 
@@ -142,7 +147,7 @@ describe("resolveTwilioWebhookUrl", () => {
           "x-forwarded-host": "kiwi.example.com",
           host: "10.0.0.1:3000",
         }),
-      }),
+      })
     ).toBe("https://kiwi.example.com/api/jarvis/sms?x=1");
   });
 
@@ -151,7 +156,7 @@ describe("resolveTwilioWebhookUrl", () => {
       resolveTwilioWebhookUrl({
         requestUrl: "http://localhost:3000/api/jarvis/sms",
         headers: new Headers({ host: "localhost:3000" }),
-      }),
+      })
     ).toBe("http://localhost:3000/api/jarvis/sms");
   });
 });

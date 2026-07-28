@@ -66,7 +66,7 @@ function env(e?: TwilioEnv): TwilioEnv {
  */
 export function normalizePhoneNumber(
   value: string | null | undefined,
-  e?: TwilioEnv,
+  e?: TwilioEnv
 ): string | null {
   if (!value) return null;
   const trimmed = value.trim();

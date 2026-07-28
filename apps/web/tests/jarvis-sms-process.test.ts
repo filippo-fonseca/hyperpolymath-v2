@@ -70,22 +70,43 @@ vi.mock("@/lib/db/schema", async (importOriginal) => {
   return { ...actual, users: { ...(actual.users as object), __name: "users" } };
 });
 
+/** Mirrors RunChannelTurnResult; declared so mockResolvedValueOnce can widen. */
+interface FakeTurnResult {
+  turnId: string;
+  userTurnId: string;
+  text: string;
+  actions: Array<{ toolUseId: string; name: string; result: unknown }>;
+  status: "done" | "error";
+  errorMessage: string | null;
+}
+
 const runChannelTurn = vi.hoisted(() =>
-  vi.fn(async () => ({
-    turnId: "turn-1",
-    userTurnId: "user-turn-1",
-    text: "Filed, sir.",
-    actions: [] as Array<{ toolUseId: string; name: string; result: unknown }>,
-    status: "done" as const,
-    errorMessage: null,
-  })),
+  vi.fn(
+    async (): Promise<FakeTurnResult> => ({
+      turnId: "turn-1",
+      userTurnId: "user-turn-1",
+      text: "Filed, sir.",
+      actions: [],
+      status: "done",
+      errorMessage: null,
+    })
+  )
 );
 vi.mock("@/lib/jarvis/run-channel-turn", () => ({ runChannelTurn }));
 
 const sendSmsReply = vi.hoisted(() =>
-  vi.fn(async () => ({ ok: true as const, sids: ["SMout"], dryRun: true })),
+  vi.fn(async (_input: { to: string; body: string }) => ({
+    ok: true as const,
+    sids: ["SMout"],
+    dryRun: true,
+  }))
 );
 vi.mock("@/lib/twilio/send", () => ({ sendSmsReply }));
+
+/** The body of the nth outbound message the processor attempted. */
+function sentBody(index = 0): string {
+  return sendSmsReply.mock.calls[index]?.[0]?.body ?? "";
+}
 
 const getMessagingSettings = vi.hoisted(() =>
   vi.fn(async () => ({
@@ -93,7 +114,7 @@ const getMessagingSettings = vi.hoisted(() =>
     lastReplyAt: null,
     lastStatus: null,
     lastError: null,
-  })),
+  }))
 );
 vi.mock("@/lib/db/queries/messaging", () => ({ getMessagingSettings }));
 
@@ -220,9 +241,7 @@ describe("processInboundSms — the reply", () => {
   it("tells the sender when an attachment arrived with no text", async () => {
     await processInboundSms(inbound({ body: "", mediaCount: 1 }));
     expect(runChannelTurn).not.toHaveBeenCalled();
-    expect(String((sendSmsReply.mock.calls[0]?.[0] as { body: string }).body)).toContain(
-      "cannot read images",
-    );
+    expect(sentBody()).toContain("cannot read images");
   });
 
   it("records a failed turn in the ledger and warns the sender", async () => {
@@ -237,9 +256,7 @@ describe("processInboundSms — the reply", () => {
     const result = await processInboundSms(inbound());
     expect(result).toMatchObject({ status: "error", error: "Anthropic exploded" });
     expect(lastLedgerRow()).toMatchObject({ status: "error" });
-    expect(String((sendSmsReply.mock.calls[0]?.[0] as { body: string }).body)).toContain(
-      "Something went wrong",
-    );
+    expect(sentBody()).toContain("Something went wrong");
   });
 
   it("records an error when no account can be resolved", async () => {

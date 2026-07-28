@@ -14,12 +14,12 @@
  * id; no phone number or credential ever crosses the wire.
  */
 
-import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
-import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 type ToggleResult = { success: true } | { success: false; error: string };
 
@@ -48,10 +48,7 @@ export async function setSmsJarvisEnabled(enabled: boolean): Promise<ToggleResul
   const auth = await requireUserId();
   if (!auth.ok) return { success: false, error: auth.error };
 
-  await db
-    .update(users)
-    .set({ smsJarvisEnabled: parsed.data })
-    .where(eq(users.id, auth.userId));
+  await db.update(users).set({ smsJarvisEnabled: parsed.data }).where(eq(users.id, auth.userId));
 
   revalidatePath("/settings");
   return { success: true };

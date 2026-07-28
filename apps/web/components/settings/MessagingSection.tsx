@@ -18,11 +18,11 @@
  * thing this component can change.
  */
 
-import { useState, useTransition } from "react";
-import { formatDistanceToNow } from "date-fns";
-import { toast } from "sonner";
 import { setSmsJarvisEnabled } from "@/app/(app)/settings/messaging-actions";
 import type { MessagingSettings, SmsJarvisStatus } from "@/lib/db/queries/messaging";
+import { formatDistanceToNow } from "date-fns";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 interface Props {
   settings: MessagingSettings;
@@ -64,7 +64,7 @@ export function MessagingSection({
       toast(
         next
           ? "Kiwi will now reply to your text messages."
-          : "Kiwi will stop replying to text messages.",
+          : "Kiwi will stop replying to text messages."
       );
     });
   }
@@ -86,9 +86,9 @@ export function MessagingSection({
         <div className="flex flex-col gap-1">
           <div className="text-sm font-medium text-[var(--sd-ink)]">Reply to text messages</div>
           <div className="text-xs text-[var(--sd-ink-dull)]">
-            When this is on, a text to your Kiwi number runs the same assistant you get on the
-            web, and the reply comes back as a text. Turning it off stops the turn before it
-            starts, so nothing is spent and nothing is sent.
+            When this is on, a text to your Kiwi number runs the same assistant you get on the web,
+            and the reply comes back as a text. Turning it off stops the turn before it starts, so
+            nothing is spent and nothing is sent.
           </div>
         </div>
         <div
@@ -160,9 +160,8 @@ export function MessagingSection({
           </div>
         )}
         <div className="text-xs text-[var(--sd-ink-dull)]">
-          A text message&rsquo;s sender is easy to forge, so this list is a filter, not a
-          password. What actually proves a message came from Twilio is the request signature on
-          the webhook.
+          A text message&rsquo;s sender is easy to forge, so this list is a filter, not a password.
+          What actually proves a message came from Twilio is the request signature on the webhook.
         </div>
         {transportConfigured && replyFrom ? (
           <div className="text-xs text-[var(--sd-ink-dull)]">

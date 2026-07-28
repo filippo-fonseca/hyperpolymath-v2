@@ -36,13 +36,13 @@
  * rather than dying inside `after()`.
  */
 
-import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
-import { buildRecentHistory } from "@/lib/jarvis/recent-history";
-import { joinStreamTextChunks } from "@/lib/jarvis/join-stream-text";
-import { buildTurnHints, type ParsedDateHint, type SlashCommand } from "@/lib/jarvis/turn-hints";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
+import { joinStreamTextChunks } from "@/lib/jarvis/join-stream-text";
+import { buildRecentHistory } from "@/lib/jarvis/recent-history";
+import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
+import { type ParsedDateHint, type SlashCommand, buildTurnHints } from "@/lib/jarvis/turn-hints";
 
 /** Anthropic content-block shapes carried by multi-turn agentic history. */
 export type ChannelContentBlock =
@@ -132,9 +132,7 @@ export interface RunChannelTurnResult {
 /**
  * Run one JARVIS turn on any channel and resolve with its final text.
  */
-export async function runChannelTurn(
-  opts: RunChannelTurnOptions,
-): Promise<RunChannelTurnResult> {
+export async function runChannelTurn(opts: RunChannelTurnOptions): Promise<RunChannelTurnResult> {
   const turnId = opts.turnId ?? crypto.randomUUID();
   const userTurnId = crypto.randomUUID();
   const userTurnCreatedAt = new Date();

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type TwilioEnv,
   getAllowedSmsSenders,
   getTwilioCredentials,
   isAllowedSmsSender,
   isOwnSmsNumber,
   normalizePhoneNumber,
-  type TwilioEnv,
 } from "../config";
 
 describe("normalizePhoneNumber", () => {
@@ -22,7 +22,7 @@ describe("normalizePhoneNumber", () => {
   it("applies the default country code to a bare national number", () => {
     expect(normalizePhoneNumber("2035550148", {})).toBe("+12035550148");
     expect(normalizePhoneNumber("07700900123", { JARVIS_SMS_DEFAULT_COUNTRY_CODE: "+44" })).toBe(
-      "+4407700900123",
+      "+4407700900123"
     );
   });
 
@@ -115,7 +115,7 @@ describe("getTwilioCredentials", () => {
     expect(getTwilioCredentials({})).toBeNull();
     expect(getTwilioCredentials({ TWILIO_ACCOUNT_SID: "AC123" })).toBeNull();
     expect(
-      getTwilioCredentials({ TWILIO_ACCOUNT_SID: "AC123", TWILIO_AUTH_TOKEN: "tok" }),
+      getTwilioCredentials({ TWILIO_ACCOUNT_SID: "AC123", TWILIO_AUTH_TOKEN: "tok" })
     ).toBeNull();
   });
 });

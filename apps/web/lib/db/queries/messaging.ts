@@ -7,9 +7,9 @@
  * Mirrors lib/db/queries/pages-backup.ts.
  */
 
-import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 /** Outcome of the last inbound text message this user's channel handled. */
 export type SmsJarvisStatus = "done" | "disabled" | "ignored_sender" | "error";

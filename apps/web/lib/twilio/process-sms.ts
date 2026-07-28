@@ -22,14 +22,14 @@
 
 import { eq, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
-import { jarvisSmsEvents, users } from "@/lib/db/schema";
 import { OWNER_EMAIL } from "@/lib/auth/owner";
+import { db } from "@/lib/db";
+import { getMessagingSettings } from "@/lib/db/queries/messaging";
+import { jarvisSmsEvents, users } from "@/lib/db/schema";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
+import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import { runChannelTurn } from "@/lib/jarvis/run-channel-turn";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
-import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
-import { getMessagingSettings } from "@/lib/db/queries/messaging";
 import { isAllowedSmsSender, isOwnSmsNumber, normalizePhoneNumber } from "@/lib/twilio/config";
 import { sendSmsReply } from "@/lib/twilio/send";
 
@@ -71,7 +71,7 @@ export type ProcessSmsOutcome =
 /** Record the terminal state of a ledger row. */
 async function closeLedger(
   messageSid: string,
-  fields: { status: string; error?: string | null; userId?: string | null; turnId?: string | null },
+  fields: { status: string; error?: string | null; userId?: string | null; turnId?: string | null }
 ): Promise<void> {
   await db
     .update(jarvisSmsEvents)
@@ -92,7 +92,7 @@ async function closeLedger(
 async function recordUserTelemetry(
   userId: string,
   status: string,
-  error: string | null,
+  error: string | null
 ): Promise<void> {
   await db
     .update(users)
@@ -192,7 +192,7 @@ export async function processInboundSms(input: InboundSms): Promise<ProcessSmsOu
   ];
   if (mediaCount > 0) {
     channelNotes.push(
-      `The sender attached ${mediaCount} media file${mediaCount === 1 ? "" : "s"}. You cannot open ${mediaCount === 1 ? "it" : "them"}; say so plainly if ${mediaCount === 1 ? "it matters" : "they matter"}.`,
+      `The sender attached ${mediaCount} media file${mediaCount === 1 ? "" : "s"}. You cannot open ${mediaCount === 1 ? "it" : "them"}; say so plainly if ${mediaCount === 1 ? "it matters" : "they matter"}.`
     );
   }
 

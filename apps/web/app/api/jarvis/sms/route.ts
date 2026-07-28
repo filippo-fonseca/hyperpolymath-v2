@@ -18,8 +18,8 @@
 
 import { type NextRequest, after } from "next/server";
 
-import { processInboundSms } from "@/lib/twilio/process-sms";
 import { shouldRespondWithTwiml, shouldVerifyTwilioSignature } from "@/lib/twilio/config";
+import { processInboundSms } from "@/lib/twilio/process-sms";
 import {
   parseTwilioFormBody,
   resolveTwilioWebhookUrl,
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!messageSid || !from || !to) {
     return Response.json(
       { error: "Missing MessageSid/From/To in the Twilio payload" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 

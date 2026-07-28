@@ -43,10 +43,7 @@ export interface VerifyTwilioSignatureInput {
  * concatenated onto it. Exported for tests and for debugging a mismatch, which
  * is almost always a URL problem rather than a params problem.
  */
-export function buildTwilioSignatureBase(
-  url: string,
-  params: Record<string, string>,
-): string {
+export function buildTwilioSignatureBase(url: string, params: Record<string, string>): string {
   let base = url;
   for (const key of Object.keys(params).sort()) {
     base += key + params[key];
@@ -117,7 +114,9 @@ export function resolveTwilioWebhookUrl(input: {
   if (configured) return configured;
 
   const parsed = new URL(input.requestUrl);
-  const proto = input.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || parsed.protocol.replace(":", "");
+  const proto =
+    input.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
+    parsed.protocol.replace(":", "");
   const host =
     input.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
     input.headers.get("host")?.trim() ||

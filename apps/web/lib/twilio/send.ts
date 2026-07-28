@@ -12,12 +12,12 @@
  */
 
 import {
+  type TwilioEnv,
   getTwilioCredentials,
   isSmsDryRun,
   normalizePhoneNumber,
-  type TwilioEnv,
 } from "@/lib/twilio/config";
-import { splitSmsSegments, SMS_SEGMENT_LIMIT } from "@/lib/twilio/split-message";
+import { SMS_SEGMENT_LIMIT, splitSmsSegments } from "@/lib/twilio/split-message";
 
 const TWILIO_API_BASE = "https://api.twilio.com/2010-04-01";
 
@@ -29,7 +29,7 @@ export type SendSmsResult =
 async function sendOne(
   to: string,
   body: string,
-  e?: TwilioEnv,
+  e?: TwilioEnv
 ): Promise<{ ok: true; sid: string } | { ok: false; error: string }> {
   const creds = getTwilioCredentials(e);
   if (!creds) {
@@ -89,7 +89,7 @@ async function sendOne(
  */
 export async function sendSmsReply(
   input: { to: string; body: string; limit?: number },
-  e?: TwilioEnv,
+  e?: TwilioEnv
 ): Promise<SendSmsResult> {
   const to = normalizePhoneNumber(input.to, e);
   if (!to) return { ok: false, error: `Unroutable destination number: ${input.to}` };

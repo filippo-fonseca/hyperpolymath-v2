@@ -31,10 +31,7 @@
 export type SlashCommand = "task" | "capture" | "event" | "ask" | "help";
 
 /** Anthropic tool_choice, narrowed to the three shapes JARVIS ever emits. */
-export type TurnToolChoice =
-  | { type: "auto" }
-  | { type: "none" }
-  | { type: "tool"; name: string };
+export type TurnToolChoice = { type: "auto" } | { type: "none" } | { type: "tool"; name: string };
 
 /** A client-parsed date hint, copied verbatim into the tool call by the model. */
 export interface ParsedDateHint {
