@@ -27,6 +27,28 @@
         "alwaysOnTop": false,
         "visible": true,
         "skipTaskbar": false
+      },
+      {
+        "label": "flowpill",
+        "url": "flowpill.html",
+        "title": "JARVIS Flow",
+        "width": 440,
+        "height": 300,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "visibleOnAllWorkspaces": true,
+        "acceptFirstMouse": true,
+        "focus": false,
+        "focusable": false,
+        "dragDropEnabled": false
       }
     ],
     "macOSPrivateApi": true,
