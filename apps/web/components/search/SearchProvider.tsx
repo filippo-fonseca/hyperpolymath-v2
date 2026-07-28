@@ -1,7 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { fetchSearchSnapshot } from "@/lib/search/actions";
 import {
@@ -13,6 +21,17 @@ import {
 } from "@/lib/search";
 
 const SearchIndexContext = createContext<SearchEntry[] | null>(null);
+
+/**
+ * How long a burst of Realtime writes is allowed to accumulate before the
+ * snapshot is refetched. Long enough to fold one user action's several table
+ * events into a single 18-query round trip, short enough that a newly created
+ * task is findable by the time the user reaches for Cmd+K.
+ */
+const SNAPSHOT_REFETCH_DEBOUNCE_MS = 400;
+
+/** Backstop staleness only — Realtime is the real freshness mechanism. */
+const SNAPSHOT_STALE_MS = 5 * 60_000;
 
 interface ProviderProps {
   userId: string;
@@ -26,36 +45,67 @@ interface ProviderProps {
  * refetch-on-focus), never on every render, satisfying the re-index contract.
  */
 export function SearchProvider({ userId, initialSnapshot, children }: ProviderProps) {
+  const queryClient = useQueryClient();
+  const snapshotKey = useMemo(() => ["search-snapshot", userId] as const, [userId]);
+
   const { data } = useQuery({
-    queryKey: ["search-snapshot", userId],
+    queryKey: snapshotKey,
     queryFn: fetchSearchSnapshot,
     initialData: initialSnapshot,
-    staleTime: 30_000,
-    refetchOnWindowFocus: true,
+    // The snapshot is 18 server queries. Realtime already drives every
+    // meaningful refresh below, so time-based staleness only needs to be a
+    // long-interval backstop, and refocusing a tab must not re-run it: the
+    // index cannot have drifted while the tab was hidden without a Realtime
+    // event having fired (the QueryProvider's visibilitychange listener
+    // recovers from any gap in the channel itself).
+    staleTime: SNAPSHOT_STALE_MS,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
-  // Keep the search index live: refetch the snapshot whenever any table it
-  // indexes changes. Each subscription shares the app's singleton Realtime
-  // channel (refcount), so this adds no extra channels beyond the
-  // search-snapshot key in their invalidation fanout. Covers the core
+  // Coalesce the realtime-driven refetch. A single user action routinely
+  // touches several of the tables below at once (creating a task with a
+  // project link and two hashtags fires `tasks`, `tasks_projects` and
+  // `tasks_hashtags`), and each fire used to invalidate the snapshot key
+  // directly, so one action could pay for the 18-query snapshot more than
+  // once. Every fire now just restarts one timer.
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleSnapshotRefetch = useCallback(() => {
+    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+    refetchTimerRef.current = setTimeout(() => {
+      refetchTimerRef.current = null;
+      void queryClient.invalidateQueries({ queryKey: snapshotKey });
+    }, SNAPSHOT_REFETCH_DEBOUNCE_MS);
+  }, [queryClient, snapshotKey]);
+
+  useEffect(
+    () => () => {
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+    },
+    [],
+  );
+
+  // Keep the search index live: schedule a snapshot refetch whenever any table
+  // it indexes changes. Each subscription shares the app's singleton Realtime
+  // channel (refcount), so this adds no extra channels. Covers the core
   // entities plus the join/derived tables that feed indexed fields
   // (task→project links, capture tags, habit streaks).
-  const alsoInvalidate = useMemo(
-    () => [["search-snapshot", userId]] as const,
-    [userId],
+  const subscription = useMemo(
+    () => ({ onEvent: scheduleSnapshotRefetch }),
+    [scheduleSnapshotRefetch],
   );
-  useTableSubscription("tasks", userId, { alsoInvalidate });
-  useTableSubscription("tasks_projects", userId, { alsoInvalidate });
-  useTableSubscription("captures", userId, { alsoInvalidate });
-  useTableSubscription("captures_hashtags", userId, { alsoInvalidate });
-  useTableSubscription("hashtags", userId, { alsoInvalidate });
-  useTableSubscription("pages", userId, { alsoInvalidate });
-  useTableSubscription("pages_projects", userId, { alsoInvalidate });
-  useTableSubscription("journal_entries", userId, { alsoInvalidate });
-  useTableSubscription("projects", userId, { alsoInvalidate });
-  useTableSubscription("areas", userId, { alsoInvalidate });
-  useTableSubscription("habits", userId, { alsoInvalidate });
-  useTableSubscription("habit_completions", userId, { alsoInvalidate });
+  useTableSubscription("tasks", userId, subscription);
+  useTableSubscription("tasks_projects", userId, subscription);
+  useTableSubscription("captures", userId, subscription);
+  useTableSubscription("captures_hashtags", userId, subscription);
+  useTableSubscription("hashtags", userId, subscription);
+  useTableSubscription("pages", userId, subscription);
+  useTableSubscription("pages_projects", userId, subscription);
+  useTableSubscription("journal_entries", userId, subscription);
+  useTableSubscription("projects", userId, subscription);
+  useTableSubscription("areas", userId, subscription);
+  useTableSubscription("habits", userId, subscription);
+  useTableSubscription("habit_completions", userId, subscription);
 
   const index = useMemo(() => buildSearchIndex(data), [data]);
 
