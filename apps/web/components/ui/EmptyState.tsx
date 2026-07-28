@@ -1,9 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { motion, useReducedMotion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { motion, useReducedMotion } from "motion/react";
+import type { ReactNode } from "react";
 
 /**
  * EmptyState — the one empty state in the app (SDC-1 §2.10).
@@ -66,11 +66,7 @@ export function EmptyState({
       role="status"
       initial={reduceMotion ? false : { opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={
-        reduceMotion
-          ? { duration: 0 }
-          : { duration: 0.22, ease: [0.25, 1, 0.5, 1] }
-      }
+      transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
       className={cn(
         "flex flex-col items-center justify-center gap-3 px-6 text-center",
         PAD[size],
@@ -90,9 +86,7 @@ export function EmptyState({
       )}
 
       {description ? (
-        <p className="max-w-[46ch] text-meta text-[var(--ink-muted)]">
-          {description}
-        </p>
+        <p className="max-w-[46ch] text-meta text-[var(--ink-muted)]">{description}</p>
       ) : null}
 
       {!inline && action ? (
@@ -102,9 +96,7 @@ export function EmptyState({
       ) : null}
 
       {!inline && actionSlot ? (
-        <div className="mt-1 flex items-center justify-center gap-2">
-          {actionSlot}
-        </div>
+        <div className="mt-1 flex items-center justify-center gap-2">{actionSlot}</div>
       ) : null}
     </motion.div>
   );

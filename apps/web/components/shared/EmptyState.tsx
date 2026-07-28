@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { EmptyState as UiEmptyState } from '@/components/ui/EmptyState';
+import { EmptyState as UiEmptyState } from "@/components/ui/EmptyState";
 
 /**
  * Compatibility shim (jul-28 / U0 C3).

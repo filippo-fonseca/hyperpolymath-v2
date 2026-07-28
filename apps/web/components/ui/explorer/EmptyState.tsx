@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { EmptyState as UiEmptyState } from "@/components/ui/EmptyState";
+import type { ReactNode } from "react";
 
 /**
  * Compatibility shim (jul-28 / U0 C3).
