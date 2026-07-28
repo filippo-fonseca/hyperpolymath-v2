@@ -43,6 +43,15 @@ enigo = "0.6"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-web-kit = "0.3"
+# NSWindow escape hatch for the flowpill overlay (see src/flowpill.rs): window
+# level, collection behaviour, and the canBecomeKeyWindow assertion that proves
+# the window is non-activating. Already in the lock tree transitively via
+# tao/wry/muda at 0.3.2, so declaring it direct adds no second copy.
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSResponder",
+  "NSWindow",
+] }
 
 [profile.release]
 panic = "abort"

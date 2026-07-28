@@ -2041,6 +2041,7 @@ dependencies = [
  "enigo",
  "hound",
  "objc2",
+ "objc2-app-kit",
  "objc2-web-kit",
  "reqwest 0.12.28",
  "rodio",
