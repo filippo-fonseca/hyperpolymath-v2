@@ -25,11 +25,11 @@
  * mounts on hover through a Radix portal.
  */
 
-import { render, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { useGcalBadge } from "@/components/shell/GcalStatusIndicator";
 import { PersistentNav, SidebarSystemNav } from "@/components/shell/PersistentNav";
 import type { GcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
+import { render, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // `undefined` stands for "the query has not resolved", which is a distinct case
 // from every settled status and gets its own test.
@@ -48,9 +48,8 @@ vi.mock("@/lib/gcal/useGcalConnectionStatus", () => ({
 /** The dot, scoped to one row, so a Settings badge can never satisfy a Calendar assertion. */
 function dotIn(href: string) {
   return (
-    document
-      .querySelector(`a[href="${href}"]`)
-      ?.querySelector('[data-slot="gcal-status-dot"]') ?? null
+    document.querySelector(`a[href="${href}"]`)?.querySelector('[data-slot="gcal-status-dot"]') ??
+    null
   );
 }
 

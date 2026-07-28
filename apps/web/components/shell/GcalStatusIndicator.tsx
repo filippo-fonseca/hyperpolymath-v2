@@ -81,9 +81,7 @@ export function GcalStatusDot({
       aria-label={badge.label}
       className={cn(
         "h-1.5 w-1.5 shrink-0 rounded-full",
-        collapsed
-          ? "absolute -right-0.5 -top-0.5 ring-2 ring-[var(--sd-sidebar)]"
-          : "relative z-10"
+        collapsed ? "absolute -right-0.5 -top-0.5 ring-2 ring-[var(--sd-sidebar)]" : "relative z-10"
       )}
       style={{ backgroundColor: "var(--ink-coral)" }}
     />
