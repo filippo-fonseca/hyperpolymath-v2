@@ -2,6 +2,7 @@ mod audio;
 mod commands;
 mod computer;
 mod flowpill;
+mod optiontap;
 mod say;
 mod studio_webview;
 mod whatsapp;
@@ -180,6 +181,11 @@ pub fn run() {
             // in the persisted corner while it is still hidden.
             flowpill::init(app.handle());
 
+            // Global bare-Option gesture tap for the flowpill overlay. A no-op
+            // when Input Monitoring has not been granted; the app runs on
+            // unaffected and the frontend can retry via `optiontap_*`.
+            optiontap::start(app.handle());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -216,6 +222,9 @@ pub fn run() {
             flowpill::flowpill_hide,
             flowpill::flowpill_set_corner,
             flowpill::flowpill_get_corner,
+            optiontap::optiontap_status,
+            optiontap::optiontap_request_permission,
+            optiontap::optiontap_ensure_started,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

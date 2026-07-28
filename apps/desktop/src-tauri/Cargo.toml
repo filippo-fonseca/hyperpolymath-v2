@@ -53,6 +53,15 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSWindow",
 ] }
 
+# CGEventTap for the global bare-Option gesture tap (optiontap.rs). Rolled on
+# `core-graphics` directly rather than pulling `tauri-plugin-macos-input-monitor`:
+# both crates are already resolved in this tree (via enigo/wry), the tap we need
+# is one listen-only FlagsChanged mask, and the double-tap / long-press timing
+# has to live in our own testable state machine either way. Pinned to the minors
+# already in Cargo.lock so no second copy joins the tree.
+core-graphics = "0.25"
+core-foundation = "0.10"
+
 [profile.release]
 panic = "abort"
 codegen-units = 1
