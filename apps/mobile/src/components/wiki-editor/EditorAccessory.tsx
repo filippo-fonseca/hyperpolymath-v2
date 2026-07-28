@@ -4,9 +4,12 @@
 // selection-bubble formatting toolbar, both of which collide with the iOS
 // selection menu) with the phone pattern from Notion/Craft/Bear:
 //
-//   1. A persistent accessory BAR pinned directly above the on-screen keyboard
-//      (positioned via the Visual Viewport API), leading with a `+` button then
-//      core formatting affordances, horizontally scrollable, on the sd ladder.
+//   1. An accessory BAR that appears ONLY while a block is focused (caret in
+//      the document) — default off when the page is merely open/scrolled. It
+//      pins above the software keyboard via Visual Viewport resize (keyboard
+//      height only — never vv.offsetTop / vv.scroll, which used to drag the
+//      bar while the page scrolled). Notion native uses InputAccessoryView;
+//      in this Expo DOM WebView we approximate that with fixed + kb height.
 //   2. A categorized bottom-SHEET block picker (Basic / Lists / Media /
 //      Advanced) with icon + name + one-line description rows, opened by `+`
 //      OR by typing `/` in the document (the default floating slash menu is
@@ -144,9 +147,10 @@ export function EditorAccessory({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<SheetMode>("plus");
   const [query, setQuery] = useState("");
-  // Keyboard height (px) from the Visual Viewport API — the bar and sheet rise
-  // by this so they hug the top of the on-screen keyboard.
+  // Keyboard height (px) from Visual Viewport resize — bar/sheet rise by this.
   const [kbOffset, setKbOffset] = useState(0);
+  // Notion-like: formatting bar stays off until the caret is in a block.
+  const [blockFocused, setBlockFocused] = useState(false);
   const filterRef = useRef<HTMLInputElement | null>(null);
   // ProseMirror doc position of the literal `/` that opened the slash picker
   // (null whenever the sheet was opened by the `+` button instead).
@@ -172,6 +176,46 @@ export function EditorAccessory({
       un2?.();
     };
   }, [editor]);
+
+  // Show the accessory only while the editor surface holds focus. Toolbar
+  // buttons use pointerdown preventDefault so they never steal focus.
+  // Also treat the in-document title input as "editing" (sibling of .bn-editor).
+  useEffect(() => {
+    const root = editor.domElement;
+    if (!root) return;
+    const host = root.closest(".wiki-doc") ?? root.parentElement ?? root;
+
+    const isEditingTarget = (node: EventTarget | null) => {
+      if (!(node instanceof Node)) return false;
+      if (host.contains(node)) return true;
+      if (node instanceof Element) {
+        return Boolean(node.closest(".wiki-bar") || node.closest(".wiki-sheet"));
+      }
+      return false;
+    };
+
+    const onFocusIn = () => setBlockFocused(true);
+    const onFocusOut = () => {
+      // Defer: relatedTarget is often null on iOS; check activeElement next tick.
+      window.setTimeout(() => {
+        if (sheetOpen) return;
+        if (isEditingTarget(document.activeElement)) {
+          setBlockFocused(true);
+          return;
+        }
+        setBlockFocused(false);
+      }, 0);
+    };
+
+    host.addEventListener("focusin", onFocusIn);
+    host.addEventListener("focusout", onFocusOut);
+    if (isEditingTarget(document.activeElement)) setBlockFocused(true);
+
+    return () => {
+      host.removeEventListener("focusin", onFocusIn);
+      host.removeEventListener("focusout", onFocusOut);
+    };
+  }, [editor, sheetOpen]);
 
   // Build the picker rows from the editor's actual default slash-menu items so
   // insertion (empty-block replacement, media file panels, cursor placement)
@@ -328,20 +372,22 @@ export function EditorAccessory({
     };
   }, [sheetOpen, sheetMode, editor, rows, closeSheet]);
 
-  // Track the keyboard so bar + sheet sit right above it (Visual Viewport API).
+  // Pin bar/sheet above the software keyboard. Use keyboard height only
+  // (innerHeight − visualViewport.height). Do NOT subtract offsetTop or listen
+  // to visualViewport "scroll" — on iOS WKWebView those fire while the page
+  // scrolls with the keyboard open and drag the fixed bar with the content.
   useEffect(() => {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
     if (!vv) return;
     const update = () => {
-      const kb = window.innerHeight - vv.height - vv.offsetTop;
-      setKbOffset(kb > 1 ? kb : 0);
+      const kb = Math.max(0, window.innerHeight - vv.height);
+      // Ignore sub-threshold jitter from browser chrome; real keyboards are tall.
+      setKbOffset(kb > 80 ? kb : 0);
     };
     update();
     vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
     return () => {
       vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
     };
   }, []);
 
@@ -355,6 +401,9 @@ export function EditorAccessory({
   }, [sheetOpen, sheetMode]);
 
   if (disabled) return null;
+
+  // Default off: no bar until a block is focused (or the insert sheet is open).
+  const showBar = blockFocused || sheetOpen;
 
   // Toolbar actions keep the editor's selection + keyboard by preventing the
   // default pointer-down blur; the action then runs on the live selection.
@@ -394,12 +443,16 @@ export function EditorAccessory({
   const isSlash = sheetMode === "slash";
   const filtered = matchRows(rows, query);
 
-  const rise = { transform: `translateY(-${kbOffset}px)` } as const;
+  // Fixed bar: set `bottom` to keyboard height (stable; no scroll-driven transform).
+  const barPin = { bottom: kbOffset } as const;
+  // Sheet is flex-end inside a full-screen root — pad the root above the keyboard.
+  const sheetPin = { paddingBottom: kbOffset } as const;
 
   return (
     <>
-      {/* Accessory bar — pinned above the keyboard, horizontally scrollable. */}
-      <div className="wiki-bar" style={rise} data-testid="wiki-bar">
+      {/* Accessory bar — Notion-like: only while editing a block. */}
+      {showBar ? (
+      <div className="wiki-bar" style={barPin} data-testid="wiki-bar">
         <div className="wiki-bar-scroll">
           <button
             type="button"
@@ -487,16 +540,17 @@ export function EditorAccessory({
           </button>
         </div>
       </div>
+      ) : null}
 
       {/* Block picker — categorized bottom sheet, solid sd surface, no blur. */}
       {sheetOpen ? (
-        <div className="wiki-sheet-root" data-testid="wiki-sheet">
+        <div className="wiki-sheet-root" style={sheetPin} data-testid="wiki-sheet">
           <div
             className="wiki-sheet-scrim"
             onPointerDown={closeSheet}
             aria-hidden="true"
           />
-          <div className="wiki-sheet" style={rise} role="dialog" aria-label="Insert block">
+          <div className="wiki-sheet" role="dialog" aria-label="Insert block">
             <div className="wiki-sheet-grabber" />
             {isSlash ? (
               // Read-only mirror of the `/`-query being typed in the document.

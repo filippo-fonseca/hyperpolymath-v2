@@ -86,6 +86,8 @@ interface Props {
   /** Reschedule a set of tasks to a new YYYY-MM-DD date (mass action + the
    * per-group quick action). Reuses bulkUpdateTaskDueDate in the parent. */
   onReschedule: (ids: string[], dueYmd: string) => void;
+  /** Delete incomplete tasks due more than N days ago. */
+  onClearStale?: (olderThanDays: number) => void;
   /** Lifted drag state, shared with the rest of the tasks surface so a card
    * dragged OUT of the panel onto a day target reschedules + removes it. */
   draggedTaskId: string | null;
@@ -113,12 +115,15 @@ export function OverdueTasksPanel({
   overdueTasks,
   onTaskClick,
   onReschedule,
+  onClearStale,
   draggedTaskId,
   onDragStart,
   onDragEnd,
 }: Props) {
   const [panelOpen, setPanelOpen] = usePersistentBoolean(PANEL_OPEN_KEY, true);
   const [collapsedGroups, toggleGroup] = usePersistentStringSet(COLLAPSED_GROUPS_KEY);
+  const [staleDays, setStaleDays] = useState(30);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   // Selection is ephemeral (not persisted) — it's scoped to the current
   // triage session, like the kanban day-view selection.
@@ -234,19 +239,74 @@ export function OverdueTasksPanel({
         </button>
 
         {panelOpen ? (
-          <button
-            type="button"
-            onClick={toggleSelectAll}
-            aria-pressed={allSelected}
-            className={cn(
-              "rounded-[6px] border px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-[120ms] ease-out shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-              allSelected
-                ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)]"
-                : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-line)]"
-            )}
-          >
-            {allSelected ? "Deselect all" : "Select all"}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {onClearStale ? (
+              confirmClear ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-coral)]">
+                    Clear &gt;{staleDays}d?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClearStale(staleDays);
+                      setConfirmClear(false);
+                    }}
+                    className="rounded-[6px] border border-[var(--ink-coral)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-coral)] cursor-pointer-always"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClear(false)}
+                    className="rounded-[6px] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] cursor-pointer-always"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <label className="sr-only" htmlFor="stale-days">
+                    Days overdue threshold
+                  </label>
+                  <input
+                    id="stale-days"
+                    type="number"
+                    min={1}
+                    max={3650}
+                    value={staleDays}
+                    onChange={(e) =>
+                      setStaleDays(
+                        Math.max(1, Number.parseInt(e.target.value || "30", 10) || 30),
+                      )
+                    }
+                    className="h-6 w-12 rounded border border-[var(--sd-line)] bg-[var(--sd-input)] px-1 font-mono text-[11px] text-[var(--sd-ink)]"
+                    title="Clear incomplete tasks due more than this many days ago"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClear(true)}
+                    className="rounded-[6px] border border-[var(--sd-line)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--ink-coral)] hover:border-[var(--ink-coral)] cursor-pointer-always transition-colors duration-[120ms]"
+                  >
+                    Clear &gt;{staleDays}d
+                  </button>
+                </div>
+              )
+            ) : null}
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              aria-pressed={allSelected}
+              className={cn(
+                "rounded-[6px] border px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-[120ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+                allSelected
+                  ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)]"
+                  : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-line)]"
+              )}
+            >
+              {allSelected ? "Deselect all" : "Select all"}
+            </button>
+          </div>
         ) : null}
       </header>
 

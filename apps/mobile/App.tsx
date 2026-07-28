@@ -23,9 +23,12 @@ import { isAuthed } from "./src/lib/auth-token";
 import { maybeDevAutoSignIn } from "./src/lib/dev-auth";
 import { loadSettings } from "./src/lib/settings";
 import { initAuth, onAuthChange } from "./src/lib/supabase";
+import { installNotificationHandler } from "./src/lib/task-notifications";
 import { LoginScreen } from "./src/screens/Login";
 import { Root } from "./src/screens/Root";
 import { sd } from "./src/theme";
+
+installNotificationHandler();
 
 export default function App() {
   const [spaceLoaded] = useSpaceGrotesk({

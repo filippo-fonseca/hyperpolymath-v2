@@ -1,9 +1,10 @@
 // Wiki surface container. The app has no navigation library and keeps every
-// tab screen mounted, so this owns a tiny internal browse ↔ reader ↔ editor
-// stack. The browse view stays mounted underneath the reader so the folder
-// position and scroll are preserved when you come back from a page. The editor
-// mounts over the top when editing a page or writing today's note; closing it
-// remounts the reader so freshly-saved content shows on return.
+// tab screen mounted, so this owns a tiny browse ↔ editor stack.
+//
+// Notion-style mobile: tapping a page opens the BlockNote editor directly
+// (editable by default). The formatting accessory stays hidden until a block
+// is focused. Browse stays mounted underneath so folder scroll is preserved
+// when Done closes the editor.
 
 import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -14,40 +15,20 @@ import {
   type WikiEditorTarget,
 } from "../WikiEditor";
 import { WikiBrowse } from "./WikiBrowse";
-import { WikiReader } from "./WikiReader";
-
-type View_ = { view: "browse" } | { view: "reader"; pageId: string };
 
 export function WikiScreen({ active }: { active: boolean }) {
-  const [nav, setNav] = useState<View_>({ view: "browse" });
   const [editing, setEditing] = useState<WikiEditorTarget | null>(null);
-  // Bumped when the editor closes so the reader remounts and re-fetches.
-  const [readerEpoch, setReaderEpoch] = useState(0);
 
-  const openPage = useCallback((pageId: string) => setNav({ view: "reader", pageId }), []);
-  const back = useCallback(() => setNav({ view: "browse" }), []);
-
-  const editPage = useCallback((pageId: string) => setEditing({ kind: "page", id: pageId }), []);
+  const openPage = useCallback(
+    (pageId: string) => setEditing({ kind: "page", id: pageId }),
+    [],
+  );
   const openDaily = useCallback(() => setEditing(dailyQuickEntryTarget()), []);
-  const closeEditor = useCallback(() => {
-    setEditing(null);
-    // Fresh content for whatever page we just left the editor on.
-    setReaderEpoch((n) => n + 1);
-  }, []);
+  const closeEditor = useCallback(() => setEditing(null), []);
 
   return (
     <View style={styles.root}>
       <WikiBrowse active={active} onOpenPage={openPage} onOpenDaily={openDaily} />
-      {nav.view === "reader" ? (
-        <View style={styles.overlay}>
-          <WikiReader
-            key={`reader:${nav.pageId}:${readerEpoch}`}
-            pageId={nav.pageId}
-            onBack={back}
-            onEdit={(page) => editPage(page.id)}
-          />
-        </View>
-      ) : null}
       {editing ? (
         <View style={styles.overlay}>
           <WikiEditorScreen target={editing} onClose={closeEditor} />

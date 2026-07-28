@@ -34,6 +34,8 @@ import type { DevRunItem } from "./queries/dev-runs";
 import type { LinkPreviewProviderData } from "../link-preview/types";
 // Issue #144 — recurring-task rule shape, single-sourced in lib/tasks/recurrence.
 import type { RecurrenceRule } from "@/lib/tasks/recurrence";
+// Task deadline reminders — offsets before due, single-sourced in lib/tasks/reminders.
+import type { TaskReminder } from "@/lib/tasks/reminders";
 // JARVIS routines — spec shape single-sourced in jarvis-core; imported type-only
 // so the routines.spec jsonb column is typed without duplicating the contract.
 import type { RoutineSpec } from "@hyperpolymath/jarvis-core/routines";
@@ -219,6 +221,12 @@ export const tasks = pgTable(
     priority: priorityEnum("priority").notNull().default("P3"),
     status: taskStatusEnum("status").notNull().default("not started"),
     dueDate: date("due_date"),
+    // Optional wall-clock due time (HH:mm 24h). NULL = default 09:00 when
+    // computing reminder fire times. Migration 0039 / 0055.
+    dueTime: text("due_time"),
+    // Unlimited reminder offsets before due datetime. Shape: TaskReminder[]
+    // from lib/tasks/reminders.ts. NULL / [] = no reminders. Migration 0039 / 0055.
+    reminders: jsonb("reminders").$type<TaskReminder[]>(),
     kanbanPosition: integer("kanban_position").notNull().default(0),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     // Issue #144 — Recurring TASKS (DISTINCT from Habits). NULL = one-off task.
@@ -244,6 +252,7 @@ export const tasks = pgTable(
   (t) => [
     index("tasks_user_status_idx").on(t.userId, t.status),
     index("tasks_user_due_idx").on(t.userId, t.dueDate).where(sql`due_date IS NOT NULL`),
+    index("tasks_user_reminders_idx").on(t.userId).where(sql`reminders IS NOT NULL`),
   ],
 );
 

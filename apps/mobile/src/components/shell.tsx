@@ -165,22 +165,30 @@ export function Field({
   placeholder,
   multiline,
   autoFocus,
+  keyboardType,
+  autoCapitalize,
+  style,
 }: {
   value: string;
   onChangeText: (v: string) => void;
   placeholder?: string;
   multiline?: boolean;
   autoFocus?: boolean;
+  keyboardType?: "default" | "number-pad" | "numeric";
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  style?: object;
 }) {
   return (
     <TextInput
-      style={[styles.input, multiline && styles.inputMultiline]}
+      style={[styles.input, multiline && styles.inputMultiline, style]}
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
       placeholderTextColor={sd.inkFaint}
       multiline={multiline}
       autoFocus={autoFocus}
+      keyboardType={keyboardType}
+      autoCapitalize={autoCapitalize}
     />
   );
 }

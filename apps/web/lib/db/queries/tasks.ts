@@ -10,6 +10,7 @@ import {
   projects,
 } from "@/lib/db/schema";
 import type { RecurrenceRule } from "@/lib/tasks/recurrence";
+import type { TaskReminder } from "@/lib/tasks/reminders";
 
 export interface TaskWithProjects {
   id: string;
@@ -18,6 +19,10 @@ export interface TaskWithProjects {
   priority: "P∞" | "P1" | "P2" | "P3";
   status: "not started" | "up next" | "in progress" | "almost done" | "lesno";
   dueDate: string | null;
+  /** Optional HH:mm due time; null = default 09:00 for reminder math. */
+  dueTime: string | null;
+  /** Reminder offsets before due; null/[] = none. */
+  reminders: TaskReminder[] | null;
   kanbanPosition: number;
   completedAt: Date | null;
   createdAt: Date;
@@ -133,6 +138,8 @@ export async function getAllTasksForUser(
     priority: t.priority as TaskWithProjects["priority"],
     status: t.status as TaskWithProjects["status"],
     dueDate: t.dueDate,
+    dueTime: t.dueTime ?? null,
+    reminders: (t.reminders as TaskReminder[] | null) ?? null,
     kanbanPosition: t.kanbanPosition,
     completedAt: t.completedAt,
     createdAt: t.createdAt,
@@ -171,6 +178,8 @@ export async function getTasksForProject(
     priority: r.task.priority as TaskWithProjects["priority"],
     status: r.task.status as TaskWithProjects["status"],
     dueDate: r.task.dueDate,
+    dueTime: r.task.dueTime ?? null,
+    reminders: (r.task.reminders as TaskReminder[] | null) ?? null,
     kanbanPosition: r.task.kanbanPosition,
     completedAt: r.task.completedAt,
     createdAt: r.task.createdAt,

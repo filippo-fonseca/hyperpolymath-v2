@@ -1,10 +1,18 @@
-import { and, eq, max } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, max, ne } from "drizzle-orm";
 import type { NextRequest } from "next/server";
+import { format, subDays } from "date-fns";
 
 import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
 import { db } from "@/lib/db";
 import { projects, tasks, tasksProjects } from "@/lib/db/schema";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
+import {
+  DueTimeSchema,
+  TaskRemindersSchema,
+  normalizeReminders,
+  type TaskReminder,
+} from "@/lib/tasks/reminders";
+import { deleteReferencesForEntities } from "@/lib/references/reconcile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,12 +67,51 @@ export async function POST(req: NextRequest): Promise<Response> {
     priority?: Priority;
     status?: Status;
     dueDate?: string | null;
+    dueTime?: string | null;
+    reminders?: TaskReminder[] | null;
     projectIds?: string[];
+    action?: string;
+    olderThanDays?: number;
   };
   try {
     body = await req.json();
   } catch {
     return bad("Invalid JSON");
+  }
+
+  // Clear incomplete tasks due more than N days ago.
+  if (body.action === "clear_stale") {
+    const days =
+      typeof body.olderThanDays === "number" && Number.isFinite(body.olderThanDays)
+        ? Math.min(3650, Math.max(1, Math.round(body.olderThanDays)))
+        : 0;
+    if (!days) return bad("olderThanDays required");
+    const cutoff = format(subDays(new Date(), days), "yyyy-MM-dd");
+    const stale = await db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.userId, userId),
+          ne(tasks.status, "lesno"),
+          isNotNull(tasks.dueDate),
+          lt(tasks.dueDate, cutoff),
+        ),
+      );
+    const ids = stale.map((r) => r.id);
+    if (ids.length === 0) {
+      return Response.json({ deleted: 0, ids: [] }, { headers: CORS });
+    }
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < ids.length; i += 500) {
+        const chunk = ids.slice(i, i + 500);
+        await deleteReferencesForEntities(tx, { userId, type: "task", ids: chunk });
+        await tx
+          .delete(tasks)
+          .where(and(inArray(tasks.id, chunk), eq(tasks.userId, userId)));
+      }
+    });
+    return Response.json({ deleted: ids.length, ids }, { headers: CORS });
   }
 
   const title = typeof body.title === "string" ? body.title.trim().slice(0, 500) : "";
@@ -73,6 +120,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   const status = STATUSES.includes(body.status as Status) ? body.status! : "not started";
   const dueDate =
     typeof body.dueDate === "string" && DATE_RE.test(body.dueDate) ? body.dueDate : null;
+  const dueTimeParsed = DueTimeSchema.safeParse(body.dueTime ?? null);
+  const dueTime = dueTimeParsed.success ? dueTimeParsed.data : null;
+  const remindersParsed = TaskRemindersSchema.nullable().safeParse(body.reminders ?? null);
+  const reminders = remindersParsed.success
+    ? normalizeReminders(remindersParsed.data)
+    : null;
   const projectIds = await verifyProjects(
     userId,
     Array.isArray(body.projectIds) ? body.projectIds.slice(0, 20) : [],
@@ -93,6 +146,8 @@ export async function POST(req: NextRequest): Promise<Response> {
       priority,
       status,
       dueDate,
+      dueTime,
+      reminders,
       kanbanPosition: (maxPos ?? -1) + 1,
       completedAt: status === "lesno" ? new Date() : null,
     });
@@ -116,6 +171,8 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     priority?: Priority;
     status?: Status;
     dueDate?: string | null;
+    dueTime?: string | null;
+    reminders?: TaskReminder[] | null;
     projectIds?: string[];
   };
   try {
@@ -147,6 +204,16 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (body.dueDate !== undefined) {
     set.dueDate =
       typeof body.dueDate === "string" && DATE_RE.test(body.dueDate) ? body.dueDate : null;
+  }
+  if (body.dueTime !== undefined) {
+    const parsed = DueTimeSchema.safeParse(body.dueTime);
+    if (!parsed.success) return bad("Invalid dueTime");
+    set.dueTime = parsed.data;
+  }
+  if (body.reminders !== undefined) {
+    const parsed = TaskRemindersSchema.nullable().safeParse(body.reminders);
+    if (!parsed.success) return bad("Invalid reminders");
+    set.reminders = normalizeReminders(parsed.data);
   }
 
   let projectIds: string[] | null = null;

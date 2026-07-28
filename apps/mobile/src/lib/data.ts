@@ -5,6 +5,7 @@
 import { fetch } from "expo/fetch";
 
 import { authHeaders } from "./auth-token";
+import type { TaskReminder } from "./reminders";
 import { getSettings } from "./settings";
 
 function base(): string {
@@ -69,6 +70,8 @@ export interface Task {
   priority: Priority;
   status: TaskStatus;
   dueDate: string | null;
+  dueTime?: string | null;
+  reminders?: TaskReminder[] | null;
   completedAt: string | null;
   createdAt: string;
   projects: { id: string; name: string }[];
@@ -84,6 +87,8 @@ export async function createTask(input: {
   priority?: Priority;
   status?: TaskStatus;
   dueDate?: string | null;
+  dueTime?: string | null;
+  reminders?: TaskReminder[] | null;
   notes?: string | null;
 }): Promise<string | null> {
   const data = await call<{ id: string }>("/api/device/tasks", { method: "POST", body: input });
@@ -96,6 +101,8 @@ export async function updateTask(input: {
   priority?: Priority;
   status?: TaskStatus;
   dueDate?: string | null;
+  dueTime?: string | null;
+  reminders?: TaskReminder[] | null;
   notes?: string | null;
 }): Promise<boolean> {
   const data = await call<{ ok: boolean }>("/api/device/tasks", { method: "PATCH", body: input });
@@ -105,6 +112,14 @@ export async function updateTask(input: {
 export async function deleteTask(id: string): Promise<boolean> {
   const data = await call<{ ok: boolean }>(`/api/device/tasks?id=${id}`, { method: "DELETE" });
   return data?.ok === true;
+}
+
+export async function clearStaleIncompleteTasks(olderThanDays: number): Promise<number | null> {
+  const data = await call<{ deleted: number }>("/api/device/tasks", {
+    method: "POST",
+    body: { action: "clear_stale", olderThanDays },
+  });
+  return data?.deleted ?? null;
 }
 
 // ── Habits ──────────────────────────────────────────────────────────────────
@@ -244,8 +259,24 @@ export interface CalendarData {
   error?: string;
 }
 
-export async function getCalendarEvents(limit = 25): Promise<CalendarData | null> {
-  return call<CalendarData>(`/api/device/calendar?limit=${limit}`);
+export async function getCalendarEvents(
+  limit = 25,
+  opts?: { timeMin?: string; timeMax?: string; overdue?: boolean },
+): Promise<CalendarData | null> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (opts?.timeMin) params.set("timeMin", opts.timeMin);
+  if (opts?.timeMax) params.set("timeMax", opts.timeMax);
+  if (opts?.overdue) params.set("overdue", "1");
+  return call<CalendarData>(`/api/device/calendar?${params.toString()}`);
+}
+
+export async function archiveCalendarEvents(
+  items: { calendarId: string; eventId: string }[],
+): Promise<{ archived: number } | null> {
+  return call<{ archived: number }>("/api/device/calendar", {
+    method: "POST",
+    body: { action: "archive", items },
+  });
 }
 
 /** Local YYYY-MM-DD for the user's current day. */

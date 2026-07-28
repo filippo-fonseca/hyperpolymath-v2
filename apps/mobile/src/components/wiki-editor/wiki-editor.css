@@ -226,7 +226,8 @@ pre {
  * labels with a hairline above each run, bare 20px icons on --sd-ink-dull, and
  * the two-tier --sd-hover / --sd-selected row states — all scaled up from the
  * desktop 6px/13px rhythm to 44px+ touch rows. Positioned by the Visual
- * Viewport API in EditorAccessory (translateY rises them above the keyboard).
+ * Viewport API in EditorAccessory (`bottom` = keyboard height; hidden until
+ * a block is focused — Notion-like input accessory).
  * ==========================================================================*/
 
 .wiki-bar {
@@ -237,7 +238,7 @@ pre {
   z-index: 40;
   background: var(--sd-box);
   border-top: 1px solid var(--sd-line);
-  will-change: transform;
+  will-change: bottom;
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 

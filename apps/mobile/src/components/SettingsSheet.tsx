@@ -22,6 +22,11 @@ import {
   updateSettings,
 } from "../lib/settings";
 import { getSession, signOut } from "../lib/supabase";
+import {
+  getNotificationPermission,
+  requestNotificationPermissions,
+  type NotificationPermissionState,
+} from "../lib/task-notifications";
 import { font, sd } from "../theme";
 
 export function SettingsSheet({
@@ -40,6 +45,7 @@ export function SettingsSheet({
   const [voiceId, setVoiceId] = useState(settings.voiceId);
   const [probe, setProbe] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermissionState>("undetermined");
   const session = getSession();
   const email =
     (typeof session?.user?.email === "string" && session.user.email) || null;
@@ -52,6 +58,7 @@ export function SettingsSheet({
     setVoiceId(s.voiceId);
     setToken(getDeviceToken() ?? "");
     setProbe(null);
+    void getNotificationPermission().then(setNotifPerm);
   }, [visible]);
 
   const save = async () => {
@@ -131,6 +138,25 @@ export function SettingsSheet({
               thumbColor={ttsEnabled ? sd.accent : sd.inkFaint}
             />
           </View>
+
+          <Text style={styles.label}>TASK NOTIFICATIONS</Text>
+          <Text style={styles.hint}>
+            Local reminders for task deadlines. Status: {notifPerm}.
+            {notifPerm === "denied"
+              ? " Enable notifications for JARVIS in system Settings."
+              : ""}
+          </Text>
+          {notifPerm !== "granted" ? (
+            <Pressable
+              onPress={async () => {
+                const ok = await requestNotificationPermissions();
+                setNotifPerm(ok ? "granted" : await getNotificationPermission());
+              }}
+              style={({ pressed }) => [styles.probe, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.probeLabel}>ENABLE NOTIFICATIONS</Text>
+            </Pressable>
+          ) : null}
 
           <Text style={styles.label}>VOICE ID</Text>
           <TextInput
