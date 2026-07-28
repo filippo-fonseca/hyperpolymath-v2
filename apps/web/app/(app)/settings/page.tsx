@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { KeyRound, Laptop, Lightbulb } from "lucide-react";
+import { KeyRound, Laptop, Lightbulb, MessageSquare } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
@@ -29,6 +29,12 @@ import { PagesBackupSection } from "@/components/settings/PagesBackupSection";
 import { getPagesBackupSettings } from "@/lib/db/queries/pages-backup";
 import { listUserKeyStatus } from "@/lib/byok/keys";
 import { GoveeDevicesSection } from "@/components/settings/GoveeDevicesSection";
+import { MessagingSection } from "@/components/settings/MessagingSection";
+import { getMessagingSettings } from "@/lib/db/queries/messaging";
+import {
+  getAllowedSmsSenders,
+  getTwilioCredentials,
+} from "@/lib/twilio/config";
 import { listGoveeDevices } from "@/app/actions/govee-devices";
 import { resolveGoveeApiKey } from "@/lib/govee/service";
 import {
@@ -48,6 +54,7 @@ export default async function SettingsPage() {
     distanceUnitRow,
     apiKeyStatus,
     backupSettings,
+    messagingSettings,
     goveeDevicesResult,
     goveeApiKey,
   ] = await Promise.all([
@@ -60,10 +67,20 @@ export default async function SettingsPage() {
       .limit(1),
     listUserKeyStatus(user.id),
     getPagesBackupSettings(user.id),
+    getMessagingSettings(user.id),
     listGoveeDevices(),
     resolveGoveeApiKey(user.id),
   ]);
   const goveeDevices = goveeDevicesResult.ok ? goveeDevicesResult.data : [];
+  // Twilio config is env-shaped, so it is read here and passed down read-only.
+  // Credentials never cross to the client: only the allowlisted numbers and a
+  // boolean saying whether a reply could be sent at all.
+  const twilioCredentials = getTwilioCredentials();
+  const allowedSmsSenders = [...getAllowedSmsSenders()];
+  const smsReplyFrom =
+    twilioCredentials && "phoneNumber" in twilioCredentials.from
+      ? twilioCredentials.from.phoneNumber
+      : null;
   const hasGoveeApiKey = goveeApiKey !== null;
   const currentDistanceUnit: "km" | "mi" =
     distanceUnitRow[0]?.unit === "mi" ? "mi" : "km";
@@ -236,6 +253,31 @@ export default async function SettingsPage() {
           <section id="voice" className="scroll-mt-24 space-y-4">
             <SectionEyebrow>Voice</SectionEyebrow>
             <VoiceSettingsSection />
+          </section>
+
+          {/* MESSAGING */}
+          <section id="messaging" className="scroll-mt-24 space-y-4">
+            <SectionEyebrow>Messaging</SectionEyebrow>
+
+            <SettingsCard className="space-y-4">
+              <div>
+                <CardTitle icon={<MessageSquare className="h-4 w-4" />}>
+                  Text messages
+                </CardTitle>
+                <CardDescription className="mt-2">
+                  Text your Kiwi number and get the same assistant you get here: the
+                  same tools, the same memory, the reply delivered as a text. Off by
+                  default, because an assistant that starts answering your messages
+                  unannounced is the wrong kind of surprise.
+                </CardDescription>
+              </div>
+              <MessagingSection
+                settings={messagingSettings}
+                allowedSenders={allowedSmsSenders}
+                replyFrom={smsReplyFrom}
+                transportConfigured={twilioCredentials !== null}
+              />
+            </SettingsCard>
           </section>
 
           {/* DEVICES */}
