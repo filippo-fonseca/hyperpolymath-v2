@@ -13,22 +13,26 @@
  *     of whether the underlying source is Postgres or gcal — Plan 04-04
  *     can swap the implementation without touching every consumer.
  *
- * Auth: `getUserOrRedirect()` because this endpoint can be hit from
- * settings (pre-onboarded surface) as well as onboarded pages. The hook
- * fails gracefully — if the route returns 302/401, the client returns
+ * Auth: the claims-only gate, NOT `requireOnboarded()`, because this endpoint
+ * can be hit from settings (a pre-onboarded surface) as well as onboarded
+ * pages. It used to take `getUserOrRedirect()`, which selects the whole
+ * public.users row, to read one field off it — the id — and then hand that to
+ * a query that selects the two gcal columns anyway. Two statements where one
+ * does, on a route PersistentNav polls on every page. The hook fails
+ * gracefully — if the route returns 302/401, the client returns
  * "not_connected" and falls back to the badge-off behavior.
  *
  * Response shape: `{ status: "connected" | "not_connected" | "expired" }`.
  */
 
 import { NextResponse } from "next/server";
-import { getUserOrRedirect } from "@/lib/auth/get-user";
+import { getUserIdOrRedirect } from "@/lib/auth/get-user";
 import { getGcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const user = await getUserOrRedirect();
-  const status = await getGcalConnectionStatus(user.id);
+  const userId = await getUserIdOrRedirect();
+  const status = await getGcalConnectionStatus(userId);
   return NextResponse.json({ status });
 }
