@@ -1,13 +1,15 @@
 import "server-only";
 
-import { format } from "date-fns";
-import { getCapturesForUser } from "@/lib/db/queries/captures";
-import { getJournalEntriesForUser } from "@/lib/db/queries/journal";
-import { getPagesForUser } from "@/lib/db/queries/pages";
-import { getSidebarTree } from "@/lib/db/queries/sidebar";
-import { getAllTasksForUser } from "@/lib/db/queries/tasks";
-import { loadHabits } from "@/lib/context/nodes/habits";
+import {
+  getAllTasksForUserCached,
+  getCapturesForUserCached,
+  getJournalEntriesForUserCached,
+  getPagesForUserCached,
+  getSidebarTreeCached,
+  loadHabitsCached,
+} from "@/lib/db/cached";
 import type { SearchSnapshot } from "@/lib/search";
+import { format } from "date-fns";
 
 /** Format a "YYYY-MM-DD" calendar day at local time (avoids UTC day-shift). */
 function journalTitle(date: string): string {
@@ -26,13 +28,16 @@ const CAPTURE_LIMIT = 1000;
  * so search can still surface them.
  */
 export async function getSearchSnapshot(userId: string): Promise<SearchSnapshot> {
+  // The cached wrappers, not the raw helpers: the sidebar tree and the task
+  // list are each fetched again by the layout or the route, and this is where
+  // the duplicate would otherwise land.
   const [tree, tasks, captures, pages, journal, habitNodes] = await Promise.all([
-    getSidebarTree(userId, true),
-    getAllTasksForUser(userId),
-    getCapturesForUser(userId, { limit: CAPTURE_LIMIT }),
-    getPagesForUser(userId),
-    getJournalEntriesForUser(userId),
-    loadHabits(userId),
+    getSidebarTreeCached(userId, true),
+    getAllTasksForUserCached(userId),
+    getCapturesForUserCached(userId, CAPTURE_LIMIT),
+    getPagesForUserCached(userId),
+    getJournalEntriesForUserCached(userId),
+    loadHabitsCached(userId),
   ]);
 
   const areas = tree.map((a) => ({ id: a.id, name: a.name, emoji: a.emoji }));
