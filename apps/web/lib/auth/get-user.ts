@@ -103,6 +103,32 @@ export const getUserOrRedirect = cache(async (): Promise<AuthenticatedUser> => {
 });
 
 /**
+ * The signed-in user's id, and nothing else.
+ *
+ * Same gate as getUserOrRedirect — getClaims validates the JWT signature, and
+ * an invalid or absent session still redirects to /sign-in — but it stops
+ * there instead of also selecting the public.users row. Use it where the id is
+ * genuinely all that is wanted, such as a server action whose whole job is to
+ * refetch a user-scoped list.
+ *
+ * It does NOT self-heal a missing public.users row the way getUserOrRedirect
+ * does. That is deliberate: the callers here sit under the (app) layout, which
+ * has already run the full check for this session, so a heal at this point
+ * would be dead code paid for on every call.
+ *
+ * Memoized per request, like getUserOrRedirect. The two do not share a cache
+ * entry, so a request that needs both still pays one users select, not two.
+ */
+export const getUserIdOrRedirect = cache(async (): Promise<string> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) {
+    redirect("/sign-in");
+  }
+  return data.claims.sub;
+});
+
+/**
  * Same as getUserOrRedirect but also forces /onboarding if onboarded_at is NULL.
  * Used by /today and /settings.
  */
