@@ -42,26 +42,39 @@ export async function loadHabits(
   userId: string,
   db: DB = defaultDb,
 ): Promise<{ nodes: Node[]; excluded: number }> {
-  const rows = await db
-    .select({
-      id: habitsTable.id,
-      name: habitsTable.name,
-    })
-    .from(habitsTable)
-    .where(and(eq(habitsTable.userId, userId), isNull(habitsTable.archivedAt)))
-    .orderBy(asc(habitsTable.orderIndex));
+  // One wave, not two serial trips. The completions query keys off userId and
+  // status alone; it never needed the habit ids, so the await that separated
+  // them was buying nothing. On the single-connection pool that Vercel runs,
+  // serial round trips cost the sum of their latencies rather than the max, and
+  // this helper sits inside the search snapshot, which the app fetches on every
+  // cold load and again on every realtime write.
+  //
+  // The one thing this gives up: a user with no habits now also pays the
+  // completions query, where the early return used to skip it. One statement in
+  // a case that cannot happen without every habit being archived, against one
+  // round trip saved every other time.
+  const [rows, completionRows] = await Promise.all([
+    db
+      .select({
+        id: habitsTable.id,
+        name: habitsTable.name,
+      })
+      .from(habitsTable)
+      .where(and(eq(habitsTable.userId, userId), isNull(habitsTable.archivedAt)))
+      .orderBy(asc(habitsTable.orderIndex)),
+
+    db
+      .select({
+        habitId: habitCompletions.habitId,
+        completedDate: habitCompletions.completedDate,
+        status: habitCompletions.status,
+      })
+      .from(habitCompletions)
+      .where(and(eq(habitCompletions.userId, userId), eq(habitCompletions.status, "done")))
+      .orderBy(desc(habitCompletions.completedDate)),
+  ]);
 
   if (rows.length === 0) return { nodes: [], excluded: 0 };
-
-  const completionRows = await db
-    .select({
-      habitId: habitCompletions.habitId,
-      completedDate: habitCompletions.completedDate,
-      status: habitCompletions.status,
-    })
-    .from(habitCompletions)
-    .where(and(eq(habitCompletions.userId, userId), eq(habitCompletions.status, "done")))
-    .orderBy(desc(habitCompletions.completedDate));
 
   const completionsByHabit = new Map<string, string[]>();
   for (const c of completionRows) {

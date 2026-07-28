@@ -60,6 +60,14 @@ export async function getSearchTasks(userId: string): Promise<SearchSnapshot["ta
   if (taskRows.length === 0) return [];
   const taskIds = taskRows.map((t) => t.id);
 
+  // These two could go out as one wave: this query has no limit, so "the links
+  // of these tasks" and "the links of this user's tasks" are the same set, and
+  // dropping the inArray would remove the dependency. It deliberately does not.
+  // Neither this query nor the entity helper's has an ORDER BY, so the order of
+  // a task's project ids is whatever the plan yields, and buildSearchIndex
+  // labels a task with the FIRST of them. Changing the predicate changes the
+  // plan, which could change that label. One round trip on a fetch that is
+  // already off the first-paint path is not worth moving something on screen.
   const links = await db
     .select({ taskId: tasksProjects.taskId, projectId: projects.id })
     .from(tasksProjects)
