@@ -1,0 +1,8 @@
+{
+  "theme": "dark",
+  "ink": "#d6d9dd",
+  "canvas": "#15171a",
+  "ratio": 12.68,
+  "expected": 12.7,
+  "previous": 15.7
+}

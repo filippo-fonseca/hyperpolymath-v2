@@ -1,0 +1,8 @@
+{
+  "pointerEvents": "auto",
+  "typed": true,
+  "titleEditable": {
+    "tag": "div",
+    "isEditable": true
+  }
+}

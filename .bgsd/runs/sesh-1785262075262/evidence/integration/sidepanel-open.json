@@ -1,0 +1,9 @@
+{
+  "tracksBefore": "230px 770px 280px",
+  "tracksAfter": "230px 630px 420px",
+  "chrome": {
+    "position": "static",
+    "boxShadow": "none",
+    "borderRadius": "0px"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "measured": [
+    {
+      "route": "/tasks",
+      "left": 262,
+      "text": "Tasks"
+    },
+    {
+      "route": "/wiki",
+      "left": 254,
+      "text": "Wiki"
+    },
+    {
+      "route": "/lifeos",
+      "left": 254,
+      "text": "Good afternoon, Verify."
+    },
+    {
+      "route": "/habits",
+      "left": 322,
+      "text": "Habits."
+    },
+    {
+      "route": "/areas",
+      "left": 270,
+      "text": "Areas"
+    },
+    {
+      "route": "/calendar",
+      "left": null,
+      "text": "(no h1)"
+    }
+  ],
+  "distinctLefts": [
+    262,
+    254,
+    322,
+    270
+  ]
+}

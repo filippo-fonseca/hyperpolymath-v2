@@ -1,0 +1,13 @@
+{
+  "before": {
+    "tracks": "230px 770px 280px",
+    "count": 3,
+    "dock": 1
+  },
+  "after": {
+    "tracks": "230px 630px 420px",
+    "count": 3,
+    "dock": 0,
+    "panel": 1
+  }
+}

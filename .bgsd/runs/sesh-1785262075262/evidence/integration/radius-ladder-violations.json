@@ -1,0 +1,313 @@
+{
+  "total": 195,
+  "distinct": 50,
+  "ladder": [
+    "4px",
+    "8px",
+    "12px",
+    "9999px (pill)",
+    "14px grandfathered WidgetCard"
+  ],
+  "violations": [
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "rounded-[6px] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] outline-none focus-visible:ring-2 f"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "span",
+      "cls": "group relative flex h-8 w-full items-center rounded-[6px] px-2 text-sm font-medium tracking-wide transition-colors durat"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "span",
+      "cls": "absolute inset-0 rounded-[6px] bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)]"
+    },
+    {
+      "route": "/habits",
+      "radius": "5px",
+      "tag": "span",
+      "cls": "relative z-10 flex h-[18px] shrink-0 items-center rounded-[5px] bg-[var(--sd-box)] px-1.5 font-mono text-[10px] uppercas"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "rounded-[6px] transition-colors ease-out hover:bg-[var(--sd-hover)] outline-none focus-visible:ring-2 focus-visible:ring"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "div",
+      "cls": "group/area flex items-center gap-2.5 rounded-[6px] px-2 py-1.5 select-none text-[13px] tracking-tight transition-colors "
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "span",
+      "cls": "flex h-[18px] w-[18px] items-center justify-center rounded-[6px] bg-[var(--sd-hover)] text-[11px] leading-none shrink-0"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] flex items-center justify-center h-5 w-5 rounded-"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "div",
+      "cls": "group/project flex items-center gap-2 rounded-[6px] px-2 py-1 select-none text-[13px] tracking-tight transition-colors d"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "h-9 w-9 inline-flex items-center justify-center rounded-md border border-transparent hover:border-[var(--edge)] transiti"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "a",
+      "cls": "outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] group flex h-12 items-center gap-2.5 rounded-[6px"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "inline-flex h-6 w-6 items-center justify-center rounded-md transition-[background-color,color,opacity] duration-150 ease"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "inline-flex shrink-0 items-center justify-center rounded-md p-1.5 text-[var(--sd-ink-faint)] transition-colors duration-"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "inline-flex h-6 w-6 items-center justify-center rounded-md transition-colors duration-[160ms] ease-out focus-visible:out"
+    },
+    {
+      "route": "/tasks",
+      "radius": "5px",
+      "tag": "button",
+      "cls": "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] p-1 rounded-[5px] cursor-pointer-always transition-colors duration-"
+    },
+    {
+      "route": "/tasks",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "inline-flex h-8 items-center gap-1 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2.5 font-mono text"
+    },
+    {
+      "route": "/tasks",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "px-2.5 py-0.5 rounded-[6px] font-mono text-[11px] uppercase tracking-[0.06em] transition-colors duration-[120ms] ease-ou"
+    },
+    {
+      "route": "/tasks",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "px-2.5 py-0.5 rounded-[6px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-"
+    },
+    {
+      "route": "/tasks",
+      "radius": "6px",
+      "tag": "div",
+      "cls": "flex items-center gap-0.5 border border-[var(--sd-line)] rounded-[6px] p-0.5 bg-[var(--sd-box)]"
+    },
+    {
+      "route": "/tasks",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "group/header flex min-w-0 items-center gap-2 cursor-pointer-always text-left rounded-[6px] focus-visible:outline-none fo"
+    },
+    {
+      "route": "/tasks",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "absolute -left-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-md border bg-[var(--canvas)] transition-op"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "inline-flex shrink-0 items-center justify-center whitespace-nowrap cursor-pointer-always transition-colors duration-[120"
+    },
+    {
+      "route": "/tasks",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 cursor-pointer-always font-mono text-[11px] uppercase tracking-["
+    },
+    {
+      "route": "/tasks",
+      "radius": "6px",
+      "tag": "span",
+      "cls": "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 shrink-0 font-mono text-[10px] uppercase tracking-[0.10em"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "flex h-7 cursor-pointer items-center gap-1.5 rounded-[6px] px-1.5 text-left hover:bg-[var(--sd-hover)] focus-visible:out"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "flex h-7 cursor-pointer items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2.5 text"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "div",
+      "cls": "relative overflow-hidden rounded-t-[8px] border border-[var(--edge)] bg-white shadow-[0_10px_24px_hsl(235_15%_0%_/_0.14)"
+    },
+    {
+      "route": "/wiki",
+      "radius": "5px",
+      "tag": "div",
+      "cls": "overflow-hidden rounded-[5px] border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
+    },
+    {
+      "route": "/wiki",
+      "radius": "10px",
+      "tag": "div",
+      "cls": "flex min-h-0 flex-1 overflow-hidden rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-app)] shadow-[0_12px_32px"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "div",
+      "cls": "flex items-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)]"
+    },
+    {
+      "route": "/wiki",
+      "radius": "5px",
+      "tag": "button",
+      "cls": "flex size-7 items-center justify-center text-[var(--sd-ink-dull)] rounded-l-[5px] border-r border-r-[var(--sd-line)] tra"
+    },
+    {
+      "route": "/wiki",
+      "radius": "5px",
+      "tag": "button",
+      "cls": "flex size-7 items-center justify-center text-[var(--sd-ink-dull)] rounded-r-[5px] transition-[background-color,border-co"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "span",
+      "cls": "inline-flex rounded-[6px] transition-[background-color,box-shadow,transform] duration-[140ms] ease-out"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "min-w-0 truncate rounded-[6px] px-2 py-1 text-[0.8rem] transition-[background-color,color] duration-[120ms] ease-out poi"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "input",
+      "cls": "h-8 w-full rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] pl-7 pr-2 text-[0.78rem] text-[var(--sd-ink"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "flex h-8 items-center overflow-hidden rounded-[6px] bg-[var(--sd-accent)] font-sans text-[0.8rem] font-medium text-white"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "fieldset",
+      "cls": "flex h-8 items-center overflow-hidden rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] font-sans"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "flex h-8 min-w-[116px] items-center justify-between gap-2 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "flex size-8 items-center justify-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-i"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "flex size-8 items-center justify-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--ink-"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "div",
+      "cls": "rounded-[6px] px-1.5 py-0.5 font-sans text-[0.8rem] font-medium text-[var(--sd-ink)] truncate"
+    },
+    {
+      "route": "/wiki",
+      "radius": "6px",
+      "tag": "div",
+      "cls": "truncate rounded-[6px] px-1.5 py-px font-sans text-[0.65rem] text-[var(--sd-ink-dull)]"
+    },
+    {
+      "route": "/lifeos",
+      "radius": "10px",
+      "tag": "div",
+      "cls": "inline-flex items-center gap-0.5 rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5"
+    },
+    {
+      "route": "/lifeos",
+      "radius": "10px",
+      "tag": "div",
+      "cls": "mb-1 mt-3.5 flex items-center gap-2 rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 transit"
+    },
+    {
+      "route": "/lifeos",
+      "radius": "3px",
+      "tag": "button",
+      "cls": "relative flex size-4 shrink-0 cursor-pointer-always items-center justify-center rounded-[3px] border transition-colors d"
+    },
+    {
+      "route": "/lifeos",
+      "radius": "5px",
+      "tag": "button",
+      "cls": "lifeos-resize-handle cursor-pointer-always"
+    },
+    {
+      "route": "/lifeos",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "group/habit flex w-full cursor-pointer-always items-center gap-2.5 rounded-md px-1.5 py-1 text-left transition-colors du"
+    },
+    {
+      "route": "/lifeos",
+      "radius": "10px",
+      "tag": "li",
+      "cls": "group relative flex flex-col gap-2 rounded-[10px] bg-[var(--sd-input)] p-3"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "inline-flex items-center gap-0.5 rounded-md px-3 py-1 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-a"
+    },
+    {
+      "route": "/habits",
+      "radius": "6px",
+      "tag": "button",
+      "cls": "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap cursor-pointer-always transition-colors duratio"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "ariaLabel": "Google Calendar disconnected",
+  "backgroundColor": "lab(55.4995 50.278 29.2656)",
+  "width": 6,
+  "height": 6,
+  "onCalendarRow": true,
+  "tokens": {
+    "coral": "rgb(217, 91, 86)",
+    "accent": "rgb(39, 124, 153)"
+  },
+  "onScreen": {
+    "rowTop": 464,
+    "rowBottom": 496,
+    "scrollerBottom": 387,
+    "scrollHeight": 626,
+    "clientHeight": 331,
+    "clippedBelowFold": true,
+    "hitTestIsSelf": false
+  }
+}

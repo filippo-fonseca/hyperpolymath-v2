@@ -1,0 +1,9 @@
+{
+  "imagesBefore": 3,
+  "afterPngDrop": 4,
+  "afterExeDrop": 4,
+  "toasts": [
+    "",
+    "\"payload.exe\" is not a supported image. Use JPEG, PNG, WebP, GIF, or AVIF."
+  ]
+}

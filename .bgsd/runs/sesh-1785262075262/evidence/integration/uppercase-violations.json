@@ -1,0 +1,282 @@
+{
+  "total": 63,
+  "distinct": 46,
+  "violations": [
+    {
+      "route": "/habits",
+      "tag": "span",
+      "text": "⌃1",
+      "cls": "pointer-events-none absolute right-3 hidden font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/habits",
+      "tag": "span",
+      "text": "⌃2",
+      "cls": "pointer-events-none absolute right-3 hidden font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/habits",
+      "tag": "span",
+      "text": "⌃3",
+      "cls": "pointer-events-none absolute right-3 hidden font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/tasks",
+      "tag": "button",
+      "text": "Filter",
+      "cls": "inline-flex h-8 items-center gap-1 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2.5 font-mono text"
+    },
+    {
+      "route": "/tasks",
+      "tag": "button",
+      "text": "Show lesno",
+      "cls": "px-2.5 py-0.5 rounded-[6px] font-mono text-[11px] uppercase tracking-[0.06em] transition-colors duration-[120ms] ease-ou"
+    },
+    {
+      "route": "/tasks",
+      "tag": "button",
+      "text": "Hide inbox",
+      "cls": "px-2.5 py-0.5 rounded-[6px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-"
+    },
+    {
+      "route": "/tasks",
+      "tag": "button",
+      "text": "overview",
+      "cls": "px-2.5 py-0.5 rounded-[4px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-"
+    },
+    {
+      "route": "/tasks",
+      "tag": "button",
+      "text": "day",
+      "cls": "px-2.5 py-0.5 rounded-[4px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-"
+    },
+    {
+      "route": "/tasks",
+      "tag": "button",
+      "text": "kanban",
+      "cls": "px-2.5 py-0.5 rounded-[4px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-"
+    },
+    {
+      "route": "/tasks",
+      "tag": "button",
+      "text": "list",
+      "cls": "px-2.5 py-0.5 rounded-[4px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-"
+    },
+    {
+      "route": "/tasks",
+      "tag": "span",
+      "text": "Inbox · undated",
+      "cls": "truncate font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--sd-ink-dull)]"
+    },
+    {
+      "route": "/tasks",
+      "tag": "button",
+      "text": "Today",
+      "cls": "inline-flex shrink-0 items-center justify-center whitespace-nowrap cursor-pointer-always transition-colors duration-[120"
+    },
+    {
+      "route": "/tasks",
+      "tag": "span",
+      "text": "· Today",
+      "cls": "ml-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]"
+    },
+    {
+      "route": "/tasks",
+      "tag": "button",
+      "text": "View",
+      "cls": "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 cursor-pointer-always font-mono text-[11px] uppercase tracking-["
+    },
+    {
+      "route": "/tasks",
+      "tag": "button",
+      "text": "Select all",
+      "cls": "ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transitio"
+    },
+    {
+      "route": "/tasks",
+      "tag": "span",
+      "text": "Today",
+      "cls": "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 shrink-0 font-mono text-[10px] uppercase tracking-[0.10em"
+    },
+    {
+      "route": "/wiki",
+      "tag": "span",
+      "text": "Journal",
+      "cls": "text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-[var(--sd-ink-dull)]"
+    },
+    {
+      "route": "/wiki",
+      "tag": "span",
+      "text": "Today",
+      "cls": "rounded-full bg-[var(--sd-accent)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-white"
+    },
+    {
+      "route": "/wiki",
+      "tag": "span",
+      "text": "Monday",
+      "cls": "mt-1 text-[0.65rem] uppercase tracking-wide text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/wiki",
+      "tag": "span",
+      "text": "Sunday",
+      "cls": "mt-1 text-[0.65rem] uppercase tracking-wide text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/wiki",
+      "tag": "span",
+      "text": "Saturday",
+      "cls": "mt-1 text-[0.65rem] uppercase tracking-wide text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/wiki",
+      "tag": "span",
+      "text": "Friday",
+      "cls": "mt-1 text-[0.65rem] uppercase tracking-wide text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/wiki",
+      "tag": "span",
+      "text": "Thursday",
+      "cls": "mt-1 text-[0.65rem] uppercase tracking-wide text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/wiki",
+      "tag": "span",
+      "text": "Wednesday",
+      "cls": "mt-1 text-[0.65rem] uppercase tracking-wide text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/wiki",
+      "tag": "span",
+      "text": "Tuesday",
+      "cls": "mt-1 text-[0.65rem] uppercase tracking-wide text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "Tuesday · July 28, 2026",
+      "cls": "font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "JARVIS",
+      "cls": "font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "Open tasks",
+      "cls": "text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "Habits today",
+      "cls": "text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "Captures",
+      "cls": "text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "Training",
+      "cls": "text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "Projects",
+      "cls": "text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "Jarvis turns",
+      "cls": "text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "⌘⏎ to send · ⎋ to cancel",
+      "cls": "font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "All →",
+      "cls": "text-[11px] font-semibold uppercase tracking-wide text-[var(--sd-ink-faint)] transition-colors duration-100 group-hover/"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "Plan →",
+      "cls": "text-[11px] font-semibold uppercase tracking-wide text-[var(--sd-ink-faint)] transition-colors duration-100 group-hover/"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "Manual",
+      "cls": "font-mono text-[9px] uppercase tracking-[0.14em]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "55 minutes",
+      "cls": "font-mono text-[9px] uppercase tracking-[0.10em] tabular-nums text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/lifeos",
+      "tag": "span",
+      "text": "Open →",
+      "cls": "text-[11px] font-semibold uppercase tracking-wide text-[var(--sd-ink-faint)] transition-colors duration-100 group-hover/"
+    },
+    {
+      "route": "/habits",
+      "tag": "span",
+      "text": "Habits",
+      "cls": "truncate max-w-[260px]"
+    },
+    {
+      "route": "/habits",
+      "tag": "span",
+      "text": "Repetition · Streaks",
+      "cls": "font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/habits",
+      "tag": "button",
+      "text": "Today",
+      "cls": "inline-flex items-center gap-0.5 rounded-md px-3 py-1 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-a"
+    },
+    {
+      "route": "/habits",
+      "tag": "button",
+      "text": "Manage",
+      "cls": "inline-flex items-center gap-0.5 rounded-md px-3 py-1 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-a"
+    },
+    {
+      "route": "/habits",
+      "tag": "span",
+      "text": "3",
+      "cls": "ml-1 tabular-nums text-[var(--sd-ink-faint)]"
+    },
+    {
+      "route": "/habits",
+      "tag": "button",
+      "text": "Archive",
+      "cls": "inline-flex items-center gap-0.5 rounded-md px-3 py-1 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-a"
+    },
+    {
+      "route": "/habits",
+      "tag": "span",
+      "text": "0",
+      "cls": "ml-1 tabular-nums text-[var(--sd-ink-faint)]"
+    }
+  ]
+}

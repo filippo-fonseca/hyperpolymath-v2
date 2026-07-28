@@ -1,0 +1,17 @@
+{
+  "filesBefore": 2,
+  "afterCreate": {
+    "url": "http://localhost:3200/wiki",
+    "links": 1,
+    "untitled": 3
+  },
+  "afterReturn": {
+    "links": 1,
+    "untitled": 3
+  },
+  "afterReload": {
+    "links": 1,
+    "untitled": 3
+  },
+  "criterion": "afterReturn must already equal afterReload; if afterReturn < afterReload the client-side return served stale contents"
+}
