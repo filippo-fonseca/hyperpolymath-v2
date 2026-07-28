@@ -11,31 +11,14 @@
  *
  * Usage: node measure-backnav.mjs <port> <label>
  */
-import { execFileSync } from "node:child_process";
 import { chromium } from "@playwright/test";
+import { FILTER, closeDb, ensureStorageState, psql } from "./measure-env.mjs";
 
 const PORT = process.argv[2] ?? "3200";
 const LABEL = process.argv[3] ?? `port-${PORT}`;
-const STATE =
-  "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-wt-jul28-integ/.verify/storage-state.json";
 
-const psql = (sql) =>
-  execFileSync(
-    "docker",
-    ["exec", "supabase_db_web", "psql", "-U", "postgres", "-d", "postgres", "-At", "-c", sql],
-    { encoding: "utf8" }
-  ).trim();
-
-const FILTER = `
-  dbid = (SELECT oid FROM pg_database WHERE datname='postgres')
-  AND query NOT ILIKE '%pg_stat_statements%'
-  AND (
-    query ~* '^\\s*select\\s+"'
-    OR query ~* '^\\s*insert\\s+into\\s+"'
-    OR query ~* '^\\s*update\\s+"'
-    OR query ~* '^\\s*delete\\s+from\\s+"'
-  )
-`;
+// Transport only; see the note in measure-queries.mjs.
+const STATE = await ensureStorageState();
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
@@ -53,14 +36,14 @@ await page.waitForURL(/\/lifeos/, { timeout: 30_000 });
 await page.waitForTimeout(5000);
 
 // Measure only the return trip, well inside the 30s staleTimes window.
-psql("SELECT pg_stat_statements_reset();");
+await psql("SELECT pg_stat_statements_reset();");
 
 await page.locator('a[href="/tasks"]').first().click();
 await page.waitForURL(/\/tasks/, { timeout: 30_000 });
 await page.waitForTimeout(4000);
 
-const total = psql(`SELECT COALESCE(SUM(calls),0) FROM pg_stat_statements WHERE ${FILTER};`);
-const distinct = psql(`SELECT COUNT(*) FROM pg_stat_statements WHERE ${FILTER};`);
+const total = await psql(`SELECT COALESCE(SUM(calls),0) FROM pg_stat_statements WHERE ${FILTER};`);
+const distinct = await psql(`SELECT COUNT(*) FROM pg_stat_statements WHERE ${FILTER};`);
 
 console.log(
   JSON.stringify({
@@ -73,3 +56,4 @@ console.log(
 );
 
 await browser.close();
+await closeDb();
