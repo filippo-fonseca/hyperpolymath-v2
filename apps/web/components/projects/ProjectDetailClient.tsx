@@ -110,8 +110,7 @@ export function ProjectDetailClient({
   // the area against `allAreas` keeps the badge and the breadcrumb correct
   // without refetching the route. `area` remains the fallback for the case
   // where the project sits under an archived area, which `allAreas` omits.
-  const currentArea =
-    allAreas.find((a) => a.id === liveProject.areaId) ?? area;
+  const currentArea = allAreas.find((a) => a.id === liveProject.areaId) ?? area;
 
   return (
     // SDC-1 register: the banner sits flush at the top via ProjectHeader, and

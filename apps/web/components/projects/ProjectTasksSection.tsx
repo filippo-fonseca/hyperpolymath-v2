@@ -1,16 +1,16 @@
 "use client";
 
-import { createTask, deleteTask, getTasksForCurrentUser } from "@/app/actions/tasks";
 import { createProject } from "@/app/actions/projects";
+import { createTask, deleteTask, getTasksForCurrentUser } from "@/app/actions/tasks";
+import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { TaskDetailPanel } from "@/components/tasks/TaskDetailPanel";
 import { TaskList } from "@/components/tasks/TaskList";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { useUndoToast } from "@/components/shared/use-undo-toast";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { tableKey } from "@/lib/realtime/query-keys";
-import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Kanban as KanbanIcon, List as ListIcon } from "lucide-react";
@@ -85,7 +85,7 @@ export function ProjectTasksSection({
   // selectable in the detail panel without a navigation. Seeded from props and
   // re-synced when the SSR prop changes.
   const [projects, setProjects] = useState<ProjectOption[]>(() =>
-    initialProjectOptions.map((p) => ({ ...p })),
+    initialProjectOptions.map((p) => ({ ...p }))
   );
   useEffect(() => {
     setProjects(initialProjectOptions.map((p) => ({ ...p })));
@@ -121,7 +121,7 @@ export function ProjectTasksSection({
       toast("Project created.");
       return newId;
     },
-    [areas, queryClient, userId],
+    [areas, queryClient, userId]
   );
   const [, startTransition] = useTransition();
   const [view, setView] = useState<View>("kanban");
@@ -197,7 +197,7 @@ export function ProjectTasksSection({
   // the header brings them back without losing the rest of the view state.
   const projectTasks = useMemo(() => {
     const linked = optimisticTasks.filter(
-      (t) => !pendingDeleteIds.has(t.id) && t.projects.some((p) => p.id === projectId),
+      (t) => !pendingDeleteIds.has(t.id) && t.projects.some((p) => p.id === projectId)
     );
     return showLesno ? linked : linked.filter((t) => t.status !== "lesno");
   }, [optimisticTasks, projectId, showLesno, pendingDeleteIds]);

@@ -1,8 +1,8 @@
 "use client";
 
 import { moveProjectToArea, updateProject } from "@/app/actions/projects";
-import { Button } from "@/components/ui/button";
 import { PageScaffold } from "@/components/ui/PageScaffold";
+import { Button } from "@/components/ui/button";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { cn } from "@/lib/utils";
 import { parseBanner } from "@/lib/utils/banner";
@@ -281,8 +281,15 @@ export function ProjectHeader({
           autoFocus
         />
       ) : (
+        // biome-ignore lint/a11y/useSemanticElements: a <button> cannot flow inside the H1's text register; role+tabIndex keep it keyboard-editable
         <span
+          role="button"
+          tabIndex={0}
+          aria-label={`Rename project: ${project.name}`}
           onClick={handleNameClick}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleNameClick();
+          }}
           className="min-w-0 cursor-text transition-opacity duration-[160ms] ease-out hover:opacity-80"
         >
           {project.name}
