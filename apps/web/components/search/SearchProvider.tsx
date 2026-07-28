@@ -16,7 +16,14 @@ const SearchIndexContext = createContext<SearchEntry[] | null>(null);
 
 interface ProviderProps {
   userId: string;
-  initialSnapshot: SearchSnapshot;
+  /**
+   * Optional, and in practice never passed. The snapshot costs 18 of the (app)
+   * layout's 25 queries and nothing at first paint needs it, so the layout no
+   * longer fetches it; the client query below populates the index a moment
+   * after paint and realtime keeps it fresh. The prop survives for any surface
+   * that genuinely has a warm snapshot to hand over.
+   */
+  initialSnapshot?: SearchSnapshot;
   children: React.ReactNode;
 }
 
@@ -57,7 +64,10 @@ export function SearchProvider({ userId, initialSnapshot, children }: ProviderPr
   useTableSubscription("habits", userId, { alsoInvalidate });
   useTableSubscription("habit_completions", userId, { alsoInvalidate });
 
-  const index = useMemo(() => buildSearchIndex(data), [data]);
+  // `data` is undefined until the client query lands, which is legal now that
+  // there is no server-provided initialData: an empty index searches to zero
+  // results rather than throwing.
+  const index = useMemo(() => (data ? buildSearchIndex(data) : []), [data]);
 
   return <SearchIndexContext.Provider value={index}>{children}</SearchIndexContext.Provider>;
 }

@@ -16,7 +16,6 @@ import { getAuthAvatar, getUserOrRedirect } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { getHashtagSuggestionsCached, getSidebarTreeCached } from "@/lib/db/cached";
 import { projects } from "@/lib/db/schema";
-import { getSearchSnapshot } from "@/lib/search/snapshot";
 import { and, eq, isNull } from "drizzle-orm";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Toaster } from "sonner";
@@ -38,7 +37,6 @@ export default async function AppLayout({
     hashtagsForComposer,
     projectsForComposer,
     oauthAvatar,
-    searchSnapshot,
   ] = await Promise.all([
     getSidebarTreeCached(user.id, false),
     getSidebarTreeCached(user.id, true),
@@ -53,7 +51,6 @@ export default async function AppLayout({
       .from(projects)
       .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
     getAuthAvatar(),
-    getSearchSnapshot(user.id),
   ]);
 
   return (
@@ -62,7 +59,12 @@ export default async function AppLayout({
         {/* Publishes user.id to client leaves (entity pills key their label
             cache on it) without threading it through every component between. */}
         <CurrentUserProvider userId={user.id}>
-          <SearchProvider userId={user.id} initialSnapshot={searchSnapshot}>
+          {/* No initialSnapshot: getSearchSnapshot was 18 of this layout's 25
+            queries, it serialized a full copy of every page's content into the
+            RSC payload, and nothing at first paint reads it. SearchProvider
+            already fetches it client-side and realtime keeps it fresh, so the
+            index warms a moment after paint instead of blocking it. */}
+        <SearchProvider userId={user.id}>
             {/* NavHistoryProvider — in-memory Back/Forward stack. Must wrap both
             AppShell (TopTabBar → NavArrows) and GlobalHotkeys (⌘[ / ⌘]). */}
             <NavHistoryProvider>
