@@ -82,10 +82,21 @@ export interface AudioBridge {
   startCapture(mode: CaptureMode): Promise<CaptureHandle>;
 }
 
+/**
+ * The open microphone is delivering pure digital silence. Reported by Rust half
+ * a second into a capture, at most once per stream.
+ */
+export interface SilentInputEvent {
+  /** The device that is producing nothing, by name. */
+  name: string;
+}
+
 export interface ControllerDeps {
   bridge?: EventBridge;
   /** Subscribe to the global Option gestures. Returns an unsubscribe function. */
   gestures?: (handler: (event: OptionTapEvent) => void) => Promise<() => void>;
+  /** Subscribe to "the open input device is producing nothing". */
+  silentInput?: (handler: (event: SilentInputEvent) => void) => Promise<() => void>;
   window?: WindowBridge;
   audio?: AudioBridge;
   micArbiter?: MicArbiter;
@@ -106,6 +117,19 @@ export interface FlowPillController {
 
 export const MIC_DENIED_COPY = "No microphone";
 export const STT_FAILED_COPY = "Transcription failed";
+
+/**
+ * What the pill says when the microphone it opened produced nothing at all.
+ *
+ * It names the device on purpose. "Didn't catch that" sends the user looking
+ * for a problem with their voice; "No audio from BlackHole 16ch" sends them to
+ * the one setting that actually fixes it. This is the copy for the failure that
+ * cost a whole live session: the macOS default input was a silent virtual
+ * loopback device and nothing anywhere said so.
+ */
+export function silentInputCopy(device: string): string {
+  return `No audio from ${device}`;
+}
 
 /**
  * How long a pre-roll armed by a bare Option press survives before the
@@ -178,6 +202,12 @@ export async function attachFlowPillController(
    */
   let sessionBusy = false;
   let detached = false;
+  /**
+   * The device that went silent during THIS utterance, if any. Cleared at the
+   * start of every session so a dead device on one utterance cannot mislabel
+   * the next one, which might be recording from a different microphone.
+   */
+  let silentDevice: string | null = null;
 
   const clearPrerollTimer = (): void => {
     if (prerollTimer === null) return;
@@ -218,6 +248,7 @@ export async function attachFlowPillController(
   const beginSession = (mode: FlowPillMode): void => {
     if (!canStartSession()) return;
     clearPrerollTimer();
+    silentDevice = null;
     sessionBusy = true;
     lockStopArmed = mode === "locked";
     dispatch({ type: "invoke", mode });
@@ -332,6 +363,14 @@ export async function attachFlowPillController(
         dispatch({ type: "transcript", text: outcome.text });
         return;
       case "empty":
+        // A device that produced nothing is a different failure from a user who
+        // said nothing, and conflating them is what made this bug invisible.
+        // Name the dead device; fall back to the machine's own "Didn't catch
+        // that" only when the microphone was genuinely working.
+        if (silentDevice) {
+          dispatch({ type: "fail", reason: silentInputCopy(silentDevice) });
+          return;
+        }
         // Silence and a blank transcript are reported distinctly by the capture
         // path and are deliberately collapsed here: the pill has one honest
         // line for both, and neither may ever be posted.
@@ -442,6 +481,23 @@ export async function attachFlowPillController(
     dispatch({ type: "cancel" });
   });
 
+  const noteSilentInput = (event: SilentInputEvent): void => {
+    // Only meaningful while this utterance owns the microphone. A stray report
+    // between sessions belongs to nobody.
+    if (!sessionBusy || !event?.name) return;
+    silentDevice = event.name;
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[flowpill] ${event.name} delivered nothing but silence. Pick a different ` +
+        "microphone in Settings → Voice → Microphone; a virtual device produces " +
+        "no audio unless something is routed into it.",
+    );
+  };
+
+  const unlistenSilent = deps.silentInput
+    ? await deps.silentInput(noteSilentInput)
+    : await (await lazy()).listenSilentInput(bridge, noteSilentInput);
+
   const unlistenGestures = deps.gestures
     ? await deps.gestures(handleGesture)
     : await (await lazy()).listenOptionTap(bridge, handleGesture);
@@ -456,6 +512,7 @@ export async function attachFlowPillController(
       unsubscribeEffects();
       unsubscribeState();
       unlistenCancel();
+      unlistenSilent();
       unlistenGestures();
       announceSession(false);
       await discard();

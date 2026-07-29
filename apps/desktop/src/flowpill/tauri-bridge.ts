@@ -18,7 +18,12 @@ import {
   type CaptureHandle,
   type CaptureMode,
 } from "./audio";
-import type { AudioBridge, OptionTapEvent, WindowBridge } from "./controller";
+import type {
+  AudioBridge,
+  OptionTapEvent,
+  SilentInputEvent,
+  WindowBridge,
+} from "./controller";
 import type { EventBridge } from "./mic-arbiter";
 
 /** Tauri's event system, narrowed to what the pill needs. */
@@ -78,6 +83,30 @@ export const OPTION_TAP_EVENTS = [
 ] as const;
 
 export const OPTION_TAP_UNAVAILABLE = "optiontap://unavailable";
+
+/**
+ * Rust's report that the open input device is producing pure digital silence.
+ * Emitted at most once per capture stream, half a second in.
+ */
+export const AUDIO_INPUT_SILENT = "audio-input-silent";
+
+/** The wire shape of {@link AUDIO_INPUT_SILENT}, snake_case as Rust serialises it. */
+interface SilentDevicePayload {
+  name?: string;
+  channels?: number;
+  sample_rate?: number;
+}
+
+export async function listenSilentInput(
+  bridge: EventBridge,
+  handler: (event: SilentInputEvent) => void,
+): Promise<() => void> {
+  return bridge.listen<SilentDevicePayload>(AUDIO_INPUT_SILENT, (payload) => {
+    const name = payload?.name;
+    if (typeof name !== "string" || name.length === 0) return;
+    handler({ name });
+  });
+}
 
 export async function listenOptionTap(
   bridge: EventBridge,

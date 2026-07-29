@@ -35,9 +35,12 @@ import {
 import {
   attachFlowPillController,
   MIC_DENIED_COPY,
+  silentInputCopy,
   type FlowPillController,
   type OptionTapEvent,
 } from "./controller";
+import { NOTHING_HEARD } from "./machine";
+import { AUDIO_INPUT_SILENT } from "./tauri-bridge";
 import { createLevelBus } from "./level-bus";
 import { MIC_BUSY_COPY, type EventBridge } from "./mic-arbiter";
 import { NOT_PAIRED, SEND_FAILED, sendFlowpillText, type SendFetch } from "./send";
@@ -114,6 +117,8 @@ interface Rig {
   /** The status the pill passed through, in order, first to last. */
   statuses: FlowPillStatus[];
   status(): FlowPillStatus;
+  /** The line the pill is showing, when it is in `error`. */
+  error(): string | null;
   /** Levels that reached the waveform. */
   levels: number[];
   shows: number;
@@ -250,6 +255,7 @@ async function rig(options: RigOptions = {}): Promise<Rig> {
       return hides;
     },
     status: () => store.getState().status,
+    error: () => store.getState().error,
     gesture(kind) {
       gestures?.({ kind, atMs: 0 });
     },
@@ -378,6 +384,89 @@ describe("the flow pill, end to end", () => {
 
     expect(r.status()).toBe("error");
     expect(r.posted).toHaveLength(0);
+  });
+
+  // ─── A dead input device (the live hardware failure) ──────────────────────
+  // The macOS default input on the user's Mac Studio was a silent virtual
+  // loopback device, so every utterance came back as `rms=0.0000` and the pill
+  // said "Didn't catch that", which points the user at their own voice rather
+  // than at the one setting that fixes it.
+
+  it("names the device when the microphone produced nothing at all", async () => {
+    const r = (live = await rig());
+
+    r.gesture("long_press_start");
+    await r.settle();
+    r.bridge.deliver(AUDIO_INPUT_SILENT, { name: "BlackHole 16ch" });
+    r.mic.emit(silentPcm(16_000));
+    r.gesture("long_press_end");
+    await r.settle();
+
+    expect(r.status()).toBe("error");
+    expect(r.error()).toBe(silentInputCopy("BlackHole 16ch"));
+    expect(r.error()).toContain("BlackHole 16ch");
+    expect(r.posted).toHaveLength(0);
+  });
+
+  it("keeps the generic line when the microphone was working and the user simply said nothing", async () => {
+    const r = (live = await rig());
+
+    r.gesture("long_press_start");
+    await r.settle();
+    r.mic.emit(silentPcm(16_000));
+    r.gesture("long_press_end");
+    await r.settle();
+
+    expect(r.status()).toBe("error");
+    expect(r.error()).toBe(NOTHING_HEARD);
+  });
+
+  it("a dead device on one utterance does not mislabel the next", async () => {
+    const r = (live = await rig());
+
+    r.gesture("long_press_start");
+    await r.settle();
+    r.bridge.deliver(AUDIO_INPUT_SILENT, { name: "QuickTime Input" });
+    r.mic.emit(silentPcm(16_000));
+    r.gesture("long_press_end");
+    await r.settle();
+    expect(r.error()).toBe(silentInputCopy("QuickTime Input"));
+
+    // Second utterance, a different (working) microphone, nothing said.
+    r.gesture("long_press_start");
+    await r.settle();
+    r.mic.emit(silentPcm(16_000));
+    r.gesture("long_press_end");
+    await r.settle();
+
+    expect(r.error()).toBe(NOTHING_HEARD);
+  });
+
+  it("ignores a silent-device report that lands between sessions", async () => {
+    const r = (live = await rig());
+
+    r.bridge.deliver(AUDIO_INPUT_SILENT, { name: "ZoomAudioDevice" });
+    r.gesture("long_press_start");
+    await r.settle();
+    r.mic.emit(silentPcm(16_000));
+    r.gesture("long_press_end");
+    await r.settle();
+
+    expect(r.error()).toBe(NOTHING_HEARD);
+  });
+
+  it("a dead device never turns a real transcript into a failure", async () => {
+    const r = (live = await rig({ transcript: "book the bench for Thursday" }));
+
+    r.gesture("long_press_start");
+    await r.settle();
+    r.bridge.deliver(AUDIO_INPUT_SILENT, { name: "BlackHole 16ch" });
+    r.speak();
+    r.gesture("long_press_end");
+    await r.settle();
+
+    expect(r.status()).toBe("sent");
+    expect(r.posted).toHaveLength(1);
   });
 
   it("a whitespace-only transcript is never posted", async () => {

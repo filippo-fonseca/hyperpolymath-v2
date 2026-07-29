@@ -170,6 +170,15 @@ body {
   text-overflow: ellipsis;
 }
 
+/* The text itself, not just its container. `text-overflow` only applies to the
+   box that directly holds the text, so without this a long line (a failure that
+   names a device, say) clips flush instead of trailing off. */
+.flowpill-status > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .flowpill-status[data-tone="done"] {
   color: var(--sd-ink);
 }
