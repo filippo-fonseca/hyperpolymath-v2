@@ -136,8 +136,9 @@ export function GlobalLoader({ message, fullscreen = true }: Props) {
         </div>
       </div>
 
-      {/* Status word — mono uppercase, telemetric register */}
-      <div className="mt-8 font-mono text-[11px] uppercase tracking-[0.32em] text-[var(--ink-muted)] hp-loader-flicker">
+      {/* Status word — sentence case per SDC-1 §2.4; the flicker carries the
+          telemetric feel now that the caps register is retired. */}
+      <div className="mt-8 text-micro font-medium tracking-[0.06em] text-[var(--ink-muted)] hp-loader-flicker">
         {message ?? "Loading"}
       </div>
 
@@ -146,7 +147,7 @@ export function GlobalLoader({ message, fullscreen = true }: Props) {
         <blockquote className="text-[15px] leading-[1.55] text-[var(--ink)]">
           &ldquo;{quote.text}&rdquo;
         </blockquote>
-        <figcaption className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+        <figcaption className="mt-2 text-micro text-[var(--ink-muted)]">
           — {quote.author}
         </figcaption>
       </figure>
