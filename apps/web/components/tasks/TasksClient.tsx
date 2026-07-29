@@ -1104,7 +1104,7 @@ function SegmentedControl<T extends string>({
               "h-7 rounded-sm px-3 text-meta cursor-pointer-always",
               "transition-colors duration-[160ms] ease-out",
               active
-                ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)]"
+                ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
                 : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
             )}
           >

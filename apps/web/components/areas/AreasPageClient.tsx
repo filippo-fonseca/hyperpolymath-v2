@@ -13,6 +13,7 @@ import { PageScaffold } from "@/components/ui/PageScaffold";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 
 /**
@@ -134,7 +135,7 @@ export function AreasPageClient({
                   "cursor-pointer-always rounded px-2 py-1 text-meta",
                   "transition-colors duration-[160ms] ease-out",
                   view === seg.value
-                    ? "bg-[var(--selected)] font-medium text-[var(--ink)]"
+                    ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
                     : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
                 )}
               >
@@ -198,15 +199,21 @@ export function AreasPageClient({
             <span className="text-meta tabular-nums text-[var(--ink-muted)]">{areas.length}</span>
           }
         >
-          <ul className="flex flex-col divide-y divide-[var(--edge)]">
+          <ul className="craft-card flex flex-col divide-y divide-[var(--edge)] rounded-xl px-4">
             {areas.map((area) => (
-              <li key={area.id} className="group/area-row flex items-center gap-3 px-1 py-3">
+              <li
+                key={area.id}
+                className={cn("group/area-row flex items-center gap-3 px-1 py-3", tintFor(area.id))}
+              >
                 {area.emoji ? (
-                  <span className="shrink-0 text-base leading-none" aria-hidden="true">
+                  <span
+                    className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--tint-bg)] text-sm leading-none"
+                    aria-hidden="true"
+                  >
                     {area.emoji}
                   </span>
                 ) : (
-                  <span className="w-5 shrink-0" aria-hidden="true" />
+                  <span className="w-7 shrink-0" aria-hidden="true" />
                 )}
                 <span className="flex-1 text-body leading-snug text-[var(--ink)]">
                   {area.name}

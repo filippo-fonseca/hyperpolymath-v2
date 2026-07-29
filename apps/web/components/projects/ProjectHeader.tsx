@@ -335,15 +335,17 @@ export function ProjectHeader({
 
   return (
     <>
-      {/* Banner — flush, edge to edge above the scaffold, no added chrome.
-          Rendered only when one is set; a banner-less project starts at the
-          scaffold instead of a 120px blank strip, and gains an "Add banner"
-          ghost action in the header. */}
+      {/* Banner — jul-29 craft restyle: an inset rounded cover aligned with
+          the scaffold's measure (Craft/Notion cover grammar) instead of an
+          edge-to-edge strip. Rendered only when one is set; a banner-less
+          project starts at the scaffold and gains an "Add banner" ghost
+          action in the header. */}
       {project.bannerUrl ? (
-        <div
-          className="group/banner-area relative w-full"
-          style={{ height: "120px", background: parseBanner(project.bannerUrl) }}
-        >
+        <div className="mx-auto w-full max-w-[1120px] px-8 pt-6">
+          <div
+            className="group/banner-area relative w-full overflow-hidden rounded-2xl border border-[var(--edge)] shadow-[var(--shadow-card)]"
+            style={{ height: "140px", background: parseBanner(project.bannerUrl) }}
+          >
           <div
             className={cn(
               "absolute top-3 right-3",
@@ -352,6 +354,7 @@ export function ProjectHeader({
             )}
           >
             <BannerPicker value={project.bannerUrl} onChange={handleBannerChange} />
+          </div>
           </div>
         </div>
       ) : null}

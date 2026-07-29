@@ -19,6 +19,7 @@ import {
 import type { TimelineAreaInput, TimelineProjectInput } from "@/lib/projects/timeline";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 
 export interface AreaProject {
@@ -232,21 +233,24 @@ export function AreaProjectList({
               p.description,
             ].filter(Boolean) as string[];
             return (
-              <li key={p.id} className="group relative">
+              <li key={p.id} className={cn("group relative", tintFor(p.id))}>
                 <Link
                   href={`/projects/${p.id}`}
                   className={cn(
                     "flex items-center gap-4 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-5 py-4",
-                    "transition-colors duration-[160ms] ease-out hover:border-[var(--edge-strong)] cursor-pointer-always",
+                    "shadow-[var(--shadow-card)]",
+                    "transition-[border-color,box-shadow] duration-[160ms] ease-out cursor-pointer-always",
+                    "hover:border-[color-mix(in_srgb,var(--tint-edge)_45%,var(--edge))] hover:shadow-[var(--shadow-card-hover)]",
                     isPast(p) && "opacity-70"
                   )}
                 >
-                  <DynamicIcon
-                    name={p.icon}
-                    size={18}
-                    strokeWidth={1.5}
-                    className="shrink-0 text-[var(--ink-muted)] transition-colors group-hover:text-[var(--ink)]"
-                  />
+                  {/* Icon on the project's deterministic pastel plate. */}
+                  <span
+                    aria-hidden
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--tint-bg)] text-[var(--tint-ink)]"
+                  >
+                    <DynamicIcon name={p.icon} size={18} strokeWidth={1.5} className="shrink-0" />
+                  </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="truncate text-subtitle font-medium leading-snug text-[var(--ink)]">
                       {p.name}
