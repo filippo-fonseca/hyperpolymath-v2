@@ -368,7 +368,7 @@ export function ProductTour() {
       {cardPos && (
         <div
           ref={cardRef}
-          className="absolute overflow-hidden rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]"
+          className="absolute overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]"
           style={{
             top: cardPos.top,
             left: cardPos.left,
@@ -389,7 +389,7 @@ export function ProductTour() {
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <span
-                  className="font-mono text-[9px] uppercase tracking-[0.14em]"
+                  className="text-micro font-medium"
                   style={{ color: accent.color }}
                 >
                   Step {stepIdx + 1} of {STEPS.length}
@@ -442,7 +442,7 @@ export function ProductTour() {
                 type="button"
                 onClick={goPrev}
                 disabled={isFirst}
-                className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.1em] transition-colors disabled:opacity-30"
+                className="inline-flex items-center gap-1 text-micro font-medium transition-colors disabled:opacity-30"
                 style={{ color: "var(--sd-ink-dull)" }}
                 onMouseEnter={(e) => {
                   if (!isFirst) e.currentTarget.style.color = "var(--sd-ink)";
@@ -459,7 +459,7 @@ export function ProductTour() {
                 <button
                   type="button"
                   onClick={markDone}
-                  className="font-mono text-[10px] uppercase tracking-[0.1em] transition-colors"
+                  className="text-micro font-medium transition-colors"
                   style={{ color: "var(--sd-ink-dull)" }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.color = "var(--sd-ink)";
@@ -474,7 +474,7 @@ export function ProductTour() {
                 <button
                   type="button"
                   onClick={goNext}
-                  className="sd-btn-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] transition-opacity duration-150"
+                  className="sd-btn-primary inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-micro font-medium transition-opacity duration-150"
                 >
                   {isLast ? "Done" : "Next"}
                   {!isLast && <ChevronRight size={11} strokeWidth={2.5} />}
