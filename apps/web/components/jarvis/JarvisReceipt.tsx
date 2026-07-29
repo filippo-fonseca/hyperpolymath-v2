@@ -89,7 +89,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   const Icon = meta.icon;
 
   const padCls = variant === "compact" ? "px-3 py-2" : "px-4 py-3";
-  const bodyTextCls = variant === "compact" ? "text-[13px]" : "text-sm";
+  const bodyTextCls = variant === "compact" ? "text-meta" : "text-sm";
 
   // Queued placeholder — subtle shimmer only, no busy border-trace.
   if (action.status === "queued" && !action.result) {
@@ -97,11 +97,12 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
       <div
         data-status="queued"
         className={cn("receipt-card overflow-hidden", padCls)}
+        style={{ borderRadius: 12 }}
       >
         {!shouldReduce ? <div className="receipt-shimmer" aria-hidden="true" /> : null}
         <div className="relative flex items-center gap-2">
           <IntentChip meta={meta} icon={Icon} />
-          <span className="font-mono text-[11px] tracking-[0.06em] text-[var(--sd-ink-dull)]">
+          <span className="text-micro text-[var(--sd-ink-dull)]">
             queued
             <AnimatedDots reduced={shouldReduce ?? false} />
           </span>
@@ -252,11 +253,10 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   const dataStatus = isError ? "error" : "done";
 
   const titleCls = cn(
-    "leading-snug",
-    variant === "compact" ? "text-[14px]" : "text-[15px]",
+    "leading-snug text-body",
     undone && "line-through text-[var(--sd-ink-dull)]"
   );
-  const metaCls = "font-mono text-[11px] tracking-[0.02em] text-[var(--sd-ink-dull)] mt-1";
+  const metaCls = "text-micro tabular-nums text-[var(--sd-ink-dull)] mt-1";
 
   return (
     <motion.div
@@ -271,6 +271,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
         variant === "compact" && "opacity-95",
         navHref && "cursor-pointer"
       )}
+      style={{ borderRadius: 12 }}
       {...(navHref
         ? {
             role: "link",
@@ -305,7 +306,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           ) : null}
         </div>
         {undone ? (
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+          <span className="text-micro text-[var(--sd-ink-dull)]">
             Undone
           </span>
         ) : undoEligible ? (
@@ -416,12 +417,12 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                         router.push(rowHref);
                       }}
                       className={cn(
-                        "flex w-full items-center gap-2 text-left rounded-md px-1.5 py-1 -mx-1.5",
+                        "flex w-full items-center gap-2 text-left rounded-lg px-1.5 py-1 -mx-1.5",
                         "hover:bg-[color-mix(in_oklch,var(--sd-accent)_8%,transparent)]",
                         "transition-colors duration-150"
                       )}
                     >
-                      <code className="font-mono text-[10px] opacity-60 shrink-0">
+                      <code className="font-mono text-micro opacity-60 shrink-0">
                         {rowId.slice(0, 8)}
                       </code>
                       <span className="truncate">{label}</span>
@@ -432,7 +433,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                       className="flex items-center gap-2 px-1.5 py-1 -mx-1.5"
                       style={{ color: "var(--sd-ink-dull)" }}
                     >
-                      <code className="font-mono text-[10px] opacity-60 shrink-0">
+                      <code className="font-mono text-micro opacity-60 shrink-0">
                         {rowId.slice(0, 8)}
                       </code>
                       <span className="truncate">{label}</span>
@@ -440,7 +441,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                   );
                 })}
               {((receipt.matches ?? []) as unknown[]).length === 0 && (
-                <em className="font-mono text-[11px]" style={{ color: "var(--sd-ink-dull)" }}>
+                <em className="text-micro" style={{ color: "var(--sd-ink-dull)" }}>
                   no matches
                 </em>
               )}
@@ -463,7 +464,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                     return (
                       <Fragment key={field}>
                         <dt
-                          className="font-mono text-[11px] tracking-[0.02em] self-center uppercase"
+                          className="text-micro self-center"
                           style={{ color: "var(--sd-ink-dull)" }}
                         >
                           {prettifyFieldName(field)}
@@ -492,7 +493,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                   {visibleEntries.length === 0 ? (
                     <Fragment>
                       <dt
-                        className="font-mono text-[11px] col-span-2"
+                        className="text-micro col-span-2"
                         style={{ color: "var(--sd-ink-dull)" }}
                       >
                         {String(receipt.title ?? receipt.content ?? receipt.id ?? "")}
@@ -517,7 +518,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                 {String(receipt.title ?? receipt.content ?? "(deleted)")}
               </span>
               <span
-                className="font-mono text-[10px] uppercase tracking-[0.08em]"
+                className="text-micro"
                 style={{ color: "var(--sd-ink-dull)" }}
               >
                 deleted
@@ -527,7 +528,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
         </div>
       ) : (
         <div
-          className="relative mt-2 font-mono text-[12px]"
+          className="relative mt-2 text-meta"
           style={{ color: "var(--ink-coral)" }}
         >
           {errorMsg}
@@ -559,7 +560,18 @@ function IntentChip({
   return (
     <span
       className="receipt-chip"
-      style={{ ["--chip-ink" as string]: meta.ink }}
+      // .receipt-chip in globals.css (U0-owned) still carries the retired
+      // caps register: font-mono 10px uppercase tracking 0.06em. globals is
+      // unlayered so utilities can't win; neutralize inline per SDC-1 §2.4
+      // (sans, text-micro metrics, sentence case, no tracking).
+      style={{
+        ["--chip-ink" as string]: meta.ink,
+        fontFamily: "var(--font-sans)",
+        fontSize: "var(--text-micro)",
+        fontWeight: 500,
+        letterSpacing: "normal",
+        textTransform: "none",
+      }}
     >
       <Icon className="shrink-0" />
       <span>{meta.label}</span>
@@ -695,14 +707,15 @@ function SuggestedFactReceipt({
       data-source="jarvis_suggested"
       data-status="done"
       className="receipt-card overflow-hidden px-4 py-3"
+      style={{ borderRadius: 12 }}
     >
       <div className="relative flex items-center justify-between gap-3">
         <IntentChip meta={suggestedChip} icon={Sparkles} />
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+        <span className="text-micro text-[var(--sd-ink-dull)]">
           {receipt.type}
         </span>
       </div>
-      <div className="relative text-[15px] mt-2 leading-snug">
+      <div className="relative text-body mt-2 leading-snug">
         <strong className="font-semibold">{receipt.key}</strong>
         {": "}
         {receipt.value}
@@ -713,7 +726,7 @@ function SuggestedFactReceipt({
           variant="ghost"
           onClick={handleKeep}
           aria-label="Keep"
-          className="h-6 px-3 text-xs font-mono uppercase tracking-[0.06em]"
+          className="h-6 px-3 text-xs"
         >
           Keep
         </Button>
@@ -722,11 +735,11 @@ function SuggestedFactReceipt({
           variant="outline"
           onClick={handleDiscard}
           aria-label="Discard"
-          className="h-6 px-3 text-xs font-mono uppercase tracking-[0.06em]"
+          className="h-6 px-3 text-xs"
         >
           Discard
         </Button>
-        <span className="ml-auto font-mono text-[11px] text-[var(--sd-ink-dull)]">
+        <span className="ml-auto text-micro tabular-nums text-[var(--sd-ink-dull)]">
           {kept ? "kept" : seconds > 0 ? `auto-keep in ${seconds}s` : "kept"}
         </span>
       </div>
