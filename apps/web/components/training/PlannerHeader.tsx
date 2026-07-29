@@ -138,10 +138,16 @@ export function PlannerHeader({
           </span>
         </div>
 
+        {/* Craft chip: a pastel plate with a saturated rim. Once adherence
+            clears 80% it lights up in the training hue (mint); below that it
+            stays a neutral raised chip rather than shouting. */}
         <span
           className={cn(
-            "inline-flex h-6 items-center rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--sd-ink-dull)]",
-            adherencePct !== null && adherencePct >= 80 && "text-[var(--sd-ink)]",
+            "tint-mint inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums",
+            "shadow-[var(--shadow-card)] transition-[background-color,border-color,color] duration-[160ms] ease-out",
+            adherencePct !== null && adherencePct >= 80
+              ? "border-[var(--tint-edge)] bg-[var(--tint-bg)] font-medium text-[var(--tint-ink)]"
+              : "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--sd-ink-dull)]",
           )}
           title={
             adherencePct === null

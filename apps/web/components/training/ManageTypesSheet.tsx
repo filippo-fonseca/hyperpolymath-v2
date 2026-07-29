@@ -76,7 +76,7 @@ export function ManageTypesSheet({
         side="right"
         className="flex h-full w-full flex-col gap-0 sm:max-w-[560px]"
       >
-        <SheetHeader className="border-b border-[var(--sd-line)]">
+        <SheetHeader className="border-b border-[var(--edge)]">
           <SheetTitle>Activity types & batches</SheetTitle>
           <SheetDescription>
             Group your activity types into batches. Drag to reorder. Pick a
@@ -91,7 +91,9 @@ export function ManageTypesSheet({
               templates ("Run", "Yoga", "Lift") you reuse across days. Batches
               are optional groupings ("Cardio", "Strength").
             </p>
-            <div className="rounded border border-dashed border-[var(--sd-line)] p-3">
+            {/* First-run composer sits on a craft plate rather than a dashed
+                box, so the first thing a new user sees matches the register. */}
+            <div className="craft-card rounded-xl p-3">
               <TypeEditor batchId={null} types={[]} allBatches={[]} />
             </div>
           </div>
@@ -104,7 +106,7 @@ export function ManageTypesSheet({
               onSelectBatchForTypes={setScope}
             />
 
-            <div className="border-t border-[var(--sd-line)]" />
+            <div className="border-t border-[var(--edge)]" />
 
             <div className="flex flex-col gap-1">
               <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">

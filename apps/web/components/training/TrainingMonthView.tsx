@@ -24,6 +24,7 @@ import {
 import type { ActivityWithType } from "@/lib/db/queries/training";
 import { cn } from "@/lib/utils";
 import { TypeIcon } from "./TypeIcon";
+import { typeFill } from "./type-color";
 
 interface Props {
   userId: string;
@@ -240,7 +241,7 @@ export function TrainingMonthView({
       </div>
 
       {/* Weekday header */}
-      <div className="grid grid-cols-7 border-b border-[var(--sd-line)] pb-1">
+      <div className="grid grid-cols-7 border-b border-[var(--edge)] pb-1">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
           <div
             key={d}
@@ -252,7 +253,7 @@ export function TrainingMonthView({
       </div>
 
       {/* Month grid */}
-      <div className="grid flex-1 grid-cols-7 auto-rows-fr gap-px overflow-hidden bg-[var(--sd-line)]">
+      <div className="grid flex-1 auto-rows-fr grid-cols-7 gap-px overflow-hidden rounded-2xl border border-[var(--edge)] bg-[var(--edge)] shadow-[var(--shadow-card)]">
         {days.map((d) => {
           const iso = toISO(d);
           const inMonth = isSameMonth(d, anchor);
@@ -265,7 +266,7 @@ export function TrainingMonthView({
               type="button"
               onClick={() => onDayClick?.(iso)}
               className={cn(
-                "flex flex-col gap-1 bg-[var(--sd-box)] p-1.5 text-left transition-colors duration-150 hover:bg-[var(--sd-hover)]",
+                "flex flex-col gap-1 bg-[var(--surface-raised)] p-1.5 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
                 !inMonth && "opacity-40",
               )}
             >
@@ -297,8 +298,10 @@ export function TrainingMonthView({
                       a.status === "cancelled" && "line-through opacity-50",
                       a.status === "skipped" && "italic opacity-60",
                     )}
+                    // Same softening as every other training surface, so the
+                    // month grid can never drift from the card register.
                     style={{
-                      backgroundColor: `color-mix(in oklch, ${a.type.color} 18%, transparent)`,
+                      backgroundColor: typeFill(a.type.color),
                       color: "var(--sd-ink)",
                     }}
                     title={a.title}

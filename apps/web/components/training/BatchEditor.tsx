@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import type { BatchRow, TypeWithBatch } from "@/lib/db/queries/training";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -184,11 +185,14 @@ export function BatchEditor({
       <button
         type="button"
         onClick={() => onSelectBatchForTypes("__ungrouped__")}
+        // The ungrouped bucket has no identity of its own, so it stays neutral:
+        // a plain raised plate when selected, no tint.
         className={cn(
-          "group flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors",
+          "group flex items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-sm",
+          "transition-[background-color,border-color,color,box-shadow] duration-[160ms] ease-out",
           selectedBatchId === "__ungrouped__"
-            ? "bg-[var(--sd-selected)] text-[var(--sd-ink)]"
-            : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
+            ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--sd-ink)] shadow-[var(--shadow-card)]"
+            : "border-transparent text-[var(--sd-ink-dull)] hover:bg-[var(--hover)] hover:text-[var(--sd-ink)]",
         )}
       >
         <span className="w-3.5 shrink-0" aria-hidden />
@@ -216,7 +220,7 @@ export function BatchEditor({
           type="button"
           onClick={() => void handleCreate()}
           aria-label="Add batch"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
+          className="flex size-7 shrink-0 items-center justify-center rounded-lg text-[var(--sd-ink-dull)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--sd-ink)]"
         >
           <Plus size={14} strokeWidth={1.5} />
         </button>
@@ -264,8 +268,11 @@ function BatchRow({
     <li
       ref={setNodeRef}
       style={style}
+      // Batches carry no colour column of their own, so identity comes from
+      // tintFor(id) — same hue for the same batch, every render, both themes.
       className={cn(
-        "group relative flex items-center gap-1 rounded px-1 py-0.5",
+        "group relative flex items-center gap-1 rounded-lg px-1 py-0.5",
+        tintFor(batch.id),
         isDragging && "z-10 opacity-60",
       )}
     >
@@ -283,13 +290,20 @@ function BatchRow({
         type="button"
         onClick={onSelect}
         onDoubleClick={onStartEdit}
+        // Selected reads as the batch's own pastel plate with a saturated rim;
+        // unselected stays neutral so only one row is coloured at a time.
         className={cn(
-          "flex flex-1 items-center gap-2 rounded px-1.5 py-1 text-left text-sm transition-colors",
+          "flex flex-1 items-center gap-2 rounded-lg border px-1.5 py-1 text-left text-sm",
+          "transition-[background-color,border-color,color,box-shadow] duration-[160ms] ease-out",
           selected
-            ? "bg-[var(--sd-selected)] text-[var(--sd-ink)]"
-            : "text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
+            ? "border-[var(--tint-edge)] bg-[var(--tint-bg)] font-medium text-[var(--tint-ink)] shadow-[var(--shadow-card)]"
+            : "border-transparent text-[var(--sd-ink)] hover:bg-[var(--hover)]",
         )}
       >
+        <span
+          aria-hidden
+          className="size-1.5 shrink-0 rounded-full bg-[var(--tint-edge)]"
+        />
         {editing ? (
           <Input
             autoFocus
@@ -311,7 +325,12 @@ function BatchRow({
         ) : (
           <span className="flex-1 truncate">{batch.name}</span>
         )}
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+        <span
+          className={cn(
+            "font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums",
+            selected ? "text-[var(--tint-ink)]" : "text-[var(--sd-ink-dull)]",
+          )}
+        >
           {count}
         </span>
       </button>
@@ -321,7 +340,7 @@ function BatchRow({
           <button
             type="button"
             aria-label="Batch actions"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--sd-ink-dull)] opacity-0 hover:bg-[var(--sd-hover)] group-hover:opacity-100 focus-visible:opacity-100"
+            className="flex size-6 shrink-0 items-center justify-center rounded-md text-[var(--sd-ink-dull)] opacity-0 transition-opacity duration-[160ms] ease-out hover:bg-[var(--surface-raised)] group-hover:opacity-100 focus-visible:opacity-100"
           >
             <MoreHorizontal size={12} strokeWidth={1.5} />
           </button>

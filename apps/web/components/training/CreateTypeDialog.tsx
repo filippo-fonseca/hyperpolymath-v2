@@ -163,7 +163,7 @@ export function CreateTypeDialog({
           </div>
 
           {/* Distance toggle */}
-          <label className="flex cursor-pointer items-center gap-2 rounded border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 transition-colors hover:border-[var(--sd-accent)]">
+          <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]">
             <input
               type="checkbox"
               checked={hasDistance}
@@ -218,12 +218,15 @@ function BatchPill({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
+      // Craft pill: selected lifts onto the raised plate with the card shadow;
+      // unselected stays a flat recessed chip.
       className={cn(
-        "rounded-full border px-3 py-1 text-xs transition-colors",
+        "rounded-full border px-3 py-1 text-xs",
+        "transition-[background-color,border-color,color,box-shadow] duration-[160ms] ease-out",
         italic && "italic",
         selected
-          ? "border-[var(--sd-ink)] bg-[var(--sd-box)] text-[var(--sd-ink)]"
-          : "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-accent)]",
+          ? "border-[var(--edge-strong)] bg-[var(--surface-raised)] font-medium text-[var(--sd-ink)] shadow-[var(--shadow-card)]"
+          : "border-[var(--edge)] bg-[var(--surface)] text-[var(--sd-ink-dull)] hover:border-[var(--edge-strong)] hover:text-[var(--sd-ink)]",
       )}
     >
       {label}

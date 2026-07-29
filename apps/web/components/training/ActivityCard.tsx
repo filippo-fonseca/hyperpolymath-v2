@@ -17,6 +17,8 @@ import { Check, MinusCircle, MoreHorizontal, X } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import type { ActivityOptimisticDispatch } from "./TrainingClient";
+import { TypeIcon } from "./TypeIcon";
+import { typeFill, typeInk } from "./type-color";
 
 interface Props {
   activity: ActivityWithType;
@@ -38,12 +40,22 @@ interface Props {
 /**
  * Compact activity card. Smaller density than TaskCard per D-01:
  *   - text-xs across the board (TaskCard uses text-sm)
- *   - 3px color stripe instead of a chip
  *   - single-line subline mashing type/duration/distance
- *   - kebab menu (mark cancelled / skipped / delete) — "mark done" wired in 15-04
+ *   - kebab menu (mark cancelled / skipped / delete)
  *
- * Drag handle is the whole card (no separate grip). Motion `layoutId` lets the
- * card slide smoothly when the underlying list reorders after a drag.
+ * Craft register (jul-29): the card is the TaskCard idiom at planner density —
+ * a raised white plate (`--surface-raised`), one `--edge` hairline, the soft
+ * `--shadow-card`, and a hover that only deepens border + shadow over 160ms.
+ * No scale, no glow.
+ *
+ * The activity type's stored OKLCH colour is its identity. It is softened to a
+ * 14% wash for the leading icon plate (`typeFill`) and only stays saturated on
+ * the icon glyph itself, per the register's "pastel fills, saturated accents"
+ * rule. The old 3px stripe is retired: the plate carries the same information
+ * and gives the icon somewhere to live.
+ *
+ * Drag handle is the whole card (no separate grip). Motion `layoutId` is
+ * pre-existing and lets the card slide when the list reorders after a drag.
  */
 export function ActivityCard({ activity, distanceUnit, addOptimistic, onCheckOff, onEdit }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -106,23 +118,38 @@ export function ActivityCard({ activity, distanceUnit, addOptimistic, onCheckOff
       {...listeners}
       onClick={handleCardClick}
       className={cn(
-        // Mini entity-card plate (§9/§10): --sd-box fill, hairline border,
-        // dark-only inset top hairline. Hover moves the border, nothing else.
-        "group relative flex cursor-grab touch-none select-none items-stretch gap-1.5 overflow-hidden rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] pr-1.5 text-xs transition-colors duration-150",
-        "dark:[box-shadow:rgba(255,255,255,0.06)_0_1px_0_inset]",
-        "hover:border-[color-mix(in_srgb,var(--sd-ink)_18%,var(--sd-line))]",
+        // The card idiom, at planner density.
+        "group relative flex cursor-grab touch-none select-none items-start gap-2 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] p-1.5 text-xs",
+        "shadow-[var(--shadow-card)]",
+        "transition-[border-color,box-shadow] duration-[160ms] ease-out",
+        !isDragging &&
+          "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]",
         isDragging && "z-10 cursor-grabbing opacity-60",
         isDone && "opacity-60",
         (isCancelled || isSkipped) && "opacity-50"
       )}
     >
-      {/* 3px color stripe — functional type color (data, not chrome) */}
-      <div
+      {/* Type identity: the stored colour softened to a pastel plate, with the
+          glyph left saturated. Falls back to a dot when the type has no icon. */}
+      <span
         aria-hidden
-        className="w-[3px] shrink-0"
-        style={{ backgroundColor: activity.type.color }}
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5 py-1 pl-0.5">
+        className="mt-px flex size-5 shrink-0 items-center justify-center rounded-md"
+        style={{
+          backgroundColor: typeFill(activity.type.color),
+          color: typeInk(activity.type.color),
+        }}
+      >
+        {activity.type.icon ? (
+          <TypeIcon name={activity.type.icon} size={11} />
+        ) : (
+          <span
+            className="size-1.5 rounded-full"
+            style={{ backgroundColor: activity.type.color }}
+          />
+        )}
+      </span>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-center gap-1">
           {isDone ? (
             <Check size={11} strokeWidth={2} className="shrink-0 text-[var(--sd-accent)]" />
@@ -167,7 +194,7 @@ export function ActivityCard({ activity, distanceUnit, addOptimistic, onCheckOff
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label="Activity actions"
-            className="m-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] text-[var(--sd-ink-faint)] opacity-0 transition-opacity hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] group-hover:opacity-100 focus-visible:opacity-100"
+            className="flex size-5 shrink-0 items-center justify-center rounded-md text-[var(--sd-ink-faint)] opacity-0 transition-opacity duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--sd-ink)] group-hover:opacity-100 focus-visible:opacity-100"
           >
             <MoreHorizontal size={12} strokeWidth={1.5} />
           </button>

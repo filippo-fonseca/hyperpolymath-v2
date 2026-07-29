@@ -22,8 +22,10 @@ interface Props {
   weeks?: number;
 }
 
-// sd plate — shipped .sd-panel primitive (UI-CONTRACT §0). No glass/blur/glow.
-const TILE = "sd-panel p-4";
+// Craft plate (jul-29). `.craft-card` is unlayered and owns fill, hairline and
+// shadow, so no `bg-*` utility rides along. `tint-mint` is the training hue,
+// consumed by the bars below.
+const TILE = "craft-card tint-mint rounded-2xl p-5";
 
 /**
  * Weekly duration bar chart (TRN-11) — at least one over-time chart per
@@ -97,10 +99,11 @@ export function DurationTrendChart({
                     aria-label={`Week of ${b.label}: ${formatMinutes(b.min)}`}
                     className="group flex flex-1 flex-col justify-end"
                   >
-                    {/* Static height (layout, never animated — §14); only the
-                        fill colour transitions on hover. */}
+                    {/* Static height (layout, never animated); only the fill
+                        colour transitions on hover. Pastel body, saturated rim
+                        — the craft register's candy edge, applied to a bar. */}
                     <div
-                      className="w-full rounded-sm border border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] bg-[color-mix(in_srgb,var(--sd-accent)_70%,transparent)] transition-colors duration-150 group-hover:bg-[var(--sd-accent)]"
+                      className="w-full rounded-md border border-[var(--tint-edge)] bg-[var(--tint-bg)] transition-colors duration-[160ms] ease-out group-hover:bg-[var(--tint-edge)]"
                       style={{
                         height: `${Math.max(pct, b.min > 0 ? 3 : 0)}%`,
                         minHeight: b.min > 0 ? 2 : 0,

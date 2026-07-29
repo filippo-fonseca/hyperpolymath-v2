@@ -48,11 +48,16 @@ export function ColorPicker({ value, onChange }: Props) {
                   aria-checked={isSelected}
                   aria-label={entry.name}
                   onClick={() => onChange(entry.oklch)}
+                  // The swatch IS the value, so it stays fully saturated. Only
+                  // the affordance moves to the craft register: the plain hover
+                  // gets the card shadow, selection keeps the ink ring.
                   className={cn(
-                    "relative flex h-6 w-6 items-center justify-center rounded-full transition-transform",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-ink)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--sd-box)]",
-                    isSelected &&
-                      "ring-2 ring-[var(--sd-ink)] ring-offset-1 ring-offset-[var(--sd-box)]",
+                    "relative flex size-6 items-center justify-center rounded-full",
+                    "transition-shadow duration-[160ms] ease-out hover:shadow-[var(--shadow-card-hover)]",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface-raised)]",
+                    isSelected
+                      ? "ring-2 ring-[var(--ink)] ring-offset-1 ring-offset-[var(--surface-raised)]"
+                      : "shadow-[var(--shadow-card)]",
                   )}
                   style={{ backgroundColor: entry.oklch }}
                 >
