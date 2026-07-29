@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useRef,
@@ -289,13 +290,32 @@ function ResizableCell({
       className="group/cell relative min-h-0"
       style={{ gridColumn: `span ${span.w}`, gridRow: `span ${span.h}` }}
     >
-      {children}
+      {/* Three siblings compile to `jsxs`, so these reach the reconciler as a
+          LIST and each one needs an identity. Slot names, not indices: the trio
+          is fixed and never reorders, but the projection blinks in and out
+          mid-drag, and index matching would let the widget's identity shift
+          under a `layout` animation — the drooping-tile failure mode.
+
+          The widget slot needs the keyed Fragment rather than a key on
+          `children` itself. On /lifeos `children` is a WidgetCard that crossed
+          the RSC boundary, so it arrives as a lazy Flight chunk with no key
+          that React's `validateChildKeys` cannot mark while the chunk is still
+          uninitialized; react-dom then resolves it mid-reconcile and reports it
+          as an unkeyed list child. The Fragment gives the slot its identity
+          without touching the node inside, and renders no DOM. */}
+      <Fragment key="widget">{children}</Fragment>
 
       {projStyle && (
-        <div aria-hidden className="lifeos-resize-projection" style={projStyle} />
+        <div
+          key="projection"
+          aria-hidden
+          className="lifeos-resize-projection"
+          style={projStyle}
+        />
       )}
 
       <button
+        key="handle"
         type="button"
         aria-label={`Resize ${label} widget`}
         aria-description="Drag or use arrow keys to resize between 1 and 2 grid cells"
