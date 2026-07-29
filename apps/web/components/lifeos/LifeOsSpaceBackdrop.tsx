@@ -21,6 +21,11 @@ import { useReducedMotion } from "motion/react";
  *     paint and hydration.
  *   - `preload="none"` + poster: the 8MB loop only downloads once this route
  *     actually asks it to play.
+ *   - Half speed. The footage at native rate reads as motion you notice; at
+ *     0.5 it reads as drift, which is what a background behind a text-heavy
+ *     dashboard should do. `playbackRate` is a property, not an attribute, so
+ *     it is set from the effect and reasserted on `loadedmetadata` (a fresh
+ *     media load resets the rate on some engines).
  *
  * Legibility: the video sits under a two-part scrim (one per theme, since a
  * scrim strength that lets stars through a dark canvas would drown a light
@@ -35,6 +40,9 @@ const POSTER_SRC = "/lifeos/space-poster.jpg";
 const SCRIM_LIGHT = "color-mix(in srgb, var(--canvas) 88%, transparent)";
 const SCRIM_DARK = "color-mix(in srgb, var(--canvas) 72%, transparent)";
 
+/** Slow-motion drift rate for the loop. 1 is native speed. */
+const PLAYBACK_RATE = 0.5;
+
 export function LifeOsSpaceBackdrop() {
   const reduced = useReducedMotion();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -46,6 +54,7 @@ export function LifeOsSpaceBackdrop() {
       video.pause();
       return;
     }
+    video.playbackRate = PLAYBACK_RATE;
     // Autoplay can be denied (power saving, browser policy); the poster frame
     // is the designed fallback, so a rejection is not an error.
     video.play().catch(() => {});
@@ -69,6 +78,9 @@ export function LifeOsSpaceBackdrop() {
           preload="none"
           poster={POSTER_SRC}
           src={VIDEO_SRC}
+          onLoadedMetadata={(event) => {
+            event.currentTarget.playbackRate = PLAYBACK_RATE;
+          }}
           className="h-full w-full object-cover"
         />
       )}
