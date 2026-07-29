@@ -20,7 +20,7 @@ export function VideoEmbed({
   const [playing, setPlaying] = useState(false);
 
   return (
-    <div className="relative mt-3 aspect-video w-full overflow-hidden rounded-lg [box-shadow:inset_0_0_0_1px_var(--edge)]">
+    <div className="relative mt-3 aspect-video w-full overflow-hidden rounded-xl border border-[var(--edge)] shadow-[var(--shadow-card)]">
       {playing ? (
         <iframe
           className="absolute inset-0 h-full w-full"
