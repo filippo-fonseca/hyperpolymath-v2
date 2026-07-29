@@ -54,8 +54,8 @@ export function MoveToMenu({
 
   const triggerClass =
     variant === "bar"
-      ? "inline-flex items-center gap-1.5 rounded-md bg-[var(--ink)] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--canvas)] hover:opacity-90 disabled:opacity-40"
-      : "inline-flex items-center gap-1.5 rounded-md border border-[var(--edge)] bg-[var(--surface)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:opacity-40";
+      ? "inline-flex items-center gap-2 rounded-full bg-[var(--canvas)]/15 px-3 py-1.5 text-micro text-[var(--canvas)] transition-colors duration-[160ms] ease-out hover:bg-[var(--canvas)]/25 disabled:opacity-40"
+      : "inline-flex items-center gap-2 rounded-lg px-2.5 py-1 text-micro text-[var(--ink-muted)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)] disabled:opacity-40";
 
   function pick(dateYmd: string | null) {
     setOpen(false);
@@ -108,9 +108,9 @@ export function MoveToMenu({
         <button
           type="button"
           onClick={() => customRef.current?.showPicker?.() ?? customRef.current?.focus()}
-          className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left hover:bg-[var(--surface)] cursor-pointer-always"
+          className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left hover:bg-[var(--surface)] cursor-pointer-always"
         >
-          <span className="font-sans text-[13px] text-[var(--ink)]">Custom date…</span>
+          <span className="text-meta text-[var(--ink)]">Custom date…</span>
           <input
             ref={customRef}
             type="date"
@@ -118,7 +118,7 @@ export function MoveToMenu({
             onChange={(e) => {
               if (e.target.value) pick(e.target.value);
             }}
-            className="appearance-none bg-transparent border-none font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] outline-none cursor-pointer-always"
+            className="appearance-none border-none bg-transparent font-mono text-micro tabular-nums text-[var(--ink-muted)] outline-none cursor-pointer-always"
           />
         </button>
       </PopoverContent>
@@ -140,10 +140,10 @@ function ShortcutRow({
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left hover:bg-[var(--surface)] cursor-pointer-always"
+        className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left hover:bg-[var(--surface)] cursor-pointer-always"
       >
-        <span className="font-sans text-[13px] text-[var(--ink)]">{label}</span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <span className="text-meta text-[var(--ink)]">{label}</span>
+        <span className="font-mono text-micro tabular-nums text-[var(--ink-muted)]">
           {sub}
         </span>
       </button>
