@@ -105,9 +105,11 @@ export function SearchDropdown({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
       className={
+        // Craft register: a full hairline (not a hairline-and-a-half) and the
+        // pop shadow every other floating surface uses.
         inline
-          ? "overflow-hidden rounded-xl border-[0.5px] border-[var(--edge)] bg-[var(--surface-raised)] shadow-lg"
-          : "absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border-[0.5px] border-[var(--edge)] bg-[var(--surface-raised)] shadow-lg"
+          ? "overflow-hidden rounded-2xl border border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-pop)]"
+          : "absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-pop)]"
       }
     >
       <div className="max-h-[340px] overflow-y-auto p-2">

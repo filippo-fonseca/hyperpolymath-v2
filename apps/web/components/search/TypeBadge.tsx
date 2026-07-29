@@ -1,21 +1,31 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import type { TintClass } from "@/lib/tint";
 import type { SearchType } from "@/lib/search";
 
 /**
- * Per-type ink token. Spec's info/success/warning/danger/secondary mapped to
- * the Hyperpolymath palette: cyan (info), sage (success), amber (warning),
- * coral (danger), muted (secondary).
+ * Per-kind pastel tint (jul-29 craft restyle).
+ *
+ * The badge used to paint itself from the saturated ink tokens (cyan, coral,
+ * amber…), which made a dense result list read as a strip of highlighters. It
+ * now draws from the same eight-hue craft tint palette as every other entity
+ * plate: pastel fill, saturation only on the hairline rim.
+ *
+ * The assignment is a fixed map rather than `tintFor(type)` because the hash
+ * collides on this particular seven-key set: `task`/`area` and `page`/`journal`
+ * land on the same hue, and telling those four apart is precisely this badge's
+ * job. The map is stable, so a kind keeps its colour across every render and
+ * both themes, which is the property that actually mattered.
  */
-const TYPE_INK: Record<SearchType, string> = {
-  task: "var(--hud-cyan)",
-  capture: "var(--ink-sage)",
-  page: "var(--ink-violet)",
-  journal: "var(--ink-blue)",
-  project: "var(--ink-amber)",
-  area: "var(--ink-coral)",
-  habit: "var(--ink-muted)",
+const TYPE_TINT: Record<SearchType, TintClass> = {
+  task: "tint-sky",
+  capture: "tint-mint",
+  page: "tint-lavender",
+  journal: "tint-plum",
+  project: "tint-peach",
+  area: "tint-butter",
+  habit: "tint-sage",
 };
 
 const TYPE_LABEL: Record<SearchType, string> = {
@@ -36,19 +46,16 @@ interface Props {
 }
 
 export function TypeBadge({ type, compact = false, className }: Props) {
-  const ink = TYPE_INK[type];
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded font-mono uppercase tracking-[0.1em]",
-        compact ? "px-1 py-[1px] text-[10px]" : "px-1.5 py-[2px] text-[10px]",
+        TYPE_TINT[type],
+        "inline-flex items-center rounded-md border font-mono uppercase tracking-[0.1em]",
+        "border-[color-mix(in_srgb,var(--tint-edge)_50%,transparent)]",
+        "bg-[var(--tint-bg)] text-[var(--tint-ink)]",
+        compact ? "px-1.5 py-[1px] text-[10px]" : "px-2 py-[2px] text-[10px]",
         className
       )}
-      style={{
-        color: ink,
-        background: `color-mix(in oklch, ${ink} 14%, transparent)`,
-        boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${ink} 24%, transparent)`,
-      }}
     >
       {TYPE_LABEL[type]}
     </span>

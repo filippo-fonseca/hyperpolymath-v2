@@ -22,10 +22,16 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
   return (
     <div
       className={cn(
+        // Craft register: a raised white field, not a recessed well. Card
+        // shadow at rest, the card-hover shadow on hover, and on focus the
+        // app-wide --ring-focus stacked over the lift so the field keeps its
+        // paper depth while the ring reads.
         "flex items-center gap-3 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-4",
-        "transition-[border-color,box-shadow] duration-150 ease-out",
-        "focus-within:border-[var(--hud-cyan)]",
-        "focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--hud-cyan)_10%,transparent)]",
+        "shadow-[var(--shadow-card)]",
+        "transition-[border-color,box-shadow] duration-[160ms] ease-out",
+        "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]",
+        "focus-within:border-[var(--edge-strong)]",
+        "focus-within:shadow-[var(--ring-focus),var(--shadow-card-hover)]",
         className
       )}
     >
@@ -51,7 +57,7 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
           type="button"
           onClick={onClear}
           aria-label="Clear search"
-          className="shrink-0 rounded-md p-1 text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
+          className="shrink-0 rounded-md p-1 text-[var(--ink-muted)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
         >
           <X size={16} strokeWidth={1.5} />
         </button>

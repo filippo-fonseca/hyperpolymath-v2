@@ -11,6 +11,7 @@ import {
   type SearchType,
 } from "@/lib/search";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useSearch } from "./SearchProvider";
 import { SearchInput } from "./SearchInput";
 import { flattenResults, SearchResults } from "./SearchResults";
@@ -90,7 +91,9 @@ export function SearchPageClient() {
           placeholder="Search everything: tasks, captures, projects, areas…"
         />
 
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {/* Segmented filter rail: one quiet track, the active segment lifted
+            onto a raised white plate. No cyan — selection is depth, not hue. */}
+        <div className="mt-3 flex flex-wrap items-center gap-1 rounded-2xl border border-[var(--edge)] bg-[var(--surface)] p-1">
           {FILTERS.map((f) => {
             const isActive = filter === f.value;
             const count =
@@ -99,27 +102,27 @@ export function SearchPageClient() {
               <button
                 key={f.value}
                 type="button"
+                aria-pressed={isActive}
                 onClick={() => setFilter(f.value)}
                 className={cn(
-                  "rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors duration-100",
+                  "flex items-center gap-1.5 rounded-lg px-3 py-1 font-mono text-[11px] uppercase tracking-[0.08em]",
+                  "transition-[color,background-color,box-shadow] duration-[160ms] ease-out",
                   isActive
-                    ? "text-[var(--hud-cyan)]"
+                    ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
                     : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
                 )}
-                style={
-                  isActive
-                    ? {
-                        background: "color-mix(in oklch, var(--hud-cyan) 14%, transparent)",
-                        boxShadow:
-                          "inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 26%, transparent)",
-                      }
-                    : {
-                        background: "color-mix(in oklch, var(--ink) 5%, transparent)",
-                      }
-                }
               >
                 {f.label}
-                {active && <span className="ml-1.5 opacity-70">{count}</span>}
+                {active && (
+                  <span
+                    className={cn(
+                      "text-[10px] tabular-nums",
+                      isActive ? "text-[var(--ink-muted)]" : "opacity-60"
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -129,7 +132,7 @@ export function SearchPageClient() {
       {/* Body. */}
       <div className="flex-1 pt-2">
         {!active ? (
-          <EmptyState />
+          <SearchIdle />
         ) : results.total === 0 ? (
           <NoResults query={term} />
         ) : (
@@ -147,28 +150,32 @@ export function SearchPageClient() {
   );
 }
 
-function EmptyState() {
+/**
+ * Both empty states now route through the app's single EmptyState, which puts
+ * the icon on a circular pastel plate. Search claims sky as its feature hue;
+ * the no-results state shifts to peach so a fruitless query reads as a
+ * different weather, not a broken page.
+ */
+function SearchIdle() {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 pt-24 text-center">
-      <Search size={48} strokeWidth={1.25} className="text-[var(--ink-muted)] opacity-40" />
-      <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">Search everything</h2>
-      <p className="max-w-sm font-serif text-[15px] text-[var(--ink-muted)]">
-        Tasks, captures, projects, areas, and habits, all in one place. Start typing above.
-      </p>
-    </div>
+    <EmptyState
+      size="page"
+      className="tint-sky"
+      icon={<Search strokeWidth={1.5} />}
+      title="Search everything"
+      description="Tasks, captures, projects, areas, and habits, all in one place. Start typing above."
+    />
   );
 }
 
 function NoResults({ query }: { query: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 pt-24 text-center">
-      <SearchX size={48} strokeWidth={1.25} className="text-[var(--ink-muted)] opacity-40" />
-      <h2 className="font-serif text-xl font-semibold text-[var(--ink)]">
-        No results for “{query}”
-      </h2>
-      <p className="max-w-sm font-serif text-[15px] text-[var(--ink-muted)]">
-        Try a different word, or check your filters.
-      </p>
-    </div>
+    <EmptyState
+      size="page"
+      className="tint-peach"
+      icon={<SearchX strokeWidth={1.5} />}
+      title={`No results for “${query}”`}
+      description="Try a different word, or check your filters."
+    />
   );
 }

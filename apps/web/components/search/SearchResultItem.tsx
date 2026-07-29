@@ -64,7 +64,10 @@ function Breadcrumb({
                 e.stopPropagation();
                 if (c.href) onNavigate(c.href);
               }}
-              className="truncate rounded-sm px-0.5 underline-offset-2 transition-colors duration-100 hover:text-[var(--hud-cyan)] hover:underline focus-visible:text-[var(--hud-cyan)] focus-visible:outline-none focus-visible:underline"
+              // Crumbs were the last cyan on this page once the badges and
+              // filter pills went pastel. They lean on weight and an underline
+              // instead, which is the craft register's way of saying "link".
+              className="truncate rounded-sm px-0.5 underline-offset-2 transition-colors duration-[160ms] ease-out hover:text-[var(--ink)] hover:underline focus-visible:text-[var(--ink)] focus-visible:underline"
               title={`Go to ${c.label}`}
             >
               {c.label}
@@ -148,8 +151,17 @@ export function SearchResultItem({
   return (
     <div
       className={cn(
-        "group/result relative rounded-lg transition-colors duration-100",
-        focused ? "bg-[var(--surface)]" : "hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]"
+        // Craft register: a result row is a card that only materialises under
+        // the pointer. At rest it is flat with a transparent hairline (a dense
+        // list of permanently-shadowed plates would be noise); hover and
+        // keyboard focus both lift it onto the raised white surface with the
+        // TaskCard shadow ladder. Border width is reserved at rest so nothing
+        // shifts when the rim appears.
+        "group/result relative rounded-xl border",
+        "transition-[border-color,background-color,box-shadow] duration-[160ms] ease-out",
+        focused
+          ? "border-[var(--edge-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-card-hover)]"
+          : "border-transparent hover:border-[var(--edge)] hover:bg-[var(--surface-raised)] hover:shadow-[var(--shadow-card)]"
       )}
     >
       <button
@@ -160,7 +172,7 @@ export function SearchResultItem({
         aria-selected={focused}
         onClick={() => onSelect(entry)}
         className={cn(
-          "w-full rounded-lg text-left",
+          "w-full rounded-xl text-left",
           compact ? "px-2.5 py-1.5" : "px-3 py-2.5",
           // Leave room for the breadcrumb row that sits below.
           showBreadcrumb && (compact ? "pb-1" : "pb-1.5")
