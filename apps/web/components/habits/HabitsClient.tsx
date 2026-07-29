@@ -33,6 +33,7 @@ import { HabitIcon } from "@/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -110,9 +111,13 @@ type StreakDisplay = { value: number; saturated: boolean };
  * the canvas, so it carries the only border), surface-raised fill, 8px radius
  * per the ladder, hover to --edge-strong only.
  */
+/** jul-29 craft restyle: habit rows are lifted white cards. Compose with a
+ *  tintFor(habit.id) class so the row's check circle and hover rim pick up
+ *  the habit's own pastel via var(--tint-…). */
 const ROW =
-  "flex items-center gap-3 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-4 py-3 " +
-  "transition-colors duration-[160ms] ease-out hover:border-[var(--edge-strong)]";
+  "flex items-center gap-3 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-4 py-3 " +
+  "shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out " +
+  "hover:border-[color-mix(in_srgb,var(--tint-edge,var(--edge-strong))_45%,var(--edge))] hover:shadow-[var(--shadow-card-hover)]";
 
 /**
  * /habits — the daily loop on the stage.
@@ -605,7 +610,7 @@ function DayHabitRow({
   onToggle: () => void;
 }) {
   return (
-    <div className={ROW}>
+    <div className={cn(ROW, tintFor(habit.id))}>
       <CheckCircle completed={completed} disabled={disabled} onClick={onToggle} />
       <div className="min-w-0 flex-1">
         <p
@@ -663,7 +668,7 @@ function ManageHabitRow({
     ...habit.areas.map((a) => `${a.emoji ?? ""} ${a.name}`.trim()),
   ];
   return (
-    <div className={ROW}>
+    <div className={cn(ROW, tintFor(habit.id))}>
       <button
         type="button"
         onClick={onEdit}
@@ -737,9 +742,11 @@ function CheckCircle({
       className={cn(
         "inline-flex size-7 shrink-0 items-center justify-center rounded-full border-2",
         "cursor-pointer-always transition-colors duration-[160ms] ease-out",
+        // Filled state rides the habit's own tint edge (falls back to the
+        // app accent outside a tinted row). White check on the saturated fill.
         completed
-          ? "border-transparent bg-[var(--accent)] text-[var(--canvas)]"
-          : "border-[var(--edge-strong)] bg-transparent hover:border-[var(--ink-faint)]",
+          ? "border-transparent bg-[var(--tint-edge,var(--accent))] text-white"
+          : "border-[color-mix(in_srgb,var(--tint-edge,var(--edge-strong))_60%,var(--edge-strong))] bg-[var(--tint-bg,transparent)] hover:border-[var(--tint-edge,var(--ink-faint))]",
         disabled && "cursor-not-allowed opacity-40"
       )}
     >
