@@ -1,5 +1,6 @@
 "use client";
 
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -36,15 +37,20 @@ export function HashtagChip({
   asButton = true,
 }: Props) {
   const className = cn(
-    "inline-flex items-center font-mono text-xs font-normal rounded-sm px-2 py-0.5",
+    "inline-flex items-center font-mono text-xs font-normal rounded-md px-2 py-0.5",
     "transition-colors duration-100 ease-out",
-    // Sage alpha ladder per UI-SPEC §9g — bg derived from --ink-sage via color-mix
+    // jul-29 craft restyle: each tag owns a deterministic pastel from the
+    // craft tint family (same tag → same hue everywhere) instead of the
+    // one-sage-fits-all ladder. Selection deepens the fill with the edge hue.
+    tintFor(displayName.toLowerCase()),
     isSelected
-      ? "bg-[color:color-mix(in_oklch,var(--ink-sage)_32%,transparent)] text-[var(--ink)]"
+      ? "bg-[color-mix(in_srgb,var(--tint-edge)_38%,var(--tint-bg))] text-[var(--tint-ink)]"
       : isNew
-        ? "bg-[color:color-mix(in_oklch,var(--ink-sage)_22%,transparent)] text-[var(--ink-sage)] italic"
-        : "bg-[color:color-mix(in_oklch,var(--ink-sage)_12%,transparent)] text-[var(--ink)]",
-    asButton && !isSelected && "hover:bg-[color:color-mix(in_oklch,var(--ink-sage)_22%,transparent)]",
+        ? "bg-[var(--tint-bg)] text-[var(--tint-ink)] italic"
+        : "bg-[var(--tint-bg)] text-[var(--tint-ink)]",
+    asButton &&
+      !isSelected &&
+      "hover:bg-[color-mix(in_srgb,var(--tint-edge)_20%,var(--tint-bg))]",
     asButton && "cursor-pointer-always",
   );
 
