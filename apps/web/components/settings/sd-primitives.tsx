@@ -1,13 +1,19 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { tintFor } from "@/lib/tint";
 
 /**
- * Shared Spacedrive-register primitives for the settings area.
+ * Shared section primitives for the settings area.
  *
- * These mirror the sd form grammar shipped by the Jarvis Personality/Startup
- * editors: WidgetCard-v2 section plates (--sd-box, 14px radius, hairline +
- * dark-only inset top highlight), 11px uppercase mono section eyebrows, and
- * --sd-ink typography. Single cyan accent, no glass, no glow, no serif.
+ * jul-29 craft restyle: the plates moved off the flat --sd-box register onto
+ * the app's card idiom — a raised white surface, one --edge hairline, the
+ * --shadow-card lift, 14px radius. They deliberately spell that idiom out in
+ * utilities rather than reaching for the unlayered `.craft-card` class, because
+ * `.craft-card` would win over any `className` a caller passes (the account
+ * page tints its delete plate coral, for one). Utilities go through
+ * tailwind-merge, so the last class named still wins.
+ *
+ * Eyebrows and body copy keep the mono/uppercase settings voice.
  */
 
 export function SettingsCard({
@@ -20,8 +26,9 @@ export function SettingsCard({
   return (
     <section
       className={cn(
-        "rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6",
-        "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]",
+        "rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] p-6",
+        "shadow-[var(--shadow-card)]",
+        "transition-[border-color,box-shadow] duration-[160ms] ease-out",
         className,
       )}
     >
@@ -41,7 +48,7 @@ export function SectionEyebrow({
   return (
     <h2
       className={cn(
-        "pl-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]",
+        "pl-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-faint)]",
         className,
       )}
     >
@@ -50,20 +57,27 @@ export function SectionEyebrow({
   );
 }
 
-/** Card title — the sd widget-card header weight. */
+/**
+ * Card title. When an `icon` is supplied it rides a small pastel plate whose
+ * hue is derived from the title itself, so a section keeps the same colour on
+ * every visit without anyone maintaining a colour table.
+ */
 export function CardTitle({
   children,
   icon,
+  tintKey,
   className,
 }: {
   children: ReactNode;
   icon?: ReactNode;
+  /** Hue seed when the title is not a plain string. Defaults to the title. */
+  tintKey?: string;
   className?: string;
 }) {
   const title = (
     <h3
       className={cn(
-        "text-[15px] font-semibold tracking-[-0.01em] text-[var(--sd-ink)]",
+        "text-[15px] font-semibold tracking-[-0.01em] text-[var(--ink)]",
         className,
       )}
     >
@@ -71,9 +85,10 @@ export function CardTitle({
     </h3>
   );
   if (!icon) return title;
+  const seed = tintKey ?? (typeof children === "string" ? children : "settings");
   return (
-    <div className="flex items-center gap-3">
-      <span className="flex size-9 items-center justify-center rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)]">
+    <div className={cn("flex items-center gap-3", tintFor(seed))}>
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--tint-bg)] text-[var(--tint-ink)]">
         {icon}
       </span>
       {title}
@@ -92,7 +107,7 @@ export function CardDescription({
   return (
     <p
       className={cn(
-        "text-[13px] leading-[1.5] text-[var(--sd-ink-dull)]",
+        "text-[13px] leading-[1.5] text-[var(--ink-muted)]",
         className,
       )}
     >

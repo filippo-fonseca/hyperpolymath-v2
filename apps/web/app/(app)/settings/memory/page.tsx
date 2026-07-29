@@ -9,10 +9,10 @@
  * breathing) frame the page; H1 stays serif 36px 600 "Memory" because
  * this is content-side, not the /health register-swap exception.
  *
- * Each fact card carries the §5d treatment (1px --edge left edge only +
- * --surface background + ambient --hud-cyan-glow-soft + mono chrome
- * metadata + serif body for the fact value). Card rendering lives in
- * MemoryTable.tsx which owns the realtime subscription + edit/delete UI.
+ * jul-29 craft restyle: the fact cards and the ledger summary moved onto the
+ * raised-white card ladder (see MemoryTable.tsx, which still owns the realtime
+ * subscription + edit/delete UI). The corner crops and .agent-mode-scope stay:
+ * they are the agent-adjacent register signal, not surface decoration.
  *
  * Carry-forward (UI-SPEC §14): the page is still a Server Component;
  * getJarvisFactsForUser query is untouched; MemoryTable is still the
@@ -31,7 +31,7 @@ export default async function MemoryPage() {
   const facts = await getJarvisFactsForUser(user.id);
 
   return (
-    <div className="agent-mode-scope relative min-h-screen bg-[var(--sd-app)] px-6 py-12">
+    <div className="agent-mode-scope relative min-h-screen bg-[var(--canvas)] px-6 py-12">
       <HudCornerCrops
         size={12}
         className="fixed inset-0 pointer-events-none z-0"
@@ -39,17 +39,17 @@ export default async function MemoryPage() {
       <main className="relative z-10 max-w-2xl mx-auto space-y-6">
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-2 flex-1">
-            <h1 className="text-4xl font-semibold text-[var(--sd-ink)]">
+            <h1 className="text-4xl font-semibold tracking-[-0.01em] text-[var(--ink)]">
               Memory
             </h1>
-            <p className="text-base text-[var(--sd-ink-dull)]">
+            <p className="text-base text-[var(--ink-muted)]">
               What JARVIS remembers about you, your preferences, and your
               workflow.
             </p>
           </div>
           <Link
             href="/jarvis"
-            className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-100 ease-out shrink-0 mt-2"
+            className="mt-2 inline-flex shrink-0 items-center rounded-lg border border-[var(--edge)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,background-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)]"
           >
             ← jarvis
           </Link>
@@ -65,20 +65,14 @@ export default async function MemoryPage() {
             {/* Memory ledger summary — uses the §5d FactCard chrome family
                 (1px --edge left edge only + ambient --hud-cyan-glow-soft)
                 so the page itself reads as a fact-card register. */}
-            <aside
-              className="bg-[var(--sd-box)] px-4 py-3 flex items-center gap-3"
-              style={{
-                borderLeft: "1px solid var(--sd-line)",
-                boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
-              }}
-            >
-              <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+            <aside className="flex items-center gap-3 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-4 py-3 shadow-[var(--shadow-card)]">
+              <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
                 FACT · ledger
               </span>
-              <span aria-hidden="true" className="text-[var(--sd-ink-dull)]">
+              <span aria-hidden="true" className="text-[var(--ink-faint)]">
                 ·
               </span>
-              <span className="font-mono text-[11px] text-[var(--sd-ink)]">
+              <span className="tint-lavender rounded-md border border-[color-mix(in_srgb,var(--tint-edge)_50%,transparent)] bg-[var(--tint-bg)] px-2 py-[1px] font-mono text-[11px] text-[var(--tint-ink)]">
                 {facts.length} remembered
               </span>
             </aside>

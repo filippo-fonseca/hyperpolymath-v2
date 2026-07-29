@@ -65,7 +65,10 @@ export function SettingsSectionNav() {
     <div className="sticky top-3 z-20 mb-8 pr-2">
       <div
         ref={railRef}
-        className="sd-scroll-hover relative flex items-center gap-1 overflow-x-auto rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1.5"
+        // Craft register: the rail floats over the cards as it scrolls, so it
+        // is glass chrome rather than another opaque plate. No bg-* utility
+        // here — .craft-glass is unlayered and would win anyway.
+        className="craft-glass sd-scroll-hover relative flex items-center gap-1 overflow-x-auto rounded-2xl p-1"
         style={{ scrollbarWidth: "none" }}
       >
         {ENTRIES.map((entry) => {
@@ -76,25 +79,27 @@ export function SettingsSectionNav() {
               type="button"
               onClick={() => go(entry.id)}
               aria-current={isActive ? "true" : undefined}
-              className="relative isolate shrink-0 cursor-pointer-always rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+              className="relative isolate shrink-0 cursor-pointer-always rounded-lg focus:outline-none"
             >
               {isActive && (
+                // The travelling plate. Segmented-control grammar: the active
+                // segment is a raised white card, selection reads as depth.
                 <motion.span
                   layoutId="settings-nav-pill"
                   aria-hidden="true"
-                  className="absolute inset-0 -z-10 rounded-full bg-[var(--sd-selected)]"
-                  transition={{
-                    type: "spring",
-                    stiffness: 360,
-                    damping: 32,
-                  }}
+                  className="absolute inset-0 -z-10 rounded-lg bg-[var(--surface-raised)] shadow-[var(--shadow-card)]"
+                  transition={
+                    reducedMotion
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 360, damping: 32 }
+                  }
                 />
               )}
               <span
-                className={`block px-3.5 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.14em] transition-colors duration-150 ease-out ${
+                className={`block px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.14em] transition-colors duration-[160ms] ease-out ${
                   isActive
-                    ? "text-[var(--sd-ink)]"
-                    : "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
+                    ? "font-medium text-[var(--ink)]"
+                    : "text-[var(--ink-faint)] hover:text-[var(--ink)]"
                 }`}
               >
                 {entry.label}
