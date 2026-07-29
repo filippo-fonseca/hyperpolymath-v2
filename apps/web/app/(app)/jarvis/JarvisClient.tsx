@@ -110,7 +110,7 @@ export function JarvisClient({
         aria-label="JARVIS sections"
         className="shrink-0 md:w-[252px] md:sticky md:top-6 md:self-start"
       >
-        <div className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-2 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+        <div className="rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-2 shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
           <div
             role="tablist"
             aria-orientation="vertical"

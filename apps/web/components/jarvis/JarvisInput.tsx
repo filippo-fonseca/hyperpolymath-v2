@@ -440,8 +440,16 @@ export function JarvisInput({
         //   via --ease-out-back overshoot, applied while igniting=true
         // - shouldReduce gates the breathing class (focus ring becomes static
         //   2px --hud-cyan) and the ignite animation
+        //
+        // jul-29 craft restyle: the plate itself is now .craft-glass-tile, the
+        // same treatment LiteJarvisComposer adopted, so the console's command
+        // line sits on real glass with the card shadow instead of a flat
+        // --sd-input box. craft-glass-tile is UNLAYERED css, so the focused
+        // state has to override it inline (below) rather than via a utility.
+        // That inline style only paints when focused, leaving the tile's own
+        // border and inset highlight to govern the idle state.
         className={[
-          "relative rounded-2xl transition-[box-shadow,border-color] duration-200 ease-out",
+          "craft-glass-tile relative rounded-2xl transition-[box-shadow,border-color] duration-200 ease-out",
           disabled ? "opacity-60 pointer-events-none" : "",
           // Phase 33 Plan 02 — the breathing focus ring was declared in CSS but
           // never wired to a className. Apply it whenever the input is in
@@ -451,17 +459,15 @@ export function JarvisInput({
         ]
           .filter(Boolean)
           .join(" ")}
-        style={{
-          backgroundColor: "var(--sd-input)",
-          border:
-            focusedIdle || focusedActive
-              ? "1px solid color-mix(in oklch, var(--sd-accent) 70%, transparent)"
-              : "1px solid var(--sd-line)",
-          boxShadow:
-            focusedIdle || focusedActive
-              ? "0 0 0 4px color-mix(in oklch, var(--sd-accent) 10%, transparent), 0 1px 2px rgba(0,0,0,0.06)"
-              : "0 1px 2px rgba(0,0,0,0.04)",
-        }}
+        style={
+          focusedIdle || focusedActive
+            ? {
+                border: "1px solid color-mix(in oklch, var(--sd-accent) 70%, transparent)",
+                boxShadow:
+                  "inset 0 1px 0 var(--glass-panel-highlight), 0 0 0 4px color-mix(in oklch, var(--sd-accent) 10%, transparent), var(--shadow-card)",
+              }
+            : undefined
+        }
       >
         {pinnedSlashCommand ? (
           <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-border/50 font-mono text-[12px]">
@@ -574,7 +580,7 @@ export function JarvisInput({
       ) : null}
 
       {showHelp ? (
-        <div className="absolute bottom-full left-0 mb-2 min-w-[20rem] rounded-md border bg-popover p-3 font-mono text-xs shadow-md z-50">
+        <div className="absolute bottom-full left-0 mb-2 min-w-[20rem] rounded-xl border bg-popover p-3 font-mono text-xs shadow-[var(--shadow-pop)] z-50">
           <div className="mb-1.5 text-muted-foreground">Commands:</div>
           <ul className="space-y-0.5">
             <li>

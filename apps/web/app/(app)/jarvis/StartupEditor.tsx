@@ -269,7 +269,7 @@ export function StartupEditor({ initial }: Props) {
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <section className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+    <section className="rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
       {children}
     </section>
   );

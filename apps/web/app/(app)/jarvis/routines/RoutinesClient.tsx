@@ -85,7 +85,7 @@ export function RoutinesClient({ userId, initialRoutines }: Props) {
   if (routines.length === 0) {
     return (
       <div className="space-y-8">
-        <div className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-8 text-center dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+        <div className="rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-8 text-center shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
           <p className="text-xl font-semibold text-[var(--sd-ink)]">No routines yet.</p>
           <p className="mx-auto mt-2 max-w-[440px] text-[14px] leading-[1.55] text-[var(--sd-ink-dull)]">
             A routine lets JARVIS do a sequence of smart things on a trigger.
@@ -108,7 +108,7 @@ export function RoutinesClient({ userId, initialRoutines }: Props) {
                   key={tpl.key}
                   type="button"
                   onClick={() => setDraft(instantiateTemplate(tpl))}
-                  className="group flex flex-col items-start gap-2 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-5 text-left transition-colors duration-[140ms] hover:bg-[var(--sd-hover)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]"
+                  className="group flex flex-col items-start gap-2 rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-5 text-left shadow-[var(--shadow-card)] transition-[background-color,border-color,box-shadow] duration-[140ms] ease-out hover:bg-[var(--sd-hover)] hover:shadow-[var(--shadow-card-hover)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)] dark:hover:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card-hover)]"
                 >
                   <span
                     style={{ background: "var(--sd-input)" }}
@@ -177,7 +177,7 @@ function RoutineRow({
   const blockCount = routine.spec.blocks.length;
 
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-5 sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+    <div className="flex flex-col gap-3 rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-5 shadow-[var(--shadow-card)] sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <p className="text-[16px] font-semibold text-[var(--sd-ink)]">{routine.name}</p>

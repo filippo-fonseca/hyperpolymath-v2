@@ -58,7 +58,7 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-3 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]"
+      className="flex items-center gap-3 rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-3 shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]"
     >
       <button
         type="button"

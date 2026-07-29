@@ -15,8 +15,9 @@
  * - If user ignores and types a new message, the Console marks answered=true
  *   on all prior clarifications (historical record, no further interaction).
  *
- * sd (Spacedrive) register: a solid recessed --sd-darker-box plate with a
- * hairline border — NO backdrop-blur, NO glow. A cyan mono 'clarify' readout
+ * sd (Spacedrive) register: a solid --sd-darker-box plate with a hairline
+ * border and the craft --shadow-card lift so it reads as its own raised card
+ * inside the turn — NO backdrop-blur, NO glow. A cyan mono 'clarify' readout
  * marks it as JARVIS chrome; the question reads in Space Grotesk; chip options
  * and reply field speak the single cyan accent.
  */
@@ -48,7 +49,7 @@ export function JarvisClarification({ clarification, onReply }: Props) {
     <div
       style={{ background: "var(--sd-darker-box)" }}
       className={cn(
-        "relative rounded-[12px] border border-[var(--sd-line)] px-4 py-3 my-1 overflow-hidden transition-colors duration-[140ms] ease-out",
+        "relative rounded-xl border border-[var(--sd-line)] px-4 py-3 my-1 overflow-hidden shadow-[var(--shadow-card)] transition-colors duration-[140ms] ease-out",
         disabled && "opacity-60",
       )}
     >
