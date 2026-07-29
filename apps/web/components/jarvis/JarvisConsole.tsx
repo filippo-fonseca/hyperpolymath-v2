@@ -21,7 +21,7 @@ import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
 // to break the Wave 2 race). HudStatusPill + HudThinkingRing are this plan's
 // JARVIS-specific primitives.
 import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
-import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatusPill";
+import { JarvisStatusPill, type JarvisStatusState } from "./JarvisStatusPill";
 import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
@@ -1158,7 +1158,7 @@ export function JarvisConsole({
   // happy path. SENDING is the brief window between submit (streaming=true) and
   // the assistant turn entering scrollback (which it does immediately, so SENDING
   // is fleeting — acceptable per UI-SPEC §6b state 4).
-  const status: HudStatusState = useMemo(() => {
+  const status: JarvisStatusState = useMemo(() => {
     // Walk from the end — most recent assistant turn governs the pill
     for (let i = turns.length - 1; i >= 0; i--) {
       const t = turns[i];
@@ -1199,7 +1199,7 @@ export function JarvisConsole({
     //
     // Phase 6.1 Plan 02 (UI-SPEC §5a, §6d, §6e):
     //   - HudCornerCrops: 4 viewport-corner L-bracket crops, 12px legs, breathing 6s loop
-    //   - HudStatusPill: top-right state indicator (READY/SENDING/THINKING/STREAMING/ERROR)
+    //   - JarvisStatusPill: top-right state indicator (Ready/Sending/Thinking/Streaming/Error)
     //   - HudEdgeInstrumentation: bottom-edge LATENCY/CACHE/LAST telemetry rail
     // `relative` is required so the absolutely-positioned chrome anchors to the
     // console viewport, not the page.
@@ -1210,7 +1210,7 @@ export function JarvisConsole({
 
       {/* Phase 6.1 Plan 02: top-right status pill. Positioned absolute so it
           doesn't displace the scrollback layout. */}
-      <HudStatusPill state={status} className="absolute top-4 right-4 z-10" />
+      <JarvisStatusPill state={status} className="absolute top-4 right-4 z-10" />
 
       {/* Phase 14-03 / nav-move: "Voice via desktop" pill moved to the
           PersistentNav voice-status row so it no longer overlays JARVIS
