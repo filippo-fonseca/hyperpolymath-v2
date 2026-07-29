@@ -302,7 +302,7 @@ async function seedFixtures(sql, userId) {
       insert into habit_completions (id, habit_id, user_id, completed_date, status)
       values (${id(`completion:${habitKey}:${dayOffset}`)}, ${id(habitKey)}, ${userId},
               ${isoDaysFromNow(dayOffset)}::date, 'done')
-      on conflict (id) do nothing
+      on conflict (habit_id, completed_date) do nothing
     `;
   }
 
