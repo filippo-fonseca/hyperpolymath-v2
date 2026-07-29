@@ -18,12 +18,10 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { reorderTasks } from "@/app/actions/tasks";
 import { TaskListRow } from "./TaskListRow";
 import { PriorityChip } from "./PriorityChip";
-import { cn } from "@/lib/utils";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 
@@ -90,8 +88,8 @@ export function TaskList({
       for (const [status, orderedIds] of byStatus) {
         const r = await reorderTasks({ status, orderedIds });
         if (!r.success) {
-          // D-03: explicit revert (RT-06: overlay no longer auto-reverts) +
-          // toast.error. Drop the order override → fall back to canonical order.
+          // Explicit revert + toast.error. Drop the order override and fall
+          // back to canonical order.
           toast.error(r.error);
           addOptimistic({ type: "revert-reorder" });
           return;
@@ -117,56 +115,49 @@ export function TaskList({
         strategy={verticalListSortingStrategy}
       >
         <div className="flex flex-col">
-          {/* Header row — mono metadata chrome, sd hairline divider */}
+          {/* Column captions — quiet text-micro register over one hairline. */}
           {showHeader && (
-          <div className="flex items-center gap-2 h-8 px-2 border-b border-[var(--sd-line)]">
-            <div className="w-4 flex-shrink-0" /> {/* drag handle placeholder */}
-            <div className="w-4 flex-shrink-0" /> {/* checkbox placeholder */}
-            <div className="w-4 flex-shrink-0" /> {/* priority placeholder */}
-            <span className="flex-1 font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
-              Title
-            </span>
-            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] w-28 flex-shrink-0">
-              Project
-            </span>
-            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] w-24 flex-shrink-0">
-              Status
-            </span>
-            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] w-20 flex-shrink-0">
-              Due
-            </span>
-            <div className="w-6 flex-shrink-0" />
-          </div>
+            <div className="flex h-8 items-center gap-2 border-b border-[var(--edge)] px-2">
+              <div className="w-4 flex-shrink-0" /> {/* drag handle placeholder */}
+              <div className="w-4 flex-shrink-0" /> {/* checkbox placeholder */}
+              <div className="w-4 flex-shrink-0" /> {/* priority placeholder */}
+              <span className="flex-1 text-micro font-medium text-[var(--ink-faint)]">
+                Title
+              </span>
+              <span className="w-28 flex-shrink-0 text-micro font-medium text-[var(--ink-faint)]">
+                Project
+              </span>
+              <span className="w-24 flex-shrink-0 text-micro font-medium text-[var(--ink-faint)]">
+                Status
+              </span>
+              <span className="w-20 flex-shrink-0 text-micro font-medium text-[var(--ink-faint)]">
+                Due
+              </span>
+              <div className="w-6 flex-shrink-0" />
+            </div>
           )}
 
-          {/* AnimatePresence drives TaskListRow exit animation (opacity 0 + height 0)
-              on delete per UI-SPEC §7c / felt-quality mandate. `mode="popLayout"`
-              lets sibling rows reflow during the exit instead of holding the slot. */}
-          <AnimatePresence mode="popLayout" initial={false}>
-            {tasks.map((task) => (
-              <TaskListRow
-                key={task.id}
-                task={task}
-                onRowClick={onTaskClick}
-                addOptimistic={addOptimistic}
-              />
-            ))}
-          </AnimatePresence>
+          {tasks.map((task) => (
+            <TaskListRow
+              key={task.id}
+              task={task}
+              onRowClick={onTaskClick}
+              addOptimistic={addOptimistic}
+            />
+          ))}
         </div>
       </SortableContext>
 
-      {/* DragOverlay — floating preview */}
+      {/* DragOverlay — floating preview. The transient lifted row is the one
+          surface here allowed a soft shadow (it floats like a popover). */}
       <DragOverlay>
         {activeTask ? (
           <div
-            className={cn(
-              "flex items-center gap-2 h-10 px-3 rounded-[6px] opacity-95",
-              "bg-[var(--sd-box)] border border-[var(--sd-line)]",
-            )}
-            style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+            className="flex h-9 items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 opacity-95"
+            style={{ boxShadow: "0 4px 16px rgb(0 0 0 / 0.06)" }}
           >
             <PriorityChip priority={activeTask.priority} />
-            <span className="font-serif text-base text-[var(--sd-ink)] truncate flex-1">
+            <span className="flex-1 truncate text-body text-[var(--ink)]">
               {activeTask.title}
             </span>
           </div>
