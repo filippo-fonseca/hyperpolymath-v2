@@ -362,7 +362,10 @@ export function TasksClient({
       }
       if (filters.due.length > 0) {
         const today = startOfDay(new Date());
-        const due = t.dueDate ? startOfDay(new Date(t.dueDate)) : null;
+        // fromYmd, never `new Date(ymd)`: the bare Date constructor parses a
+        // YMD as UTC midnight, which lands on yesterday in negative-UTC
+        // timezones and makes today's tasks match "overdue".
+        const due = t.dueDate ? fromYmd(t.dueDate) : null;
         const matched = filters.due.some((d) => {
           if (d === "no-date") return due === null;
           if (due === null) return false;
@@ -768,7 +771,8 @@ export function TasksClient({
   const headerStats = useMemo(() => {
     const today = startOfDay(new Date());
     const open = tasks.filter((t) => t.status !== "lesno");
-    const overdue = open.filter((t) => t.dueDate && isBefore(new Date(t.dueDate), today)).length;
+    // fromYmd, not `new Date(ymd)` (UTC-midnight drift; see the due filter).
+    const overdue = open.filter((t) => t.dueDate && isBefore(fromYmd(t.dueDate), today)).length;
     return {
       open: open.length,
       overdue,
