@@ -66,14 +66,14 @@ function DeviceRow({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-center gap-2 rounded-[6px] px-1 py-1",
+        "flex min-w-0 items-center gap-2 rounded-lg px-1 py-1",
         reachable ? "text-[var(--sd-ink)]" : "text-[var(--sd-ink-dull)]",
       )}
       title={light.stateError ? light.stateError : undefined}
     >
       <span
         aria-hidden
-        className="h-3.5 w-3.5 shrink-0 rounded-[3px] border border-[var(--sd-line)]"
+        className="h-3.5 w-3.5 shrink-0 rounded-[4px] border border-[var(--sd-line)]"
         style={{
           background: isOn
             ? (swatch ?? "color-mix(in oklch, var(--hud-cyan) 45%, transparent)")
@@ -91,7 +91,7 @@ function DeviceRow({
         <div className="truncate text-[12px] font-medium tracking-wide">{light.name}</div>
         <div
           className={cn(
-            "truncate font-mono text-[10px] uppercase tracking-[0.08em]",
+            "truncate text-micro tabular-nums",
             reachable ? "text-[var(--sd-ink-dull)]" : "text-[var(--sd-ink-faint)]",
           )}
         >
@@ -139,7 +139,7 @@ export function SidebarHomeDevicesStrip({ collapsed }: Props) {
               aria-label={label}
               className={cn(
                 SB_FOCUS,
-                "relative mx-auto flex h-7 w-7 items-center justify-center rounded-[6px] text-[var(--sd-ink-dull)] transition-colors hover:text-[var(--sd-ink)]",
+                "relative mx-auto flex h-7 w-7 items-center justify-center rounded-lg text-[var(--sd-ink-dull)] transition-colors hover:text-[var(--sd-ink)]",
                 connected && hasDevices && "text-[var(--hud-cyan)]",
               )}
             >
@@ -167,14 +167,14 @@ export function SidebarHomeDevicesStrip({ collapsed }: Props) {
   const headerStatus = isLoading
     ? "…"
     : isError
-      ? "err"
+      ? "Error"
       : connected
         ? onDevices.length > 0
           ? `${onDevices.length} on · ${reachableCount} linked`
           : hasDevices
             ? `${reachableCount} linked`
             : "—"
-        : "offline";
+        : "Offline";
 
   return (
     <section
@@ -201,10 +201,16 @@ export function SidebarHomeDevicesStrip({ collapsed }: Props) {
             aria-hidden
           />
         )}
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+        {/* Sanctioned uppercase: this is the HOME strip's sidebar section
+            eyebrow, so it adopts the Sidebar SB eyebrow grammar verbatim
+            (SDC-1 §2.4) instead of its old mono register. */}
+        <span
+          data-eyebrow="sidebar-section"
+          className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+        >
           Home
         </span>
-        <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+        <span className="ml-auto text-micro tabular-nums text-[var(--sd-ink-dull)]">
           {headerStatus}
         </span>
       </div>

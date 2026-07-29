@@ -260,10 +260,10 @@ export function SidebarTree({
     // wiring choice; documented in 06-02 SUMMARY).
     if (collapsed) {
       // Collapsed sidebar: keep the original compact text-only fallback to
-      // avoid wrapping the EmptyState H2 in a 48px-wide rail. Mono register
-      // matches the surrounding sidebar chrome (UI-SPEC §5e).
+      // avoid wrapping the EmptyState H2 in a 48px-wide rail. Body copy, so
+      // it stays sentence case in the sans micro register (SDC-1 §2.4).
       return (
-        <div className="px-4 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+        <div className="px-4 py-2 text-micro text-[var(--sd-ink-faint)]">
           No areas yet.
         </div>
       );
@@ -332,7 +332,7 @@ export function SidebarTree({
           // the visual matches the row the user grabbed.
           <div
             className={cn(
-              "flex items-center gap-2.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1.5 select-none cursor-grabbing shadow-lg",
+              "flex items-center gap-2.5 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1.5 select-none cursor-grabbing shadow-lg",
               "text-[13px] tracking-tight font-medium text-[var(--sd-ink)]",
             )}
             style={{ width: collapsed ? 48 : 244 }}
@@ -347,7 +347,7 @@ export function SidebarTree({
           // register.
           <div
             className={cn(
-              "flex items-center gap-2 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1 select-none cursor-grabbing shadow-lg",
+              "flex items-center gap-2 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1 select-none cursor-grabbing shadow-lg",
               "text-[13px] tracking-tight text-[var(--sd-ink)]",
             )}
             style={{ width: collapsed ? 48 : 220 }}
@@ -375,7 +375,7 @@ export function SidebarTree({
 function AreaGlyph({ emoji }: { emoji: string | null }) {
   if (emoji) {
     return (
-      <span className="flex h-[18px] w-[18px] items-center justify-center rounded-[6px] bg-[var(--sd-hover)] text-[11px] leading-none shrink-0">
+      <span className="flex h-[18px] w-[18px] items-center justify-center rounded-[4px] bg-[var(--sd-hover)] text-[11px] leading-none shrink-0">
         {emoji}
       </span>
     );
@@ -470,7 +470,7 @@ function SortableAreaRow({
           setRightClickOpen(true);
         }}
         className={cn(
-          "group/area flex items-center gap-2.5 rounded-[6px] px-2 py-1.5 select-none",
+          "group/area flex items-center gap-2.5 rounded-lg px-2 py-1.5 select-none",
           "text-[13px] tracking-tight",
           "transition-colors duration-[120ms] ease-out",
           "cursor-grab active:cursor-grabbing",
@@ -524,7 +524,7 @@ function SortableAreaRow({
               }}
               className={cn(
                 SB_FOCUS,
-                "flex items-center justify-center h-5 w-5 rounded-[6px]",
+                "flex items-center justify-center h-5 w-5 rounded-lg",
                 "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
                 // focus-visible forces the reveal back: the control is tabbable,
                 // so without this a keyboard user lands a focus ring on an
@@ -644,7 +644,7 @@ function SortableProjectRow({
           setRightClickOpen(true);
         }}
         className={cn(
-          "group/project flex items-center gap-2 rounded-[6px] px-2 py-1 select-none",
+          "group/project flex items-center gap-2 rounded-lg px-2 py-1 select-none",
           // Serif sub-row register (UI-SPEC §5e — project sub-rows in serif)
           "text-[13px] tracking-tight",
           "transition-colors duration-[120ms] ease-out",
@@ -820,7 +820,7 @@ function ProjectActionsMenu({
             onClick={(e) => e.stopPropagation()}
             className={cn(
               SB_FOCUS,
-              "flex items-center justify-center h-5 w-5 rounded-[6px]",
+              "flex items-center justify-center h-5 w-5 rounded-lg",
               "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
               // See the area-row note: keyboard focus must un-hide the control.
               "opacity-0 group-hover/project:opacity-100 data-[state=open]:opacity-100 focus-visible:!opacity-100",
