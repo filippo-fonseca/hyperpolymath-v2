@@ -84,7 +84,7 @@ export function ProjectMultiSelect({
           {selectedProjects.map((p) => (
             <span
               key={p.id}
-              className="inline-flex items-center gap-1 font-sans text-[13px] bg-secondary text-foreground rounded-md px-2 py-0.5"
+              className="inline-flex items-center gap-1 font-sans text-[13px] bg-secondary text-foreground rounded-[4px] px-2 py-0.5"
             >
               {displayName(p)}
               <button

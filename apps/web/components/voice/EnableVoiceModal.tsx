@@ -312,7 +312,7 @@ export function EnableVoiceModal({
                     aria-pressed={isSelected}
                     disabled={auditioning !== null}
                     className={cn(
-                      "w-full text-left px-4 py-3 rounded-md border transition-colors duration-150 ease-out",
+                      "w-full text-left px-4 py-3 rounded-lg border transition-colors duration-150 ease-out",
                       "font-serif text-sm",
                       isSelected
                         ? "border-[var(--hud-cyan)] bg-[var(--surface-raised)] text-[var(--ink)]"
