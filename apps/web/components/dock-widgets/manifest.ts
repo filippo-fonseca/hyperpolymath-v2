@@ -1,4 +1,5 @@
 import type { DockWidgetDef } from "@/components/shell/cockpit/dock-registry";
+import { habitsWidget } from "./habits";
 import { homeDevicesWidget } from "./home-devices";
 import { nextEventWidget } from "./next-event";
 import { todayCountsWidget } from "./today-counts";
@@ -18,4 +19,5 @@ export const DOCK_WIDGETS: DockWidgetDef<unknown>[] = [
   todayCountsWidget,
   nextEventWidget,
   homeDevicesWidget,
+  habitsWidget,
 ];

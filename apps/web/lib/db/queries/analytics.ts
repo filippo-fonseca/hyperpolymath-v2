@@ -1,5 +1,6 @@
 import { and, eq, gte, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { computeHabitStreak } from "@/lib/habits/streak";
 import {
   captures,
   capturesHashtags,
@@ -369,17 +370,16 @@ export async function getAnalyticsData(userId: string): Promise<AnalyticsData> {
   for (const h of activeHabits) {
     const completed = completionsByHabit.get(h.id) ?? new Set<string>();
     const createdISO = toISODate(h.createdAt);
-    let streak = 0;
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(today.getTime() - i * DAY_MS);
-      const iso = toISODate(d);
-      if (iso < createdISO) break;
-      const dow = d.getDay();
-      const scheduled = h.daysOfWeek[dow] ?? false;
-      if (!scheduled) continue;
-      if (completed.has(iso)) streak++;
-      else break;
-    }
+    // Shared streak semantics (lib/habits/streak.ts): schedule-aware, today
+    // forgiven until it is done. `current` is what the /habits page and the
+    // dock widget display, so analytics can never disagree with them.
+    const { current: streak } = computeHabitStreak({
+      daysOfWeek: h.daysOfWeek,
+      createdAtISO: createdISO,
+      completed,
+      todayISO: rangeEndISO,
+      windowStartISO: rangeStartISO,
+    });
     if (!bestStreak || streak > bestStreak.streak) {
       bestStreak = { habitId: h.id, name: h.name, streak };
     }
