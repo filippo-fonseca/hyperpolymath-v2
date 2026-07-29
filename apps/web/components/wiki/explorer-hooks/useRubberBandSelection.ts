@@ -83,7 +83,8 @@ export function useRubberBandSelection({
         const ry = rectDom.top - containerBounds.top + container.scrollTop;
         const rw = rectDom.width;
         const rh = rectDom.height;
-        const intersects = rx < x + width && rx + rw > x && ry < y + height && ry + rh > y;
+        const intersects =
+          rx < x + width && rx + rw > x && ry < y + height && ry + rh > y;
         if (intersects) ids.push(id);
       }
       const key = ids.join("|");
@@ -127,7 +128,7 @@ export function useRubberBandSelection({
       };
       lastIdsRef.current = "";
     },
-    [containerRef, ignoreSelector, itemSelector]
+    [containerRef, ignoreSelector, itemSelector],
   );
 
   return { rect, active: rect !== null, onPointerDown };

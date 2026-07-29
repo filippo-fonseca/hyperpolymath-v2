@@ -1,12 +1,16 @@
 "use client";
 
-import { createFolder, deleteFolder, renameFolder } from "@/app/actions/folders";
+import {
+  createFolder,
+  deleteFolder,
+  renameFolder,
+} from "@/app/actions/folders";
 import { createPage, deletePage } from "@/app/actions/pages";
 import type { useExplorerMutations } from "@/components/wiki/explorer-hooks/useExplorerMutations";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import type { FolderRow } from "@/lib/pages/folder-projects";
-import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 type Mutations = ReturnType<typeof useExplorerMutations>;
@@ -42,7 +46,7 @@ export function useExplorerActions({
       }
       router.push(`/wiki/${item.id}`);
     },
-    [clearSelection, router, setFolderId]
+    [clearSelection, router, setFolderId],
   );
 
   const handleCreatePage = useCallback(async () => {
@@ -61,7 +65,7 @@ export function useExplorerActions({
         coverImageAttribution: null,
         noExport: false,
         folderId,
-        folderName: folderId ? (folders.find((f) => f.id === folderId)?.name ?? null) : null,
+        folderName: folderId ? folders.find((f) => f.id === folderId)?.name ?? null : null,
         dailyDate: null,
         positionKey: null,
         createdAt: now,
@@ -96,7 +100,7 @@ export function useExplorerActions({
       if (!r.success) toast.error(r.error);
       mutations.invalidateFolders();
     },
-    [folderId, mutations]
+    [folderId, mutations],
   );
 
   const handleDelete = useCallback(
@@ -126,7 +130,7 @@ export function useExplorerActions({
       mutations.invalidateFolders();
       mutations.invalidatePages();
     },
-    [childrenOf, mutations]
+    [childrenOf, mutations],
   );
 
   const submitRename = useCallback(
@@ -136,7 +140,7 @@ export function useExplorerActions({
         await mutations.rename(renameTarget.id, name);
       } else {
         mutations.patchFolders((old) =>
-          old.map((f) => (f.id === renameTarget.id ? { ...f, name } : f))
+          old.map((f) => (f.id === renameTarget.id ? { ...f, name } : f)),
         );
         const r = await renameFolder({ id: renameTarget.id, name });
         if (!r.success) toast.error(r.error);
@@ -144,7 +148,7 @@ export function useExplorerActions({
       }
       setRenameTarget(null);
     },
-    [mutations, renameTarget]
+    [mutations, renameTarget],
   );
 
   return {

@@ -41,7 +41,10 @@ export interface ExplorerHistoryStack {
  * in sync (including echoes of our own `setFolderId`/`goBack`/`goForward`,
  * which update `last` before the URL round-trips).
  */
-export function syncExplorerHistory(s: ExplorerHistoryStack, folderId: string | null): void {
+export function syncExplorerHistory(
+  s: ExplorerHistoryStack,
+  folderId: string | null,
+): void {
   if (s.last === folderId) return;
   if (s.past.length > 0 && s.past[s.past.length - 1] === folderId) {
     // Looks like a browser Back: mirror goBack so the forward chevron works.
@@ -59,17 +62,22 @@ export function syncExplorerHistory(s: ExplorerHistoryStack, folderId: string | 
   s.last = folderId;
 }
 
-export function useExplorerFolder(folders: FolderRow[]): UseExplorerFolderResult {
+export function useExplorerFolder(
+  folders: FolderRow[],
+): UseExplorerFolderResult {
   // `history: "push"` so every folder navigation adds a browser history entry
   // (nuqs default is replaceState). Without it, drilling into a folder
   // overwrites the /wiki root entry and browser Back skips past the wiki.
   const [raw, setRaw] = useQueryState(
     "folder",
-    parseAsString.withDefault("").withOptions({ history: "push" })
+    parseAsString.withDefault("").withOptions({ history: "push" }),
   );
   const currentRaw = raw && raw.length > 0 ? raw : null;
 
-  const byId = useMemo(() => new Map(folders.map((f) => [f.id, f] as const)), [folders]);
+  const byId = useMemo(
+    () => new Map(folders.map((f) => [f.id, f] as const)),
+    [folders],
+  );
   const folderId = currentRaw && byId.has(currentRaw) ? currentRaw : null;
 
   // History stack: past + future, keyed by the same value we write to the URL
@@ -101,7 +109,7 @@ export function useExplorerFolder(folders: FolderRow[]): UseExplorerFolderResult
       s.last = next;
       void setRaw(next ?? "");
     },
-    [setRaw]
+    [setRaw],
   );
 
   const goBack = useCallback(() => {

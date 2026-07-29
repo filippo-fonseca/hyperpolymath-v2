@@ -17,7 +17,7 @@ export type ExplorerSelectionId = string;
 export function rangeBetween(
   a: ExplorerSelectionId | null,
   b: ExplorerSelectionId,
-  order: ExplorerSelectionId[]
+  order: ExplorerSelectionId[],
 ): ExplorerSelectionId[] {
   if (!a) return [b];
   const i = order.indexOf(a);
@@ -42,11 +42,7 @@ export interface UseExplorerSelectionResult {
   selectOnly: (ids: ExplorerSelectionId[]) => void;
   addAll: (ids: ExplorerSelectionId[]) => void;
   clear: () => void;
-  moveCursor: (
-    direction: "up" | "down" | "left" | "right",
-    columns: number,
-    extend: boolean
-  ) => void;
+  moveCursor: (direction: "up" | "down" | "left" | "right", columns: number, extend: boolean) => void;
   setOrder: (order: ExplorerSelectionId[]) => void;
 }
 
@@ -57,7 +53,7 @@ export interface UseExplorerSelectionResult {
  * shift-range work; callers pass the sorted/filtered ids for the current view.
  */
 export function useExplorerSelection(
-  initialOrder: ExplorerSelectionId[] = []
+  initialOrder: ExplorerSelectionId[] = [],
 ): UseExplorerSelectionResult {
   const [selected, setSelected] = useState<Set<ExplorerSelectionId>>(new Set());
   const [anchor, setAnchor] = useState<ExplorerSelectionId | null>(null);
@@ -126,7 +122,7 @@ export function useExplorerSelection(
       setAnchor(id);
       setCursor(id);
     },
-    [anchor]
+    [anchor],
   );
 
   const moveCursor = useCallback(
@@ -163,7 +159,7 @@ export function useExplorerSelection(
       setAnchor(nextId);
       setCursor(nextId);
     },
-    [anchor, cursor]
+    [anchor, cursor],
   );
 
   return useMemo(
@@ -190,6 +186,6 @@ export function useExplorerSelection(
       clear,
       moveCursor,
       setOrder,
-    ]
+    ],
   );
 }

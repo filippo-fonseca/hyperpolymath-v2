@@ -1,8 +1,8 @@
 "use client";
 
-import type { ExplorerViewMode } from "@/components/wiki/explorer";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
+import type { ExplorerViewMode } from "@/components/wiki/explorer";
 import type { RefObject } from "react";
 import { useEffect } from "react";
 
@@ -10,7 +10,11 @@ interface Selection {
   clear: () => void;
   selectOnly: (ids: string[]) => void;
   cursor: string | null;
-  moveCursor: (direction: "up" | "down" | "left" | "right", cols: number, shift: boolean) => void;
+  moveCursor: (
+    direction: "up" | "down" | "left" | "right",
+    cols: number,
+    shift: boolean,
+  ) => void;
 }
 
 interface UseExplorerKeyboardArgs {
@@ -72,10 +76,8 @@ export function useExplorerKeyboard({
       }
       if (
         !inField &&
-        (event.key === "ArrowUp" ||
-          event.key === "ArrowDown" ||
-          event.key === "ArrowLeft" ||
-          event.key === "ArrowRight")
+        (event.key === "ArrowUp" || event.key === "ArrowDown" ||
+          event.key === "ArrowLeft" || event.key === "ArrowRight")
       ) {
         event.preventDefault();
         const direction = event.key.replace("Arrow", "").toLowerCase() as
@@ -105,7 +107,7 @@ export function useExplorerKeyboard({
 /** Rough column count for keyboard grid nav — reads inline template if the grid rendered. */
 function gridColumnCount(container: HTMLElement | null): number {
   if (!container) return 1;
-  const grid = container.querySelector<HTMLElement>('[data-view="grid"]');
+  const grid = container.querySelector<HTMLElement>("[data-view=\"grid\"]");
   if (!grid) return 1;
   const style = window.getComputedStyle(grid);
   const template = style.gridTemplateColumns.split(" ").filter(Boolean);
