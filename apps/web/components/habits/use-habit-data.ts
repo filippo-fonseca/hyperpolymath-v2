@@ -21,12 +21,17 @@ import { toast } from "sonner";
  * one streak source (`getHabitDockToday`, itself built on
  * `lib/habits/streak.ts`).
  *
- * Invalidation contract (the round-trip budget): completions refresh rides the
- * realtime echo ALONE. A toggle never explicitly invalidates the completions
- * key, so the echo and an explicit invalidate cannot both fire — one refetch
- * per toggle, shared by every surface observing the entry. The optimistic
- * overlay (`useOptimisticList`) holds the row until canonical catches up, so a
- * slow echo cannot flash the check off and back on.
+ * Invalidation contract (the round-trip budget): one refetch per toggle,
+ * shared by every surface observing the entry, with ownership split by
+ * direction. A CHECK (insert) rides the realtime echo alone. An UN-CHECK
+ * (delete) is explicitly invalidated here, because postgres_changes DELETE
+ * events never reach a user-filtered channel on these tables: with the
+ * default replica identity the WAL old-record carries only the PK, so
+ * Realtime cannot evaluate the `user_id=eq.` filter and drops the event
+ * (fixing that needs a REPLICA IDENTITY FULL migration, queued as a
+ * follow-up). The two owners cannot double-fire, so the budget holds. The
+ * optimistic overlay (`useOptimisticList`) holds the row until canonical
+ * catches up, so a slow echo cannot flash the check off and back on.
  */
 
 /** Per-day completions entry. Today's is shared with the LifeOS tile
@@ -131,9 +136,15 @@ export function useHabitDay(
           dispatch({ type: "revert", id: key });
           return;
         }
-        // No completions invalidate here — the realtime echo owns it (see the
-        // module comment). Streak bases and the rate only shift when a day
-        // other than today changed.
+        // Ownership split per the module comment: the echo covers inserts;
+        // deletes never echo (replica identity), so un-check invalidates.
+        if (!next) {
+          void queryClient.invalidateQueries({
+            queryKey: dayCompletionsKey(userId, dateISO),
+          });
+        }
+        // Streak bases and the rate only shift when a day other than today
+        // changed.
         if (dateISO !== todayISO) {
           void queryClient.invalidateQueries({
             queryKey: habitMetaKey(userId, todayISO),
