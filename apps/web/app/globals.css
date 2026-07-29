@@ -2336,6 +2336,17 @@ select:focus-visible,
   }
 }
 
+/* The stage sheet — the one big rounded surface the active route paints on.
+   A half-step above the canvas so it reads as paper resting on the wash. */
+.craft-sheet {
+  background: color-mix(in srgb, var(--surface-raised) 42%, var(--canvas));
+  border: 1px solid var(--edge);
+  box-shadow: var(--shadow-float);
+}
+.dark .craft-sheet {
+  background: color-mix(in srgb, var(--surface-raised) 22%, var(--canvas));
+}
+
 /* The raised white card — the workhorse content surface. */
 .craft-card {
   background: var(--surface-raised);

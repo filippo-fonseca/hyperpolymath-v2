@@ -186,7 +186,11 @@ export function JarvisCommandBar() {
   if (suppressed) return null;
 
   return (
-    <div className="shrink-0 border-t border-[var(--edge)] bg-[var(--surface)]">
+    // jul-29 craft restyle: Kiwi is a floating glass pill resting inside the
+    // stage sheet, not a full-width bordered strip. Still a flex sibling of
+    // the scroll box — the floating look is padding + chrome, not an overlay.
+    <div className="shrink-0 px-3 pt-1.5 pb-3">
+      <div className="craft-glass overflow-hidden rounded-2xl">
       {hasStrip ? (
         <div className="sd-scroll-hover max-h-[40vh] overflow-y-auto border-b border-[var(--edge)] px-4 py-3">
           {answer ? (
@@ -227,7 +231,7 @@ export function JarvisCommandBar() {
         </div>
       ) : null}
 
-      <div className="flex h-12 items-center gap-2 px-2">
+      <div className="flex h-12 items-center gap-2 px-2.5">
         <KiwiIcon size={18} aria-hidden="true" className="ml-1 shrink-0" />
 
         <input
@@ -281,6 +285,7 @@ export function JarvisCommandBar() {
         >
           <Maximize2 size={14} strokeWidth={1.75} />
         </button>
+      </div>
       </div>
     </div>
   );

@@ -67,14 +67,6 @@ interface Props {
 export type AreaOptimisticDispatch = (action: OptimisticAction<SidebarArea>) => void;
 
 /**
- * Sidebar surface (UI-CONTRACT §1). The darkest member of the sd family, at
- * full opacity: the 65% vibrancy wash is deliberately gone. Vibrancy is a
- * desktop-app affordance; on the web it just muddies the column against
- * whatever scrolls underneath it, and a solid column reads cleaner.
- */
-export const SIDEBAR_SURFACE = "sd-sidebar-surface";
-
-/**
  * Row grammar, adopted verbatim from the Spacedrive source (§11).
  *
  * The load-bearing detail: rows have NO hover fill. The active tint is the
@@ -257,14 +249,16 @@ export function Sidebar({
         onMouseLeave={() => setHovered(false)}
         className={cn(
           "group/sidebar absolute inset-y-0 left-0 flex flex-col gap-2.5 overflow-hidden p-2.5 pb-2",
-          "border-r border-[var(--sd-line)]",
-          SIDEBAR_SURFACE,
+          // jul-29 craft restyle: the column is a detached floating glass
+          // panel (rounded on every side), not a full-bleed bordered track.
+          "craft-glass rounded-panel",
           animateWidth && "transition-[width] duration-[280ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
           effectiveCollapsed ? "w-14" : "w-[230px]",
           // Expanded-while-railed floats above the page as an overlay: desktop
-          // hover-peek and the below-md toggle sheet share this one path.
-          peeking &&
-            "z-50 rounded-r-md border border-[var(--sd-line)] shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]"
+          // hover-peek and the below-md toggle sheet share this one path. The
+          // glass panel already carries border + float shadow; peeking only
+          // needs to rise above the stage.
+          peeking && "z-50"
         )}
       >
         <SidebarHeader

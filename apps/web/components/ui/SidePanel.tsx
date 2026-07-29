@@ -224,16 +224,14 @@ export function SidePanelHost() {
   if (!slot.atLeastLg || !registration) return null;
 
   const { props } = registration;
-  const side = props.side ?? "right";
 
   return (
     <aside
       role="complementary"
       aria-label={typeof props.title === "string" ? props.title : "Side panel"}
-      className={cn(
-        "flex h-full min-w-0 flex-col overflow-hidden bg-[var(--surface)]",
-        side === "left" ? "border-r border-[var(--edge)]" : "border-l border-[var(--edge)]"
-      )}
+      // jul-29 craft restyle: the panel is a floating glass column like the
+      // dock, so left/right no longer changes its chrome.
+      className="craft-glass flex h-full min-w-0 flex-col overflow-hidden rounded-panel"
     >
       <PanelChrome
         title={props.title}

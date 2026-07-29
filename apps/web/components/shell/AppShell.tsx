@@ -88,7 +88,7 @@ function CockpitGrid({ userId, activeAreas, allAreas, graduationYear, profile, c
 
   return (
     <div
-      className="isolate grid h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]"
+      className="craft-backdrop isolate grid h-screen w-screen gap-2.5 overflow-hidden p-2.5 text-[var(--ink)]"
       style={{
         gridTemplateColumns: `auto minmax(0,1fr) ${rightWidth}`,
         gridTemplateRows: "minmax(0,1fr)",

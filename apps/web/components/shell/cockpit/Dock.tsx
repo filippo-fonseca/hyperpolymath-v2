@@ -35,7 +35,7 @@ export function Dock() {
     <aside
       aria-label="Dock"
       data-dock
-      className={`flex h-full min-w-0 flex-col overflow-hidden border-l border-[var(--edge)] bg-[var(--surface)] ${
+      className={`craft-glass flex h-full min-w-0 flex-col overflow-hidden rounded-panel ${
         mounted ? "" : "invisible"
       }`}
     >

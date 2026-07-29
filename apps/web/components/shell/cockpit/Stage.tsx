@@ -34,7 +34,7 @@ export function Stage({
   children: ReactNode;
 }) {
   return (
-    <main className="flex min-w-0 flex-col overflow-hidden">
+    <main className="craft-sheet flex min-w-0 flex-col overflow-hidden rounded-panel">
       <DailyAutoOpen userId={userId} />
       <TopTabBar userId={userId} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
