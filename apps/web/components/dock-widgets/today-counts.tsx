@@ -3,9 +3,11 @@
 import { getTasksForCurrentUser } from "@/app/actions/tasks";
 import { useCurrentUserId } from "@/components/providers/CurrentUserProvider";
 import { defineDockWidget } from "@/components/shell/cockpit/dock-registry";
+import { STATUS_DOT, type TaskStatus } from "@/components/tasks/status";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery } from "@tanstack/react-query";
+import { SquareCheck } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -17,9 +19,13 @@ import Link from "next/link";
  * honest with zero new channels.
  */
 
+type TodayTaskRow = { id: string; title: string; status: TaskStatus };
+
 type TodayCounts = {
   overdue: number;
   today: number;
+  /** Up to three of today's open tasks, so the card shows work, not arithmetic. */
+  rows: TodayTaskRow[];
   loading: boolean;
 };
 
@@ -42,56 +48,87 @@ function useTodayCounts(): TodayCounts {
 
   const iso = todayISO();
   const open = (data ?? []).filter((task) => task.status !== "lesno" && task.dueDate != null);
+  const dueToday = open.filter((task) => (task.dueDate as string) === iso);
 
   return {
     overdue: open.filter((task) => (task.dueDate as string) < iso).length,
-    today: open.filter((task) => (task.dueDate as string) === iso).length,
+    today: dueToday.length,
+    rows: dueToday
+      .slice(0, 3)
+      .map((task) => ({ id: task.id, title: task.title, status: task.status as TaskStatus })),
     loading: isPending,
   };
 }
 
-function Count({
-  href,
-  label,
+/** Pastel stat chip — butter for due-today, rose once anything is overdue. */
+function StatChip({
   value,
-  tone,
+  label,
+  hue,
 }: {
-  href: string;
-  label: string;
   value: number;
-  tone?: "warn";
+  label: string;
+  hue: "butter" | "rose";
 }) {
   return (
     <Link
-      href={href}
-      className="flex h-8 items-center justify-between rounded-lg px-2 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+      href="/tasks"
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-micro font-medium tabular-nums transition-[box-shadow] duration-[160ms] ease-out hover:shadow-[var(--shadow-card)] ${
+        hue === "butter"
+          ? "border-[color-mix(in_srgb,var(--tint-butter-edge)_45%,transparent)] bg-[var(--tint-butter-bg)] text-[var(--tint-butter-ink)]"
+          : "border-[color-mix(in_srgb,var(--tint-rose-edge)_45%,transparent)] bg-[var(--tint-rose-bg)] text-[var(--tint-rose-ink)]"
+      }`}
     >
-      <span className="text-meta text-[var(--ink-muted)]">{label}</span>
-      <span
-        className="text-meta font-medium tabular-nums"
-        style={{
-          color: tone === "warn" && value > 0 ? "var(--ink-amber)" : "var(--ink)",
-        }}
-      >
-        {value}
-      </span>
+      {value} {label}
     </Link>
   );
 }
 
 function Compact({ data }: { data: TodayCounts }) {
   if (data.loading) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Counting…</p>;
+    return <p className="px-1.5 text-meta text-[var(--ink-faint)]">Counting…</p>;
   }
 
   if (data.overdue === 0 && data.today === 0) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Nothing due today.</p>;
+    return (
+      <div className="mx-0.5 rounded-lg bg-[var(--tint-sage-bg)] px-2.5 py-2 text-micro font-medium text-[var(--tint-sage-ink)]">
+        All clear — nothing due today.
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col">
-      <Count href="/tasks" label="Due today" value={data.today} />
-      <Count href="/tasks" label="Overdue" value={data.overdue} tone="warn" />
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 px-0.5">
+        {data.today > 0 ? <StatChip value={data.today} label="due today" hue="butter" /> : null}
+        {data.overdue > 0 ? <StatChip value={data.overdue} label="overdue" hue="rose" /> : null}
+      </div>
+      {data.rows.length > 0 ? (
+        <div className="flex flex-col">
+          {data.rows.map((task) => (
+            <Link
+              key={task.id}
+              href="/tasks"
+              className="flex h-7 min-w-0 items-center gap-2 rounded-lg px-1.5 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+            >
+              <span
+                aria-hidden
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ background: STATUS_DOT[task.status] }}
+              />
+              <span className="truncate text-meta text-[var(--ink)]">{task.title}</span>
+            </Link>
+          ))}
+          {data.today > data.rows.length ? (
+            <Link
+              href="/tasks"
+              className="rounded-lg px-1.5 py-0.5 text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+            >
+              +{data.today - data.rows.length} more
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -103,4 +140,6 @@ export const todayCountsWidget = defineDockWidget<TodayCounts>({
   order: 10,
   useData: useTodayCounts,
   Compact,
+  icon: SquareCheck,
+  tint: "tint-sky",
 });

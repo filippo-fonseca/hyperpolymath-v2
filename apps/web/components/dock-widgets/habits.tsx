@@ -8,9 +8,10 @@ import { defineDockWidget } from "@/components/shell/cockpit/dock-registry";
 import { addDaysISO, dayOfWeekISO } from "@/lib/habits/dates";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Circle, Flame } from "lucide-react";
+import { Check, Flame, Repeat } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 
@@ -158,7 +159,11 @@ function HabitRow({
       type="button"
       onClick={onToggle}
       aria-pressed={row.done}
-      className="group/habit flex min-h-8 w-full cursor-pointer-always items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+      className={cn(
+        "group/habit flex min-h-8 w-full cursor-pointer-always items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
+        // The habit's own pastel — same hue this habit wears on /habits.
+        tintFor(row.id)
+      )}
     >
       <motion.span
         initial={false}
@@ -167,12 +172,13 @@ function HabitRow({
         className="inline-flex shrink-0"
       >
         {row.done ? (
-          <Check size={14} strokeWidth={2} className="text-[var(--accent)]" />
+          <span className="flex size-4 items-center justify-center rounded-full bg-[var(--tint-edge)] text-white">
+            <Check size={10} strokeWidth={2.5} />
+          </span>
         ) : (
-          <Circle
-            size={14}
-            strokeWidth={1.5}
-            className="text-[var(--ink-faint)] transition-colors duration-[160ms] group-hover/habit:text-[var(--ink)]"
+          <span
+            aria-hidden
+            className="size-4 rounded-full border-[1.5px] border-[color-mix(in_srgb,var(--tint-edge)_65%,var(--edge-strong))] bg-[var(--tint-bg)] transition-colors duration-[160ms] group-hover/habit:border-[var(--tint-edge)]"
           />
         )}
       </motion.span>
@@ -199,9 +205,9 @@ function HabitRow({
                 className="inline-block size-1.5 rounded-full"
                 style={
                   t.done
-                    ? { background: "var(--accent)" }
+                    ? { background: "var(--tint-edge)" }
                     : t.scheduled
-                      ? { border: "1px solid var(--edge-strong)" }
+                      ? { border: "1px solid color-mix(in srgb, var(--tint-edge) 55%, var(--edge-strong))" }
                       : { background: "var(--hover)" }
                 }
               />
@@ -234,6 +240,7 @@ function Compact({ data }: { data: HabitsDockData }) {
   return (
     <div className="flex flex-col gap-1">
       <StatsLine data={data} />
+      <DoneBar done={data.doneCount} total={data.rows.length} />
       <div className="flex flex-col">
         {data.rows.map((row) => (
           <HabitRow key={row.id} row={row} onToggle={() => data.toggle(row.id)} />
@@ -242,6 +249,22 @@ function Compact({ data }: { data: HabitsDockData }) {
       {data.allDone ? (
         <p className="px-2 text-micro text-[var(--ink-faint)]">Done for today. See you tomorrow.</p>
       ) : null}
+    </div>
+  );
+}
+
+/** Slim sage completion bar under the stats line. */
+function DoneBar({ done, total }: { done: number; total: number }) {
+  if (total === 0) return null;
+  return (
+    <div
+      aria-hidden
+      className="mx-1.5 h-1 overflow-hidden rounded-full bg-[var(--hover)]"
+    >
+      <div
+        className="h-full rounded-full bg-[var(--tint-sage-edge)] transition-[width] duration-[280ms] ease-out"
+        style={{ width: `${Math.round((done / total) * 100)}%` }}
+      />
     </div>
   );
 }
@@ -272,6 +295,7 @@ function Expanded({ data }: { data: HabitsDockData }) {
   return (
     <div className="flex flex-col gap-1">
       <StatsLine data={data} />
+      <DoneBar done={data.doneCount} total={data.rows.length} />
       <div className="flex flex-col">
         {data.rows.map((row) => {
           const done = doneByHabit.get(row.id) ?? new Set<string>();
@@ -307,4 +331,6 @@ export const habitsWidget = defineDockWidget<HabitsDockData>({
   useData: useHabitsDock,
   Compact,
   Expanded,
+  icon: Repeat,
+  tint: "tint-sage",
 });

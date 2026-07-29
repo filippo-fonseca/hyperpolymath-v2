@@ -3,6 +3,7 @@
 import { defineDockWidget } from "@/components/shell/cockpit/dock-registry";
 import { type HomeLightDeviceView, formatLightMeta, swatchColor } from "@/lib/govee/home-display";
 import { useHomeLightsState } from "@/lib/govee/useHomeLightsState";
+import { Lightbulb } from "lucide-react";
 
 /**
  * Home devices — light status at a glance.
@@ -64,16 +65,28 @@ function DeviceRow({
   const swatch = swatchColor(light);
 
   return (
-    <div className="flex h-8 min-w-0 items-center gap-2 px-2">
+    <div className="flex h-8 min-w-0 items-center gap-2 px-1.5">
+      {/* Lit bulbs get a soft halo of their own color; off bulbs a quiet ring. */}
       <span
         aria-hidden
         className="size-2 shrink-0 rounded-full"
-        style={{
-          background: isOn ? (swatch ?? "var(--ink-amber)") : "var(--edge-strong)",
-        }}
+        style={
+          isOn
+            ? {
+                background: swatch ?? "var(--tint-butter-edge)",
+                boxShadow: `0 0 0 3px color-mix(in srgb, ${swatch ?? "var(--tint-butter-edge)"} 22%, transparent)`,
+              }
+            : { border: "1.5px solid var(--edge-strong)" }
+        }
       />
       <span className="min-w-0 flex-1 truncate text-meta text-[var(--ink)]">{light.name}</span>
-      <span className="shrink-0 truncate text-micro text-[var(--ink-faint)]">
+      <span
+        className={
+          isOn
+            ? "shrink-0 truncate rounded-full bg-[var(--tint-bg,var(--hover))] px-1.5 py-0.5 text-micro font-medium text-[var(--tint-ink,var(--ink-muted))]"
+            : "shrink-0 truncate text-micro text-[var(--ink-faint)]"
+        }
+      >
         {statusLine(light, connected)}
       </span>
     </div>
@@ -121,4 +134,6 @@ export const homeDevicesWidget = defineDockWidget<HomeDevicesData>({
   useData: useHomeDevices,
   Compact,
   Expanded,
+  icon: Lightbulb,
+  tint: "tint-lavender",
 });

@@ -21,13 +21,28 @@ export function DockWidgetSlot({ def }: { def: DockWidgetDef<unknown> }) {
   const [expanded, setExpanded] = useState(false);
   const canExpand = Boolean(def.Expanded);
 
+  const Icon = def.icon;
+
   return (
+    // jul-29 craft restyle: each widget is its own mini card riding inside
+    // the glass dock, wearing the widget's tint so its children can consume
+    // var(--tint-…) for identity color.
     <section
       data-dock-widget-id={def.id}
-      className="border-b border-[var(--edge)] px-2 py-3 last:border-b-0"
+      className={cn("craft-card rounded-xl px-1.5 pt-1.5 pb-2", def.tint)}
     >
-      <header className="flex h-6 items-center justify-between gap-2 px-2">
-        <h3 className="truncate text-micro font-medium text-[var(--ink-faint)]">{def.title}</h3>
+      <header className="flex h-7 items-center justify-between gap-2 px-1">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {Icon ? (
+            <span
+              aria-hidden
+              className="flex size-5 shrink-0 items-center justify-center rounded-md bg-[var(--tint-bg,var(--hover))] text-[var(--tint-ink,var(--ink-muted))]"
+            >
+              <Icon size={11} strokeWidth={2} />
+            </span>
+          ) : null}
+          <h3 className="truncate text-micro font-medium text-[var(--ink-muted)]">{def.title}</h3>
+        </div>
         {canExpand ? (
           <button
             type="button"
@@ -48,7 +63,7 @@ export function DockWidgetSlot({ def }: { def: DockWidgetDef<unknown> }) {
         ) : null}
       </header>
 
-      <div className="mt-2">
+      <div className="mt-1.5">
         <WidgetErrorBoundary title={def.title}>
           <WidgetLeaf def={def} expanded={expanded} />
         </WidgetErrorBoundary>

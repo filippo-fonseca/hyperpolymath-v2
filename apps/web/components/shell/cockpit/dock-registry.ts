@@ -34,6 +34,14 @@ export type DockWidgetDef<TData = unknown> = {
   Compact: ComponentType<{ data: TData }>;
   /** Optional; renders in a per-widget disclosure inside the strip. */
   Expanded?: ComponentType<{ data: TData }>;
+  /**
+   * jul-29 craft restyle — optional identity (additive per the API note).
+   * `icon` renders on a small tinted plate in the card header; `tint` is a
+   * craft `tint-*` class applied to the widget's card so descendants can
+   * consume `var(--tint-…)`.
+   */
+  icon?: ComponentType<{ size?: number | string; strokeWidth?: number | string }>;
+  tint?: string;
 };
 
 /**

@@ -5,6 +5,7 @@ import { listEventsForUser } from "@/app/actions/gcal-events";
 import { defineDockWidget } from "@/components/shell/cockpit/dock-registry";
 import type { GcalEventDTO } from "@/lib/gcal/event-dto";
 import { useQuery } from "@tanstack/react-query";
+import { CalendarClock } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -93,7 +94,17 @@ function Compact({ data }: { data: NextEventData }) {
     return <p className="px-2 text-meta text-[var(--ink-faint)]">Checking…</p>;
   }
   if (data.state === "not-connected") {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Calendar is not connected.</p>;
+    return (
+      <div className="flex items-center justify-between gap-2 px-1.5">
+        <p className="text-meta text-[var(--ink-faint)]">Not connected.</p>
+        <Link
+          href="/calendar"
+          className="rounded-full bg-[var(--tint-bg,var(--hover))] px-2 py-0.5 text-micro font-medium text-[var(--tint-ink,var(--ink-muted))] transition-[box-shadow] duration-[160ms] ease-out hover:shadow-[var(--shadow-card)]"
+        >
+          Connect
+        </Link>
+      </div>
+    );
   }
   if (data.state === "error") {
     return <p className="px-2 text-meta text-[var(--ink-faint)]">Could not reach the calendar.</p>;
@@ -103,14 +114,16 @@ function Compact({ data }: { data: NextEventData }) {
   }
 
   return (
+    // The event renders as a miniature of the calendar page's pastel plate:
+    // tinted fill, saturated left edge, in-family ink.
     <Link
       href="/calendar"
-      className="flex flex-col gap-1 rounded-lg px-2 py-1 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+      className="mx-0.5 flex flex-col gap-0.5 rounded-lg border border-[color-mix(in_srgb,var(--tint-edge)_40%,transparent)] border-l-[3px] border-l-[var(--tint-edge)] bg-[var(--tint-bg)] px-2.5 py-2 transition-[box-shadow] duration-[160ms] ease-out hover:shadow-[var(--shadow-card)]"
     >
-      <span className="truncate text-meta text-[var(--ink)]">
+      <span className="truncate text-meta font-medium text-[var(--tint-ink)]">
         {data.event.title || "Untitled event"}
       </span>
-      <span className="text-micro text-[var(--ink-faint)] tabular-nums">
+      <span className="text-micro tabular-nums text-[color-mix(in_srgb,var(--tint-ink)_75%,transparent)]">
         {whenLabel(data.event)}
       </span>
     </Link>
@@ -124,4 +137,6 @@ export const nextEventWidget = defineDockWidget<NextEventData>({
   order: 20,
   useData: useNextEvent,
   Compact,
+  icon: CalendarClock,
+  tint: "tint-butter",
 });

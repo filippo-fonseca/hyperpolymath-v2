@@ -67,7 +67,7 @@ export function Dock() {
       </header>
 
       {collapsed ? null : (
-        <div className="sd-scroll-hover min-h-0 flex-1 overflow-y-auto">
+        <div className="sd-scroll-hover flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
           {widgets.length === 0 ? (
             <p className="px-4 py-6 text-meta text-[var(--ink-faint)]">No widgets docked.</p>
           ) : (
