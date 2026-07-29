@@ -34,11 +34,11 @@ export function ThemeToggle({ variant = "header" }: Props) {
 
   if (!mounted) {
     if (variant === "header") {
-      return <div className="h-9 w-9 rounded-md border border-transparent" aria-hidden="true" />;
+      return <div className="h-9 w-9 rounded-lg border border-transparent" aria-hidden="true" />;
     }
     return (
       <div
-        className="h-9 w-32 rounded-md border border-[var(--edge)] bg-[var(--surface)]"
+        className="h-9 w-32 rounded-lg border border-[var(--edge)] bg-[var(--surface)]"
         aria-hidden="true"
       />
     );
@@ -52,7 +52,7 @@ export function ThemeToggle({ variant = "header" }: Props) {
         type="button"
         onClick={() => setTheme(nextTheme)}
         aria-label={`Switch to ${nextTheme} mode`}
-        className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-transparent hover:border-[var(--edge)] transition-colors duration-150 ease-out cursor-pointer-always"
+        className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-transparent hover:border-[var(--edge)] transition-colors duration-150 ease-out cursor-pointer-always"
       >
         {isDark ? <Sun size={16} strokeWidth={1.5} /> : <Moon size={16} strokeWidth={1.5} />}
       </button>
@@ -67,7 +67,7 @@ export function ThemeToggle({ variant = "header" }: Props) {
   ];
   return (
     <div
-      className="inline-flex items-center gap-0.5 rounded-md border border-[var(--edge)] bg-[var(--surface)] p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-0.5"
       role="radiogroup"
       aria-label="Theme"
     >
@@ -83,7 +83,7 @@ export function ThemeToggle({ variant = "header" }: Props) {
             onClick={() => setTheme(value)}
             aria-label={`Use ${label} theme`}
             className={cn(
-              "h-8 px-3 inline-flex items-center gap-2 rounded text-xs font-mono transition-all duration-150 ease-out cursor-pointer-always",
+              "h-8 px-3 inline-flex items-center gap-2 rounded text-xs transition-[color,background-color,box-shadow] duration-150 ease-out cursor-pointer-always",
               active
                 ? "bg-[var(--surface-raised)] text-[var(--ink)] shadow-[inset_0_0_0_1px_var(--edge)] font-semibold"
                 : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
