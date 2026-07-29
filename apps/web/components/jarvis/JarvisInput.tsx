@@ -207,7 +207,7 @@ export function JarvisInput({
     editorProps: {
       attributes: {
         class:
-          "jarvis-input-content focus:outline-none min-h-[44px] max-h-[200px] overflow-y-auto px-4 py-3 font-sans text-[15px] leading-relaxed text-[var(--sd-ink)]",
+          "jarvis-input-content focus:outline-none min-h-[44px] max-h-[200px] overflow-y-auto px-4 py-3 font-sans text-body leading-relaxed text-[var(--sd-ink)]",
         // Placeholder reads as JARVIS's prompt — soft serif italic per CSS.
         "data-placeholder": "Tell JARVIS what's on your mind…",
       },
@@ -441,7 +441,7 @@ export function JarvisInput({
         // - shouldReduce gates the breathing class (focus ring becomes static
         //   2px --hud-cyan) and the ignite animation
         className={[
-          "relative rounded-2xl transition-[box-shadow,border-color] duration-200 ease-out",
+          "relative rounded-xl transition-[box-shadow,border-color] duration-200 ease-out",
           disabled ? "opacity-60 pointer-events-none" : "",
           // Phase 33 Plan 02 — the breathing focus ring was declared in CSS but
           // never wired to a className. Apply it whenever the input is in
@@ -464,9 +464,9 @@ export function JarvisInput({
         }}
       >
         {pinnedSlashCommand ? (
-          <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-border/50 font-mono text-[12px]">
+          <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-border/50 text-meta">
             <span
-              className="inline-flex items-center gap-1.5 rounded bg-secondary px-2 py-0.5 text-foreground"
+              className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 font-mono text-foreground"
               aria-label={`Pinned command: /${pinnedSlashCommand}`}
             >
               <span className="opacity-60">/</span>
@@ -534,16 +534,16 @@ export function JarvisInput({
         </AnimatePresence>
 
         <div className="flex items-center justify-between px-4 pb-2.5 pt-2 border-t border-[var(--sd-line)]">
-          <span className="font-sans text-[12px] text-[var(--sd-ink-dull)]">
-            Enter to send · <span className="font-mono text-[11px]">/</span> commands ·{" "}
-            <span className="font-mono text-[11px]">$</span> projects ·{" "}
-            <span className="font-mono text-[11px]">#</span> tags ·{" "}
-            <span className="font-mono text-[11px]">@</span> people
+          <span className="font-sans text-meta text-[var(--sd-ink-dull)]">
+            Enter to send · <span className="font-mono text-micro">/</span> commands ·{" "}
+            <span className="font-mono text-micro">$</span> projects ·{" "}
+            <span className="font-mono text-micro">#</span> tags ·{" "}
+            <span className="font-mono text-micro">@</span> people
           </span>
           {/* ⌘K hint chip — cleaner pill, sentence-case-style label tucked
               behind the kbd glyph. Hidden below md per UI-SPEC §10c. */}
           <kbd
-            className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-mono text-[var(--sd-ink-dull)] select-none"
+            className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-micro font-mono text-[var(--sd-ink-dull)] select-none"
             style={{
               border: "1px solid var(--sd-line)",
               backgroundColor: "var(--sd-box)",
@@ -574,31 +574,31 @@ export function JarvisInput({
       ) : null}
 
       {showHelp ? (
-        <div className="absolute bottom-full left-0 mb-2 min-w-[20rem] rounded-md border bg-popover p-3 font-mono text-xs shadow-md z-50">
+        <div className="absolute bottom-full left-0 mb-2 min-w-[20rem] rounded-xl border bg-popover p-3 text-meta shadow-md z-50">
           <div className="mb-1.5 text-muted-foreground">Commands:</div>
           <ul className="space-y-0.5">
             <li>
-              <span className="text-foreground">/task</span> — force task creation
+              <span className="font-mono text-foreground">/task</span> — force task creation
             </li>
             <li>
-              <span className="text-foreground">/capture</span> — force capture creation
+              <span className="font-mono text-foreground">/capture</span> — force capture creation
             </li>
             <li>
-              <span className="text-foreground">/event</span> — force calendar event
+              <span className="font-mono text-foreground">/event</span> — force calendar event
             </li>
             <li>
-              <span className="text-foreground">/ask</span> — ask a question (text reply, no action)
+              <span className="font-mono text-foreground">/ask</span> — ask a question (text reply, no action)
             </li>
             <li>
-              <span className="text-foreground">/help</span> — show this list
+              <span className="font-mono text-foreground">/help</span> — show this list
             </li>
           </ul>
-          <div className="mt-2 text-[11px] text-muted-foreground">
+          <div className="mt-2 text-micro text-muted-foreground">
             Press Esc or click anywhere to dismiss.
           </div>
           <button
             type="button"
-            className="mt-2 underline text-[11px] text-muted-foreground hover:text-foreground"
+            className="mt-2 underline text-micro text-muted-foreground hover:text-foreground"
             onClick={() => setShowHelp(false)}
           >
             dismiss
