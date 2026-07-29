@@ -64,6 +64,7 @@ import {
   Lock,
   Search,
   Sparkles,
+  Star,
   Trash2,
   TriangleAlert,
   X,
@@ -218,6 +219,10 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   // context snapshot, MCP export, and JARVIS knowledge graph. Optimistic local
   // mirror of pages.no_export; the serverPage value (TanStack Query + realtime)
   // is the source of truth and re-syncs this on any external change.
+  const [pinned, setPinnedState] = useState(serverPage.pinned);
+  useEffect(() => {
+    setPinnedState(serverPage.pinned);
+  }, [serverPage.pinned]);
   const [noExport, setNoExportState] = useState(serverPage.noExport);
   useEffect(() => {
     setNoExportState(serverPage.noExport);
@@ -513,6 +518,20 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     router.push("/wiki");
   }
 
+  // Star toggle (issue #365). Same optimistic shape as the no-export gate:
+  // flip local state, persist through updatePage's existing `pinned` field,
+  // invalidate the pages query, roll back on failure.
+  async function handleTogglePinned() {
+    const next = !pinned;
+    setPinnedState(next);
+    const res = await updatePage({ id: initialPage.id, pinned: next });
+    if (!res.success) {
+      setPinnedState(!next);
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
+  }
+
   // Toggle the knowledge-graph gate (Phase 29). Optimistically flip local state,
   // persist via the server action, then invalidate the pages query so serverPage
   // re-syncs. On failure, roll the optimistic value back.
@@ -796,6 +815,19 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         title="Find in page"
       >
         <Search size={13} strokeWidth={1.5} />
+      </button>
+
+      <button
+        type="button"
+        onClick={handleTogglePinned}
+        aria-pressed={pinned}
+        aria-label={pinned ? "Unstar page" : "Star page"}
+        className={`rounded-lg p-1.5 transition-colors duration-[160ms] cursor-pointer hover:bg-[var(--surface)] ${
+          pinned ? "text-[var(--ink-amber)]" : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+        }`}
+        title={pinned ? "Unstar page" : "Star page"}
+      >
+        <Star size={13} strokeWidth={1.5} fill={pinned ? "currentColor" : "none"} />
       </button>
 
       <button

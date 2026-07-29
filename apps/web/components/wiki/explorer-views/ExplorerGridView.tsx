@@ -9,6 +9,7 @@ import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { Star } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useRef } from "react";
 
@@ -271,6 +272,12 @@ function ExplorerGridTile({
               {item.page.emoji ? (
                 <span className="absolute bottom-3 right-3 grid size-6 place-items-center rounded bg-[var(--sd-box)] text-meta">
                   {item.page.emoji}
+                </span>
+              ) : null}
+              {/* Starred marker (issue #365) — quiet amber star, top-right. */}
+              {item.page.pinned ? (
+                <span className="absolute top-1.5 right-1.5 text-[var(--ink-amber)]">
+                  <Star size={13} strokeWidth={1.5} fill="currentColor" aria-hidden />
                 </span>
               ) : null}
             </>

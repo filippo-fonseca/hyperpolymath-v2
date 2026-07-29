@@ -9,6 +9,7 @@ import { explorerItemId } from "@/components/wiki/explorer-types";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { formatDistanceToNow } from "date-fns";
+import { Star } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
 
@@ -235,6 +236,15 @@ function ExplorerListRow({
           <PageIcon size={20} kind={item.page.dailyDate ? "daily" : "note"} />
         )}
         <span className="truncate">{name}</span>
+        {item.kind === "page" && item.page.pinned ? (
+          <Star
+            size={11}
+            strokeWidth={1.5}
+            fill="currentColor"
+            className="shrink-0 text-[var(--ink-amber)]"
+            aria-label="Starred"
+          />
+        ) : null}
       </span>
       <span className="text-micro text-[var(--sd-ink-dull)]">{kindLabel}</span>
       <span className="truncate text-micro text-[var(--sd-ink-dull)]">{updated}</span>

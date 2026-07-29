@@ -157,12 +157,24 @@ export function useExplorerMutations(userId: string) {
     [invalidatePages, patchPages]
   );
 
+  // Star / unstar (issue #365) — rides the existing `pinned` column.
+  const toggleStar = useCallback(
+    async (id: string, pinned: boolean) => {
+      patchPages((old) => old.map((p) => (p.id === id ? { ...p, pinned } : p)));
+      const r = await updatePage({ id, pinned });
+      if (!r.success) toast.error(r.error);
+      invalidatePages();
+    },
+    [invalidatePages, patchPages]
+  );
+
   return {
     movePageTo,
     moveFolderTo,
     bulkMovePages,
     reorder,
     rename,
+    toggleStar,
     patchPages,
     patchFolders,
     invalidatePages,

@@ -277,11 +277,14 @@ export function WikiExplorer({
         onOpen={openItem}
         onRename={(it) => setRenameTarget(it)}
         onDelete={handleDelete}
+        onToggleStar={(it) => {
+          if (it.kind === "page") void mutations.toggleStar(it.id, !it.page.pinned);
+        }}
       >
         {node}
       </ExplorerItemContextMenu>
     ),
-    [handleDelete, openItem, setRenameTarget]
+    [handleDelete, mutations, openItem, setRenameTarget]
   );
 
   const wrapItemForListView = useCallback(
