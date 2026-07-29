@@ -2405,6 +2405,35 @@ select:focus-visible,
     );
 }
 
+/* --- 3b. TipTap placeholder fallback ---------------------------------- */
+/* The composer placeholder rules above key off `.is-editor-empty` +
+   `p[data-placeholder]`, which only the TipTap Placeholder EXTENSION
+   decorates — and that extension is not installed (v3 StarterKit does not
+   bundle it), so every TipTap composer has silently shipped with no
+   placeholder. Key off the structural empty state instead: the container
+   carries data-placeholder, and an empty ProseMirror doc is exactly one
+   paragraph whose only child is the trailing break. The float/height-0
+   trick overlays the prompt on the first text line, same as the intended
+   rules. Disappears the moment real content exists. */
+.lite-jarvis-content[data-placeholder]:has(
+    > p:first-child:last-child > br.ProseMirror-trailingBreak:only-child
+  )::before,
+.jarvis-input-content[data-placeholder]:has(
+    > p:first-child:last-child > br.ProseMirror-trailingBreak:only-child
+  )::before,
+.capture-composer-content[data-placeholder]:has(
+    > p:first-child:last-child > br.ProseMirror-trailingBreak:only-child
+  )::before {
+  content: attr(data-placeholder);
+  color: color-mix(in oklch, var(--ink-muted) 70%, transparent);
+  font-style: italic;
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
 /* --- 4. Cascade upgrades onto shipped sd surfaces --------------------- */
 /* Appended after the sd definitions so these win at equal specificity.
    Menus and modals lift with the new ladder; the sd panel rounds to the

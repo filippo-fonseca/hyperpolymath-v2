@@ -157,6 +157,10 @@ function ExplorerGridBand({
             // the drooping folder card, and §2.7 bans the combination outright.
             <motion.div
               key={id}
+              // min-w-0: this wrapper is the actual grid item, and without it
+              // a long nowrap label's min-content inflates the whole 1fr
+              // column (the tile then paints across its neighbors).
+              className="min-w-0"
               initial={reduceMotion ? false : { opacity: 0 }}
               animate={{
                 opacity: 1,
@@ -244,7 +248,10 @@ function ExplorerGridTile({
       onContextMenu={onContextMenu}
       style={style}
       className={cn(
-        "group flex min-h-[154px] flex-col items-center rounded-lg border border-transparent p-1 text-center outline-none",
+        // w-full: buttons shrink-to-fit their content even as flex containers,
+        // so without an explicit width a long nowrap label walks the tile
+        // across its neighbors instead of truncating at the grid column.
+        "group flex min-h-[154px] w-full min-w-0 max-w-full flex-col items-center rounded-lg border border-transparent p-1 text-center outline-none",
         "transition-[background-color,border-color] duration-[160ms] ease-out hover:bg-[var(--sd-box)]",
         selected &&
           "border-[var(--edge-strong)] bg-[color-mix(in_srgb,var(--sd-accent)_8%,var(--sd-selected-item))]",
