@@ -1,7 +1,8 @@
 "use client";
 
 import type { HabitWithAreas } from "@/app/actions/habits";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LineChart } from "lucide-react";
 import type { PipelineLatencyStats } from "@/lib/db/queries/analytics";
 import type { DailyUsage } from "@/lib/integrations/claude-code/usage";
 import type { SubscriptionUsage } from "@/lib/integrations/claude-code/subscription";
@@ -80,7 +81,7 @@ export function InsightsTabs({
       <div
         role="tablist"
         aria-label="Insights view"
-        className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)] w-fit"
+        className="flex w-fit items-center gap-0.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-0.5"
       >
         <TabButton active={effectiveTab === "life"} onClick={() => setTab("life")} label="Life" />
         <TabButton active={effectiveTab === "habits"} onClick={() => setTab("habits")} label="Habits" />
@@ -120,9 +121,14 @@ export function InsightsTabs({
           {jarvis.hasData ? (
             <InsightsCharts data={jarvis.data} />
           ) : (
+            // Shared empty state on the insights hue (tint-sky) — the icon
+            // renders on a soft sky plate rather than grey on grey.
             <EmptyState
-              heading="Seven days of silence."
-              body="JARVIS hasn't logged any turns yet. Send it a message to populate this."
+              size="page"
+              className="tint-sky"
+              icon={<LineChart />}
+              title="Seven days of silence."
+              description="JARVIS hasn't logged any turns yet. Send it a message to populate this."
             />
           )}
           <PipelineLatencyPanel stats={jarvis.pipelineStats} />
@@ -147,11 +153,13 @@ function TabButton({
       onClick={onClick}
       aria-pressed={active}
       role="tab"
+      // Craft segmented control: active reads as a raised plate lifted off the
+      // recessed track (shadow-card), not an inset ring.
       className={cn(
-        "px-3 py-1 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-        "transition-colors duration-150 ease-out",
+        "px-3 py-1 rounded-md font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
+        "transition-[background-color,color,box-shadow] duration-[160ms] ease-out",
         active
-          ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
+          ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
           : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
       )}
     >

@@ -3,7 +3,10 @@
 import type { HabitWithAreas } from "@/app/actions/habits";
 import { HabitFrequencyBadges } from "@/components/habits/HabitFrequencySelector";
 import { parseISODate, toISODate } from "@/components/habits/date-utils";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
+import { Repeat } from "lucide-react";
 import { useMemo, useState } from "react";
 import { NEUMORPHIC_TILE } from "./tile-style";
 
@@ -167,11 +170,14 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
 
   if (habits.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-12 text-center">
-        <p className="font-serif italic text-[15px] text-[var(--ink-muted)]">
-          No habits yet — add one to start seeing your patterns here.
-        </p>
-      </div>
+      // Shared empty state on the insights hue, replacing the ad-hoc dashed
+      // box: the icon rides a soft sky plate.
+      <EmptyState
+        className="tint-sky"
+        icon={<Repeat />}
+        title="No habits yet."
+        description="Add one to start seeing your patterns here."
+      />
     );
   }
 
@@ -180,7 +186,8 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
       {/* Controls — range pills + area chip filter + search + sort. */}
       <div className={`flex flex-col gap-3 ${NEUMORPHIC_TILE} px-4 py-3`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface-raised)]">
+          {/* Recessed segmented track — the active chip is the raised plate. */}
+          <div className="flex items-center gap-0.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-0.5">
             {(["7d", "28d", "90d", "all"] as Range[]).map((r) => (
               <ChipButton key={r} active={range === r} onClick={() => setRange(r)}>
                 {RANGE_LABEL[r]}
@@ -194,18 +201,20 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Filter by name…"
               className={cn(
-                "h-7 px-2 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)]",
+                "h-7 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-2",
                 "font-serif text-[13px] text-[var(--ink)] placeholder:text-[var(--ink-muted)]",
-                "focus:outline-none focus:border-[var(--edge-hud)] transition-colors"
+                "transition-[border-color,box-shadow] duration-[160ms] ease-out",
+                "focus:border-[var(--edge-strong)] focus:shadow-[var(--shadow-card)] focus:outline-none"
               )}
             />
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as Sort)}
               className={cn(
-                "h-7 px-2 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)]",
+                "h-7 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-2",
                 "font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]",
-                "focus:outline-none focus:border-[var(--edge-hud)]"
+                "transition-[border-color,box-shadow] duration-[160ms] ease-out",
+                "focus:border-[var(--edge-strong)] focus:shadow-[var(--shadow-card)] focus:outline-none"
               )}
               aria-label="Sort habits"
             >
@@ -267,10 +276,26 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
           }
 
           return (
-            <li key={habit.id} className={`${NEUMORPHIC_TILE} px-4 py-3 flex flex-col gap-2.5`}>
+            // tintFor(habit.id) gives each habit a stable pastel identity; the
+            // row itself stays a white craft plate and only the dot + the
+            // completed strip cells run the saturated edge of that hue.
+            <li
+              key={habit.id}
+              className={cn(
+                NEUMORPHIC_TILE,
+                "craft-card-hover flex flex-col gap-2.5 px-4 py-3",
+                tintFor(habit.id)
+              )}
+            >
               <div className="flex items-baseline justify-between gap-3">
-                <div className="flex flex-col min-w-0">
-                  <p className="font-serif text-[15px] text-[var(--ink)] truncate">{habit.name}</p>
+                <div className="flex min-w-0 flex-col">
+                  <p className="flex items-center gap-2 truncate font-serif text-[15px] text-[var(--ink)]">
+                    <span
+                      aria-hidden
+                      className="size-2 shrink-0 rounded-full bg-[var(--tint-edge)]"
+                    />
+                    <span className="truncate">{habit.name}</span>
+                  </p>
                   {habit.areas.length > 0 ? (
                     <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] mt-0.5 truncate">
                       {habit.areas.map((a) => `${a.emoji ?? ""} ${a.name}`.trim()).join(" · ")}
@@ -296,14 +321,16 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
                           : `${d.iso}${d.scheduled ? (d.done ? " · done" : " · missed") : " · not scheduled"}`
                       }
                       className={cn(
-                        "inline-block w-2 h-2 rounded-[2px]",
+                        "inline-block h-2 w-2 rounded-[3px]",
                         d.preCreation
-                          ? "bg-transparent border border-[var(--edge)]/30"
+                          ? "border border-[var(--edge)]/30 bg-transparent"
                           : d.done
-                            ? "bg-[var(--ink-amber)]"
+                            ? // The habit's own hue, saturated — this is the
+                              // one place per row the tint runs at full edge.
+                              "bg-[var(--tint-edge)]"
                             : d.scheduled
-                              ? "bg-transparent border border-[var(--ink-muted)]/40"
-                              : "bg-transparent border border-[var(--edge)]/50"
+                              ? "border border-[var(--ink-muted)]/40 bg-transparent"
+                              : "border border-[var(--edge)]/50 bg-transparent"
                       )}
                     />
                   ))}
@@ -342,12 +369,13 @@ function ChipButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      // Craft segmented control: active = raised plate on the shadow ladder.
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm",
+        "inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5",
         "font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-        "transition-colors duration-150 ease-out",
+        "transition-[background-color,color,box-shadow] duration-[160ms] ease-out",
         active
-          ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
+          ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
           : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
       )}
     >

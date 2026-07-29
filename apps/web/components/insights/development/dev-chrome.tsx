@@ -18,9 +18,13 @@ import { cn } from "@/lib/utils";
 /* --------------------------------------------------------------- panel plate */
 
 /**
- * Widget-card v2 plate (DESIGN-SYSTEM §9): `--sd-box` fill, 14px radius, 1px
- * `--sd-line` hairline, dark-only white inset top hairline. Elevation is the
- * grey ladder + border alone.
+ * Panel plate — craft register (jul-29). The console keeps its dense mono
+ * typography, but the plate itself normalises onto `.craft-card` so the DEV
+ * tab sits on the same raised-white surface as the rest of insights.
+ *
+ * `.craft-card` is unlayered CSS and beats Tailwind `bg-*` / `border-*` on the
+ * same element, so the old `--sd-box` fill and the hand-rolled dark inset
+ * hairline are gone rather than fighting it. Elevation is the shadow ladder.
  */
 export function DevPanel({
   children,
@@ -30,13 +34,7 @@ export function DevPanel({
   className?: string;
 }) {
   return (
-    <section
-      className={cn(
-        "rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-5",
-        "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]",
-        className,
-      )}
-    >
+    <section className={cn("craft-card rounded-xl p-5", className)}>
       {children}
     </section>
   );
@@ -223,9 +221,10 @@ export const CHART = {
   tooltip: {
     fontFamily: "var(--font-mono)",
     fontSize: 10.5,
-    backgroundColor: "var(--sd-box)",
-    border: "1px solid var(--sd-line)",
-    borderRadius: 8,
+    backgroundColor: "var(--surface-raised)",
+    border: "1px solid var(--edge)",
+    borderRadius: 12,
+    boxShadow: "var(--shadow-pop)",
     color: "var(--sd-ink)",
   } as const,
 } as const;

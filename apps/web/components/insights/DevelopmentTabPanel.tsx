@@ -178,7 +178,9 @@ export function DevelopmentTabPanel({
 /** One daily run: header (date + count readouts) then a mono ledger of items. */
 function RunGroup({ run }: { run: DevRun }) {
   return (
-    <div className="rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-app)]">
+    // Recessed ledger well inside the DevPanel plate — deliberately NOT a
+    // craft card, so the run groups read as sunk into the panel above them.
+    <div className="overflow-hidden rounded-xl border border-[var(--edge)] bg-[var(--surface)]">
       {/* Run header row. */}
       <div className="flex items-baseline justify-between gap-4 px-3.5 py-2.5">
         <span className="font-mono text-[13px] font-medium tabular-nums text-[var(--sd-ink)]">

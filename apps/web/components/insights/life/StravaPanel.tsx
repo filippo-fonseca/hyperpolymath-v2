@@ -19,7 +19,7 @@ import {
   type StravaData,
 } from '@/lib/integrations/strava/types';
 import { StravaDisconnectButton } from './StravaConnectionControl';
-import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
+import { INSIGHTS_PANEL } from '../tile-style';
 
 const ACCENT = '#FC4C02';
 
@@ -32,19 +32,31 @@ interface Props {
   result: Result<StravaData>;
 }
 
+/**
+ * Craft panel plate. `.craft-card` (via INSIGHTS_PANEL) paints fill, hairline
+ * and shadow, so this element carries no `bg-*` utility and no inline
+ * boxShadow. Strava orange stays saturated on the identity dot, the bars and
+ * the connect button; it never becomes a plate fill.
+ */
 function PanelChrome({ children }: { children: React.ReactNode }) {
   return (
     <section
-      className={`group ${NEUMORPHIC_TILE} p-6`}
-      style={
-        {
-          ['--panel-accent']: ACCENT,
-          boxShadow: glassyTileShadow({ withPanelAccentHalo: true }),
-        } as React.CSSProperties
-      }
+      className={`group ${INSIGHTS_PANEL} p-6`}
+      style={{ ['--panel-accent']: ACCENT } as React.CSSProperties}
     >
       {children}
     </section>
+  );
+}
+
+/** Saturated identity dot — the brand hue at full strength, small. */
+function AccentDot() {
+  return (
+    <span
+      aria-hidden
+      className="size-2 shrink-0 rounded-full"
+      style={{ backgroundColor: 'var(--panel-accent)' }}
+    />
   );
 }
 
@@ -90,7 +102,10 @@ export function StravaPanel({ result }: Props) {
     return (
       <PanelChrome>
         <header className="mb-2 flex items-baseline justify-between">
-          <h3 className="font-serif text-lg text-[var(--ink)]">Strava</h3>
+          <h3 className="flex items-center gap-2 font-serif text-lg text-[var(--ink)]">
+            <AccentDot />
+            Strava
+          </h3>
         </header>
         {isDisconnected ? (
           <div className="flex flex-col gap-3">
@@ -99,7 +114,7 @@ export function StravaPanel({ result }: Props) {
             </p>
             <a
               href="/api/integrations/strava/connect"
-              className="inline-flex items-center gap-1.5 self-start rounded-md bg-[var(--panel-accent,#FC4C02)] px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-white hover:opacity-90 transition-opacity"
+              className="inline-flex items-center gap-1.5 self-start rounded-lg bg-[var(--panel-accent,#FC4C02)] px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-white shadow-[var(--shadow-card)] transition-[opacity,box-shadow] duration-[160ms] ease-out hover:opacity-90 hover:shadow-[var(--shadow-card-hover)]"
             >
               Connect Strava →
             </a>
@@ -124,7 +139,7 @@ export function StravaPanel({ result }: Props) {
         <div
           role="tablist"
           aria-label="Sport"
-          className="flex items-center gap-0.5 rounded-md border border-[var(--edge)] bg-[var(--surface)] p-0.5"
+          className="flex items-center gap-0.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-0.5"
         >
           {SPORT_CATEGORIES.map((s) => (
             <button
@@ -133,11 +148,13 @@ export function StravaPanel({ result }: Props) {
               role="tab"
               aria-pressed={sport === s}
               onClick={() => setSport(s)}
+              // Craft segmented control: the active thumb is a raised plate on
+              // the recessed track, not a ring.
               className={cn(
-                'rounded-sm px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] cursor-pointer-always',
-                'transition-colors duration-150 ease-out',
+                'rounded-md px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] cursor-pointer-always',
+                'transition-[background-color,color,box-shadow] duration-[160ms] ease-out',
                 sport === s
-                  ? 'bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]'
+                  ? 'bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]'
                   : 'text-[var(--ink-muted)] hover:text-[var(--ink)]',
               )}
             >
@@ -221,19 +238,21 @@ function SportView({
             data={chartData}
             margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
           >
+            {/* Tokens, not hex: recharts resolves CSS custom properties as SVG
+                presentation attributes, so these stay correct in dark too. */}
             <CartesianGrid
-              stroke="#d4cfc4"
+              stroke="var(--edge)"
               strokeDasharray="2 4"
               vertical={false}
             />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: '#7c7669' }}
+              tick={{ fontSize: 10, fill: 'var(--ink-muted)' }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: '#7c7669' }}
+              tick={{ fontSize: 10, fill: 'var(--ink-muted)' }}
               axisLine={false}
               tickLine={false}
               width={36}
@@ -244,7 +263,8 @@ function SportView({
               contentStyle={{
                 background: 'var(--surface-raised)',
                 border: '1px solid var(--edge)',
-                borderRadius: 8,
+                borderRadius: 12,
+                boxShadow: 'var(--shadow-pop)',
                 fontSize: 11,
               }}
               formatter={(v) =>
@@ -254,7 +274,7 @@ function SportView({
                 ] as [string, string]
               }
             />
-            <Bar dataKey="value" fill={ACCENT} radius={[2, 2, 0, 0]} />
+            <Bar dataKey="value" fill={ACCENT} radius={[5, 5, 2, 2]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

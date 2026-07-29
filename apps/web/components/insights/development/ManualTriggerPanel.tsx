@@ -98,17 +98,18 @@ function TriggerButton({
           onClick={fire}
           disabled={state === "pending"}
           className={cn(
-            "shrink-0 rounded-md border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors duration-150",
+            "shrink-0 rounded-lg border bg-[var(--surface-raised)] px-3 py-1 font-mono text-[11px] uppercase tracking-[0.08em]",
+            "shadow-[var(--shadow-card)] transition-[border-color,color,box-shadow] duration-[160ms] ease-out",
             state === "pending"
-              ? "cursor-default border-[var(--sd-line)] text-[var(--sd-ink-faint)] opacity-50"
-              : "cursor-pointer border-[var(--sd-line)] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-accent)]",
+              ? "cursor-default border-[var(--edge)] text-[var(--sd-ink-faint)] opacity-50"
+              : "cursor-pointer border-[var(--edge)] text-[var(--sd-ink-dull)] hover:border-[var(--edge-strong)] hover:text-[var(--sd-ink)] hover:shadow-[var(--shadow-card-hover)]",
           )}
         >
           {state === "pending" ? "Running…" : "Run now"}
         </button>
       </div>
       {isOkOrError && result ? (
-        <div className="flex items-start gap-2 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-app)] px-3 py-2">
+        <div className="flex items-start gap-2 rounded-xl border border-[var(--edge)] bg-[var(--surface)] px-3 py-2">
           <StatePill tone={state === "ok" ? "accent" : "coral"}>
             {state === "ok" ? "ok" : "err"}
           </StatePill>
