@@ -15,8 +15,9 @@ import { cn } from "@/lib/utils";
  * list without submitting.
  *
  * sd (Spacedrive) register: a solid `sd-menu-surface` popover — no corner
- * brackets, no blur. A mono 'commands' header, option rows in mono
- * --sd-ink-dull, and the highlighted row surfacing the single cyan accent.
+ * brackets, no blur. A quiet 'Commands' header, sans option rows in
+ * --sd-ink-dull (mono only on the command tokens), and the highlighted row
+ * surfacing the single cyan accent.
  */
 
 const COMMANDS = [
@@ -50,14 +51,14 @@ export function SlashCommandPopover({ query, selectedIndex, onSelect }: Props) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 2 }}
         transition={{ duration: 0.12, ease: [0.25, 1, 0.5, 1] }}
-        className="sd-menu-surface absolute bottom-full left-0 mb-2 min-w-[18rem] rounded-[10px] font-mono z-50"
+        className="sd-menu-surface absolute bottom-full left-0 mb-2 min-w-[18rem] rounded-xl z-50"
         style={{ boxShadow: "0 12px 32px rgba(0, 0, 0, 0.3)" }}
         role="listbox"
         aria-label="Slash commands"
       >
-        {/* 'commands' header — mono cyan readout marking JARVIS chrome. */}
-        <div className="relative px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] border-b border-[var(--sd-line)]">
-          commands
+        {/* 'Commands' header — quiet readout marking JARVIS chrome. */}
+        <div className="relative px-3 py-2 text-micro font-medium text-[var(--sd-ink-faint)] border-b border-[var(--sd-line)]">
+          Commands
         </div>
 
         <div className="relative p-1">
@@ -76,7 +77,7 @@ export function SlashCommandPopover({ query, selectedIndex, onSelect }: Props) {
                   onSelect(cmd.key);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between gap-3 rounded-[6px] px-2 py-1 text-left font-mono text-xs transition-colors duration-[140ms] ease-out",
+                  "flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1 text-left text-meta transition-colors duration-[140ms] ease-out",
                   isHighlighted
                     ? "text-[var(--sd-accent)]"
                     : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
@@ -89,8 +90,8 @@ export function SlashCommandPopover({ query, selectedIndex, onSelect }: Props) {
                 role="option"
                 aria-selected={isHighlighted}
               >
-                <span>{cmd.label}</span>
-                <span className="text-[11px] text-[var(--sd-ink-faint)]">
+                <span className="font-mono">{cmd.label}</span>
+                <span className="text-micro text-[var(--sd-ink-faint)]">
                   {cmd.description}
                 </span>
               </button>

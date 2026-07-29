@@ -16,7 +16,7 @@
  *   on all prior clarifications (historical record, no further interaction).
  *
  * sd (Spacedrive) register: a solid recessed --sd-darker-box plate with a
- * hairline border — NO backdrop-blur, NO glow. A cyan mono 'clarify' readout
+ * hairline border — NO backdrop-blur, NO glow. A quiet cyan 'Clarify' readout
  * marks it as JARVIS chrome; the question reads in Space Grotesk; chip options
  * and reply field speak the single cyan accent.
  */
@@ -52,14 +52,14 @@ export function JarvisClarification({ clarification, onReply }: Props) {
         disabled && "opacity-60",
       )}
     >
-      {/* 'clarify' chrome readout — cyan mono, marks the surface as a JARVIS
+      {/* 'Clarify' chrome readout — quiet cyan, marks the surface as a JARVIS
           artifact without any glow or bracket theatrics. */}
-      <div className="relative font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-accent)] mb-2">
-        clarify
+      <div className="relative text-micro font-medium text-[var(--sd-accent)] mb-2">
+        Clarify
       </div>
 
       {/* Question body — Space Grotesk (no serif outside Logotype). */}
-      <p className="relative text-[15px] leading-[1.5] text-[var(--sd-ink)]">
+      <p className="relative text-body text-[var(--sd-ink)]">
         {clarification.question}
       </p>
 
@@ -75,7 +75,7 @@ export function JarvisClarification({ clarification, onReply }: Props) {
                 background: "color-mix(in oklch, var(--sd-accent) 14%, transparent)",
                 boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 30%, transparent)",
               }}
-              className="px-2 py-0.5 rounded-[6px] font-mono text-xs text-[var(--sd-accent)] cursor-pointer-always transition-colors duration-[140ms] ease-out hover:bg-[color-mix(in_oklch,var(--sd-accent)_22%,transparent)]"
+              className="px-2 py-0.5 rounded-[4px] text-micro text-[var(--sd-accent)] cursor-pointer-always transition-colors duration-[140ms] ease-out hover:bg-[color-mix(in_oklch,var(--sd-accent)_22%,transparent)]"
             >
               {opt}
             </button>
@@ -107,7 +107,7 @@ export function JarvisClarification({ clarification, onReply }: Props) {
           </Button>
         </div>
       ) : (
-        <div className="relative text-xs font-mono italic text-[var(--sd-ink-faint)] mt-2">
+        <div className="relative text-micro italic text-[var(--sd-ink-faint)] mt-2">
           answered
         </div>
       )}
