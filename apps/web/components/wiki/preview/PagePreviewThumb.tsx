@@ -22,11 +22,10 @@ export function PagePreviewThumb({ page, model, size = "card", className }: Page
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-t-[8px] border border-[var(--edge)] bg-white shadow-[0_10px_24px_hsl(235_15%_0%_/_0.14)] dark:bg-[var(--sd-dark-box,#20222c)]",
+        "relative overflow-hidden rounded-t-[8px] border border-[var(--sd-line,var(--edge))] bg-[var(--surface-raised)]",
         size === "card" ? "aspect-[16/10]" : "aspect-[4/3]",
         className
       )}
-      style={{ borderColor: "var(--sd-line, var(--edge))" }}
     >
       {coverImageUrl ? (
         <div className={cn("relative overflow-hidden", size === "card" ? "h-[24%]" : "h-[28%]")}>
@@ -46,13 +45,13 @@ export function PagePreviewThumb({ page, model, size = "card", className }: Page
           "absolute inset-x-0 bottom-0 overflow-hidden",
           coverImageUrl ? "top-[24%]" : "top-0",
           coverImageUrl && size === "inspector" ? "top-[28%]" : undefined,
-          size === "card" ? "px-3 py-2.5" : "px-5 py-4"
+          size === "card" ? "px-3 py-2" : "px-5 py-4"
         )}
       >
         {preview.isEmpty ? (
           <EmptyPreview size={size} />
         ) : (
-          <div className={cn("space-y-1.5", size === "inspector" ? "space-y-2" : undefined)}>
+          <div className={cn("space-y-1", size === "inspector" ? "space-y-2" : undefined)}>
             {preview.blocks.map((block, index) => (
               <PreviewLine key={`${block.kind}:${index}`} block={block} size={size} />
             ))}
@@ -63,6 +62,11 @@ export function PagePreviewThumb({ page, model, size = "card", className }: Page
   );
 }
 
+/*
+ * The lines below are a miniature facsimile of the document, not UI text, so
+ * they keep sub-ladder font sizes; everything else (colour, radius, borders)
+ * rides the tokens.
+ */
 function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "inspector" }) {
   const textClass = size === "card" ? "text-[8px] leading-[1.35]" : "text-[11px] leading-[1.45]";
 
@@ -71,8 +75,7 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
       return (
         <p
           className={cn(
-            "line-clamp-1 font-semibold text-slate-950 dark:text-slate-100",
-            block.level === 1 ? "font-serif" : "font-sans",
+            "line-clamp-1 font-sans font-semibold text-[var(--ink)]",
             size === "card" && block.level === 1 ? "text-[10px]" : textClass,
             size === "inspector" && block.level === 1 ? "text-[15px]" : undefined
           )}
@@ -82,50 +85,45 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
       );
     case "paragraph":
       return (
-        <p className={cn("line-clamp-2 text-slate-700 dark:text-slate-300", textClass)}>
-          {block.text}
-        </p>
+        <p className={cn("line-clamp-2 text-[var(--ink-muted)]", textClass)}>{block.text}</p>
       );
     case "bullet":
       return (
         <p
-          className={cn("flex min-w-0 gap-1 text-slate-700 dark:text-slate-300", textClass)}
+          className={cn("flex min-w-0 gap-1 text-[var(--ink-muted)]", textClass)}
           style={{ paddingLeft: `${(block.depth ?? 0) * 8}px` }}
         >
-          <span className="mt-[0.45em] size-[3px] flex-shrink-0 rounded-full bg-slate-400 dark:bg-slate-500" />
+          <span className="mt-[0.45em] size-[3px] flex-shrink-0 rounded-full bg-[var(--ink-faint)]" />
           <span className="line-clamp-1">{block.text}</span>
         </p>
       );
     case "numbered":
       return (
         <p
-          className={cn("flex min-w-0 gap-1 text-slate-700 dark:text-slate-300", textClass)}
+          className={cn("flex min-w-0 gap-1 text-[var(--ink-muted)]", textClass)}
           style={{ paddingLeft: `${(block.depth ?? 0) * 8}px` }}
         >
-          <span className="flex-shrink-0 font-mono text-slate-400 dark:text-slate-500">1.</span>
+          <span className="flex-shrink-0 font-mono text-[var(--ink-faint)]">1.</span>
           <span className="line-clamp-1">{block.text}</span>
         </p>
       );
     case "todo":
       return (
-        <p
-          className={cn(
-            "flex min-w-0 items-start gap-1 text-slate-700 dark:text-slate-300",
-            textClass
-          )}
-        >
+        <p className={cn("flex min-w-0 items-start gap-1 text-[var(--ink-muted)]", textClass)}>
           <span
             className={cn(
-              "mt-[0.25em] grid size-[7px] flex-shrink-0 place-items-center rounded-[2px] border border-slate-300 dark:border-slate-500",
-              block.checked ? "bg-[var(--hud-cyan)] border-[var(--hud-cyan)]" : undefined
+              "mt-[0.25em] grid size-[7px] flex-shrink-0 place-items-center border border-[var(--edge-strong)]",
+              block.checked ? "border-[var(--ink-muted)] bg-[var(--ink-muted)]" : undefined
             )}
           >
-            {block.checked ? <span className="block size-[3px] rounded-full bg-slate-950" /> : null}
+            {block.checked ? (
+              <span className="block size-[3px] rounded-full bg-[var(--surface-raised)]" />
+            ) : null}
           </span>
           <span
             className={cn(
               "line-clamp-1",
-              block.checked ? "text-slate-500 line-through dark:text-slate-400" : undefined
+              block.checked ? "text-[var(--ink-faint)] line-through" : undefined
             )}
           >
             {block.text}
@@ -136,7 +134,7 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
       return (
         <p
           className={cn(
-            "line-clamp-2 border-l-2 border-slate-300 pl-1.5 italic text-slate-600 dark:border-slate-600 dark:text-slate-300",
+            "line-clamp-2 border-l-2 border-[var(--edge-strong)] pl-1.5 italic text-[var(--ink-muted)]",
             textClass
           )}
         >
@@ -147,7 +145,7 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
       return (
         <pre
           className={cn(
-            "max-h-12 overflow-hidden rounded-[4px] bg-slate-100 px-1.5 py-1 font-mono text-slate-700 dark:bg-slate-950/45 dark:text-slate-300",
+            "max-h-12 overflow-hidden rounded-[4px] bg-[var(--hover)] px-1.5 py-1 font-mono text-[var(--ink-muted)]",
             size === "card" ? "text-[7px] leading-[1.35]" : "text-[10px] leading-[1.45]"
           )}
         >
@@ -156,7 +154,7 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
       );
     case "image":
       return (
-        <div className="overflow-hidden rounded-[5px] border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800">
+        <div className="overflow-hidden rounded-[4px] bg-[var(--hover)]">
           {block.url ? (
             <img
               src={block.url}
@@ -166,17 +164,12 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
               decoding="async"
             />
           ) : (
-            <div
-              className={cn(
-                "bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700",
-                size === "card" ? "h-8" : "h-16"
-              )}
-            />
+            <div className={cn("bg-[var(--hover)]", size === "card" ? "h-8" : "h-16")} />
           )}
           {block.caption ? (
             <p
               className={cn(
-                "truncate px-1 py-0.5 text-slate-500 dark:text-slate-400",
+                "truncate px-1 py-0.5 text-[var(--ink-faint)]",
                 size === "card" ? "text-[7px]" : "text-[10px]"
               )}
             >
@@ -186,17 +179,14 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
         </div>
       );
     case "divider":
-      return <div className="my-1 h-px bg-slate-200 dark:bg-slate-700" />;
+      return <div className="my-1 h-px bg-[var(--edge)]" />;
     case "table-hint":
       return (
-        <div className="grid grid-cols-3 gap-[2px] rounded-[4px] border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-900/55">
+        <div className="grid grid-cols-3 gap-[2px] rounded-[4px] bg-[var(--hover)] p-1">
           {Array.from({
             length: Math.min(6, Math.max(1, block.rows * Math.max(1, block.cols))),
           }).map((_, index) => (
-            <span
-              key={index}
-              className="h-1.5 rounded-[1px] bg-slate-300/80 dark:bg-slate-600/80"
-            />
+            <span key={index} className="h-1.5 bg-[var(--edge-strong)]" />
           ))}
         </div>
       );
@@ -205,11 +195,9 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
 
 function EmptyPreview({ size }: { size: "card" | "inspector" }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-1.5 text-slate-400 dark:text-slate-500">
+    <div className="flex h-full flex-col items-center justify-center gap-1 text-[var(--ink-faint)]">
       <MiniPageIcon className={size === "card" ? "h-7 w-6" : "h-12 w-10"} />
-      <span className={cn("font-mono uppercase", size === "card" ? "text-[8px]" : "text-[10px]")}>
-        Empty
-      </span>
+      <span className={cn("font-sans", size === "card" ? "text-[8px]" : "text-[10px]")}>Empty</span>
     </div>
   );
 }

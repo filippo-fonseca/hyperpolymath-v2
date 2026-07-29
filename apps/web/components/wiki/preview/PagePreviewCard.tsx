@@ -45,18 +45,11 @@ export function PagePreviewCard({
     <article
       aria-selected={selected}
       className={cn(
-        "group flex h-full min-h-[236px] flex-col overflow-hidden rounded-[8px] border bg-[var(--sd-box,var(--surface-raised))] text-left shadow-[0_10px_30px_hsl(235_15%_0%_/_0.14)] outline-none transition-[background-color,border-color,box-shadow] duration-[120ms] ease-out hover:border-[var(--sd-active,var(--edge-strong))] hover:shadow-[0_14px_34px_hsl(235_15%_0%_/_0.22)]",
-        selected
-          ? "shadow-[inset_0_0_0_1px_var(--hud-cyan),0_10px_30px_hsl(235_15%_0%_/_0.16)]"
-          : undefined,
-        dropTarget
-          ? "border-dashed border-[var(--hud-cyan)] bg-[color-mix(in_oklch,var(--hud-cyan)_8%,var(--sd-box,var(--surface-raised)))]"
-          : undefined,
+        "group flex h-full min-h-[236px] flex-col overflow-hidden rounded-xl border border-[var(--sd-line,var(--edge))] bg-[var(--sd-box,var(--surface-raised))] text-left outline-none transition-[background-color,border-color] duration-[160ms] ease-out hover:border-[var(--edge-strong)]",
+        selected ? "bg-[var(--sd-selected-item)]" : undefined,
+        dropTarget ? "border-dashed border-[var(--edge-strong)] bg-[var(--sd-selected-item)]" : undefined,
         className
       )}
-      style={{
-        borderColor: selected || dropTarget ? "var(--hud-cyan)" : "var(--sd-line, var(--edge))",
-      }}
     >
       <PagePreviewThumb
         page={page}
@@ -65,19 +58,16 @@ export function PagePreviewCard({
         className="rounded-none border-0 border-b"
       />
 
-      <div
-        className="flex min-h-[92px] flex-1 flex-col gap-2 border-t px-3 py-2.5"
-        style={{ borderColor: "var(--sd-line, var(--edge))" }}
-      >
+      <div className="flex min-h-[92px] flex-1 flex-col gap-2 border-t border-[var(--sd-line,var(--edge))] px-3 py-2">
         <div className="flex min-w-0 items-start gap-2">
-          <span className="grid size-7 flex-shrink-0 place-items-center rounded-[6px] border border-[var(--edge)] bg-[var(--sd-dark-box,var(--surface))] text-[15px] leading-none text-[var(--ink-muted)]">
+          <span className="grid size-7 flex-shrink-0 place-items-center rounded-[8px] bg-[var(--hover)] text-subtitle leading-none text-[var(--ink-muted)]">
             {icon ?? page.emoji ?? <FallbackPageIcon />}
           </span>
           <div className="min-w-0 flex-1">
-            <h3 className="line-clamp-2 text-[0.8rem] font-medium leading-snug text-[var(--ink)]">
+            <h3 className="line-clamp-2 text-meta font-medium leading-snug text-[var(--ink)]">
               {title}
             </h3>
-            <p className="mt-0.5 truncate font-mono text-[0.7rem] text-[var(--ink-muted)]">
+            <p className="mt-1 truncate font-mono text-micro text-[var(--ink-faint)]">
               {formatUpdatedAt(page.updatedAt)}
             </p>
           </div>
@@ -89,7 +79,7 @@ export function PagePreviewCard({
               <ProjectPill key={project.id} name={project.name} isInherited={false} />
             ))}
             {projects.length > 3 ? (
-              <span className="rounded-sm border border-[var(--edge)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--ink-muted)]">
+              <span className="rounded px-1.5 py-0.5 font-mono text-micro text-[var(--ink-muted)]">
                 +{projects.length - 3}
               </span>
             ) : null}
@@ -119,7 +109,13 @@ function FallbackPageIcon() {
         strokeLinecap="round"
         opacity="0.55"
       />
-      <path d="M4.75 25.5h14.5" stroke="var(--hud-cyan)" strokeWidth="1.5" strokeLinecap="round" />
+      <path
+        d="M4.75 25.5h14.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
     </svg>
   );
 }
