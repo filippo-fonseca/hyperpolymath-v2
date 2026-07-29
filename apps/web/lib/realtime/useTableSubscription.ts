@@ -147,24 +147,44 @@ export function useTableSubscription(
               for (const notify of entry.listeners) notify();
             }
           },
-        )
-        .subscribe((status, err) => {
-          // RT-OBS: surface channel subscription status so failures are
-          // observable in the console rather than silently dropping events.
-          if (status === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
-            // Channel is live — postgres_changes events will flow.
-            if (process.env.NODE_ENV !== "production") {
-              console.debug(`[realtime] SUBSCRIBED rt:${table}:${userId}`);
+        );
+      // Resolve the user JWT BEFORE the join goes out. A channel that joins
+      // while the async accessToken callback is still pending subscribes as
+      // the anon role: Realtime acks it (SUBSCRIBED fires, no error), and
+      // then RLS silently drops every event, because postgres_changes are
+      // scoped to the claims carried by the join itself — the token pushed
+      // later by setAuth does not re-scope an existing subscription.
+      // setAuth() awaits the accessToken callback and caches the token, so
+      // the join payload carries the user JWT.
+      void supabase.realtime
+        .setAuth()
+        .catch(() => {
+          // Signed out or storage race — join proceeds as anon, which is
+          // today's behavior; the status callback below stays observable.
+        })
+        .then(() => {
+          // The last consumer may have unmounted while auth resolved; the
+          // refcount cleanup already dropped the entry, so joining now would
+          // leak a channel nobody unsubscribes.
+          if (channels.get(key)?.channel !== channel) return;
+          channel.subscribe((status, err) => {
+            // RT-OBS: surface channel subscription status so failures are
+            // observable in the console rather than silently dropping events.
+            if (status === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
+              // Channel is live — postgres_changes events will flow.
+              if (process.env.NODE_ENV !== "production") {
+                console.debug(`[realtime] SUBSCRIBED rt:${table}:${userId}`);
+              }
+            } else if (
+              status === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR ||
+              status === REALTIME_SUBSCRIBE_STATES.TIMED_OUT
+            ) {
+              console.warn(
+                `[realtime] ${status} rt:${table}:${userId}`,
+                err ?? "",
+              );
             }
-          } else if (
-            status === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR ||
-            status === REALTIME_SUBSCRIBE_STATES.TIMED_OUT
-          ) {
-            console.warn(
-              `[realtime] ${status} rt:${table}:${userId}`,
-              err ?? "",
-            );
-          }
+          });
         });
       channels.set(key, {
         channel,
