@@ -12,8 +12,8 @@ import { describeRule, normalizeRule } from "@/lib/tasks/recurrence";
 /**
  * Recurrence editor for a task (issue #144). DISTINCT from the habit frequency
  * selector: this controls a self-rescheduling to-do, not a tracked habit-loop,
- * so it uses the CYAN accent (habits = amber) and frames choices as "repeat
- * every …" rather than a weekly grid with streak semantics.
+ * so it stays on the neutral selected-state grammar (no hue) and frames
+ * choices as "repeat every …" rather than a weekly grid with streak semantics.
  *
  * Controlled: parent owns `value` (null = one-off). The control never mutates
  * the DB itself; it just emits the next rule (or null to stop repeating).
@@ -88,9 +88,9 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
   }
 
   return (
-    <div className="flex flex-col gap-2.5">
-      {/* Frequency pills — cyan accent marks "this is a recurring task". */}
-      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Repeat">
+    <div className="flex flex-col gap-3">
+      {/* Frequency pills: neutral selected state, no hue, no glow. */}
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Repeat">
         {FREQ_OPTIONS.map((opt) => {
           const selected = opt.value === frequency;
           return (
@@ -102,24 +102,13 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
               disabled={disabled}
               onClick={() => pickFrequency(opt.value)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
-                "font-mono text-[11px] uppercase tracking-[0.08em]",
-                "border transition-[color,background-color,border-color,box-shadow] duration-150 ease-out",
+                "inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-micro cursor-pointer-always",
+                "border transition-colors duration-[160ms] ease-out",
                 selected
-                  ? "border-[var(--hud-cyan)] text-[var(--ink)]"
-                  : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
-                disabled && "opacity-40 cursor-not-allowed",
+                  ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
+                  : "border-[var(--edge)] text-[var(--ink-muted)] hover:border-[var(--edge-strong)] hover:text-[var(--ink)]",
+                disabled && "cursor-not-allowed opacity-40",
               )}
-              style={
-                selected
-                  ? {
-                      backgroundColor:
-                        "color-mix(in oklch, var(--hud-cyan) 14%, transparent)",
-                      boxShadow:
-                        "inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 45%, transparent), 0 0 12px color-mix(in oklch, var(--hud-cyan) 22%, transparent)",
-                    }
-                  : undefined
-              }
             >
               {opt.value !== "none" && <Repeat size={11} strokeWidth={2} />}
               {opt.label}
@@ -131,7 +120,7 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
       {/* Custom interval — "every N days". */}
       {value?.frequency === "custom" && (
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] text-[var(--ink-muted)]">Every</span>
+          <span className="text-meta text-[var(--ink-muted)]">Every</span>
           <Input
             type="number"
             min={1}
@@ -139,14 +128,14 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
             value={value.interval}
             onChange={(e) => setInterval(Number.parseInt(e.target.value, 10) || 1)}
             disabled={disabled}
-            className="font-mono text-[13px] h-8 w-20"
+            className="h-8 w-20 font-mono text-meta tabular-nums"
             aria-label="Interval in days"
           />
-          <span className="font-mono text-[11px] text-[var(--ink-muted)]">days</span>
+          <span className="text-meta text-[var(--ink-muted)]">days</span>
         </div>
       )}
 
-      {/* Weekly weekday picker — cyan-accented to stay distinct from habits. */}
+      {/* Weekly weekday picker — neutral selected state, same as the pills. */}
       {value?.frequency === "weekly" && (
         <div className="flex flex-col gap-2">
           <div className="inline-flex items-center gap-1" role="group" aria-label="Repeat on">
@@ -162,13 +151,13 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
                   aria-label={full}
                   title={full}
                   className={cn(
-                    "inline-flex items-center justify-center w-8 h-8 rounded-md",
-                    "font-mono text-[11px] uppercase tracking-[0.04em] cursor-pointer-always",
-                    "border transition-colors duration-150 ease-out",
+                    "inline-flex size-8 items-center justify-center rounded-lg",
+                    "text-micro cursor-pointer-always",
+                    "border transition-colors duration-[160ms] ease-out",
                     on
-                      ? "border-[var(--hud-cyan)] bg-[color-mix(in_oklch,var(--hud-cyan)_14%,var(--surface))] text-[var(--ink)]"
-                      : "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
-                    disabled && "opacity-40 cursor-not-allowed",
+                      ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
+                      : "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] hover:border-[var(--edge-strong)] hover:text-[var(--ink)]",
+                    disabled && "cursor-not-allowed opacity-40",
                   )}
                 >
                   {short}
@@ -177,7 +166,7 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
             })}
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] text-[var(--ink-muted)]">Every</span>
+            <span className="text-meta text-[var(--ink-muted)]">Every</span>
             <Input
               type="number"
               min={1}
@@ -185,10 +174,10 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
               value={value.interval}
               onChange={(e) => setInterval(Number.parseInt(e.target.value, 10) || 1)}
               disabled={disabled}
-              className="font-mono text-[13px] h-8 w-20"
+              className="h-8 w-20 font-mono text-meta tabular-nums"
               aria-label="Interval in weeks"
             />
-            <span className="font-mono text-[11px] text-[var(--ink-muted)]">
+            <span className="text-meta text-[var(--ink-muted)]">
               {value.interval === 1 ? "week" : "weeks"}
             </span>
           </div>
@@ -197,7 +186,7 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
 
       {/* Live summary of the rule. */}
       {value && (
-        <p className="font-mono text-[11px] text-[var(--hud-cyan)]">
+        <p className="text-micro text-[var(--ink-muted)]">
           {describeRule(value)}. Advances to the next date when completed.
         </p>
       )}
