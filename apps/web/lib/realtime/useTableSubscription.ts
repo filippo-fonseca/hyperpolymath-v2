@@ -156,8 +156,7 @@ export function useTableSubscription(
       // later by setAuth does not re-scope an existing subscription.
       // setAuth() awaits the accessToken callback and caches the token, so
       // the join payload carries the user JWT.
-      void supabase.realtime
-        .setAuth()
+      void Promise.resolve(supabase.realtime?.setAuth())
         .catch(() => {
           // Signed out or storage race — join proceeds as anon, which is
           // today's behavior; the status callback below stays observable.
