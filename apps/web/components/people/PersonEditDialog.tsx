@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { PersonWithStats } from "@/lib/db/queries/people";
 import { createClient } from "@/lib/supabase/client";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import { Camera, Loader2, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -131,7 +132,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
     <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-xl">
+          <DialogTitle className="text-title">
             {isEdit ? "Edit person" : "Add person"}
           </DialogTitle>
         </DialogHeader>
@@ -145,17 +146,20 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
                 aria-label="Change avatar"
-                className="relative rounded-full group cursor-pointer-always"
+                className="group relative rounded-2xl cursor-pointer-always"
               >
                 <PersonAvatar
                   name={name || person.name}
                   avatarUrl={avatarUrl}
-                  sizeClass="w-16 h-16"
+                  personId={person.id}
+                  sizeClass="size-16"
                   textClass="text-xl"
+                  radiusClass="rounded-2xl"
                 />
                 <span
                   className={cn(
- "absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white transition-opacity duration-150",
+                    "absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 text-white",
+                    "transition-opacity duration-[160ms] ease-out motion-reduce:transition-none",
                     uploading ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                   )}
                 >
@@ -176,9 +180,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                   if (f) handleAvatarPick(f);
                 }}
               />
-              <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
-                Click to upload · max 5MB
-              </p>
+              <p className="text-meta text-[var(--ink-faint)]">Click to upload · max 5MB</p>
             </div>
           ) : null}
 
@@ -219,24 +221,27 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
             />
           </Field>
 
-          {/* Tags */}
+          {/* Tags — the same pastel taxonomy the roster and filter rail use, so
+              a tag looks identical wherever it is picked, worn, or filtered. */}
           <div className="space-y-2">
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
-              Tags
-            </span>
+            <span className="block text-meta font-medium text-[var(--ink-muted)]">Tags</span>
             {tags.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {tags.map((t) => (
                   <span
                     key={t}
-                    className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border border-[var(--sd-accent)] px-2 py-0.5 text-[var(--sd-ink)]"
+                    className={cn(
+                      tintFor(t),
+                      "inline-flex h-[24px] items-center gap-1 rounded-lg border px-2 text-micro font-medium",
+                      "border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] text-[var(--tint-ink)]"
+                    )}
                   >
                     {t}
                     <button
                       type="button"
                       onClick={() => removeTag(t)}
                       aria-label={`Remove ${t}`}
-                      className="text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
+                      className="cursor-pointer-always text-[var(--tint-ink)] opacity-60 transition-opacity duration-[160ms] ease-out hover:opacity-100 motion-reduce:transition-none"
                     >
                       <X size={10} />
                     </button>
@@ -254,7 +259,6 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                 }
               }}
               placeholder="Type a tag, press Enter"
-              className="font-mono text-sm"
             />
             <div className="flex flex-wrap gap-1.5">
               {CANONICAL_TAGS.filter((t) => !tags.includes(t)).map((t) => (
@@ -262,7 +266,13 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                   key={t}
                   type="button"
                   onClick={() => addTag(t)}
-                  className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border border-[var(--sd-line)] px-2 py-0.5 text-[var(--sd-ink-faint)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)] transition-colors"
+                  className={cn(
+                    tintFor(t),
+                    "inline-flex h-[24px] items-center gap-1 rounded-lg border px-2 text-micro font-medium cursor-pointer-always",
+                    "border-[var(--edge)] text-[var(--ink-muted)]",
+                    "transition-[border-color,color,background-color] duration-[160ms] ease-out",
+                    "hover:border-[var(--tint-edge)] hover:bg-[var(--tint-bg)] hover:text-[var(--tint-ink)]"
+                  )}
                 >
                   <Plus size={9} />
                   {t}
@@ -302,10 +312,8 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="block space-y-2">
-      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
-        {label}
-      </span>
+    <div className="block space-y-1.5">
+      <span className="block text-meta font-medium text-[var(--ink-muted)]">{label}</span>
       {children}
     </div>
   );
