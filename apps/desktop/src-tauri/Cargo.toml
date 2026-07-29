@@ -43,6 +43,28 @@ enigo = "0.6"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-web-kit = "0.3"
+# NSWindow escape hatch for the flowpill overlay (see src/flowpill.rs): window
+# level, collection behaviour, and the canBecomeKeyWindow assertion that proves
+# the window is non-activating. Already in the lock tree transitively via
+# tao/wry/muda at 0.3.2, so declaring it direct adds no second copy.
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSResponder",
+  "NSWindow",
+  # Reading the window's screen back after ordering it front. A window that
+  # reports no screen is off-screen, which is one of the two ways the overlay
+  # can be "shown" and still invisible. See flowpill.rs's show diagnostics.
+  "NSScreen",
+] }
+
+# CGEventTap for the global bare-Option gesture tap (optiontap.rs). Rolled on
+# `core-graphics` directly rather than pulling `tauri-plugin-macos-input-monitor`:
+# both crates are already resolved in this tree (via enigo/wry), the tap we need
+# is one listen-only FlagsChanged mask, and the double-tap / long-press timing
+# has to live in our own testable state machine either way. Pinned to the minors
+# already in Cargo.lock so no second copy joins the tree.
+core-graphics = "0.25"
+core-foundation = "0.10"
 
 [profile.release]
 panic = "abort"

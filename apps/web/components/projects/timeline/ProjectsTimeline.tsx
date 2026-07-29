@@ -21,8 +21,8 @@
  */
 
 import {
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -32,6 +32,17 @@ import {
 import { toast } from "sonner";
 
 import { updateProject } from "@/app/actions/projects";
+import type { TimelineDatePatch } from "@/components/projects/timeline/ProjectBarPopover";
+import { TimelineGroup } from "@/components/projects/timeline/TimelineGroup";
+import {
+  TIMELINE_HEADER_HEIGHT_PX,
+  TimelineHeader,
+} from "@/components/projects/timeline/TimelineHeader";
+import { TimelineZoomToggle } from "@/components/projects/timeline/TimelineZoomToggle";
+import { type DragMode, patchWouldArchive } from "@/components/projects/timeline/drag-plan";
+import { useTimelineDrag } from "@/components/projects/timeline/useTimelineDrag";
+import { useTimelineView } from "@/components/projects/timeline/useTimelineView";
+import { useUndoToast } from "@/components/shared/use-undo-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,25 +53,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { patchWouldArchive, type DragMode } from "@/components/projects/timeline/drag-plan";
-import type { TimelineDatePatch } from "@/components/projects/timeline/ProjectBarPopover";
-import { TimelineGroup } from "@/components/projects/timeline/TimelineGroup";
-import { TimelineHeader, TIMELINE_HEADER_HEIGHT_PX } from "@/components/projects/timeline/TimelineHeader";
-import { TimelineZoomToggle } from "@/components/projects/timeline/TimelineZoomToggle";
-import { useTimelineDrag } from "@/components/projects/timeline/useTimelineDrag";
-import { useTimelineView } from "@/components/projects/timeline/useTimelineView";
-import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { todayISODate } from "@/lib/projects/archive-status";
 import {
+  type TimelineAreaInput,
+  type TimelineProjectInput,
+  type TimelineRowProject,
   columnsForWindow,
   computeWindow,
   groupByArea,
   headerGroupsForWindow,
   markCurrentColumn,
   todayOffsetPx,
-  type TimelineAreaInput,
-  type TimelineProjectInput,
-  type TimelineRowProject,
 } from "@/lib/projects/timeline";
 
 interface Props {
@@ -114,14 +117,14 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
 
   const patchedProjects = useMemo(
     () => projects.map((p) => (overrides[p.id] ? { ...p, ...overrides[p.id] } : p)),
-    [projects, overrides],
+    [projects, overrides]
   );
 
   // groupByArea does the ghost flagging, the show-archived filtering, and the
   // (orderIndex, createdAt) sort with the sentinel area last — all of it.
   const groups = useMemo(
     () => groupByArea(areas, patchedProjects, { showArchived, todayISO }),
-    [areas, patchedProjects, showArchived, todayISO],
+    [areas, patchedProjects, showArchived, todayISO]
   );
 
   // The window follows what is actually on screen: a ghost hidden behind the
@@ -131,18 +134,18 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
 
   const timelineWindow = useMemo(
     () => computeWindow(visibleProjects, zoom, todayISO),
-    [visibleProjects, zoom, todayISO],
+    [visibleProjects, zoom, todayISO]
   );
 
   const minorColumns = useMemo(
     // isCurrent is not stamped by columnsForWindow (u1 API DEVIATIONS #1) —
     // column geometry stays independent of the clock, so callers pipe through.
     () => markCurrentColumn(columnsForWindow(timelineWindow, zoom), todayISO),
-    [timelineWindow, zoom, todayISO],
+    [timelineWindow, zoom, todayISO]
   );
   const majorGroups = useMemo(
     () => headerGroupsForWindow(timelineWindow, zoom),
-    [timelineWindow, zoom],
+    [timelineWindow, zoom]
   );
 
   const todayPx = todayOffsetPx(timelineWindow, todayISO);
@@ -197,7 +200,7 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
         },
       });
     },
-    [showUndoToast],
+    [showUndoToast]
   );
 
   // A drag release only produces a patch (Conductor trap #1); the archive trap
@@ -212,7 +215,7 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
       }
       handleCommitDates(project, patch);
     },
-    [handleCommitDates, todayISO],
+    [handleCommitDates, todayISO]
   );
 
   const { beginDrag } = useTimelineDrag({
@@ -226,7 +229,7 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
     (project: TimelineRowProject, mode: DragMode, event: ReactPointerEvent<HTMLElement>) => {
       beginDrag({ event, project, mode });
     },
-    [beginDrag],
+    [beginDrag]
   );
 
   const confirmArchiveDrag = useCallback(() => {
@@ -237,14 +240,24 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
   }, [handleCommitDates]);
 
   if (areas.length === 0) {
-    return <TimelineEmpty title="No areas yet" hint="Create an area to start placing projects on the timeline." />;
+    return (
+      <TimelineEmpty
+        title="No areas yet"
+        hint="Create an area to start placing projects on the timeline."
+      />
+    );
   }
 
   if (visibleProjects.length === 0) {
     return (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <TimelineZoomToggle zoom={zoom} onZoomChange={setZoom} onToday={scrollToToday} todayDisabled />
+          <TimelineZoomToggle
+            zoom={zoom}
+            onZoomChange={setZoom}
+            onToday={scrollToToday}
+            todayDisabled
+          />
           {toolbarSlot}
         </div>
         <TimelineEmpty
@@ -352,14 +365,19 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
             <AlertDialogTitle>Archive {pendingArchiveDrag?.project.name}?</AlertDialogTitle>
             <AlertDialogDescription>
               An end date in the past archives{" "}
-              <strong className="text-[var(--sd-ink)]">{pendingArchiveDrag?.project.name}</strong>. It
-              disappears from the sidebar, /areas, and /lifeos until you clear the date or show
+              <strong className="text-[var(--sd-ink)]">{pendingArchiveDrag?.project.name}</strong>.
+              It disappears from the sidebar, /areas, and /lifeos until you clear the date or show
               archived.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingArchiveDrag(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmArchiveDrag} data-testid="timeline-drag-archive-confirm-action">
+            <AlertDialogCancel onClick={() => setPendingArchiveDrag(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmArchiveDrag}
+              data-testid="timeline-drag-archive-confirm-action"
+            >
               Archive anyway
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -372,8 +390,8 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
 function TimelineEmpty({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="sd-panel flex flex-col items-center justify-center gap-1.5 px-6 py-14 text-center">
-      <p className="font-medium text-[14px] text-[var(--sd-ink)]">{title}</p>
-      <p className="max-w-[42ch] text-[13px] text-[var(--sd-ink-dull)] leading-snug">{hint}</p>
+      <p className="font-medium text-body text-[var(--sd-ink)]">{title}</p>
+      <p className="max-w-[42ch] text-meta text-[var(--sd-ink-dull)] leading-snug">{hint}</p>
     </div>
   );
 }

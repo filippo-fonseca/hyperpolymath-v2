@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>JARVIS dictation</title>
+    <!-- The sd register, linked exactly as index.html links it: the @font-face
+         rules resolve absolute /fonts/* paths under the Vite public root, so
+         they belong in the document rather than in a bundled import. The pill's
+         own sheet is imported from main.tsx. -->
+    <link rel="stylesheet" href="/src/styles/sd-fonts.css" />
+    <link rel="stylesheet" href="/src/styles/sd-tokens.css" />
+    <style>
+      /* Inline, and before the module loads, on purpose. This window is
+         transparent and floats over whatever application the user is working
+         in. If the default white canvas paints for even one frame before the
+         bundle arrives, a 440x300 white rectangle flashes over their editor.
+         Alpha zero from the very first paint is the fix, and it is also what
+         lets macOS hit-test clicks straight through the empty region. -->
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="flowpill-root"></div>
+    <script type="module" src="/src/flowpill/main.tsx"></script>
+  </body>
+</html>

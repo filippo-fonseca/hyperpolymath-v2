@@ -50,8 +50,10 @@ export function SlashCommandPopover({ query, selectedIndex, onSelect }: Props) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 2 }}
         transition={{ duration: 0.12, ease: [0.25, 1, 0.5, 1] }}
-        className="sd-menu-surface absolute bottom-full left-0 mb-2 min-w-[18rem] rounded-[10px] font-mono z-50"
-        style={{ boxShadow: "0 12px 32px rgba(0, 0, 0, 0.3)" }}
+        // No inline box-shadow: .sd-menu-surface already carries the craft
+        // --shadow-pop lift (globals.css cascade upgrade), and an inline
+        // declaration would clobber it in both themes.
+        className="sd-menu-surface absolute bottom-full left-0 mb-2 min-w-[18rem] rounded-xl font-mono z-50"
         role="listbox"
         aria-label="Slash commands"
       >

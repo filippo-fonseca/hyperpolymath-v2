@@ -18,11 +18,11 @@ export function ExplorerNewMenu({
         <button
           type="button"
           className={cn(
-            "flex h-8 items-center overflow-hidden rounded-[6px] bg-[var(--sd-accent)] font-sans text-[0.8rem] font-medium text-white outline-none",
-            "transition-colors duration-[120ms] hover:bg-[var(--sd-accent-faint)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sd-app)]"
+            "flex h-8 items-center overflow-hidden rounded-lg bg-[var(--sd-accent)] font-sans text-meta font-medium text-white outline-none",
+            "transition-colors duration-[160ms] hover:bg-[var(--sd-accent-faint)]"
           )}
         >
-          <span className="flex h-full items-center gap-1.5 px-2.5">
+          <span className="flex h-full items-center gap-2 px-3">
             <Plus size={15} strokeWidth={2.2} />
             New
           </span>
@@ -35,7 +35,7 @@ export function ExplorerNewMenu({
         <DropdownMenuPrimitive.Content
           align="start"
           sideOffset={6}
-          className="z-50 min-w-[184px] rounded-[6px] border border-[var(--sd-menu-line)] bg-[var(--sd-menu)] p-1 font-sans text-[0.8rem] text-[var(--sd-ink)] shadow-[0_14px_34px_hsl(235_15%_0%_/_0.46)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1"
+          className="z-50 min-w-[184px] rounded-xl border border-[var(--sd-menu-line)] bg-[var(--sd-menu)] p-1 font-sans text-meta text-[var(--sd-ink)] shadow-[0_4px_16px_rgb(0_0_0_/_0.06)] dark:shadow-[0_4px_16px_rgb(0_0_0_/_0.30)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1"
         >
           <NewMenuItem onSelect={onNewFolder}>
             <FolderPlus />
@@ -55,7 +55,7 @@ function NewMenuItem({ children, onSelect }: { children: ReactNode; onSelect: ()
   return (
     <DropdownMenuPrimitive.Item
       onSelect={onSelect}
-      className="flex h-8 select-none items-center gap-2 rounded-[4px] px-2 outline-none transition-colors duration-100 focus:bg-[var(--sd-menu-hover)] [&_svg]:size-4 [&_svg]:text-[var(--sd-ink-dull)]"
+      className="flex h-8 select-none items-center gap-2 rounded px-2 outline-none transition-colors duration-[160ms] focus:bg-[var(--sd-menu-hover)] [&_svg]:size-4 [&_svg]:text-[var(--sd-ink-dull)]"
     >
       {children}
     </DropdownMenuPrimitive.Item>

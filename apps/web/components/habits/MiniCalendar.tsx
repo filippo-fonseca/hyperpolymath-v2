@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   MONTH_NAMES,
   WEEKDAY_SHORT,
@@ -49,9 +49,7 @@ export function MiniCalendar({ value, onChange }: Props) {
   }, [monthAnchor]);
 
   function shiftMonth(delta: number) {
-    setMonthAnchor(
-      new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + delta, 1),
-    );
+    setMonthAnchor(new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + delta, 1));
   }
 
   return (
@@ -62,38 +60,40 @@ export function MiniCalendar({ value, onChange }: Props) {
           type="button"
           onClick={() => shiftMonth(-1)}
           aria-label="Previous month"
-          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--sd-ink-faint)] transition-colors hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] cursor-pointer-always"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)] cursor-pointer-always"
         >
           <ChevronLeft size={14} />
         </button>
-        <span className="text-[13px] font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">
+        <span className="text-meta font-medium text-[var(--ink)]">
           {MONTH_NAMES[monthAnchor.getMonth()]} {monthAnchor.getFullYear()}
         </span>
         <button
           type="button"
           onClick={() => shiftMonth(1)}
           aria-label="Next month"
-          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--sd-ink-faint)] transition-colors hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] cursor-pointer-always"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)] cursor-pointer-always"
         >
           <ChevronRight size={14} />
         </button>
       </div>
 
       {/* Weekday labels */}
-      <div className="mb-1 grid grid-cols-7 gap-0.5">
+      <div className="mb-1 grid grid-cols-7 gap-1">
         {WEEKDAY_SHORT.map((w, i) => (
           <span
+            // biome-ignore lint/suspicious/noArrayIndexKey: static 7-slot header with duplicate letters (S, T)
             key={i}
-            className="py-1 text-center font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]"
+            className="py-1 text-center text-micro text-[var(--ink-faint)]"
           >
             {w}
           </span>
         ))}
       </div>
 
-      {/* Grid — `--sd-box` cells on a `--sd-line` hairline gutter; selected +
-          today ride the single cyan accent, both themes through tokens. */}
-      <div className="grid grid-cols-7 gap-0.5">
+      {/* Grid — borderless day cells on the popover surface (one border per
+          nesting level; the popover already carries it). Selected day is the
+          single accent-filled active-state indicator; today gets a dot. */}
+      <div className="grid grid-cols-7 gap-1">
         {cells.map((c) => {
           const isSelected = c.iso === value;
           const isToday = c.iso === today;
@@ -105,25 +105,23 @@ export function MiniCalendar({ value, onChange }: Props) {
               aria-pressed={isSelected}
               aria-current={isToday ? "date" : undefined}
               className={cn(
-                "relative inline-flex h-8 items-center justify-center rounded-md border",
-                "font-mono text-[12px] tabular-nums cursor-pointer-always",
-                "transition-colors duration-100 ease-out",
+                "relative inline-flex h-8 items-center justify-center rounded-lg",
+                "font-mono text-micro tabular-nums cursor-pointer-always",
+                "transition-colors duration-[160ms] ease-out",
                 isSelected
-                  ? "border-transparent font-medium text-[var(--sd-app)]"
+                  ? "font-medium text-[var(--canvas)]"
                   : c.inMonth
-                    ? "border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]"
-                    : "border-transparent text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)]",
+                    ? "text-[var(--ink)] hover:bg-[var(--hover)]"
+                    : "text-[var(--ink-faint)] hover:bg-[var(--hover)]"
               )}
-              style={
-                isSelected ? { background: "var(--sd-accent)" } : undefined
-              }
+              style={isSelected ? { background: "var(--accent)" } : undefined}
             >
               {c.date}
               {isToday && !isSelected ? (
                 <span
                   aria-hidden="true"
                   className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
-                  style={{ backgroundColor: "var(--sd-accent)" }}
+                  style={{ backgroundColor: "var(--accent)" }}
                 />
               ) : null}
             </button>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { toast } from "sonner";
-import { Check } from "lucide-react";
+import { createHabit, updateHabit } from "@/app/actions/habits";
+import type { HabitWithAreas } from "@/app/actions/habits";
+import { Spinner } from "@/components/shared/Spinner";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -13,12 +14,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Spinner } from "@/components/shared/Spinner";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { createHabit, updateHabit } from "@/app/actions/habits";
+import { Check } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { HabitFrequencySelector } from "./HabitFrequencySelector";
-import type { HabitWithAreas } from "@/app/actions/habits";
 
 export interface AreaOption {
   id: string;
@@ -60,6 +60,7 @@ export function HabitDialog(props: Props) {
 
   // Rehydrate form when the dialog opens. We reset on close so re-opening
   // doesn't surface stale values from the previous session.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rehydrate exactly once per open, not on every prop identity change
   useEffect(() => {
     if (!open) return;
     if (props.mode === "edit") {
@@ -73,7 +74,6 @@ export function HabitDialog(props: Props) {
       setDaysOfWeek(EVERY_DAY);
       setAreaIds([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const noDaysSelected = !daysOfWeek.some(Boolean);
@@ -97,11 +97,8 @@ export function HabitDialog(props: Props) {
         toast.error(r.error);
         return;
       }
-      toast.success(
-        props.mode === "create" ? "Habit added." : "Habit updated.",
-      );
-      const id =
-        props.mode === "create" && r.data ? r.data.id : props.habit?.id ?? "";
+      toast.success(props.mode === "create" ? "Habit added." : "Habit updated.");
+      const id = props.mode === "create" && r.data ? r.data.id : (props.habit?.id ?? "");
       onSaved?.(id);
       onOpenChange(false);
     });
@@ -111,9 +108,7 @@ export function HabitDialog(props: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            {props.mode === "create" ? "New habit" : "Edit habit"}
-          </DialogTitle>
+          <DialogTitle>{props.mode === "create" ? "New habit" : "Edit habit"}</DialogTitle>
           <DialogDescription className="sr-only">
             {props.mode === "create"
               ? "Add a new habit with a weekly schedule."
@@ -123,10 +118,9 @@ export function HabitDialog(props: Props) {
 
         <div className="flex flex-col gap-4 mt-2">
           {/* Name */}
-          <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
-              Name
-            </span>
+          {/* biome-ignore lint/a11y/noLabelWithoutControl: the label wraps <Input>, which renders the control */}
+          <label className="flex flex-col gap-2">
+            <span className="text-micro font-medium text-[var(--ink-muted)]">Name</span>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -137,8 +131,9 @@ export function HabitDialog(props: Props) {
           </label>
 
           {/* Description */}
-          <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+          {/* biome-ignore lint/a11y/noLabelWithoutControl: the label wraps <Textarea>, which renders the control */}
+          <label className="flex flex-col gap-2">
+            <span className="text-micro font-medium text-[var(--ink-muted)]">
               Description <span className="opacity-60">(optional)</span>
             </span>
             <Textarea
@@ -151,20 +146,13 @@ export function HabitDialog(props: Props) {
           </label>
 
           {/* Schedule */}
-          <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
-              Schedule
-            </span>
-            <HabitFrequencySelector
-              value={daysOfWeek}
-              onChange={setDaysOfWeek}
-            />
+          <div className="flex flex-col gap-2">
+            <span className="text-micro font-medium text-[var(--ink-muted)]">Schedule</span>
+            <HabitFrequencySelector value={daysOfWeek} onChange={setDaysOfWeek} />
             <span
               className={cn(
                 "text-[12px]",
-                noDaysSelected
-                  ? "text-[var(--ink-coral)]"
-                  : "text-[var(--sd-ink-dull)]",
+                noDaysSelected ? "text-[var(--ink-coral)]" : "text-[var(--sd-ink-dull)]"
               )}
             >
               {noDaysSelected
@@ -178,8 +166,8 @@ export function HabitDialog(props: Props) {
           </div>
 
           {/* Areas */}
-          <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+          <div className="flex flex-col gap-2">
+            <span className="text-micro font-medium text-[var(--ink-muted)]">
               Areas <span className="opacity-60">(zero or more)</span>
             </span>
             {areas.length === 0 ? (
@@ -187,7 +175,7 @@ export function HabitDialog(props: Props) {
                 No areas yet — create one from the sidebar first.
               </p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {areas.map((a) => {
                   const selected = areaIds.includes(a.id);
                   return (
@@ -196,37 +184,21 @@ export function HabitDialog(props: Props) {
                       type="button"
                       onClick={() =>
                         setAreaIds((prev) =>
-                          selected
-                            ? prev.filter((id) => id !== a.id)
-                            : [...prev, a.id],
+                          selected ? prev.filter((id) => id !== a.id) : [...prev, a.id]
                         )
                       }
                       aria-pressed={selected}
                       className={cn(
-                        "inline-flex items-center gap-1.5 rounded-md px-2 py-1",
-                        "text-[13px]",
-                        "border transition-colors duration-150 ease-out cursor-pointer-always",
+                        "inline-flex items-center gap-2 rounded-lg px-2 py-1",
+                        "text-meta",
+                        "border transition-colors duration-[160ms] ease-out cursor-pointer-always",
                         selected
-                          ? "border-transparent text-[var(--sd-accent)]"
-                          : "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)] hover:border-[color-mix(in_srgb,var(--sd-ink)_18%,var(--sd-line))] hover:text-[var(--sd-ink)]",
+                          ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
+                          : "border-[var(--edge)] bg-transparent text-[var(--ink-muted)] hover:border-[var(--edge-strong)] hover:text-[var(--ink)]"
                       )}
-                      style={
-                        selected
-                          ? {
-                              borderColor:
-                                "color-mix(in srgb, var(--sd-accent) 40%, var(--sd-line))",
-                              background:
-                                "color-mix(in srgb, var(--sd-accent) 14%, var(--sd-input))",
-                            }
-                          : undefined
-                      }
                     >
-                      {selected ? (
-                        <Check size={12} className="shrink-0" />
-                      ) : null}
-                      {a.emoji ? (
-                        <span aria-hidden="true">{a.emoji}</span>
-                      ) : null}
+                      {selected ? <Check size={12} className="shrink-0" /> : null}
+                      {a.emoji ? <span aria-hidden="true">{a.emoji}</span> : null}
                       <span>{a.name}</span>
                     </button>
                   );
@@ -237,18 +209,10 @@ export function HabitDialog(props: Props) {
         </div>
 
         <DialogFooter className="mt-4">
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={pending}
-          >
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>
             Cancel
           </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!canSave}
-          >
+          <Button type="button" onClick={handleSubmit} disabled={!canSave}>
             {pending ? (
               <>
                 <Spinner size={14} label="Saving habit" />

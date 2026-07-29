@@ -1,8 +1,9 @@
 "use client";
 
-import type { ExplorerItem } from "@/components/wiki/explorer-types";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { MetaRow, MetaSection } from "@/components/ui/explorer";
 import { FolderIcon } from "@/components/ui/icons/FolderIcon";
+import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { PagePreviewThumb } from "@/components/wiki/preview/PagePreviewThumb";
 import { extractPreviewModel } from "@/lib/pages/preview";
 import { format, formatDistanceToNow } from "date-fns";
@@ -27,9 +28,11 @@ export function ExplorerInspectorPanel({
 }: ExplorerInspectorPanelProps) {
   if (items.length === 0) {
     return (
-      <div className="grid min-h-[390px] place-items-center px-5 text-center text-[0.8rem] leading-5 text-[var(--sd-ink-dull)]">
-        Select a page or folder to inspect it.
-      </div>
+      <EmptyState
+        size="section"
+        title="Nothing selected"
+        description="Select a page or folder to inspect it."
+      />
     );
   }
 
@@ -118,7 +121,7 @@ export function ExplorerInspectorPanel({
 
 function InspectorCard({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] shadow-[0_3px_12px_hsl(235_15%_0%_/_0.1)]">
+    <div className="overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)]">
       {children}
     </div>
   );
@@ -127,8 +130,8 @@ function InspectorCard({ children }: { children: ReactNode }) {
 function InspectorName({ name, kind }: { name: string; kind: string }) {
   return (
     <div className="px-4 pb-1 pt-3">
-      <div className="truncate text-base font-bold text-[var(--sd-ink)]">{name}</div>
-      <span className="mt-1 inline-flex rounded-[6px] bg-[var(--sd-selected)] px-1.5 py-0.5 text-[0.68rem] font-medium text-[var(--sd-ink-dull)]">
+      <div className="truncate text-subtitle font-medium text-[var(--sd-ink)]">{name}</div>
+      <span className="mt-1 inline-flex rounded bg-[var(--sd-selected)] px-1 py-0.5 text-micro font-medium text-[var(--sd-ink-dull)]">
         {kind}
       </span>
     </div>
@@ -167,8 +170,8 @@ function QuickActions({
             onClick={action.onClick}
             className={
               action.danger
-                ? "rounded-[6px] px-2 py-1 font-sans text-[0.72rem] text-[var(--ink-coral)] transition-colors duration-[120ms] hover:bg-[color-mix(in_oklch,var(--ink-coral)_14%,transparent)]"
-                : "rounded-[6px] px-2 py-1 font-sans text-[0.72rem] text-[var(--sd-ink-dull)] transition-colors duration-[120ms] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
+                ? "rounded-lg px-2 py-1 font-sans text-micro text-[var(--ink-coral)] transition-colors duration-[160ms] hover:bg-[color-mix(in_oklch,var(--ink-coral)_14%,transparent)]"
+                : "rounded-lg px-2 py-1 font-sans text-micro text-[var(--sd-ink-dull)] transition-colors duration-[160ms] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
             }
           >
             {action.label}

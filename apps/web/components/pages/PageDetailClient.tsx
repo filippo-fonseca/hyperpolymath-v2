@@ -7,6 +7,7 @@ import {
   getSidebarTreeForCurrentUser,
   setPageFolder,
 } from "@/app/actions/folders";
+import { getLatestProcessingRun, recordProcessingRun } from "@/app/actions/page-processing";
 import {
   deletePage,
   getPagesForCurrentUser,
@@ -15,6 +16,8 @@ import {
 } from "@/app/actions/pages";
 import { getPeopleForCurrentUser, reconcilePersonReferences } from "@/app/actions/people";
 import { createProject } from "@/app/actions/projects";
+import { UrlField } from "@/components/shared/UrlField";
+import { PageScaffold } from "@/components/ui/PageScaffold";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,8 +32,11 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import type { PersonWithStats } from "@/lib/db/queries/people";
+import { DAILY_PAGE_PROCESS_PROMPT } from "@/lib/jarvis/daily-page-process";
 import { invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
 import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
+import type { ResolverBlock } from "@/lib/jarvis/scope-resolver";
+import { computeBlockHashes, diffBlockHashes } from "@/lib/pages/block-hash";
 import {
   type FolderProjectLink,
   type FolderRow,
@@ -43,10 +49,6 @@ import { useInPageSearch } from "@/lib/pages/useInPageSearch";
 import { extractPersonIdsFromBlockNote } from "@/lib/people/extract-mentions";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { DAILY_PAGE_PROCESS_PROMPT } from "@/lib/jarvis/daily-page-process";
-import type { ResolverBlock } from "@/lib/jarvis/scope-resolver";
-import { computeBlockHashes, diffBlockHashes } from "@/lib/pages/block-hash";
-import { getLatestProcessingRun, recordProcessingRun } from "@/app/actions/page-processing";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -62,6 +64,7 @@ import {
   Lock,
   Search,
   Sparkles,
+  Star,
   Trash2,
   TriangleAlert,
   X,
@@ -77,7 +80,6 @@ import { PageProcessingRunsMenu } from "./PageProcessingRunsMenu";
 import { PageProperties } from "./PageProperties";
 import { PageSearchBar } from "./PageSearchBar";
 import { ProjectLinker } from "./ProjectLinker";
-import { UrlField } from "@/components/shared/UrlField";
 
 // BlockNote needs the browser DOM — load client-only.
 const PageBlockEditor = dynamic(() => import("./PageBlockEditor"), { ssr: false });
@@ -217,6 +219,10 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   // context snapshot, MCP export, and JARVIS knowledge graph. Optimistic local
   // mirror of pages.no_export; the serverPage value (TanStack Query + realtime)
   // is the source of truth and re-syncs this on any external change.
+  const [pinned, setPinnedState] = useState(serverPage.pinned);
+  useEffect(() => {
+    setPinnedState(serverPage.pinned);
+  }, [serverPage.pinned]);
   const [noExport, setNoExportState] = useState(serverPage.noExport);
   useEffect(() => {
     setNoExportState(serverPage.noExport);
@@ -394,7 +400,9 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         setSaveError(res.error);
         // One stable id so a failing autosave replaces its own toast every
         // 1.5s instead of stacking a new one on each attempt.
-        toast.error(`Could not save this page: ${res.error}`, { id: `page-save-${initialPage.id}` });
+        toast.error(`Could not save this page: ${res.error}`, {
+          id: `page-save-${initialPage.id}`,
+        });
         return;
       }
       setSaveError(null);
@@ -431,17 +439,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
       if (savedFadeTimer.current) clearTimeout(savedFadeTimer.current);
       savedFadeTimer.current = setTimeout(() => setShowSaved(false), 2000);
     },
-    [
-      initialPage.id,
-      title,
-      content,
-      contentJson,
-      emoji,
-      url,
-      linkedProjectIds,
-      queryClient,
-      userId,
-    ]
+    [initialPage.id, title, content, contentJson, emoji, url, linkedProjectIds, queryClient, userId]
   );
 
   const scheduleAutosave = useCallback(
@@ -513,7 +511,25 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   async function handleDelete() {
     await deletePage(initialPage.id);
+    // Mirror save() / handleToggleNoExport() / handleCoverChange(): mark the
+    // pages query stale before leaving, so the wiki home we are about to land
+    // on refetches instead of re-rendering the deleted page from cache.
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
     router.push("/wiki");
+  }
+
+  // Star toggle (issue #365). Same optimistic shape as the no-export gate:
+  // flip local state, persist through updatePage's existing `pinned` field,
+  // invalidate the pages query, roll back on failure.
+  async function handleTogglePinned() {
+    const next = !pinned;
+    setPinnedState(next);
+    const res = await updatePage({ id: initialPage.id, pinned: next });
+    if (!res.success) {
+      setPinnedState(!next);
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
   }
 
   // Toggle the knowledge-graph gate (Phase 29). Optimistically flip local state,
@@ -719,15 +735,261 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   // that folder's Explorer view (`/wiki?folder=<id>`), not the bare wiki root,
   // so leaving the page preserves the folder context. Derived from the page's
   // own folderId so it survives a hard reload of the detail route.
-  const wikiBackHref = serverPage.folderId
-    ? `/wiki?folder=${serverPage.folderId}`
-    : "/wiki";
+  const wikiBackHref = serverPage.folderId ? `/wiki?folder=${serverPage.folderId}` : "/wiki";
+
+  const breadcrumb = (
+    // Rendered inside the scaffold's eyebrow `<p>`, so everything here must be
+    // phrasing content (spans and buttons, no nav/div) to stay valid HTML.
+    <span className="flex flex-wrap items-center gap-1">
+      <button
+        type="button"
+        onClick={() => router.push(wikiBackHref)}
+        className="cursor-pointer rounded px-1 py-0.5 transition-[color,background-color] duration-[160ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]"
+      >
+        Wiki
+      </button>
+      {primaryProject?.areaName && (
+        <>
+          <span className="opacity-50">/</span>
+          <span className="px-1">{primaryProject.areaName}</span>
+        </>
+      )}
+      {primaryLink && (
+        <>
+          <span className="opacity-50">/</span>
+          <button
+            type="button"
+            onClick={() => router.push(`/projects/${primaryLink.id}`)}
+            className="max-w-[200px] cursor-pointer truncate rounded bg-[var(--hover)] px-1.5 py-0.5 text-[var(--ink)] transition-[background-color] duration-[160ms] ease-out hover:bg-[var(--sd-hover)]"
+          >
+            {primaryLink.name}
+          </button>
+        </>
+      )}
+      {folderPath.map((folder) => (
+        <span key={folder.id} className="flex items-center gap-1">
+          <span className="opacity-50">/</span>
+          <button
+            type="button"
+            onClick={() => router.push(`/wiki?folder=${folder.id}`)}
+            className="max-w-[180px] cursor-pointer truncate rounded px-1 py-0.5 transition-[color,background-color] duration-[160ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]"
+            title={`Open folder “${folder.name}” in Wiki`}
+          >
+            {folder.name}
+          </button>
+        </span>
+      ))}
+      <span className="opacity-50">/</span>
+      <span className="max-w-[220px] truncate px-1 text-[var(--ink)]">
+        {title || "Untitled page"}
+      </span>
+    </span>
+  );
+
+  const headerActions = (
+    <div className="flex items-center gap-1">
+      {saveError ? (
+        <span
+          title={`${saveError} — your changes are still in this tab. Press Cmd+S to retry.`}
+          className="flex items-center gap-1 text-micro text-[var(--ink-coral)] sd-fade-in mr-0.5"
+        >
+          <TriangleAlert size={11} strokeWidth={2} />
+          Not saved
+        </span>
+      ) : (
+        showSaved && (
+          <span className="flex items-center gap-1 text-micro text-[var(--ink-muted)] sd-fade-in mr-0.5">
+            <Check size={11} strokeWidth={2} />
+            Saved
+          </span>
+        )
+      )}
+
+      <button
+        type="button"
+        onClick={() => setSearchOpen(true)}
+        aria-pressed={searchOpen}
+        className={`rounded-lg p-1.5 transition-colors duration-[160ms] cursor-pointer hover:bg-[var(--surface)] ${
+          searchOpen ? "text-[var(--ink)]" : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+        }`}
+        title="Find in page"
+      >
+        <Search size={13} strokeWidth={1.5} />
+      </button>
+
+      <button
+        type="button"
+        onClick={handleTogglePinned}
+        aria-pressed={pinned}
+        aria-label={pinned ? "Unstar page" : "Star page"}
+        className={`rounded-lg p-1.5 transition-colors duration-[160ms] cursor-pointer hover:bg-[var(--surface)] ${
+          pinned ? "text-[var(--ink-amber)]" : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+        }`}
+        title={pinned ? "Unstar page" : "Star page"}
+      >
+        <Star size={13} strokeWidth={1.5} fill={pinned ? "currentColor" : "none"} />
+      </button>
+
+      <button
+        type="button"
+        onClick={handleExport}
+        className="rounded-lg p-1.5 text-[var(--ink-muted)] transition-colors duration-[160ms] hover:bg-[var(--surface)] hover:text-[var(--ink)] cursor-pointer"
+        title="Export as Markdown"
+      >
+        <Download size={13} strokeWidth={1.5} />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setHideReceipts((v) => !v)}
+        aria-pressed={hideReceipts}
+        className={`rounded-lg p-1.5 transition-colors duration-[160ms] cursor-pointer hover:bg-[var(--surface)] ${
+          hideReceipts ? "text-[var(--ink)]" : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+        }`}
+        title={hideReceipts ? "Show JARVIS receipts" : "Hide JARVIS receipts"}
+      >
+        {hideReceipts ? (
+          <EyeOff size={13} strokeWidth={1.5} />
+        ) : (
+          <Eye size={13} strokeWidth={1.5} />
+        )}
+      </button>
+
+      <button
+        type="button"
+        onClick={handleToggleNoExport}
+        aria-pressed={noExport}
+        aria-label={
+          noExport ? "Include in JARVIS knowledge graph" : "Exclude from JARVIS knowledge graph"
+        }
+        className={`rounded-lg p-1.5 transition-colors duration-[160ms] cursor-pointer hover:bg-[var(--surface)] ${
+          noExport ? "text-[var(--ink-muted)] hover:text-[var(--ink)]" : "text-[var(--ink)]"
+        }`}
+        title={
+          noExport
+            ? "Excluded from JARVIS knowledge graph (click to include)"
+            : "Included in JARVIS knowledge graph (click to exclude)"
+        }
+      >
+        {noExport ? (
+          <GlobeLock size={13} strokeWidth={1.5} />
+        ) : (
+          <Globe size={13} strokeWidth={1.5} />
+        )}
+      </button>
+
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <button
+            type="button"
+            className="rounded-lg p-1.5 text-[var(--ink-muted)] transition-colors duration-[160ms] hover:bg-[var(--surface)] hover:text-[var(--ink-coral)] cursor-pointer"
+            title="Delete page"
+          >
+            <Trash2 size={13} strokeWidth={1.5} />
+          </button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this page?</AlertDialogTitle>
+            <AlertDialogDescription className="text-meta">
+              This will permanently delete &ldquo;{title || "Untitled page"}&rdquo;. Project links
+              will be removed but the projects themselves are untouched. This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-meta">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-[var(--ink-coral)] text-meta text-white hover:bg-[color-mix(in_oklch,var(--ink-coral)_85%,black)]"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+
+  const pageTitle = (
+    // Lives inside the scaffold's `h1.text-display`; the input inherits the
+    // display metrics through the preflight `font: inherit` on form fields.
+    <span className="flex min-w-0 flex-1 items-start gap-3">
+      {/* Emoji picker */}
+      <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex size-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-[20px] leading-none transition-colors duration-[160ms] hover:bg-[var(--surface)]"
+            title="Set emoji"
+          >
+            {emoji ? (
+              <span>{emoji}</span>
+            ) : (
+              <FileText size={18} strokeWidth={1.25} className="text-[var(--ink-muted)]" />
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-3 flex flex-col gap-2" align="start">
+          <label htmlFor="page-emoji-input" className="text-micro text-[var(--ink-muted)]">
+            Emoji
+          </label>
+          <input
+            id="page-emoji-input"
+            type="text"
+            maxLength={4}
+            value={emojiInput}
+            onChange={(e) => setEmojiInput(e.target.value)}
+            placeholder="Type an emoji..."
+            className="w-full rounded-lg border border-[var(--edge)] bg-transparent px-2 py-1 text-body text-[var(--ink)] transition-colors duration-[160ms] placeholder:text-[var(--ink-muted)]"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleEmojiCommit();
+            }}
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleEmojiCommit}
+              className="flex-1 cursor-pointer rounded-lg border border-[var(--edge)] py-1 text-meta text-[var(--ink)] transition-colors duration-[160ms] hover:bg-[var(--surface)]"
+            >
+              Set
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmojiInput("");
+                setEmoji(null);
+                setEmojiOpen(false);
+                scheduleAutosave({ emoji: null });
+              }}
+              className="cursor-pointer rounded-lg border border-[var(--edge)] px-2 py-1 text-meta text-[var(--ink-muted)] transition-colors duration-[160ms] hover:bg-[var(--surface)]"
+            >
+              Clear
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Inline title */}
+      <input
+        ref={titleRef}
+        type="text"
+        value={title}
+        onChange={(e) => handleTitleChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            editorFocusRef.current?.();
+          }
+        }}
+        placeholder="Untitled page"
+        className="min-w-0 flex-1 border-none bg-transparent text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)]"
+      />
+    </span>
+  );
 
   return (
-    <div
-      data-page-island
-      className="relative flex flex-col gap-4 p-6 max-w-4xl mx-auto w-full min-h-full"
-    >
+    <div data-page-island className="relative min-h-full">
       {searchOpen && (
         <PageSearchBar
           query={search.query}
@@ -740,365 +1002,148 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         />
       )}
 
-      {/* Cover/banner image (issue #28). Notion-style, full-bleed across the top
-          of the page column. When set, the banner uses -mx-6 to bleed past the
-          container padding; when absent, only the slim "Add cover" affordance
-          shows. */}
-      <PageCoverImage
-        coverUrl={coverUrl}
-        attribution={coverAttribution}
-        onChange={handleCoverChange}
-      />
+      {/* Cover/banner image (issue #28). When set it sits flush, edge to edge
+          above the scaffold (SDC-1 §2.9). Without one, the slim "Add cover"
+          affordance renders inside the scaffold so it sits on the page
+          measure. The component branches on coverUrl, so each call site only
+          ever renders its own half. */}
+      {coverUrl ? (
+        <PageCoverImage
+          coverUrl={coverUrl}
+          attribution={coverAttribution}
+          onChange={handleCoverChange}
+        />
+      ) : null}
 
-      {/* Breadcrumb: Wiki / Area / [Project pill] / Folder > Subfolder > … / Page.
-          Every segment is a link back to the corresponding Wiki Explorer folder
-          view, so leaving the page keeps you in your place. */}
-      <nav className="flex flex-wrap items-center gap-1 font-mono text-[11px] text-[var(--ink-muted)]">
-        <button
-          type="button"
-          onClick={() => router.push(wikiBackHref)}
-          className="rounded-[4px] px-1 py-0.5 transition-[color,background-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--hud-cyan)] cursor-pointer"
-        >
-          Wiki
-        </button>
-        {primaryProject?.areaName && (
-          <>
-            <span className="opacity-50">/</span>
-            <span className="px-1">{primaryProject.areaName}</span>
-          </>
-        )}
-        {primaryLink && (
-          <>
-            <span className="opacity-50">/</span>
-            <button
-              type="button"
-              onClick={() => router.push(`/projects/${primaryLink.id}`)}
-              className="truncate max-w-[200px] rounded-[4px] border border-[var(--sd-line)] bg-[var(--sd-darker-box)] px-1.5 py-0.5 text-[var(--ink)] transition-[background-color,border-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:border-[var(--hud-cyan)] focus-visible:outline-none focus-visible:border-[var(--hud-cyan)] cursor-pointer"
-            >
-              {primaryLink.name}
-            </button>
-          </>
-        )}
-        {folderPath.map((folder) => (
-          <span key={folder.id} className="flex items-center gap-1">
-            <span className="opacity-50">/</span>
-            <button
-              type="button"
-              onClick={() => router.push(`/wiki?folder=${folder.id}`)}
-              className="truncate max-w-[180px] rounded-[4px] px-1 py-0.5 transition-[color,background-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--hud-cyan)] cursor-pointer"
-              title={`Open folder “${folder.name}” in Wiki`}
-            >
-              {folder.name}
-            </button>
-          </span>
-        ))}
-        <span className="opacity-50">/</span>
-        <span className="truncate max-w-[220px] px-1 text-[var(--ink)]">
-          {title || "Untitled page"}
-        </span>
-      </nav>
-
-      {/* Sticky per-doc nav bar: saved indicator + export, hide-receipts, delete.
-          Pinned top-right, opaque canvas background so body content scrolling
-          under it stays hidden. */}
-      <div className="sticky top-0 z-10 self-end ml-auto flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-darker-box)] px-2 py-1 shadow-[0_1px_0_hsl(235_15%_0%_/_0.12)]">
-        {saveError ? (
-          <span
-            title={`${saveError} — your changes are still in this tab. Press Cmd+S to retry.`}
-            className="flex items-center gap-1 text-[11px] font-mono text-red-500 sd-fade-in mr-0.5"
-          >
-            <TriangleAlert size={11} strokeWidth={2} />
-            Not saved
-          </span>
-        ) : (
-          showSaved && (
-            <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] sd-fade-in mr-0.5">
-              <Check size={11} strokeWidth={2} />
-              Saved
-            </span>
-          )
-        )}
-
-        <button
-          type="button"
-          onClick={() => setSearchOpen(true)}
-          aria-pressed={searchOpen}
-          className={`p-1.5 rounded-sm transition-colors duration-150 cursor-pointer hover:bg-[var(--surface)] ${
-            searchOpen ? "text-[var(--ink)]" : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-          }`}
-          title="Find in page"
-        >
-          <Search size={13} strokeWidth={1.5} />
-        </button>
-
-        <button
-          type="button"
-          onClick={handleExport}
-          className="p-1.5 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
-          title="Export as Markdown"
-        >
-          <Download size={13} strokeWidth={1.5} />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setHideReceipts((v) => !v)}
-          aria-pressed={hideReceipts}
-          className={`p-1.5 rounded-sm transition-colors duration-150 cursor-pointer hover:bg-[var(--surface)] ${
-            hideReceipts ? "text-[var(--ink)]" : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-          }`}
-          title={hideReceipts ? "Show JARVIS receipts" : "Hide JARVIS receipts"}
-        >
-          {hideReceipts ? (
-            <EyeOff size={13} strokeWidth={1.5} />
-          ) : (
-            <Eye size={13} strokeWidth={1.5} />
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleToggleNoExport}
-          aria-pressed={noExport}
-          aria-label={
-            noExport ? "Include in JARVIS knowledge graph" : "Exclude from JARVIS knowledge graph"
-          }
-          className={`p-1.5 rounded-sm transition-colors duration-150 cursor-pointer hover:bg-[var(--surface)] ${
-            noExport ? "text-[var(--ink-muted)] hover:text-[var(--ink)]" : "text-[var(--ink)]"
-          }`}
-          title={
-            noExport
-              ? "Excluded from JARVIS knowledge graph (click to include)"
-              : "Included in JARVIS knowledge graph (click to exclude)"
-          }
-        >
-          {noExport ? (
-            <GlobeLock size={13} strokeWidth={1.5} />
-          ) : (
-            <Globe size={13} strokeWidth={1.5} />
-          )}
-        </button>
-
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button
-              type="button"
-              className="p-1.5 rounded-sm text-[var(--ink-muted)] hover:text-red-500 hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
-              title="Delete page"
-            >
-              <Trash2 size={13} strokeWidth={1.5} />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="font-serif">Delete this page?</AlertDialogTitle>
-              <AlertDialogDescription className="font-serif text-[13px]">
-                This will permanently delete &ldquo;{title || "Untitled page"}&rdquo;. Project links
-                will be removed but the projects themselves are untouched. This action cannot be
-                undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="font-serif text-[13px]">Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                className="font-serif text-[13px] bg-red-600 hover:bg-red-700 text-white"
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-
-      {/* Emoji + Title row */}
-      <div className="flex items-start gap-3">
-        {/* Emoji picker */}
-        <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-sm hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer text-[20px] leading-none"
-              title="Set emoji"
-            >
-              {emoji ? (
-                <span>{emoji}</span>
-              ) : (
-                <FileText size={18} strokeWidth={1.25} className="text-[var(--ink-muted)]" />
-              )}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56 p-3 flex flex-col gap-2" align="start">
-            <label
-              htmlFor="page-emoji-input"
-              className="text-[11px] font-mono text-[var(--ink-muted)] uppercase tracking-wide"
-            >
-              Emoji
-            </label>
-            <input
-              id="page-emoji-input"
-              type="text"
-              maxLength={4}
-              value={emojiInput}
-              onChange={(e) => setEmojiInput(e.target.value)}
-              placeholder="Type an emoji..."
-              className="w-full px-2 py-1.5 text-[14px] bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)] transition-colors duration-150"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleEmojiCommit();
-              }}
+      <PageScaffold
+        eyebrow={breadcrumb}
+        title={pageTitle}
+        actions={headerActions}
+        meta={
+          <PageScaffold.MetaRow>
+            {[
+              `Last edited ${formatDistanceToNow(new Date(serverPage.updatedAt), {
+                addSuffix: true,
+              })}`,
+            ]}
+          </PageScaffold.MetaRow>
+        }
+      >
+        <div className="mt-4 flex flex-col gap-4">
+          {!coverUrl ? (
+            <PageCoverImage
+              coverUrl={coverUrl}
+              attribution={coverAttribution}
+              onChange={handleCoverChange}
             />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleEmojiCommit}
-                className="flex-1 py-1 text-[12px] font-mono text-[var(--ink)] border border-[var(--edge)] rounded-sm hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
-              >
-                Set
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmojiInput("");
-                  setEmoji(null);
-                  setEmojiOpen(false);
-                  scheduleAutosave({ emoji: null });
-                }}
-                className="px-2 py-1 text-[12px] font-mono text-[var(--ink-muted)] border border-[var(--edge)] rounded-sm hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
-              >
-                Clear
-              </button>
-            </div>
-          </PopoverContent>
-        </Popover>
+          ) : null}
 
-        {/* Inline title */}
-        <input
-          ref={titleRef}
-          type="text"
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              editorFocusRef.current?.();
-            }
-          }}
-          placeholder="Untitled page"
-          className="flex-1 text-[22px] font-serif font-medium text-[var(--ink)] bg-transparent border-none outline-none placeholder:text-[var(--ink-muted)] placeholder:font-serif placeholder:font-medium"
-        />
-      </div>
-
-      {/* Daily Page badge + process button (Phase 30, WIKI-DAILY-03/04). Only
+          {/* Daily Page badge + process button (Phase 30, WIKI-DAILY-03/04). Only
           Daily Pages (daily_date IS NOT NULL) surface these. */}
-      {isDailyPage && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] border border-[var(--sd-line)] bg-[var(--sd-box)]">
-            <CalendarDays size={11} strokeWidth={1.75} />
-            Daily Page
-          </span>
-          <button
-            type="button"
-            onClick={handleProcessDailyPage}
-            disabled={processing}
-            title="Run the whole page through JARVIS to extract tasks, events, and captures"
-            className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {processing ? (
-              <Loader2 size={12} strokeWidth={1.75} className="animate-spin" />
-            ) : (
-              <Sparkles size={12} strokeWidth={1.75} />
-            )}
-            <span>{processing ? "Processing…" : "Process this page"}</span>
-          </button>
-          <PageProcessingRunsMenu pageId={initialPage.id} refreshKey={processRunsKey} />
-        </div>
-      )}
+          {isDailyPage && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--hover)] px-2 py-0.5 text-micro text-[var(--ink-muted)]">
+                <CalendarDays size={11} strokeWidth={1.75} />
+                Daily page
+              </span>
+              <button
+                type="button"
+                onClick={handleProcessDailyPage}
+                disabled={processing}
+                title="Run the whole page through JARVIS to extract tasks, events, and captures"
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[var(--sd-box)] px-3 py-1 text-meta text-[var(--ink)] transition-colors duration-[160ms] hover:bg-[var(--sd-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {processing ? (
+                  <Loader2 size={12} strokeWidth={1.75} className="animate-spin" />
+                ) : (
+                  <Sparkles size={12} strokeWidth={1.75} />
+                )}
+                <span>{processing ? "Processing…" : "Process this page"}</span>
+              </button>
+              <PageProcessingRunsMenu pageId={initialPage.id} refreshKey={processRunsKey} />
+            </div>
+          )}
 
-      {/* Project links + folder row */}
-      <div className="flex flex-wrap items-center gap-2">
-        {linkedProjects.map((proj) => (
-          <span
-            key={proj.id}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[12px] font-mono text-[var(--ink-muted)] bg-[var(--surface)] border border-[var(--edge)]"
-          >
-            {proj.name}
-            <button
-              type="button"
-              onClick={() => handleUnlinkProject(proj.id)}
-              className="ml-0.5 hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer"
-              title="Unlink project"
-            >
-              <X size={10} strokeWidth={2} />
-            </button>
-          </span>
-        ))}
-        {/* Inherited links: read-only, no remove control (Phase 24). */}
-        {inheritedLinks.map((link) => (
-          <span
-            key={`inherited-${link.projectId}`}
-            title={`Inherited from ${link.sourceFolderName}`}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[12px] font-mono italic text-[var(--ink-muted)] border border-dashed border-[var(--edge)] opacity-70"
-          >
-            <Lock size={10} strokeWidth={1.5} />
-            {projectNameById.get(link.projectId) ?? "Project"}
-            <span className="text-[10px]">from {link.sourceFolderName}</span>
-          </span>
-        ))}
-        <ProjectLinker
-          areas={areas}
-          selectedProjectIds={linkedProjectIds}
-          inheritedLinks={inheritedLinks}
-          onToggle={handleToggleProject}
-          onCreateProject={handleCreateProject}
-        />
-        <FolderPicker
-          folders={allFolders}
-          currentFolderId={serverPage.folderId}
-          onPick={handlePickFolder}
-          onCreate={handleCreateFolder}
-        />
-      </div>
+          {/* Project links + folder row */}
+          <div className="flex flex-wrap items-center gap-2">
+            {linkedProjects.map((proj) => (
+              <span
+                key={proj.id}
+                className="inline-flex items-center gap-1 rounded bg-[var(--hover)] px-2 py-0.5 text-micro text-[var(--ink-muted)]"
+              >
+                {proj.name}
+                <button
+                  type="button"
+                  onClick={() => handleUnlinkProject(proj.id)}
+                  className="ml-0.5 hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer"
+                  title="Unlink project"
+                >
+                  <X size={10} strokeWidth={2} />
+                </button>
+              </span>
+            ))}
+            {/* Inherited links: read-only, no remove control (Phase 24). */}
+            {inheritedLinks.map((link) => (
+              <span
+                key={`inherited-${link.projectId}`}
+                title={`Inherited from ${link.sourceFolderName}`}
+                className="inline-flex items-center gap-1 rounded border border-dashed border-[var(--edge)] px-2 py-0.5 text-micro text-[var(--ink-muted)] opacity-70"
+              >
+                <Lock size={10} strokeWidth={1.5} />
+                {projectNameById.get(link.projectId) ?? "Project"}
+                <span className="text-[10px]">from {link.sourceFolderName}</span>
+              </span>
+            ))}
+            <ProjectLinker
+              areas={areas}
+              selectedProjectIds={linkedProjectIds}
+              inheritedLinks={inheritedLinks}
+              onToggle={handleToggleProject}
+              onCreateProject={handleCreateProject}
+            />
+            <FolderPicker
+              folders={allFolders}
+              currentFolderId={serverPage.folderId}
+              onPick={handlePickFolder}
+              onCreate={handleCreateFolder}
+            />
+          </div>
 
-      {/* URL property (issue #101) — Notion-style link field. Clickable when
+          {/* URL property (issue #101) — Notion-style link field. Clickable when
           set; inline input to add/edit/clear. Autosaves like the rest of the
           header. */}
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] font-mono uppercase tracking-wide text-[var(--ink-muted)]">
-          URL
-        </span>
-        <UrlField value={url} onChange={handleUrlChange} />
-      </div>
+          <div className="flex items-center gap-2">
+            <span className="text-micro text-[var(--ink-muted)]">URL</span>
+            <UrlField value={url} onChange={handleUrlChange} />
+          </div>
 
-      {/* Custom properties (issue #165) — wiki/folder-defined typed fields. */}
-      <PageProperties
-        pageId={initialPage.id}
-        fields={serverPage.fields}
-        onChanged={handleFieldsChanged}
-      />
+          {/* Custom properties (issue #165) — wiki/folder-defined typed fields. */}
+          <PageProperties
+            pageId={initialPage.id}
+            fields={serverPage.fields}
+            onChanged={handleFieldsChanged}
+          />
 
-      {/* Last edited */}
-      <p className="text-[11px] font-mono text-[var(--ink-muted)]">
-        Last edited {formatDistanceToNow(new Date(serverPage.updatedAt), { addSuffix: true })}
-      </p>
-
-      {/* Editor — always-live Notion-style block editor */}
-      <div className="flex-1 min-h-[400px]">
-        <PageBlockEditor
-          initialContentJson={serverPage.contentJson}
-          initialMarkdown={serverPage.content}
-          theme={colorMode}
-          onChange={handleEditorChange}
-          pageId={initialPage.id}
-          userId={userId}
-          hideReceipts={hideReceipts}
-          autoFocusFirstBlock={isDailyPage}
-          focusRef={editorFocusRef}
-          containerRef={editorContainerRef}
-          onEditorReady={handleEditorReady}
-          people={people}
-          onPersonCreated={refreshPeople}
-        />
-      </div>
+          {/* Editor — always-live Notion-style block editor */}
+          <div className="flex-1 min-h-[400px]">
+            <PageBlockEditor
+              initialContentJson={serverPage.contentJson}
+              initialMarkdown={serverPage.content}
+              theme={colorMode}
+              onChange={handleEditorChange}
+              pageId={initialPage.id}
+              userId={userId}
+              hideReceipts={hideReceipts}
+              autoFocusFirstBlock={isDailyPage}
+              focusRef={editorFocusRef}
+              containerRef={editorContainerRef}
+              onEditorReady={handleEditorReady}
+              people={people}
+              onPersonCreated={refreshPeople}
+            />
+          </div>
+        </div>
+      </PageScaffold>
     </div>
   );
 }

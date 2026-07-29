@@ -37,8 +37,11 @@ interface Props {
   distanceUnit: DistanceUnit;
 }
 
-// sd plate — shipped .sd-panel primitive (UI-CONTRACT §0). No glass/blur/glow.
-const TILE = "sd-panel overflow-x-auto p-4";
+// Craft plate (jul-29): `.craft-card` is unlayered CSS, so it paints the fill,
+// hairline and shadow and beats any `bg-*` utility on the same element — never
+// pair one with this constant. `rounded-2xl` because the heatmap well is a
+// large panel, not a card.
+const TILE = "craft-card rounded-2xl overflow-x-auto p-5";
 
 /**
  * /training/stats orchestrator (TRN-09 / TRN-10 / TRN-11).
@@ -142,7 +145,7 @@ export function TrainingStatsClient({
               Planner
             </Link>
           </Button>
-          <span aria-hidden className="h-5 w-px bg-[var(--sd-line)]" />
+          <span aria-hidden className="h-5 w-px bg-[var(--edge)]" />
           <TrainingIcon size={28} />
           <div className="flex flex-col gap-0.5">
             <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">

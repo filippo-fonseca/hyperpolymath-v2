@@ -131,7 +131,7 @@ Notes section and Kiwi will respect them.
     "active": "auto",
     "models": {
       "claude": {
-        "opus": "claude-opus-4-8",
+        "opus": "claude-opus-5",
         "sonnet": "sonnet",
         "haiku": "haiku",
         "fable": "claude-fable-5"
@@ -210,7 +210,7 @@ Notes section and Kiwi will respect them.
   },
   "verification": {
     "usage_testing": true,
-    "headless": false
+    "headless": true
   },
   "gui": {
     "auto": true

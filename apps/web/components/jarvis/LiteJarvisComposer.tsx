@@ -191,19 +191,22 @@ export function LiteJarvisComposer({
   return (
     <div
       className={cn(
-        "agent-mode-scope group/composer rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-input)]",
+        "agent-mode-scope group/composer craft-glass-tile rounded-xl",
         "px-4 py-3",
         "transition-[border-color,box-shadow] duration-[140ms] ease-out",
         "focus-within:border-[var(--sd-accent)]",
-        "focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--sd-accent)_10%,transparent)]",
         disabled && "opacity-60",
         className,
       )}
     >
       <EditorContent editor={editor} />
       <div className="mt-2 flex items-center justify-end">
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
-          ⌘⏎ to send · ⎋ to cancel
+        {/* kbd hint: the glyphs keep mono inside real <kbd> elements; the
+            words stay sentence case (SDC-1 §2.4 bans the uppercase transform
+            outside kbd, and this span used to carry it). */}
+        <span className="text-micro text-[var(--ink-faint)]">
+          <kbd className="font-mono">⌘⏎</kbd> to send · <kbd className="font-mono">⎋</kbd> to
+          cancel
         </span>
       </div>
     </div>

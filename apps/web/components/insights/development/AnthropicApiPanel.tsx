@@ -360,7 +360,7 @@ function SegmentedControl<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="flex items-center gap-0.5 rounded-md border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5"
+      className="flex items-center gap-0.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-0.5"
     >
       {options.map(([v, label]) => (
         <button
@@ -369,9 +369,10 @@ function SegmentedControl<T extends string>({
           role="radio"
           aria-checked={value === v}
           onClick={() => onChange(v)}
-          className={`cursor-pointer rounded-sm px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-colors duration-150 ${
+          // Craft segmented control: raised plate on a recessed track.
+          className={`cursor-pointer rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-[background-color,color,box-shadow] duration-[160ms] ease-out ${
             value === v
-              ? 'bg-[var(--sd-selected)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]'
+              ? 'bg-[var(--surface-raised)] font-medium text-[var(--sd-ink)] shadow-[var(--shadow-card)]'
               : 'text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]'
           }`}
         >

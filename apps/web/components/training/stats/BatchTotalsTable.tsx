@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import { Dumbbell } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type {
   ActivityWithType,
   BatchRow,
@@ -10,6 +12,7 @@ import {
   type DistanceUnit,
   formatDistance,
 } from "@/lib/training/distance";
+import { typeFill } from "../type-color";
 
 interface Props {
   activities: ActivityWithType[];
@@ -19,8 +22,9 @@ interface Props {
   windowLabel: string;
 }
 
-// sd plate — shipped .sd-panel primitive (UI-CONTRACT §0). No glass/blur/glow.
-const TILE = "sd-panel p-4";
+// Craft plate (jul-29). `.craft-card` is unlayered and owns fill, hairline and
+// shadow — never pair a `bg-*` utility with it on the same element.
+const TILE = "craft-card rounded-2xl p-5";
 
 interface TypeAgg {
   typeId: string;
@@ -133,9 +137,13 @@ export function BatchTotalsTable({
           />
         )}
         {byBatch.length === 0 && ungrouped.length === 0 && (
-          <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
-            No activity types defined yet.
-          </div>
+          // Shared empty state on the training hue.
+          <EmptyState
+            className="tint-mint"
+            icon={<Dumbbell />}
+            title="No activity types defined yet."
+            description="Add a type from the planner's Manage types sheet and its totals will land here."
+          />
         )}
       </div>
     </div>
@@ -159,7 +167,7 @@ function BatchSection({
 
   return (
     <div>
-      <div className="flex items-baseline justify-between border-b border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] pb-1">
+      <div className="flex items-baseline justify-between border-b border-[var(--edge)] pb-1">
         <span
           className={
             muted
@@ -185,14 +193,21 @@ function BatchSection({
           {typeAggs.map((t) => (
             <li
               key={t.typeId}
-              className="flex items-baseline justify-between gap-3 py-0.5"
+              className="flex items-center justify-between gap-3 rounded-lg px-1.5 py-1 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
             >
-              <span className="flex items-center gap-2 min-w-0">
+              <span className="flex min-w-0 items-center gap-2">
+                {/* The type's colour softened to a plate, saturated only on
+                    the dot inside it. */}
                 <span
                   aria-hidden="true"
-                  className="inline-block h-2 w-2 shrink-0 rounded-sm"
-                  style={{ backgroundColor: t.color }}
-                />
+                  className="flex size-4 shrink-0 items-center justify-center rounded-md"
+                  style={{ backgroundColor: typeFill(t.color) }}
+                >
+                  <span
+                    className="size-1.5 rounded-full"
+                    style={{ backgroundColor: t.color }}
+                  />
+                </span>
                 <span className="truncate text-[13px] text-[var(--sd-ink)]">
                   {t.name}
                 </span>

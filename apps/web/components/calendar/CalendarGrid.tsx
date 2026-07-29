@@ -39,6 +39,31 @@ import {
 } from "date-fns";
 import { Loader2 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+import { tintFor } from "@/lib/tint";
+
+/**
+ * jul-29 craft restyle — the grid's colour law.
+ *
+ * Event blocks are pastel plates: the fill comes from the calendar source's
+ * deterministic tint (`tintFor(calendarId)`), the saturated `--tint-edge`
+ * shows up only as a 3px left edge plus a soft hairline, and the label sits
+ * in the in-family `--tint-ink`. Events with no calendar id fall back to sky.
+ *
+ * Today's column carries nothing but a whisper of butter wash — no ring, no
+ * plate — so it reads as a lit page rather than a selected cell. Hour
+ * gridlines stay hairline `--edge`; half-hours are a fainter dashed mix.
+ */
+const TODAY_WASH = "color-mix(in srgb, var(--tint-butter-edge) 7%, transparent)";
+const HAIRLINE = "1px solid var(--edge)";
+const HALF_HOUR_LINE =
+  "1px dashed color-mix(in srgb, var(--edge) 55%, transparent)";
+
+/** Deterministic tint class for an event's calendar source (sky by default). */
+function eventTint(calendarId: string): string {
+  return calendarId ? tintFor(calendarId) : "tint-sky";
+}
+
 const HOUR_PX = 56;
 const TOTAL_HEIGHT = 24 * HOUR_PX;
 const TIME_GUTTER_W = 64;
@@ -280,21 +305,17 @@ export function CalendarGrid({
   const outerRows = hasAllDay ? "auto auto minmax(0, 1fr)" : "auto minmax(0, 1fr)";
 
   return (
+    // The grid is the route's one large panel: a raised white sheet at the
+    // panel radius. `craft-card` owns the fill, hairline and shadow, so no
+    // `bg-*` utility may ride along with it.
     <div
-      className="grid rounded-[10px] overflow-hidden h-full"
-      style={{
-        gridTemplateRows: outerRows,
-        background: "var(--sd-box)",
-        boxShadow: "inset 0 0 0 1px var(--sd-line)",
-      }}
+      className="craft-card grid h-full overflow-hidden rounded-2xl"
+      style={{ gridTemplateRows: outerRows }}
     >
       {/* ── Header: weekday + date number per day ───────────────────────────── */}
       <div
-        className="grid border-b"
-        style={{
-          gridTemplateColumns: dayColTemplate,
-          borderColor: "var(--sd-line)",
-        }}
+        className="grid border-b border-[var(--edge)]"
+        style={{ gridTemplateColumns: dayColTemplate }}
       >
         <div /> {/* gutter corner */}
         {days.map((d, i) => {
@@ -302,26 +323,31 @@ export function CalendarGrid({
           return (
             <div
               key={d.toISOString()}
-              className="flex items-baseline gap-2 px-3 py-3 border-l"
+              className="flex items-baseline gap-2 border-l border-[var(--edge)] px-3 py-3"
               style={{
-                borderColor: "var(--sd-line)",
                 borderLeftWidth: i === 0 ? 0 : 1,
+                background: isToday ? TODAY_WASH : undefined,
               }}
             >
               <span
-                className="font-mono text-[10px] uppercase tracking-[0.14em] font-semibold"
-                style={{
-                  color: isToday ? "var(--sd-accent)" : "var(--sd-ink-faint)",
-                }}
+                className={cn(
+                  "text-[10px] font-semibold uppercase tracking-[0.12em]",
+                  isToday
+                    ? "text-[var(--tint-butter-ink)]"
+                    : "text-[var(--ink-faint)]",
+                )}
               >
                 {format(d, "EEE")}
               </span>
+              {/* Today's number sits on a small butter plate — the only
+                  saturated thing in the header row. */}
               <span
-                className="text-xl tabular-nums leading-none tracking-[-0.01em]"
-                style={{
-                  color: isToday ? "var(--sd-accent)" : "var(--sd-ink)",
-                  fontWeight: isToday ? 700 : 600,
-                }}
+                className={cn(
+                  "text-xl tabular-nums leading-none tracking-[-0.01em]",
+                  isToday
+                    ? "rounded-lg bg-[var(--tint-butter-bg)] px-1.5 py-0.5 font-bold text-[var(--tint-butter-ink)]"
+                    : "font-semibold text-[var(--ink)]",
+                )}
               >
                 {format(d, "d")}
               </span>
@@ -333,26 +359,19 @@ export function CalendarGrid({
       {/* ── All-day row (thin strip) ────────────────────────────────────────── */}
       {hasAllDay && (
         <div
-          className="grid border-b"
-          style={{
-            gridTemplateColumns: dayColTemplate,
-            borderColor: "var(--sd-line)",
-            minHeight: 28,
-          }}
+          className="grid border-b border-[var(--edge)]"
+          style={{ gridTemplateColumns: dayColTemplate, minHeight: 30 }}
         >
-          <div
-            className="flex items-center justify-end pr-3 font-mono text-[10px] uppercase tracking-[0.12em]"
-            style={{ color: "var(--sd-ink-faint)" }}
-          >
+          <div className="flex items-center justify-end pr-3 text-[10px] uppercase tracking-[0.12em] text-[var(--ink-faint)]">
             all-day
           </div>
           {eventsByDay.map((d, i) => (
             <div
               key={`allday-${i}`}
-              className="flex flex-wrap gap-1 px-1 py-1 border-l"
+              className="flex flex-wrap gap-1 border-l border-[var(--edge)] px-1.5 py-1"
               style={{
-                borderColor: "var(--sd-line)",
                 borderLeftWidth: i === 0 ? 0 : 1,
+                background: isSameDay(days[i]!, today) ? TODAY_WASH : undefined,
               }}
             >
               {d.allDay.slice(0, 2).map((ev) => (
@@ -363,7 +382,7 @@ export function CalendarGrid({
                 />
               ))}
               {d.allDay.length > 2 && (
-                <span className="font-mono text-[10px] text-[var(--sd-ink-dull)] self-center px-1">
+                <span className="self-center px-1 text-[10px] tabular-nums text-[var(--ink-muted)]">
                   +{d.allDay.length - 2}
                 </span>
               )}
@@ -391,11 +410,8 @@ export function CalendarGrid({
             {HOURS.map((h) => (
               <div
                 key={h}
-                className="absolute right-3 -translate-y-1/2 font-mono text-[10px]"
-                style={{
-                  top: h * HOUR_PX,
-                  color: "var(--sd-ink-faint)",
-                }}
+                className="absolute right-3 -translate-y-1/2 text-[10px] tabular-nums text-[var(--ink-faint)]"
+                style={{ top: h * HOUR_PX }}
               >
                 {h === 0 ? "" : format(new Date(0, 0, 0, h), "h a")}
               </div>
@@ -415,17 +431,12 @@ export function CalendarGrid({
                 ref={(el) => {
                   dayColumnRefs.current.set(dayIdx, el);
                 }}
-                className="relative border-l select-none"
+                className="relative select-none border-l border-[var(--edge)]"
                 style={{
-                  borderColor: "var(--sd-line)",
                   borderLeftWidth: dayIdx === 0 ? 0 : 1,
-                  // Today = faint accent wash + a crisp 1px cyan ring (seed).
-                  background: isToday
-                    ? "color-mix(in oklch, var(--sd-accent) 5%, transparent)"
-                    : "transparent",
-                  boxShadow: isToday
-                    ? "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 55%, transparent)"
-                    : "none",
+                  // Today = a whisper of butter wash. No ring, no plate: the
+                  // column should read as a lit page, not a selected cell.
+                  background: isToday ? TODAY_WASH : "transparent",
                   cursor: drag ? "ns-resize" : "default",
                 }}
                 onMouseDown={(e) => {
@@ -446,10 +457,7 @@ export function CalendarGrid({
                   <div
                     key={h}
                     className="absolute left-0 right-0 pointer-events-none"
-                    style={{
-                      top: h * HOUR_PX,
-                      borderTop: "1px solid var(--sd-line)",
-                    }}
+                    style={{ top: h * HOUR_PX, borderTop: HAIRLINE }}
                   />
                 ))}
                 {/* Half-hour gridlines — slightly fainter */}
@@ -459,8 +467,7 @@ export function CalendarGrid({
                     className="absolute left-0 right-0 pointer-events-none"
                     style={{
                       top: h * HOUR_PX + HOUR_PX / 2,
-                      borderTop:
-                        "1px dashed color-mix(in oklch, var(--sd-line) 55%, transparent)",
+                      borderTop: HALF_HOUR_LINE,
                     }}
                   />
                 ))}
@@ -506,21 +513,22 @@ export function CalendarGrid({
                     18,
                   );
                   return (
+                    // Sky is the grid's "nothing here yet" hue, so a slot
+                    // being drawn reads as a plate-in-waiting: pastel fill,
+                    // dashed saturated rim.
                     <div
-                      className="absolute pointer-events-none z-10 rounded-[6px]"
+                      className="tint-sky pointer-events-none absolute z-10 rounded-lg"
                       style={{
                         top: previewTop,
                         height: previewHeight,
                         left: 2,
                         right: 2,
-                        background:
-                          "color-mix(in oklch, var(--sd-accent) 16%, transparent)",
-                        boxShadow:
-                          "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 55%, transparent)",
+                        background: "var(--tint-bg)",
+                        border: "1px dashed var(--tint-edge)",
                       }}
                     >
                       <span
-                        className="font-mono text-[10px] px-2 py-0.5 text-[var(--sd-ink)] block truncate"
+                        className="block truncate px-2 py-0.5 text-[10px] font-medium tabular-nums text-[var(--tint-ink)]"
                         style={{ opacity: isClickOnly ? 0.7 : 1 }}
                       >
                         {formatMinutes(startSnap)}–{formatMinutes(endSnap)}
@@ -529,41 +537,32 @@ export function CalendarGrid({
                   );
                 })()}
 
-                {/* Current time indicator (today only) — 1.5px cyan bar
-                    with a soft glow, a left-edge dot, and a mono timestamp
-                    pill that sits in the time gutter on the first day
-                    column so it doesn't overlap event chips. */}
+                {/* Current time indicator (today only) — a saturated rose
+                    hairline with a left-edge dot, plus a pastel rose pill in
+                    the time gutter on the first day column so the timestamp
+                    never overlaps an event plate. Rose is the one saturated
+                    stroke allowed on the field. */}
                 {showNow && (
                   <div
-                    className="absolute left-0 right-0 pointer-events-none z-20"
+                    className="tint-rose pointer-events-none absolute left-0 right-0 z-20"
                     style={{ top: nowTop }}
                   >
                     {/* Left-edge dot */}
                     <div
-                      className="absolute -translate-y-1/2 -translate-x-1/2 rounded-full"
-                      style={{
-                        left: 0,
-                        top: 0,
-                        width: 7,
-                        height: 7,
-                        background: "var(--sd-accent)",
-                      }}
+                      className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--tint-edge)]"
+                      style={{ left: 0, top: 0, width: 7, height: 7 }}
                     />
-                    {/* Horizontal bar — crisp 1.5px accent line, no glow (§0). */}
+                    {/* Horizontal bar — crisp 1.5px line, no glow. */}
                     <div
-                      style={{
-                        height: 1.5,
-                        background: "var(--sd-accent)",
-                      }}
+                      style={{ height: 1.5, background: "var(--tint-edge)" }}
                     />
                     {dayIdx === 0 && (
                       <span
-                        className="absolute -translate-y-1/2 font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded-[4px] tabular-nums"
+                        className="absolute -translate-y-1/2 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
                         style={{
-                          // Dark on-accent ink in BOTH themes (matches the sd
-                          // check-on-accent convention) — cyan pill stays legible.
-                          background: "var(--sd-accent)",
-                          color: "hsl(235 45% 9%)",
+                          background: "var(--tint-bg)",
+                          borderColor: "var(--tint-edge)",
+                          color: "var(--tint-ink)",
                           left: -TIME_GUTTER_W + 6,
                           top: 0,
                         }}
@@ -599,10 +598,13 @@ function EventChip({
   widthPct,
   onClick,
 }: EventChipProps) {
-  // sd chip grammar (seed): the surface stays sd (--sd-input + --sd-line
-  // hairline) — the calendar-source colour is allowed to tint the LEADING DOT
-  // ONLY, never the fill or a left edge. Single cyan accent law holds otherwise.
-  const dotColor = event.colorHex || "var(--ink-coral)";
+  // Craft chip grammar: a pastel plate in the calendar source's tint, with the
+  // saturated edge carried on a 3px left rule (the one place the hue is
+  // allowed to go loud) and the label in the in-family ink. Placeholders are a
+  // translucent version of the same plate with a dashed rim, so a proposed
+  // position reads as "this event, not yet real" rather than a different
+  // species of object.
+  const tint = eventTint(event.calendarId);
   const isCompact = height < 36;
   return (
     <div
@@ -620,22 +622,26 @@ function EventChip({
           onClick(e as unknown as React.MouseEvent<HTMLDivElement>);
         }
       }}
-      className="absolute rounded-[6px] overflow-hidden cursor-pointer transition-colors duration-150 ease-out hover:brightness-[1.06]"
+      className={cn(
+        tint,
+        "absolute cursor-pointer overflow-hidden rounded-lg border",
+        "transition-[border-color,box-shadow] duration-[160ms] ease-out",
+        !event.isPlaceholder &&
+          "shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)]",
+      )}
       style={{
         top: `${top}px`,
         height: `${height}px`,
         left: `calc(${leftPct}% + 2px)`,
         width: `calc(${widthPct}% - 4px)`,
-        // Placeholder rows read as a dashed accent outline on the app surface;
-        // settled events read as a solid --sd-input plate with a hairline ring.
-        background: event.isPlaceholder ? "var(--sd-app)" : "var(--sd-input)",
-        boxShadow: event.isPlaceholder
-          ? "none"
-          : "inset 0 0 0 1px var(--sd-line)",
-        outlineStyle: event.isPlaceholder ? "dashed" : "none",
-        outlineColor: "var(--sd-accent)",
-        outlineWidth: event.isPlaceholder ? 1.5 : 0,
-        outlineOffset: -2,
+        background: event.isPlaceholder
+          ? "color-mix(in srgb, var(--tint-bg) 55%, transparent)"
+          : "var(--tint-bg)",
+        color: "var(--tint-ink)",
+        borderColor: event.isPlaceholder
+          ? "var(--tint-edge)"
+          : "color-mix(in srgb, var(--tint-edge) 45%, transparent)",
+        borderStyle: event.isPlaceholder ? "dashed" : "solid",
         opacity: event.isDraftEditing
           ? 0.45
           : event.isBusy
@@ -644,7 +650,9 @@ function EventChip({
               ? 0.92
               : 1,
         fontStyle: event.isPlaceholder ? "italic" : "normal",
-        padding: isCompact ? "2px 7px" : "4px 8px",
+        padding: isCompact ? "2px 8px" : "4px 9px",
+        // Shorthand LAST so it wins over borderColor/borderStyle above.
+        borderLeft: "3px solid var(--tint-edge)",
       }}
     >
       {/* In-flight write indicator (issue #25): a small corner spinner while a
@@ -653,27 +661,22 @@ function EventChip({
       {event.isBusy && (
         <Loader2
           size={12}
-          className="absolute top-1 right-1 animate-spin text-[var(--sd-ink-dull)]"
+          className="absolute right-1 top-1 animate-spin text-[var(--tint-ink)]"
           aria-hidden
         />
       )}
-      <div className="flex items-center gap-1.5 min-w-0">
-        <span
-          aria-hidden
-          className="h-[6px] w-[6px] shrink-0 rounded-full"
-          style={{ background: dotColor }}
-        />
-        <span className="text-[12px] font-medium leading-tight truncate text-[var(--sd-ink)]">
+      <div className="flex min-w-0 items-center">
+        <span className="truncate text-[12px] font-medium leading-tight text-[var(--tint-ink)]">
           {event.title || "Untitled"}
           {event.recurringEventId && (
-            <span className="ml-1 text-[var(--sd-ink-faint)]" title="Recurring event">
+            <span className="ml-1 opacity-60" title="Recurring event">
               ↻
             </span>
           )}
         </span>
       </div>
       {!isCompact && (
-        <div className="font-mono text-[10px] leading-tight tracking-[0.04em] text-[var(--sd-ink-dull)] truncate mt-0.5 pl-[13px]">
+        <div className="mt-0.5 truncate text-[10px] leading-tight tabular-nums text-[var(--tint-ink)] opacity-70">
           {format(event.start, "HH:mm")}–{format(event.end, "HH:mm")}
         </div>
       )}
@@ -687,22 +690,24 @@ interface AllDayChipProps {
 }
 
 function AllDayChip({ event, onClick }: AllDayChipProps) {
-  const dotColor = event.colorHex || "var(--ink-coral)";
+  const tint = eventTint(event.calendarId);
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 text-[12px] font-medium leading-none px-2 py-1 rounded-[6px] truncate max-w-[140px] cursor-pointer hover:brightness-[1.06] transition-colors duration-150 text-[var(--sd-ink)]"
+      className={cn(
+        tint,
+        "inline-flex max-w-[140px] cursor-pointer items-center truncate rounded-lg border px-2 py-1",
+        "text-[12px] font-medium leading-none shadow-[var(--shadow-card)]",
+        "transition-[border-color,box-shadow] duration-[160ms] ease-out hover:shadow-[var(--shadow-card-hover)]",
+      )}
       style={{
-        background: "var(--sd-input)",
-        boxShadow: "inset 0 0 0 1px var(--sd-line)",
+        background: "var(--tint-bg)",
+        color: "var(--tint-ink)",
+        borderColor: "color-mix(in srgb, var(--tint-edge) 45%, transparent)",
+        borderLeft: "3px solid var(--tint-edge)",
       }}
     >
-      <span
-        aria-hidden
-        className="h-[6px] w-[6px] shrink-0 rounded-full"
-        style={{ background: dotColor }}
-      />
       <span className="truncate">{event.title || "Untitled"}</span>
     </button>
   );

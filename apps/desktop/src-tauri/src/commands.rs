@@ -41,6 +41,27 @@ pub fn stop_capture(app: AppHandle) -> Result<(), String> {
     audio::send_command_stop(&app)
 }
 
+/// Every microphone cpal can currently see, with the system default flagged.
+/// Backs the input-device picker in settings.
+#[tauri::command]
+pub fn list_input_devices() -> Result<Vec<audio::InputDeviceInfo>, String> {
+    audio::list_input_devices()
+}
+
+/// The user's explicitly chosen microphone, or `null` when following the system
+/// default.
+#[tauri::command]
+pub fn get_input_device(app: AppHandle) -> Option<String> {
+    audio::get_input_device(&app)
+}
+
+/// Choose a microphone by name; pass `null` to go back to the system default.
+/// Applies to the next capture, never to one already running.
+#[tauri::command]
+pub fn set_input_device(app: AppHandle, name: Option<String>) -> Result<(), String> {
+    audio::set_input_device(&app, name)
+}
+
 /// Play a chunk of TTS audio natively via rodio (bypasses the WKWebView, which
 /// keeps its AudioContext suspended for hands-free invocations). `bytes` is raw
 /// 16-bit signed LE PCM @ 24 kHz mono — exactly what /api/jarvis/tts returns.

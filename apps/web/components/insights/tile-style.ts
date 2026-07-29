@@ -1,23 +1,34 @@
 /**
- * Shared tile chrome for /insights surfaces, in the sd register (sesh-sd3).
+ * Shared tile chrome for /insights surfaces — craft register (jul-29 restyle).
  *
  * `NEUMORPHIC_TILE` is name-preserved for call-site stability: every insights
- * consumer restyles for free. It is now the WidgetCard v2 plate — a solid
- * `--sd-box` fill, 1px `--sd-line` hairline, 14px radius. No glass, no blur,
- * no glow.
+ * consumer restyles for free. It is now the craft card plate — `.craft-card`
+ * (raised `--surface-raised` fill, one hairline, the soft `--shadow-card`
+ * ladder) plus the 14px card radius.
  *
- * `glassyTileShadow` is kept for API stability but the glow/neumorphic stack
- * is retired: it returns `none` so no consumer paints a bloom. The plate's
- * elevation comes from the grey ladder + hairline alone (DESIGN-SYSTEM §9).
+ * `.craft-card` is UNLAYERED CSS, so it beats Tailwind `bg-*` / `border-*`
+ * utilities on the same element. Never pair a background utility with these
+ * constants — pad and lay out with utilities only.
+ *
+ * `INSIGHTS_PANEL` is the same plate at the 20px large-panel radius, for the
+ * full-width LIFE panels (GitHub / Strava / Flow) that read as panels rather
+ * than cards.
+ *
+ * `glassyTileShadow` is kept for API stability only. The neumorphic glow stack
+ * is long retired and the craft plate now owns its own elevation, so this
+ * returns the card shadow verbatim rather than a bloom. New code should not
+ * call it: let `.craft-card` paint the shadow.
  */
-export const NEUMORPHIC_TILE =
-  "rounded-[14px] bg-[var(--sd-box)] border border-[var(--sd-line)]";
+export const NEUMORPHIC_TILE = "craft-card rounded-xl";
 
 export const NEUMORPHIC_TILE_PADDED = `p-6 space-y-4 ${NEUMORPHIC_TILE}`;
+
+/** Large-panel variant — same plate, 20px radius (craft register). */
+export const INSIGHTS_PANEL = "craft-card rounded-2xl";
 
 export function glassyTileShadow(
   _opts: { withPanelAccentHalo?: boolean } = {},
 ): string {
-  // Glow/halo retired (§16 banned). Flat sd plate: elevation via border + bg.
-  return "none";
+  // Glow/halo retired. The craft plate's elevation is the shadow ladder.
+  return "var(--shadow-card)";
 }

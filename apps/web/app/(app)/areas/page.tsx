@@ -33,16 +33,16 @@ export default async function AreasPage() {
   const rootInitial = (user.displayName?.trim() || user.email || "·").charAt(0).toUpperCase();
 
   return (
+    // The measure and gutters belong to PageScaffold (inside AreasPageClient)
+    // so this route's H1 left edge lines up with every other route's.
     <main className="min-h-full bg-[var(--canvas)] text-[var(--ink)]">
-      <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 pt-6 pb-12">
-        <AreasPageClient
-          initialAreas={areas}
-          userId={user.id}
-          rootAvatarUrl={rootAvatarUrl}
-          rootInitial={rootInitial}
-          rootLabel={rootLabel}
-        />
-      </div>
+      <AreasPageClient
+        initialAreas={areas}
+        userId={user.id}
+        rootAvatarUrl={rootAvatarUrl}
+        rootInitial={rootInitial}
+        rootLabel={rootLabel}
+      />
     </main>
   );
 }

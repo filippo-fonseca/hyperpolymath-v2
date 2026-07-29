@@ -492,7 +492,7 @@ export function CaptureComposer({
     // sd writing surface — recessed --sd-input field, 1px --sd-line hairline,
     // no glow ring. focus-within brings the border to the single cyan accent so
     // the composer reads "live" while typing, matching every sd input.
-    <div className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-input)] transition-colors focus-within:border-[var(--sd-accent)]">
+    <div className="rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out focus-within:border-[var(--accent)] focus-within:shadow-[var(--shadow-card-hover)]">
       <EditorContent editor={editor} />
       {/* Blocker 4: project multi-select below the editor (CAPT-07 UI path) */}
       <div className="px-3 pb-2">

@@ -30,11 +30,10 @@ interface Props {
   onDateChange: (date: Date) => void;
 }
 
-// sd3 register: segmented control + nav buttons render diplomatic chrome on
-// the --sd-* surface family. Mono uppercase on the day/week segment + Today
-// button; the date label is mono metadata too (sd3 seed drops serif — single
-// Space Grotesk / mono register). Inactive segments at --sd-ink-dull dim to
-// --sd-ink on hover; the active segment gets a 1px inset --sd-line ring.
+// jul-29 craft restyle: the shared segmented-control idiom — a quiet
+// `--surface` well with a RAISED active segment (white plate, medium weight,
+// card shadow). Sentence case, no mono uppercase; the date label reads as
+// editorial metadata rather than terminal chrome.
 const SEGMENTS: { value: CalendarView; label: string }[] = [
   { value: "day", label: "Day" },
   { value: "3day", label: "3 Day" },
@@ -44,19 +43,19 @@ const SEGMENTS: { value: CalendarView; label: string }[] = [
 export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
   const step = view === "day" ? 1 : view === "3day" ? 3 : 7;
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-0.5 border border-[var(--sd-line)] rounded-[6px] p-0.5 bg-[var(--sd-input)]">
+    <div className="flex items-center gap-3">
+      <div className="flex h-8 shrink-0 items-center gap-0.5 rounded-lg bg-[var(--surface)] p-0.5">
         {SEGMENTS.map((seg) => (
           <button
             key={seg.value}
             type="button"
             onClick={() => onChange(seg.value)}
             className={cn(
-              "px-2 py-0.5 rounded-[5px] font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-              "transition-colors duration-150 ease-out",
+              "h-7 rounded-sm px-3 text-meta cursor-pointer-always",
+              "transition-colors duration-[160ms] ease-out",
               view === seg.value
-                ? "bg-[var(--sd-selected)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]"
-                : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
+                ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
+                : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
             )}
             aria-pressed={view === seg.value}
           >
@@ -80,7 +79,7 @@ export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
+          className="h-7 px-2 text-meta"
           onClick={() => onDateChange(new Date())}
         >
           Today
@@ -97,8 +96,9 @@ export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
         </Button>
       </div>
 
-      {/* Date label — mono metadata register (sd3 seed: mono date labels). */}
-      <span className="font-mono text-[12px] tabular-nums tracking-[0.02em] text-[var(--sd-ink-dull)] ml-2">
+      {/* Date label — editorial metadata; tabular figures so the width
+          doesn't jitter as the user pages through weeks. */}
+      <span className="ml-1 text-meta tabular-nums text-[var(--ink-muted)]">
         {view === "day"
           ? format(date, "EEEE, MMMM d, yyyy")
           : view === "3day"

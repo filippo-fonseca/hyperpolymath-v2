@@ -1,13 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { parseBanner } from "@/lib/utils/banner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { parseBanner } from "@/lib/utils/banner";
+import { type ReactNode, useState } from "react";
 
 const BANNER_OPTIONS: { name: string; value: string; type: "solid" | "gradient" }[] = [
   // Solids — muted earth tones (UI-SPEC §Banner Picker)
@@ -65,37 +61,43 @@ const BANNER_OPTIONS: { name: string; value: string; type: "solid" | "gradient" 
 interface Props {
   value: string | null;
   onChange: (bannerValue: string | null) => void;
+  /**
+   * Optional custom trigger (used with PopoverTrigger `asChild`). When omitted,
+   * the default swatch button renders. ProjectHeader passes a ghost "Add
+   * banner" button for banner-less projects. Must be a single focusable
+   * element so Radix can forward its props.
+   */
+  renderTrigger?: ReactNode;
 }
 
 /**
  * Banner picker — 16-swatch grid (8 solids + 8 gradients per UI-SPEC §Banner Picker).
- * Each swatch is 64px × 40px, rounded-md.
- * Selected: ring-2 ring-ring ring-offset-1.
+ * Each swatch is 64px × 40px on the 8px radius step.
+ * Selected: ring-2 in --edge-strong with a 1px offset.
  * aria-label: "[Color name] banner".
  */
-export function BannerPicker({ value, onChange }: Props) {
+export function BannerPicker({ value, onChange, renderTrigger }: Props) {
   const [open, setOpen] = useState(false);
   const currentBg = parseBanner(value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Pick banner color"
-          className={cn(
-            "h-9 w-20 rounded-md border border-input",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            "transition-opacity hover:opacity-90",
-          )}
-          style={{ background: currentBg }}
-        />
+        {renderTrigger ?? (
+          <button
+            type="button"
+            aria-label="Pick banner color"
+            className={cn(
+              "h-9 w-20 rounded-lg border border-[var(--edge)]",
+              "transition-opacity duration-[160ms] ease-out hover:opacity-90"
+            )}
+            style={{ background: currentBg }}
+          />
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-3" align="start" sideOffset={4}>
-        <p className="font-sans text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
-          Solids
-        </p>
-        <div className="grid grid-cols-4 gap-1.5 mb-3">
+        <p className="mb-2 font-sans text-micro font-medium text-[var(--ink-faint)]">Solids</p>
+        <div className="mb-3 grid grid-cols-4 gap-2">
           {BANNER_OPTIONS.filter((o) => o.type === "solid").map((option) => {
             const isSelected = value === option.value;
             return (
@@ -109,9 +111,8 @@ export function BannerPicker({ value, onChange }: Props) {
                   setOpen(false);
                 }}
                 className={cn(
-                  "h-10 w-full rounded-md transition-all",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isSelected && "ring-2 ring-ring ring-offset-1",
+                  "h-10 w-full rounded-lg transition-opacity duration-[160ms] ease-out hover:opacity-90",
+                  isSelected && "ring-2 ring-[var(--edge-strong)] ring-offset-1"
                 )}
                 style={{ background: parseBanner(option.value) }}
               />
@@ -119,10 +120,8 @@ export function BannerPicker({ value, onChange }: Props) {
           })}
         </div>
 
-        <p className="font-sans text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
-          Gradients
-        </p>
-        <div className="grid grid-cols-4 gap-1.5">
+        <p className="mb-2 font-sans text-micro font-medium text-[var(--ink-faint)]">Gradients</p>
+        <div className="grid grid-cols-4 gap-2">
           {BANNER_OPTIONS.filter((o) => o.type === "gradient").map((option) => {
             const isSelected = value === option.value;
             return (
@@ -136,9 +135,8 @@ export function BannerPicker({ value, onChange }: Props) {
                   setOpen(false);
                 }}
                 className={cn(
-                  "h-10 w-full rounded-md transition-all",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isSelected && "ring-2 ring-ring ring-offset-1",
+                  "h-10 w-full rounded-lg transition-opacity duration-[160ms] ease-out hover:opacity-90",
+                  isSelected && "ring-2 ring-[var(--edge-strong)] ring-offset-1"
                 )}
                 style={{ background: parseBanner(option.value) }}
               />

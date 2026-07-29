@@ -18,6 +18,8 @@ export interface ExplorerItemContextMenuProps {
   onRename: (item: ExplorerItem) => void;
   onExport?: (item: ExplorerItem) => void;
   onDelete: (item: ExplorerItem) => void;
+  /** Star/unstar — pages only (issue #365). */
+  onToggleStar?: (item: ExplorerItem) => void;
 }
 
 /**
@@ -33,6 +35,7 @@ export function ExplorerItemContextMenu({
   onRename,
   onExport,
   onDelete,
+  onToggleStar,
 }: ExplorerItemContextMenuProps) {
   return (
     <ExplorerContextMenu>
@@ -45,6 +48,11 @@ export function ExplorerItemContextMenu({
           </ExplorerContextMenuItem>
         ) : null}
         <ExplorerContextMenuSeparator />
+        {item.kind === "page" && onToggleStar ? (
+          <ExplorerContextMenuItem onSelect={() => onToggleStar(item)}>
+            {item.page.pinned ? "Unstar" : "Star"}
+          </ExplorerContextMenuItem>
+        ) : null}
         <ExplorerContextMenuItem onSelect={() => onRename(item)}>Rename</ExplorerContextMenuItem>
         {onExport ? (
           <ExplorerContextMenuItem onSelect={() => onExport(item)}>Export</ExplorerContextMenuItem>

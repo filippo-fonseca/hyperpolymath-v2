@@ -5,6 +5,7 @@ import { LifeOsCanvas } from "@/components/lifeos/LifeOsCanvas";
 import { LifeOsHero } from "@/components/lifeos/LifeOsHero";
 import { LifeOsInsightsWidget } from "@/components/lifeos/LifeOsInsightsWidget";
 import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
+import { LifeOsSpaceBackdrop } from "@/components/lifeos/LifeOsSpaceBackdrop";
 import { RecentCapturesWidget } from "@/components/lifeos/RecentCapturesWidget";
 import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
 import { TodayTrainingWidget } from "@/components/lifeos/TodayTrainingWidget";
@@ -18,8 +19,6 @@ import { getAllTasksForUser } from "@/lib/db/queries/tasks";
 import { getActivitiesInRange, getDistanceUnit } from "@/lib/db/queries/training";
 import { projects } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
-
-export const dynamic = "force-dynamic";
 
 /**
  * /lifeos — canonical homepage for the life-OS view.
@@ -94,12 +93,22 @@ export default async function LifeOsPage() {
   ).length;
   const projectsActive = availableProjects.length;
 
+  // `isolate` on <main> is load-bearing: the space backdrop is `absolute
+  // -z-10`, and without a stacking context here it escapes to the cockpit
+  // root and paints BEHIND the stage sheet's opaque fill (which is exactly
+  // what happened when .craft-sheet landed). Isolation pins it above this
+  // main's ancestors and below its content.
   return (
-    <main className="h-full bg-[var(--sd-app)] text-[var(--sd-ink)]">
+    <main className="relative isolate h-full text-[var(--sd-ink)]">
       {/* One-screen command deck (UI-CONTRACT-SD3 §2): hero + quick-send stay
           pinned; a two-segment toggle swaps the widget deck vs the areas tree
           into a single fixed region. The page never scrolls — the canvas is
-          h-full against the AppShell scroll container and clips. */}
+          h-full against the AppShell scroll container and clips.
+
+          The opaque --sd-app fill is gone: the space backdrop (video + scrim)
+          owns the background, and `relative` scopes its absolute -z layer to
+          this route region (D5 — the video belongs to /lifeos only). */}
+      <LifeOsSpaceBackdrop />
       <LifeOsCanvas
         hero={
           <LifeOsHero

@@ -315,14 +315,15 @@ const HeatmapCell = memo(function HeatmapCell({
               data-iso={iso}
               disabled={isFuture}
               className={cn(
-                // Zero-jank (§14/§16): no hover-scale. The hover affordance is
-                // an instant 1px ink outline via box-shadow (no transition,
-                // no transform), and focus rides the accent ring (§4).
-                "relative rounded-[2px] border border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] outline-none",
-                "hover:z-10 hover:[box-shadow:0_0_0_1px_var(--sd-ink)]",
+                // The blended OKLCH day colour is DATA — the scale is left
+                // exactly as it was. Only the chrome moves to the craft
+                // register: a softer corner and the neutral hairline.
+                // Still zero-jank: no hover-scale, no transform.
+                "relative rounded-[3px] border border-[var(--edge)] outline-none",
+                "hover:z-10 hover:[box-shadow:0_0_0_1px_var(--ink)]",
                 "focus-visible:z-10 focus-visible:[box-shadow:0_0_0_2px_var(--sd-accent)]",
                 isFuture && "cursor-default opacity-30 hover:[box-shadow:none]",
-                !hasActivity && "hover:bg-[var(--sd-hover)]",
+                !hasActivity && "hover:bg-[var(--hover)]",
               )}
               style={{
                 width: CELL,

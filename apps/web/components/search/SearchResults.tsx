@@ -39,11 +39,14 @@ export function flattenResults(results: Results, filter: SearchType | "all"): Se
 
 function SectionHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div className="flex items-center gap-2 border-b border-[var(--edge)] pb-1.5">
+    <div className="flex items-center gap-2 border-b border-[var(--edge)] px-1 pb-1.5">
       <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ink-muted)]">
         {label}
       </span>
-      <span className="font-mono text-[11px] text-[var(--ink-muted)] opacity-60">{count}</span>
+      {/* Count sits on its own quiet plate rather than floating as loose type. */}
+      <span className="inline-flex min-w-5 items-center justify-center rounded-md bg-[var(--hover)] px-1.5 py-[1px] font-mono text-[10px] text-[var(--ink-muted)]">
+        {count}
+      </span>
     </div>
   );
 }
@@ -71,7 +74,9 @@ export function SearchResults({
         return (
           <section key={type} className="flex flex-col gap-1">
             <SectionHeader label={SEARCH_TYPE_LABEL[type]} count={entries.length} />
-            <div className="mt-1 flex flex-col gap-0.5" role="listbox">
+            {/* Rows lift into cards on hover, so they need a hair of air
+                between them or the shadows collide. */}
+            <div className="mt-1.5 flex flex-col gap-1" role="listbox">
               {entries.map((entry) => {
                 runningIndex += 1;
                 const index = runningIndex;

@@ -1,6 +1,5 @@
 "use client";
 
-import { useQueryStates, parseAsArrayOf, parseAsString } from "nuqs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +11,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ListFilter, X } from "lucide-react";
 
 const PRIORITIES = ["P∞", "P1", "P2", "P3"] as const;
 const STATUSES = [
@@ -22,64 +22,39 @@ const STATUSES = [
   "almost done",
   "lesno",
 ] as const;
-// "today"/"this-week"/"this-month" removed — the kanban day view now
-// owns the date dimension via its arrow + date-picker header, so a chip
-// filter on those buckets is redundant (and would double-filter inside
-// the column body). Overdue + No date stay because they cut across the
-// active day's slice (overdue ⊂ "any past day"; no date ⊂ Inbox).
+// "today"/"this-week"/"this-month" removed — the kanban day view owns the date
+// dimension via the day switcher, so a chip filter on those buckets is
+// redundant (and would double-filter inside the column body). Overdue + No
+// date stay because they cut across the active day's slice.
 const DUE_OPTIONS = [
   { value: "overdue", label: "Overdue" },
   { value: "no-date", label: "No date" },
 ] as const;
 
-interface Props {
-  projects: { id: string; name: string }[];
+export interface TaskFilterState {
+  priority: string[];
+  status: string[];
+  due: string[];
+  project: string[];
 }
 
-export function TaskFilters({ projects }: Props) {
-  const [filters, setFilters] = useQueryStates(
-    {
-      priority: parseAsArrayOf(parseAsString).withDefault([]),
-      status: parseAsArrayOf(parseAsString).withDefault([]),
-      due: parseAsArrayOf(parseAsString).withDefault([]),
-      project: parseAsArrayOf(parseAsString).withDefault([]),
-    },
-    { shallow: false },
-  );
+interface Props {
+  projects: { id: string; name: string }[];
+  /**
+   * Owned by TasksClient (the single nuqs subscriber — the duplicated
+   * useQueryStates schema that let the two hooks disagree on first paint is
+   * gone). This component is purely presentational.
+   */
+  filters: TaskFilterState;
+  onChange: (patch: Partial<TaskFilterState>) => void;
+}
 
-  // PRIORITY handlers
-  function addPriorityFilter(p: string) {
-    if (!filters.priority.includes(p))
-      setFilters({ priority: [...filters.priority, p] });
+export function TaskFilters({ projects, filters, onChange }: Props) {
+  function addTo(key: keyof TaskFilterState, value: string) {
+    if (!filters[key].includes(value)) onChange({ [key]: [...filters[key], value] });
   }
-  function removePriorityFilter(p: string) {
-    setFilters({ priority: filters.priority.filter((x) => x !== p) });
-  }
-
-  // STATUS handlers (Blocker 3: concrete, explicit handlers for each dimension)
-  function addStatusFilter(s: string) {
-    if (!filters.status.includes(s))
-      setFilters({ status: [...filters.status, s] });
-  }
-  function removeStatusFilter(s: string) {
-    setFilters({ status: filters.status.filter((x) => x !== s) });
-  }
-
-  // DUE handlers (Blocker 3)
-  function addDueFilter(d: string) {
-    if (!filters.due.includes(d)) setFilters({ due: [...filters.due, d] });
-  }
-  function removeDueFilter(d: string) {
-    setFilters({ due: filters.due.filter((x) => x !== d) });
-  }
-
-  // PROJECT handlers (Blocker 3)
-  function addProjectFilter(pid: string) {
-    if (!filters.project.includes(pid))
-      setFilters({ project: [...filters.project, pid] });
-  }
-  function removeProjectFilter(pid: string) {
-    setFilters({ project: filters.project.filter((x) => x !== pid) });
+  function removeFrom(key: keyof TaskFilterState, value: string) {
+    onChange({ [key]: filters[key].filter((x) => x !== value) });
   }
 
   function projectName(pid: string): string {
@@ -97,72 +72,39 @@ export function TaskFilters({ projects }: Props) {
     filters.project.length > 0;
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      {/* PRIORITY chips */}
-      {filters.priority.map((p) => (
-        <ChipPill
-          key={`pri-${p}`}
-          label={`Priority: ${p}`}
-          onRemove={() => removePriorityFilter(p)}
-        />
-      ))}
-
-      {/* STATUS chips (Blocker 3) */}
-      {filters.status.map((s) => (
-        <ChipPill
-          key={`sta-${s}`}
-          label={`Status: ${s}`}
-          onRemove={() => removeStatusFilter(s)}
-        />
-      ))}
-
-      {/* DUE chips (Blocker 3) */}
-      {filters.due.map((d) => (
-        <ChipPill
-          key={`due-${d}`}
-          label={dueLabel(d)}
-          onRemove={() => removeDueFilter(d)}
-        />
-      ))}
-
-      {/* PROJECT chips (Blocker 3) */}
-      {filters.project.map((pid) => (
-        <ChipPill
-          key={`prj-${pid}`}
-          label={`Project: ${projectName(pid)}`}
-          onRemove={() => removeProjectFilter(pid)}
-        />
-      ))}
-
-      {/* + Filter dropdown */}
+    // A single non-wrapping strip: adding a chip never reflows the toolbar's
+    // height; an overflowing chip set scrolls horizontally instead.
+    <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto [scrollbar-width:none]">
+      {/* Filter menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="inline-flex h-8 items-center gap-1 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)] data-[state=open]:bg-[var(--sd-selected)] data-[state=open]:text-[var(--sd-ink)]"
+            className={cn(
+              "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 cursor-pointer-always",
+              "text-meta text-[var(--ink-muted)]",
+              "transition-colors duration-[160ms] ease-out",
+              "hover:bg-[var(--hover)] hover:text-[var(--ink)]",
+              "data-[state=open]:bg-[var(--selected)] data-[state=open]:text-[var(--ink)]"
+            )}
           >
-            <Plus size={12} strokeWidth={2} />
+            <ListFilter size={14} strokeWidth={1.75} />
             Filter
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuLabel className="font-sans text-[13px]">
-            Add filter
-          </DropdownMenuLabel>
+          <DropdownMenuLabel className="text-meta">Add filter</DropdownMenuLabel>
           <DropdownMenuSeparator />
 
-          {/* Priority submenu */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="font-sans text-[13px]">
-              Priority
-            </DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger className="text-meta">Priority</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               {PRIORITIES.map((p) => (
                 <DropdownMenuItem
                   key={p}
                   disabled={filters.priority.includes(p)}
-                  onClick={() => addPriorityFilter(p)}
-                  className="font-sans text-[13px]"
+                  onClick={() => addTo("priority", p)}
+                  className="text-meta"
                 >
                   {p}
                 </DropdownMenuItem>
@@ -170,18 +112,15 @@ export function TaskFilters({ projects }: Props) {
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 
-          {/* Status submenu (Blocker 3: concrete, not stub) */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="font-sans text-[13px]">
-              Status
-            </DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger className="text-meta">Status</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               {STATUSES.map((s) => (
                 <DropdownMenuItem
                   key={s}
                   disabled={filters.status.includes(s)}
-                  onClick={() => addStatusFilter(s)}
-                  className="font-sans text-[13px]"
+                  onClick={() => addTo("status", s)}
+                  className="text-meta"
                 >
                   {s}
                 </DropdownMenuItem>
@@ -189,18 +128,15 @@ export function TaskFilters({ projects }: Props) {
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 
-          {/* Due submenu (Blocker 3) */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="font-sans text-[13px]">
-              Due
-            </DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger className="text-meta">Due</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               {DUE_OPTIONS.map((o) => (
                 <DropdownMenuItem
                   key={o.value}
                   disabled={filters.due.includes(o.value)}
-                  onClick={() => addDueFilter(o.value)}
-                  className="font-sans text-[13px]"
+                  onClick={() => addTo("due", o.value)}
+                  className="text-meta"
                 >
                   {o.label}
                 </DropdownMenuItem>
@@ -208,17 +144,11 @@ export function TaskFilters({ projects }: Props) {
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 
-          {/* Project submenu (Blocker 3) */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="font-sans text-[13px]">
-              Project
-            </DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger className="text-meta">Project</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="max-h-[260px] overflow-auto">
               {projects.length === 0 ? (
-                <DropdownMenuItem
-                  disabled
-                  className="font-sans text-[13px] italic"
-                >
+                <DropdownMenuItem disabled className="text-meta">
                   No projects yet
                 </DropdownMenuItem>
               ) : (
@@ -226,8 +156,8 @@ export function TaskFilters({ projects }: Props) {
                   <DropdownMenuItem
                     key={p.id}
                     disabled={filters.project.includes(p.id)}
-                    onClick={() => addProjectFilter(p.id)}
-                    className="font-sans text-[13px]"
+                    onClick={() => addTo("project", p.id)}
+                    className="text-meta"
                   >
                     {p.name}
                   </DropdownMenuItem>
@@ -238,14 +168,41 @@ export function TaskFilters({ projects }: Props) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Clear all filters */}
+      {filters.priority.map((p) => (
+        <ChipPill
+          key={`pri-${p}`}
+          label={`Priority: ${p}`}
+          onRemove={() => removeFrom("priority", p)}
+        />
+      ))}
+      {filters.status.map((s) => (
+        <ChipPill
+          key={`sta-${s}`}
+          label={`Status: ${s}`}
+          onRemove={() => removeFrom("status", s)}
+        />
+      ))}
+      {filters.due.map((d) => (
+        <ChipPill key={`due-${d}`} label={dueLabel(d)} onRemove={() => removeFrom("due", d)} />
+      ))}
+      {filters.project.map((pid) => (
+        <ChipPill
+          key={`prj-${pid}`}
+          label={projectName(pid)}
+          onRemove={() => removeFrom("project", pid)}
+        />
+      ))}
+
       {hasFilters && (
         <button
           type="button"
-          className="inline-flex h-8 items-center rounded-[6px] px-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
-          onClick={() =>
-            setFilters({ priority: [], status: [], due: [], project: [] })
-          }
+          className={cn(
+            "inline-flex h-8 shrink-0 items-center rounded-lg px-2 cursor-pointer-always",
+            "text-meta text-[var(--ink-faint)]",
+            "transition-colors duration-[160ms] ease-out",
+            "hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+          )}
+          onClick={() => onChange({ priority: [], status: [], due: [], project: [] })}
         >
           Clear
         </button>
@@ -254,25 +211,17 @@ export function TaskFilters({ projects }: Props) {
   );
 }
 
-function ChipPill({
-  label,
-  onRemove,
-}: {
-  label: string;
-  onRemove: () => void;
-}) {
-  // sd register (seed): an active filter reads as the two-tier selection —
-  // neutral --sd-selected backplate + an accent cyan dot marking it live + the
-  // label in --sd-ink. 6px chrome radius, hairline border, mono chip type.
+function ChipPill({ label, onRemove }: { label: string; onRemove: () => void }) {
+  // An active filter reads as a quiet selected chip: --selected fill, no
+  // border (the chip sits directly on the canvas), sentence case text-micro.
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-selected)] py-1 pl-2 pr-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink)]">
-      <span aria-hidden className="sd-dot sd-dot-synced" />
-      <span className="normal-case tracking-normal">{label}</span>
+    <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-sm bg-[var(--selected)] py-0.5 pl-2 pr-1 text-micro font-medium text-[var(--ink)]">
+      {label}
       <button
         type="button"
         onClick={onRemove}
-        aria-label="Remove filter"
-        className="rounded-[3px] p-0.5 text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+        aria-label={`Remove filter ${label}`}
+        className="rounded-sm p-0.5 text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
       >
         <X size={12} strokeWidth={2} />
       </button>

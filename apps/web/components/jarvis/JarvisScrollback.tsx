@@ -399,6 +399,8 @@ export function JarvisScrollback({
               {turn.kind === "user" ? (
                 // RIGHT-aligned user turn. A subtle solid --sd-input tint plate
                 // with a hairline — no blur, no glow, no terminal prompt.
+                // jul-29 craft restyle: the plate joins the depth ladder with
+                // --shadow-card so turns read as raised paper, not flat boxes.
                 <div className="flex justify-end mb-3">
                   <div className="flex flex-col items-end max-w-[72%]">
                     <motion.div
@@ -406,7 +408,7 @@ export function JarvisScrollback({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
                       style={{ background: "var(--sd-input)" }}
-                      className="relative rounded-[12px] border border-[var(--sd-line)] px-4 py-2.5"
+                      className="relative rounded-xl border border-[var(--sd-line)] px-4 py-2.5 shadow-[var(--shadow-card)]"
                     >
                       {isDailyPageProcessText(turn.text) ? (
                         // Turns from the Daily Page "process this page" button carry
@@ -442,8 +444,9 @@ export function JarvisScrollback({
                 </div>
               ) : (
                 // LEFT-aligned JARVIS turn. KiwiIcon mark + mono cyan "JARVIS"
-                // label name the speaker; the body is a solid recessed
-                // --sd-darker-box plate with a hairline — no glow halo, no blur.
+                // label name the speaker; the body is a solid --sd-darker-box
+                // plate with a hairline and the craft --shadow-card lift — no
+                // glow halo, no blur.
                 <div className="flex justify-start mb-3">
                   <div className="flex flex-col max-w-[82%]">
                     <span className="mb-1 ml-1 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-accent)]">
@@ -454,7 +457,7 @@ export function JarvisScrollback({
                       initial={shouldReduce ? false : { opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
-                      className={`relative rounded-[12px] border border-[var(--sd-line)] px-4 py-3 overflow-hidden${
+                      className={`relative rounded-xl border border-[var(--sd-line)] px-4 py-3 overflow-hidden shadow-[var(--shadow-card)]${
                         turn.status === "error" && !shouldReduce
                           ? " hud-error-glitch"
                           : ""

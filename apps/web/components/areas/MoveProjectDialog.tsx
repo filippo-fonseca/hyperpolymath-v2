@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface Props {
@@ -30,11 +29,17 @@ interface Props {
   allAreas: { id: string; name: string }[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Page-local settle: the project has left the area this list renders, so the
+   * owning list drops the card.
+   */
+  onMoved: (projectId: string) => void;
 }
 
 /**
  * Locked decision (Quick 260611-g2z #4): wired directly to moveProjectToArea
- * server action. Closes and calls router.refresh() on success.
+ * server action. Closes on success and settles through the owning list's
+ * onMoved callback rather than refetching the route.
  */
 export function MoveProjectDialog({
   projectId,
@@ -43,8 +48,8 @@ export function MoveProjectDialog({
   allAreas,
   open,
   onOpenChange,
+  onMoved,
 }: Props) {
-  const router = useRouter();
   const { run, pending: isMoving } = usePendingAction();
   const [targetAreaId, setTargetAreaId] = useState("");
 
@@ -57,7 +62,7 @@ export function MoveProjectDialog({
       onSuccess: () => {
         onOpenChange(false);
         setTargetAreaId("");
-        router.refresh();
+        onMoved(projectId);
       },
     });
   }

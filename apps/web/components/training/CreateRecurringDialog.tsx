@@ -171,7 +171,7 @@ export function CreateRecurringDialog({
                         <span className="inline-flex items-center gap-2">
                           <span
                             aria-hidden
-                            className="h-2 w-2 rounded-sm"
+                            className="size-2 rounded-full"
                             style={{ backgroundColor: t.color }}
                           />
                           {t.name}
@@ -235,11 +235,14 @@ export function CreateRecurringDialog({
                     aria-pressed={on}
                     aria-label={full}
                     title={full}
+                    // Craft day toggle: on = raised plate in the training hue,
+                    // off = flat recessed tile.
                     className={cn(
-                      "inline-flex h-8 w-8 items-center justify-center rounded-md border font-mono text-[11px] uppercase transition-colors",
+                      "tint-mint inline-flex size-8 items-center justify-center rounded-lg border font-mono text-[11px] uppercase",
+                      "transition-[background-color,border-color,color,box-shadow] duration-[160ms] ease-out",
                       on
-                        ? "border-[var(--sd-ink)] bg-[var(--sd-box)] text-[var(--sd-ink)]"
-                        : "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)]",
+                        ? "border-[var(--tint-edge)] bg-[var(--tint-bg)] font-medium text-[var(--tint-ink)] shadow-[var(--shadow-card)]"
+                        : "border-[var(--edge)] bg-[var(--surface)] text-[var(--sd-ink-dull)] hover:border-[var(--edge-strong)] hover:text-[var(--sd-ink)]",
                     )}
                   >
                     {short}

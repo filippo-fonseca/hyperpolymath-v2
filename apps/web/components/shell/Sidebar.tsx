@@ -41,8 +41,12 @@ import { useReducedMotion } from "motion/react";
 import { usePathname } from "next/navigation";
 import { useEffect, useOptimistic, useRef, useState } from "react";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
-import { PersistentNav, SidebarStatusRow, SidebarSystemNav } from "./PersistentNav";
-import { SidebarHomeDevicesStrip } from "./SidebarHomeDevicesStrip";
+import {
+  PersistentNav,
+  SidebarGcalAlert,
+  SidebarStatusRow,
+  SidebarSystemNav,
+} from "./PersistentNav";
 import { SidebarTree } from "./SidebarTree";
 import { deriveSidebarLayout, planToggle, useIsBelowMd } from "./use-sidebar-breakpoint";
 
@@ -62,14 +66,6 @@ interface Props {
 export type AreaOptimisticDispatch = (action: OptimisticAction<SidebarArea>) => void;
 
 /**
- * Sidebar surface (UI-CONTRACT §1). The darkest member of the sd family, at
- * full opacity: the 65% vibrancy wash is deliberately gone. Vibrancy is a
- * desktop-app affordance; on the web it just muddies the column against
- * whatever scrolls underneath it, and a solid column reads cleaner.
- */
-export const SIDEBAR_SURFACE = "sd-sidebar-surface";
-
-/**
  * Row grammar, adopted verbatim from the Spacedrive source (§11).
  *
  * The load-bearing detail: rows have NO hover fill. The active tint is the
@@ -78,13 +74,13 @@ export const SIDEBAR_SURFACE = "sd-sidebar-surface";
  * nothing else.
  */
 export const SB_ROW =
-  "rounded-[6px] px-2 text-sm font-medium tracking-wide text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)]";
+  "rounded-lg px-2 text-sm font-medium tracking-wide text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)]";
 /** Active row — the neutral selected backplate + ink text. No accent tint. */
 export const SB_ROW_ACTIVE = "bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)] text-[var(--sd-ink)]";
 /** Quiet icon-button / emoji-chip backplate. Buttons DO take a hover fill —
  *  they're discrete targets, not a scanning column. */
 export const SB_GHOST =
-  "rounded-[6px] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)]";
+  "rounded-lg transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)]";
 /** Keyboard focus convention (D6). */
 export const SB_FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]";
 
@@ -233,7 +229,7 @@ export function Sidebar({
       aria-label="Sidebar"
       className={cn(
         "relative h-full shrink-0",
-        animateWidth && "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+        animateWidth && "transition-[width] duration-[280ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
         // Below md the outer aside is ALWAYS the rail — expansion is the
         // floating overlay, so the route width never changes with it.
         railMode ? "w-14" : "w-[230px]",
@@ -252,14 +248,16 @@ export function Sidebar({
         onMouseLeave={() => setHovered(false)}
         className={cn(
           "group/sidebar absolute inset-y-0 left-0 flex flex-col gap-2.5 overflow-hidden p-2.5 pb-2",
-          "border-r border-[var(--sd-line)]",
-          SIDEBAR_SURFACE,
-          animateWidth && "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
+          // jul-29 craft restyle: the column is a detached floating glass
+          // panel (rounded on every side), not a full-bleed bordered track.
+          "craft-glass rounded-panel",
+          animateWidth && "transition-[width] duration-[280ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
           effectiveCollapsed ? "w-14" : "w-[230px]",
           // Expanded-while-railed floats above the page as an overlay: desktop
-          // hover-peek and the below-md toggle sheet share this one path.
-          peeking &&
-            "z-50 rounded-r-md border border-[var(--sd-line)] shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]"
+          // hover-peek and the below-md toggle sheet share this one path. The
+          // glass panel already carries border + float shadow; peeking only
+          // needs to rise above the stage.
+          peeking && "z-50"
         )}
       >
         <SidebarHeader
@@ -335,13 +333,20 @@ export function Sidebar({
             reachable by scrolling past fifteen others. Pinned, it keeps the §1.3
             vertical order (still below AREAS) and is always visible. */}
         <div className="shrink-0 space-y-1">
+          {/* Google Calendar fault row. Same reasoning as SYSTEM, one step
+              further: the /calendar row's own badge is the thirteenth row of a
+              scroll column, so it is below the fold at every laptop height.
+              This renders only while the connection is down. */}
+          <SidebarGcalAlert collapsed={effectiveCollapsed} />
+
           <section>
             <SectionHeader label="System" collapsed={effectiveCollapsed} />
             <SidebarSystemNav collapsed={effectiveCollapsed} />
           </section>
 
           <SidebarStatusRow collapsed={effectiveCollapsed} />
-          <SidebarHomeDevicesStrip collapsed={effectiveCollapsed} />
+          {/* The HOME strip moved to the dock's Home widget (jul-29), which
+              also gained the power controls the strip never had. */}
           <IdentityBlock collapsed={effectiveCollapsed} profile={profile} />
           <UtilityStrip
             collapsed={effectiveCollapsed}
@@ -473,7 +478,11 @@ function SectionHeader({
 
   return (
     <div className="group/section mb-1 flex h-6 items-center gap-1.5 px-2">
-      <span className={cn(labelClasses, "select-none")}>{label}</span>
+      {/* Sanctioned uppercase: the sidebar section eyebrow (SDC-1 §2.4).
+          data-eyebrow lets computed-style audits exclude it explicitly. */}
+      <span data-eyebrow="sidebar-section" className={cn(labelClasses, "select-none")}>
+        {label}
+      </span>
 
       {count !== undefined && count > 0 && (
         <span
@@ -569,7 +578,7 @@ function IdentityBlock({
       href="/settings"
       className={cn(
         SB_FOCUS,
-        "group flex h-12 items-center gap-2.5 rounded-[6px] px-2",
+        "group flex h-12 items-center gap-2.5 rounded-lg px-2",
         "cursor-pointer-always transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)]"
       )}
     >

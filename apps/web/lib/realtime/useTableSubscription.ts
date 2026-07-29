@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { REALTIME_SUBSCRIBE_STATES, type RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -19,6 +19,14 @@ type Entry = {
    * entry (D-10).
    */
   extraKeys: Set<string>;
+  /**
+   * Per-mount `onEvent` callbacks (D-12). Same refcount lifetime as the
+   * channel: a mount adds its listener and removes it on unmount, so a
+   * consumer that wants to *schedule* work off an event (rather than
+   * invalidate a key straight away) can do so without the channel firing an
+   * expensive refetch on its behalf.
+   */
+  listeners: Set<() => void>;
 };
 
 /**
@@ -57,6 +65,13 @@ function makeKey(table: RealtimeTable, userId: string): string {
  *   same (table, userId) with different alsoInvalidate arrays, the union is
  *   applied. Stale keys are released implicitly when refcount→0 deletes the
  *   entry on the last unmount.
+ * @param options.onEvent - D-12: called on every fire, in addition to the
+ *   invalidations above. For consumers whose refetch is expensive enough that
+ *   it wants coalescing (the search snapshot is 18 queries, and a single user
+ *   action can touch three of the tables that feed it), so the consumer
+ *   debounces its own invalidation instead of paying once per table. The
+ *   callback is read through a ref, so passing a fresh closure every render
+ *   does not re-subscribe the channel.
  */
 export function useTableSubscription(
   table: RealtimeTable,
@@ -64,9 +79,12 @@ export function useTableSubscription(
   options: {
     enabled?: boolean;
     alsoInvalidate?: ReadonlyArray<readonly [string, string]>;
+    onEvent?: () => void;
   } = {},
 ): void {
   const enabled = options.enabled ?? true;
+  const onEventRef = useRef(options.onEvent);
+  onEventRef.current = options.onEvent;
   const extraKeysJson = (options.alsoInvalidate ?? []).map((k) =>
     JSON.stringify(k),
   );
@@ -80,6 +98,8 @@ export function useTableSubscription(
     if (!userId) return;
 
     const key = makeKey(table, userId);
+    // Stable per-mount listener that reads the latest callback off the ref.
+    const listener = () => onEventRef.current?.();
 
     // Visibility registry — single source of truth for "what tables need
     // refetch on visibilitychange → visible". Refcounted in visibility.ts.
@@ -91,6 +111,7 @@ export function useTableSubscription(
       // Accrue this mount's extra keys onto the shared entry (D-10 fanout
       // union across consumers).
       for (const k of extraKeysJson) existing.extraKeys.add(k);
+      existing.listeners.add(listener);
     } else {
       const extraKeys = new Set<string>(extraKeysJson);
       const supabase = createClient();
@@ -122,34 +143,61 @@ export function useTableSubscription(
                 ];
                 void queryClient.invalidateQueries({ queryKey: parsed });
               }
+              // D-12 — notify consumers that coalesce their own refetch.
+              for (const notify of entry.listeners) notify();
             }
           },
-        )
-        .subscribe((status, err) => {
-          // RT-OBS: surface channel subscription status so failures are
-          // observable in the console rather than silently dropping events.
-          if (status === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
-            // Channel is live — postgres_changes events will flow.
-            if (process.env.NODE_ENV !== "production") {
-              console.debug(`[realtime] SUBSCRIBED rt:${table}:${userId}`);
+        );
+      // Resolve the user JWT BEFORE the join goes out. A channel that joins
+      // while the async accessToken callback is still pending subscribes as
+      // the anon role: Realtime acks it (SUBSCRIBED fires, no error), and
+      // then RLS silently drops every event, because postgres_changes are
+      // scoped to the claims carried by the join itself — the token pushed
+      // later by setAuth does not re-scope an existing subscription.
+      // setAuth() awaits the accessToken callback and caches the token, so
+      // the join payload carries the user JWT.
+      void Promise.resolve(supabase.realtime?.setAuth())
+        .catch(() => {
+          // Signed out or storage race — join proceeds as anon, which is
+          // today's behavior; the status callback below stays observable.
+        })
+        .then(() => {
+          // The last consumer may have unmounted while auth resolved; the
+          // refcount cleanup already dropped the entry, so joining now would
+          // leak a channel nobody unsubscribes.
+          if (channels.get(key)?.channel !== channel) return;
+          channel.subscribe((status, err) => {
+            // RT-OBS: surface channel subscription status so failures are
+            // observable in the console rather than silently dropping events.
+            if (status === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
+              // Channel is live — postgres_changes events will flow.
+              if (process.env.NODE_ENV !== "production") {
+                console.debug(`[realtime] SUBSCRIBED rt:${table}:${userId}`);
+              }
+            } else if (
+              status === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR ||
+              status === REALTIME_SUBSCRIBE_STATES.TIMED_OUT
+            ) {
+              console.warn(
+                `[realtime] ${status} rt:${table}:${userId}`,
+                err ?? "",
+              );
             }
-          } else if (
-            status === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR ||
-            status === REALTIME_SUBSCRIBE_STATES.TIMED_OUT
-          ) {
-            console.warn(
-              `[realtime] ${status} rt:${table}:${userId}`,
-              err ?? "",
-            );
-          }
+          });
         });
-      channels.set(key, { channel, refcount: 1, extraKeys });
+      channels.set(key, {
+        channel,
+        refcount: 1,
+        extraKeys,
+        listeners: new Set([listener]),
+      });
     }
 
     return () => {
       unregisterActiveTable(table, userId);
       const entry = channels.get(key);
       if (!entry) return;
+      entry.listeners.delete(listener);
       entry.refcount -= 1;
       if (entry.refcount <= 0) {
         void entry.channel.unsubscribe();

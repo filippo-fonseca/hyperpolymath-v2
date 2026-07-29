@@ -9,9 +9,11 @@ interface Props {
   windowLabel: string;
 }
 
-// sd plate — the shipped .sd-panel primitive (12px, --sd-box, --sd-line
-// hairline, inset top hairline). No glass, no blur, no glow (UI-CONTRACT §0).
-const TILE = "sd-panel p-4";
+// Craft plate (jul-29): the headline stat block is a large raised panel.
+// `.craft-card` is unlayered and owns fill/border/shadow — no `bg-*` utility
+// may ride along with it. `tint-mint` is the training hue, consumed by the
+// percentage chip below.
+const TILE = "craft-card tint-mint rounded-2xl p-5";
 
 /**
  * Planned-vs-actual adherence (D-14 / TRN-11 / TRN-12).
@@ -48,7 +50,8 @@ export function AdherenceCard({ activities, windowLabel }: Props) {
           Adherence · {windowLabel}
         </h3>
         {stats.pct !== null && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] tabular-nums text-[var(--sd-ink-dull)]">
+          // Pastel chip with a saturated rim — the register's candy edge.
+          <span className="inline-flex items-center rounded-full border border-[var(--tint-edge)] bg-[var(--tint-bg)] px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.08em] tabular-nums text-[var(--tint-ink)]">
             {stats.pct}%
           </span>
         )}

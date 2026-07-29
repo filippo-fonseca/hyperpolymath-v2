@@ -1,8 +1,8 @@
 import { TasksClient } from "@/components/tasks/TasksClient";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
+import { getHashtagSuggestionsCached } from "@/lib/db/cached";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
-import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
 import { areas, people, projects } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 
@@ -39,6 +39,7 @@ export default async function TasksPage({ searchParams }: Props) {
         icon: projects.icon,
         isClass: projects.isClass,
         courseCode: projects.courseCode,
+        areaId: projects.areaId,
         areaName: areas.name,
         areaEmoji: areas.emoji,
       })
@@ -53,11 +54,10 @@ export default async function TasksPage({ searchParams }: Props) {
       })
       .from(areas)
       .where(and(eq(areas.userId, user.id), isNull(areas.archivedAt))),
-    getHashtagSuggestions(user.id),
-    db
-      .select({ id: people.id, name: people.name })
-      .from(people)
-      .where(eq(people.userId, user.id)),
+    // The cached wrapper, because the (app) layout already fetched exactly
+    // this list for the Cmd+K composer in the same request.
+    getHashtagSuggestionsCached(user.id),
+    db.select({ id: people.id, name: people.name }).from(people).where(eq(people.userId, user.id)),
   ]);
 
   // Per Pitfall 3: pass searchParams-derived initial filters so SSR matches client nuqs hydration.

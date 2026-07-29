@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "debug:stage": "vite",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify:flowpill": "node scripts/verify-flowpill-paint.mjs"
   },
   "dependencies": {
     "@hyperpolymath/jarvis-core": "workspace:*",

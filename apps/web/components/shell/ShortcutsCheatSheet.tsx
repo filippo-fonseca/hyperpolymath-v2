@@ -45,9 +45,9 @@ export function ShortcutsCheatSheet() {
             <DialogTitle className="text-lg text-[var(--ink)]">
               Keyboard shortcuts
             </DialogTitle>
-            <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
-              ?
-            </span>
+            {/* The sheet's own shortcut key, so it renders as a literal kbd
+                hint (the sanctioned slot) rather than a styled span. */}
+            <kbd className="font-mono text-[11px] text-[var(--ink-muted)]">?</kbd>
           </div>
           <DialogDescription className="sr-only">
             All available keyboard shortcuts, grouped by context.
@@ -60,7 +60,7 @@ export function ShortcutsCheatSheet() {
             if (rows.length === 0) return null;
             return (
               <section key={section}>
-                <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)] mb-2">
+                <h3 className="text-micro font-medium text-[var(--ink-muted)] mb-2">
                   {section}
                 </h3>
                 <ul className="flex flex-col gap-1.5">

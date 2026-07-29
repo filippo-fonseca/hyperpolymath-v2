@@ -29,6 +29,12 @@ interface Props {
 /**
  * One day column on the Training board. Tight density per D-01 — text-xs,
  * minimal chrome, designed for week-at-a-glance scanning.
+ *
+ * Craft register (jul-29): the column body is a soft recessed well the white
+ * activity cards sit in, so the board reads as plates on paper rather than
+ * cards floating on the canvas. Today's column and the active drop target
+ * both borrow the training hue (`tint-mint`), pastel on the fill and
+ * saturated only on the rim.
  */
 export function TrainingDayColumn({
   dateISO,
@@ -45,17 +51,12 @@ export function TrainingDayColumn({
   const { isOver, setNodeRef } = useDroppable({ id: dateISO });
 
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <div
-        className={cn(
-          "flex items-baseline justify-between px-1 pb-1",
-          isToday && "border-b border-[var(--sd-accent)]"
-        )}
-      >
+    <div className="tint-mint flex min-w-0 flex-col gap-1.5">
+      <div className="flex items-baseline justify-between px-1.5 pb-1">
         <span
           className={cn(
             "font-mono text-[10px] uppercase tracking-[0.08em]",
-            isToday ? "text-[var(--sd-ink)]" : "text-[var(--sd-ink-faint)]"
+            isToday ? "text-[var(--tint-ink)]" : "text-[var(--sd-ink-faint)]"
           )}
         >
           {format(date, "EEE")}
@@ -63,7 +64,11 @@ export function TrainingDayColumn({
         <span
           className={cn(
             "text-xs tabular-nums",
-            isToday ? "text-[var(--sd-ink)]" : "text-[var(--sd-ink-faint)]"
+            isToday
+              ? // Today gets the one saturated mark in the header row: a small
+                // pastel plate with in-family ink, not a hard accent rule.
+                "rounded-md bg-[var(--tint-bg)] px-1.5 font-medium text-[var(--tint-ink)]"
+              : "text-[var(--sd-ink-faint)]"
           )}
         >
           {format(date, "d")}
@@ -73,9 +78,11 @@ export function TrainingDayColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-[80px] flex-col gap-1.5 rounded-[8px] p-1.5 transition-colors duration-150",
-          isAnyDragging && "ring-1 ring-[var(--sd-line)]",
-          isOver && "bg-[var(--sd-hover)] ring-1 ring-[var(--sd-accent)]"
+          "flex min-h-[80px] flex-col gap-1.5 rounded-2xl border border-transparent p-1.5",
+          "transition-[background-color,border-color] duration-[160ms] ease-out",
+          isToday ? "bg-[var(--tint-bg)]" : "bg-[var(--surface)]",
+          isAnyDragging && "border-[var(--edge)]",
+          isOver && "border-[var(--tint-edge)] bg-[var(--tint-bg)]"
         )}
       >
         {activities.map((a) => (

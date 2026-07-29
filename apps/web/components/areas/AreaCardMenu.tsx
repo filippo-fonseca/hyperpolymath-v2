@@ -22,25 +22,39 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoreHorizontal } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface Props {
   areaId: string;
   areaName: string;
   areaEmoji: string | null;
+  /**
+   * Page-local settle for an edit. Supplied by the surface that owns the list,
+   * so a rename costs a state update rather than a full route refetch.
+   */
+  onUpdated: (id: string, patch: { name: string; emoji: string | null }) => void;
+  /** Page-local settle for a delete. Same rationale as onUpdated. */
+  onDeleted: (id: string) => void;
 }
 
 /**
  * Per-area-card ⋯ dropdown for the /areas page.
  *
- * Deliberately decoupled from the sidebar's optimistic dispatcher — this menu
- * lives on an SSR page and uses router.refresh() as the canonical "settle" path.
+ * Deliberately decoupled from the sidebar's optimistic dispatcher — the sidebar
+ * reconciles itself off the Realtime echo on ['areas', userId]. The list this
+ * menu sits in is server-rendered, so it settles through the onUpdated /
+ * onDeleted callbacks the owning list supplies. Nothing here refetches the
+ * route.
  *
  * Items: Edit (name + emoji) / Delete.
  */
-export function AreaCardMenu({ areaId, areaName, areaEmoji }: Props) {
-  const router = useRouter();
+export function AreaCardMenu({
+  areaId,
+  areaName,
+  areaEmoji,
+  onUpdated,
+  onDeleted,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -69,7 +83,7 @@ export function AreaCardMenu({ areaId, areaName, areaEmoji }: Props) {
         success: "Area updated.",
         onSuccess: () => {
           setEditDialogOpen(false);
-          router.refresh();
+          onUpdated(areaId, { name: trimmedName, emoji: emoji.trim() || null });
         },
       }
     );
@@ -80,7 +94,7 @@ export function AreaCardMenu({ areaId, areaName, areaEmoji }: Props) {
       success: "Area deleted.",
       onSuccess: () => {
         setDeleteDialogOpen(false);
-        router.refresh();
+        onDeleted(areaId);
       },
     });
   }

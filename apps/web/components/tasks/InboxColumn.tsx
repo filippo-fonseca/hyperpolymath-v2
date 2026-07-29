@@ -1,9 +1,8 @@
 "use client";
 
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
-import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronRight, Inbox } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { TaskCard } from "./TaskCard";
 
@@ -67,15 +66,16 @@ interface Props {
  * TASK-INBOX-02), bidirectional with the drag-out-of-inbox flow.
  *
  * Sits in the tasks triage rail half-and-half beside {@link OverdueTasksPanel}
- * and adopts EXACTLY that panel's disclosure grammar: an `.sd-panel` surface, a
- * chevron header button that toggles the body open/closed with a localStorage-
- * persisted boolean, and a matched 200ms height/opacity collapse. Both panels
+ * and adopts EXACTLY that panel's disclosure grammar: a 12px `--surface` panel,
+ * a chevron header button that toggles the body open/closed with a localStorage-
+ * persisted boolean, and a matched 280ms height/opacity collapse. Both panels
  * toggle independently, so both can be open at once.
  *
- * Aesthetic guardrails: cyan ONLY appears on drag-over (the reserved drag-target
- * accent); default borders stay neutral. The whole panel (header included) is
- * the drop target, so a card can still be dropped onto the Inbox even when it is
- * collapsed to its header strip.
+ * Aesthetic guardrails: accent ONLY appears on drag-over (the reserved
+ * drag-target state, painted with direct DOM writes so a dragover never
+ * re-renders the card list); default borders stay neutral. The whole panel
+ * (header included) is the drop target, so a card can still be dropped onto
+ * the Inbox even when it is collapsed to its header strip.
  */
 export function InboxColumn({
   inboxTasks,
@@ -87,7 +87,7 @@ export function InboxColumn({
   selectedIds,
   onToggleSelected,
 }: Props) {
-  const [isDragOver, setIsDragOver] = useState(false);
+  const reduced = useReducedMotion();
   const [panelOpen, setPanelOpen] = usePersistentBoolean(PANEL_OPEN_KEY, true);
 
   return (
@@ -95,42 +95,41 @@ export function InboxColumn({
       aria-label="Tasks without a due date"
       onDragOver={(e) => {
         e.preventDefault();
-        setIsDragOver(true);
+        // Drag-target active state, written straight to the DOM: a state
+        // write here would re-render every card on every dragover frame.
+        e.currentTarget.style.boxShadow = "inset 0 0 0 1px var(--accent)";
       }}
-      onDragLeave={() => setIsDragOver(false)}
+      onDragLeave={(e) => {
+        e.currentTarget.style.boxShadow = "none";
+      }}
       onDrop={(e) => {
         e.preventDefault();
-        setIsDragOver(false);
+        e.currentTarget.style.boxShadow = "none";
         void onDrop();
       }}
-      className={cn(
-        "sd-panel overflow-hidden transition-[box-shadow] duration-150",
-        // S-1 drag-target active state — cyan ring, shown ONLY while a card is
-        // hovering over the Inbox during a drag.
-        isDragOver && "ring-1 ring-[var(--hud-cyan)]/40"
-      )}
+      className="overflow-hidden rounded-xl border border-[var(--edge)] bg-[var(--surface)] shadow-[var(--shadow-card)]"
     >
-      {/* Panel header — toggle open/closed + summary count. Neutral grammar
+      {/* Panel header: toggle open/closed + summary count. Neutral grammar
           (no functional hue), matching the Overdue panel's chevron affordance. */}
       <header className="flex items-center justify-between gap-3 px-4 py-2.5">
         <button
           type="button"
           onClick={() => setPanelOpen(!panelOpen)}
           aria-expanded={panelOpen}
-          className="group/header flex min-w-0 items-center gap-2 cursor-pointer-always text-left rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+          className="group/header flex min-w-0 items-center gap-2 rounded-lg text-left cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
-          <span className="text-[var(--sd-ink-dull)]">
+          <span className="text-[var(--ink-muted)]">
             {panelOpen ? (
               <ChevronDown size={15} strokeWidth={2} />
             ) : (
               <ChevronRight size={15} strokeWidth={2} />
             )}
           </span>
-          <Inbox size={14} strokeWidth={1.75} className="text-[var(--sd-ink-dull)]" />
-          <span className="truncate font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--sd-ink-dull)]">
-            Inbox · undated
+          <Inbox size={14} strokeWidth={1.75} className="text-[var(--ink-muted)]" />
+          <span className="truncate text-meta font-medium text-[var(--ink-muted)]">
+            Inbox
           </span>
-          <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-dull)]">
+          <span className="font-mono text-micro tabular-nums text-[var(--ink-muted)]">
             {inboxTasks.length}
           </span>
         </button>
@@ -143,12 +142,12 @@ export function InboxColumn({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reduced ? 0 : 0.28, ease: [0.32, 0.72, 0, 1] }}
             className="overflow-hidden"
           >
             <div className="max-h-[40vh] overflow-y-auto px-4 pb-3">
               {inboxTasks.length === 0 ? (
-                <p className="px-0.5 font-sans text-sm text-[var(--ink-muted)]">
+                <p className="px-0.5 text-meta text-[var(--ink-muted)]">
                   Inbox is empty.
                 </p>
               ) : (

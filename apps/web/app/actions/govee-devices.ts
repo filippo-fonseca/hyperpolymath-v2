@@ -216,6 +216,46 @@ export async function setDefaultGoveeDevice(
   return listGoveeDevices();
 }
 
+/**
+ * Flip one registered light on or off (dock HOME widget). Looks the device up
+ * by its Govee device id scoped to the caller, then issues the cloud
+ * powerSwitch command. State confirmation rides the existing 3s
+ * /api/studio/home poll; the caller owns any optimistic patch.
+ */
+export async function setGoveeDevicePower(
+  deviceId: string,
+  on: boolean,
+): Promise<ActionResult> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: "Not authenticated." };
+
+  const [row] = await db
+    .select({ sku: userGoveeDevices.sku, deviceId: userGoveeDevices.deviceId })
+    .from(userGoveeDevices)
+    .where(
+      and(
+        eq(userGoveeDevices.userId, userId),
+        eq(userGoveeDevices.deviceId, deviceId),
+      ),
+    )
+    .limit(1);
+  if (!row) return { ok: false, error: "Device is not registered." };
+
+  const client = await createGoveeClient(userId);
+  if (!client) return { ok: false, error: "Govee API key is not configured." };
+
+  try {
+    await client.setPower({ sku: row.sku, device: row.deviceId }, on);
+  } catch (error) {
+    if (error instanceof GoveeApiError) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: false, error: "Could not reach the light." };
+  }
+
+  return { ok: true, data: undefined };
+}
+
 export async function removeGoveeDevice(
   deviceRowId: string,
 ): Promise<ActionResult<GoveeDeviceRow[]>> {

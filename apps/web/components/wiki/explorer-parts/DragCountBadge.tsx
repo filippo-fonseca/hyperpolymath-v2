@@ -22,7 +22,8 @@ export function DragCountBadge({
   return (
     <div
       className={cn(
-        "pointer-events-none inline-flex h-9 w-fit max-w-[280px] items-center gap-2 rounded-full border border-[var(--sd-accent,#2599ff)] bg-[var(--sd-box)] px-2.5 font-sans text-[0.78rem] text-[var(--ink)] shadow-[0_10px_28px_hsl(235_15%_0%_/_0.4)]",
+        "pointer-events-none inline-flex h-9 w-fit max-w-[280px] items-center gap-2 rounded-full border border-[var(--edge-strong)] bg-[var(--sd-box)] px-3 font-sans text-meta text-[var(--ink)]",
+        "shadow-[0_4px_16px_rgb(0_0_0_/_0.06)] dark:shadow-[0_4px_16px_rgb(0_0_0_/_0.30)]",
         "opacity-60",
         className
       )}
@@ -34,7 +35,7 @@ export function DragCountBadge({
       )}
       <span className="min-w-0 truncate">{label}</span>
       {count > 1 ? (
-        <span className="shrink-0 rounded-full bg-[var(--sd-accent,#2599ff)] px-1.5 py-0.5 font-sans text-[0.7rem] font-semibold text-white">
+        <span className="shrink-0 rounded-full bg-[var(--sd-accent)] px-2 py-0.5 font-sans text-micro font-semibold text-white">
           {count}
         </span>
       ) : null}

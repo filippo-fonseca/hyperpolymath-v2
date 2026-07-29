@@ -81,6 +81,11 @@ export function useExplorerActions({
       mutations.invalidatePages();
       return;
     }
+    // The optimistic row above is a stub: empty title, null positionKey, a
+    // client clock for createdAt. Invalidate on success too, or navigating back
+    // to /wiki inside the 30s staleTime window renders that stub instead of the
+    // page the server actually created.
+    mutations.invalidatePages();
     router.push(`/wiki/${r.data.id}`);
   }, [folderId, folders, mutations, router]);
 
@@ -92,10 +97,8 @@ export function useExplorerActions({
         { id, parentId: folderId, name, orderIndex: old.length },
       ]);
       const r = await createFolder({ id, parentId: folderId, name });
-      if (!r.success) {
-        toast.error(r.error);
-        mutations.invalidateFolders();
-      }
+      if (!r.success) toast.error(r.error);
+      mutations.invalidateFolders();
     },
     [folderId, mutations],
   );
@@ -105,10 +108,8 @@ export function useExplorerActions({
       if (item.kind === "page") {
         mutations.patchPages((old) => old.filter((p) => p.id !== item.id));
         const r = await deletePage(item.id);
-        if (!r.success) {
-          toast.error(r.error);
-          mutations.invalidatePages();
-        }
+        if (!r.success) toast.error(r.error);
+        mutations.invalidatePages();
         return;
       }
       const subtree = new Set<string>();
@@ -123,10 +124,11 @@ export function useExplorerActions({
       }
       mutations.patchFolders((old) => old.filter((f) => !subtree.has(f.id)));
       const r = await deleteFolder(item.id);
-      if (!r.success) {
-        toast.error(r.error);
-        mutations.invalidateFolders();
-      }
+      if (!r.success) toast.error(r.error);
+      // Deleting a folder cascades to the pages inside it, so both keys are
+      // stale, not just the folder one.
+      mutations.invalidateFolders();
+      mutations.invalidatePages();
     },
     [childrenOf, mutations],
   );
@@ -141,10 +143,8 @@ export function useExplorerActions({
           old.map((f) => (f.id === renameTarget.id ? { ...f, name } : f)),
         );
         const r = await renameFolder({ id: renameTarget.id, name });
-        if (!r.success) {
-          toast.error(r.error);
-          mutations.invalidateFolders();
-        }
+        if (!r.success) toast.error(r.error);
+        mutations.invalidateFolders();
       }
       setRenameTarget(null);
     },

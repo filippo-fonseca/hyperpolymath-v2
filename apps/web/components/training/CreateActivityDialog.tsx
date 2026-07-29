@@ -145,7 +145,7 @@ export function CreateActivityDialog({
                         <span className="inline-flex items-center gap-2">
                           <span
                             aria-hidden
-                            className="h-2 w-2 rounded-sm"
+                            className="size-2 rounded-full"
                             style={{ backgroundColor: t.color }}
                           />
                           {t.name}
@@ -216,7 +216,7 @@ export function CreateActivityDialog({
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               placeholder="Anything to remember…"
-              className="min-h-[60px] resize-y rounded border border-[var(--sd-line)] bg-[var(--sd-input)] px-2 py-1.5 text-sm outline-none focus:border-[var(--sd-accent)]"
+              className="min-h-[60px] resize-y rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-2 py-1.5 text-sm outline-none transition-[border-color,box-shadow] duration-[160ms] ease-out focus:border-[var(--edge-strong)] focus:shadow-[var(--shadow-card)]"
             />
           </Field>
         </div>

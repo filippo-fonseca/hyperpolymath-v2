@@ -34,7 +34,7 @@ export function ExplorerTopBar({
     <Toolbar
       className={className}
       left={
-        <div className="flex items-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)]">
+        <div className="flex items-center overflow-hidden rounded-lg bg-[var(--sd-box)]">
           <ExplorerNavButton side="left" label="Back" disabled={!canGoBack} onClick={onBack}>
             <ChevronLeft size={16} strokeWidth={1.8} />
           </ExplorerNavButton>
@@ -82,10 +82,9 @@ function ExplorerNavButton({
       onClick={onClick}
       className={cn(
         "flex size-7 items-center justify-center text-[var(--sd-ink-dull)]",
-        side === "left" ? "rounded-l-[5px] border-r border-r-[var(--sd-line)]" : "rounded-r-[5px]",
-        "transition-[background-color,border-color,color] duration-[120ms] ease-out",
-        "hover:border-[var(--sd-line)] hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
-        "focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_1px_var(--sd-accent)] focus-visible:text-[var(--sd-ink)]",
+        side === "left" && "border-r border-r-[var(--sd-line)]",
+        "transition-[background-color,border-color,color] duration-[160ms] ease-out",
+        "hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
         "disabled:pointer-events-none disabled:opacity-35"
       )}
     >

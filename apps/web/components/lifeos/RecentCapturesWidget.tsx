@@ -17,12 +17,12 @@ import { EntityLabelsProvider } from "@/components/references/EntityLabelsProvid
 import { EntityPill } from "@/components/references/EntityPill";
 import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { CaptureIcon } from "@/components/ui/icons";
 import {
   ActionLink,
   Chip,
   ChipRow,
-  EmptyState,
   EntityCardHeader,
   OverflowChip,
   StatusPill,
@@ -94,14 +94,17 @@ export function RecentCapturesWidget({
           }
         />
         {recent.length === 0 ? (
-          <EmptyState icon={<CaptureIcon size={40} />}>
-            Nothing captured yet. Type into JARVIS to drop a note.
-          </EmptyState>
+          <div className="flex min-h-0 flex-1 flex-col justify-center">
+            <EmptyState
+              size="inline"
+              title="Nothing captured yet. Type into JARVIS to drop a note."
+            />
+          </div>
         ) : (
           // Flat sub-cards on --sd-input: no border-in-border double nesting (§6).
           // Compact cell (SD3 §2): a single-column stream that scrolls inside
           // the tile rather than a page-widening grid.
-          <ul className="sd-scroll-hover -mr-2 mt-3.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-2">
+          <ul className="sd-scroll-hover -mr-2 mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-2">
             {recent.map((c, i) => {
               const isJarvis = c.createdVia === "jarvis";
               const SourceIcon = isJarvis ? Sparkles : PenLine;
@@ -111,30 +114,31 @@ export function RecentCapturesWidget({
                   initial={reduced ? false : { opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
-                    delay: reduced ? 0 : 0.01 * Math.min(i, 24),
-                    duration: 0.16,
-                    ease: "easeOut",
+                    delay: reduced ? 0 : 0.02 * Math.min(i, 12),
+                    duration: 0.22,
+                    ease: [0.25, 1, 0.5, 1],
                   }}
-                  className="group relative flex flex-col gap-2 rounded-[10px] bg-[var(--sd-input)] p-3"
+                  className="group relative flex flex-col gap-2 rounded-[8px] bg-[var(--sd-input)] p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-[var(--sd-ink-faint)]">
+                    <div className="flex items-center gap-1 text-[var(--sd-ink-faint)]">
                       <SourceIcon
                         size={11}
                         strokeWidth={1.75}
                         style={isJarvis ? { color: "var(--sd-accent)" } : undefined}
                       />
-                      <span className="font-mono text-[9px] uppercase tracking-[0.14em]">
-                        {isJarvis ? "JARVIS" : "Manual"}
+                      <span className="text-micro font-medium">
+                        {isJarvis ? "Jarvis" : "Manual"}
                       </span>
                     </div>
-                    <span className="font-mono text-[9px] uppercase tracking-[0.10em] tabular-nums text-[var(--sd-ink-faint)]">
+                    {/* Mono survives on the timestamp (a numeric unit, §2.4). */}
+                    <span className="font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
                       {formatDistanceToNowStrict(new Date(c.createdAt), {
                         addSuffix: false,
                       })}
                     </span>
                   </div>
-                  <p className="line-clamp-3 text-[14px] leading-[1.45] text-[var(--sd-ink)]">
+                  <p className="line-clamp-3 text-body text-[var(--sd-ink)]">
                     <CaptureLine capture={c} />
                   </p>
                   {(c.hashtags.length > 0 || c.projects.length > 0) && (
@@ -158,7 +162,7 @@ export function RecentCapturesWidget({
                     <button
                       type="button"
                       onClick={() => setConvertTarget(c)}
-                      className="absolute right-2 top-2 cursor-pointer-always rounded bg-[var(--sd-box)] px-1.5 py-0.5 text-[0.65rem] font-medium tracking-wide text-[var(--sd-ink-faint)] opacity-0 transition-opacity duration-150 ease-out hover:text-[var(--sd-ink)] group-hover:opacity-100"
+                      className="absolute right-2 top-2 cursor-pointer-always rounded bg-[var(--sd-box)] px-1.5 py-0.5 text-micro font-medium text-[var(--sd-ink-faint)] opacity-0 transition-opacity duration-[160ms] ease-out hover:text-[var(--sd-ink)] group-hover:opacity-100"
                     >
                       → Task
                     </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { AreaCreateDialog } from "@/components/areas/AreaCreateDialog";
+import { Button } from "@/components/ui/button";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { Plus } from "lucide-react";
 
@@ -12,11 +13,9 @@ interface Props {
 }
 
 /**
- * Standalone "New Area" affordance for the /areas page.
- *
- * Sized to sit on the breadcrumb row — mono caps, hairline, no filled
- * button chrome — so it reads as a quiet utility next to the breadcrumb
- * rather than a hero call-to-action competing with the centered title.
+ * "New area" affordance for the /areas page header: the page's one primary
+ * button (creating an area is the page's main action), wrapping
+ * AreaCreateDialog as its trigger.
  */
 export function AreasPageHeader({ userId, currentAreaCount, onCreated, onCreateFailed }: Props) {
   return (
@@ -27,13 +26,10 @@ export function AreasPageHeader({ userId, currentAreaCount, onCreated, onCreateF
       onCreated={onCreated}
       onCreateFailed={onCreateFailed}
     >
-      <button
-        type="button"
-        className="group inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.10em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
-      >
-        <Plus className="h-3 w-3 opacity-70 group-hover:opacity-100 transition-opacity" />
+      <Button size="sm" className="rounded-lg">
+        <Plus className="size-4" />
         New area
-      </button>
+      </Button>
     </AreaCreateDialog>
   );
 }

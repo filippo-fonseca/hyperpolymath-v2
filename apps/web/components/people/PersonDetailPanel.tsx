@@ -4,12 +4,15 @@ import { deletePerson, getPersonReferencesForCurrentUser } from "@/app/actions/p
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { PersonWithStats } from "@/lib/db/queries/people";
+import { tintFor } from "@/lib/tint";
+import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { PersonAvatar } from "./PersonAvatar";
+import { PersonTagChip } from "./PersonCard";
 
 interface Props {
   person: PersonWithStats | null;
@@ -21,12 +24,15 @@ interface Props {
 }
 
 /**
- * Person detail sheet (Spacedrive register). Solid --sd-box panel with a
- * consistently padded body: a left-aligned identity header (avatar + name +
- * mono email), an sd tag-chip strip matching the /people filter rail, the
- * detail fields, and a live reference breakdown. Inner plates sit on --sd-input
- * so they read as raised against the --sd-box sheet. The breakdown query is
- * keyed by personId so it refreshes when references change.
+ * Person detail sheet (jul-29 craft register). The body follows the same plate
+ * + card grammar as the roster: a tinted identity plate beside the name, the
+ * pastel tag chips the filter rail uses, then plain fields, then two raised
+ * white cards (the reference count, the linked entities). The whole body sits
+ * under the person's `tint-*` class so the plate, the dot and the rules all
+ * resolve from one hue.
+ *
+ * The breakdown query is keyed by personId so it refreshes when references
+ * change.
  */
 export function PersonDetailPanel({ person, open, onClose, onEdit, onDeleted }: Props) {
   const [deleting, startDelete] = useTransition();
@@ -63,33 +69,34 @@ export function PersonDetailPanel({ person, open, onClose, onEdit, onDeleted }: 
               <SheetTitle>{person.name}</SheetTitle>
             </SheetHeader>
 
-            <div className="p-6">
-              {/* Identity header — avatar + name + mono email. pr-8 clears the
+            <div className={cn("p-6", tintFor(person.id))}>
+              {/* Identity header — tinted plate + name + email. pr-8 clears the
                   sheet's absolute close button. */}
               <div className="flex items-center gap-4 pr-8">
                 <PersonAvatar
                   name={person.name}
                   avatarUrl={person.avatarUrl}
-                  sizeClass="w-16 h-16"
+                  sizeClass="size-16"
                   textClass="text-xl"
+                  radiusClass="rounded-2xl"
                 />
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-xl font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">
+                  <h2 className="truncate text-title font-semibold text-[var(--ink)]">
                     {person.name}
                   </h2>
                   {person.email ? (
-                    <p className="mt-0.5 truncate font-mono text-[12px] tracking-[0.01em] text-[var(--sd-ink-dull)]">
+                    <p className="mt-0.5 truncate text-meta text-[var(--ink-muted)]">
                       {person.email}
                     </p>
                   ) : null}
                 </div>
               </div>
 
-              {/* Tag chips — mono/uppercase, matching the /people filter rail. */}
+              {/* Tag chips — the same pastel taxonomy as the /people filter rail. */}
               {person.tags.length > 0 ? (
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {person.tags.map((t) => (
-                    <TagChip key={t}>{t}</TagChip>
+                    <PersonTagChip key={t} tag={t} />
                   ))}
                 </div>
               ) : null}
@@ -118,35 +125,42 @@ export function PersonDetailPanel({ person, open, onClose, onEdit, onDeleted }: 
                 <div className="mt-6 space-y-5">
                   {person.phone ? (
                     <Field label="Phone">
-                      <p className="font-mono text-[13px] tabular-nums text-[var(--sd-ink)]">
-                        {person.phone}
-                      </p>
+                      <p className="text-body tabular-nums text-[var(--ink)]">{person.phone}</p>
                     </Field>
                   ) : null}
                   {person.bio ? (
                     <Field label="Bio">
-                      <p className="text-[15px] leading-relaxed text-[var(--sd-ink)]">{person.bio}</p>
+                      <p className="text-body leading-relaxed text-[var(--ink)]">{person.bio}</p>
                     </Field>
                   ) : null}
                 </div>
               ) : null}
 
-              {/* Reference stats — inner plate on --sd-input so it reads raised
-                  against the --sd-box sheet. */}
-              <div className="mt-6 rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-input)] p-4 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+              {/* Reference stats — a raised white card, colour only on the
+                  per-type dots. */}
+              <div className="craft-card mt-6 rounded-xl p-4">
                 <div className="flex items-baseline justify-between">
-                  <h3 className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
-                    References
-                  </h3>
-                  <span className="text-2xl font-black tabular-nums tracking-[-0.01em] text-[var(--sd-ink)]">
+                  <h3 className="text-meta font-medium text-[var(--ink-muted)]">References</h3>
+                  <span className="text-title font-semibold tabular-nums text-[var(--ink)]">
                     {breakdown?.total ?? person.referenceCount}
                   </span>
                 </div>
                 {breakdown && Object.keys(breakdown.byType).length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+                  <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5">
                     {Object.entries(breakdown.byType).map(([type, n]) => (
-                      <span key={type}>
-                        <span className="tabular-nums text-[var(--sd-accent)]">{n}</span> {type}
+                      <span
+                        key={type}
+                        className={cn(
+                          tintFor(type),
+                          "inline-flex items-center gap-1.5 text-micro text-[var(--ink-muted)]"
+                        )}
+                      >
+                        <span
+                          aria-hidden
+                          className="size-1.5 shrink-0 rounded-full bg-[var(--tint-edge)]"
+                        />
+                        <span className="tabular-nums font-medium text-[var(--ink)]">{n}</span>{" "}
+                        {type}
                       </span>
                     ))}
                   </div>
@@ -155,24 +169,30 @@ export function PersonDetailPanel({ person, open, onClose, onEdit, onDeleted }: 
 
               {/* Linked entities */}
               <div className="mt-5">
-                <h3 className="mb-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
-                  Linked
-                </h3>
+                <h3 className="mb-2 text-meta font-medium text-[var(--ink-muted)]">Linked</h3>
                 {breakdown && breakdown.items.length > 0 ? (
-                  <ul className="space-y-1">
+                  <ul className="space-y-1.5">
                     {breakdown.items.map((item) => {
                       const href = referenceHref(item.fromType, item.fromId);
                       const inner = (
                         <>
-                          <span className="mt-0.5 shrink-0 font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+                          {/* Kind on its own pastel plate — one hue per entity
+                              kind, so page / task / capture read at a glance. */}
+                          <span
+                            className={cn(
+                              tintFor(item.fromType),
+                              "mt-0.5 inline-flex h-[18px] shrink-0 items-center rounded-md px-1.5 text-micro font-medium",
+                              "bg-[var(--tint-bg)] text-[var(--tint-ink)]"
+                            )}
+                          >
                             {item.fromType}
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm text-[var(--sd-ink)]">
+                            <span className="block truncate text-meta text-[var(--ink)]">
                               {item.label}
                             </span>
                             {item.fromType === "task" && (item.status || item.due) ? (
-                              <span className="font-mono text-[10px] text-[var(--sd-ink-dull)]">
+                              <span className="text-micro text-[var(--ink-muted)]">
                                 {item.status ?? ""}
                                 {item.due
                                   ? `${item.status ? " · " : ""}due ${new Date(item.due).toLocaleDateString()}`
@@ -183,14 +203,14 @@ export function PersonDetailPanel({ person, open, onClose, onEdit, onDeleted }: 
                         </>
                       );
                       const baseCls =
-                        "flex items-start gap-2 rounded-[8px] px-2 py-1.5 border border-[var(--sd-line)] bg-[var(--sd-input)]";
+                        "flex items-start gap-2 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-2.5 py-2 shadow-[var(--shadow-card)]";
                       return (
                         <li key={`${item.fromType}:${item.fromId}`}>
                           {href ? (
                             <Link
                               href={href}
                               onClick={onClose}
-                              className={`${baseCls} transition-colors duration-150 ease-out hover:border-[var(--sd-accent)] cursor-pointer-always`}
+                              className={`${baseCls} transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)] cursor-pointer-always`}
                             >
                               {inner}
                             </Link>
@@ -202,13 +222,9 @@ export function PersonDetailPanel({ person, open, onClose, onEdit, onDeleted }: 
                     })}
                   </ul>
                 ) : refsQuery.isLoading ? (
-                  <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
-                    Loading references…
-                  </p>
+                  <p className="text-meta text-[var(--ink-faint)]">Loading references…</p>
                 ) : (
-                  <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
-                    No references yet.
-                  </p>
+                  <p className="text-meta text-[var(--ink-faint)]">No references yet.</p>
                 )}
               </div>
             </div>
@@ -216,15 +232,6 @@ export function PersonDetailPanel({ person, open, onClose, onEdit, onDeleted }: 
         ) : null}
       </SheetContent>
     </Sheet>
-  );
-}
-
-/** sd tag chip — mono/uppercase, matching the /people filter rail grammar. */
-function TagChip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex h-[22px] items-center rounded-[6px] border border-[var(--sd-line)] px-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
-      {children}
-    </span>
   );
 }
 
@@ -248,10 +255,8 @@ function referenceHref(fromType: string, fromId: string): string | null {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
-        {label}
-      </span>
+    <div className="space-y-1">
+      <span className="block text-meta font-medium text-[var(--ink-muted)]">{label}</span>
       {children}
     </div>
   );

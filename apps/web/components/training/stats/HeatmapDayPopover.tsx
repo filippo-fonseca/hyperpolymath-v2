@@ -6,6 +6,7 @@ import {
   type DistanceUnit,
   formatDistance,
 } from "@/lib/training/distance";
+import { typeFill } from "../type-color";
 
 interface Props {
   dateISO: string;
@@ -82,13 +83,20 @@ export function HeatmapDayPopover({
           return (
             <li
               key={a.id}
-              className="flex items-start gap-2 rounded-sm px-1.5 py-1 hover:bg-[var(--sd-hover)]"
+              className="flex items-start gap-2 rounded-lg px-1.5 py-1 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
             >
+              {/* Softened plate, saturated dot — the type's identity without
+                  a block of raw colour in a small popover. */}
               <span
                 aria-hidden="true"
-                className="mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
-                style={{ backgroundColor: a.type.color }}
-              />
+                className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-md"
+                style={{ backgroundColor: typeFill(a.type.color) }}
+              >
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ backgroundColor: a.type.color }}
+                />
+              </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="truncate text-[13px] text-[var(--sd-ink)]">

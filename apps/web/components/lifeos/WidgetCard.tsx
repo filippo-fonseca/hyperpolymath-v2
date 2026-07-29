@@ -41,11 +41,14 @@ export function WidgetCard({ href, ariaLabel, children, className }: Props) {
   return (
     <div
       className={cn(
+        // jul-29 craft restyle: the tile is glass over the space loop — the
+        // lighter .craft-glass-tile register (16px blur, card shadow), with
+        // hover still limited to the border. Solid-fill fallback where
+        // backdrop-filter is unsupported lives in the class itself.
         "group/card relative flex h-full flex-col overflow-hidden rounded-[14px]",
-        "border border-[var(--sd-line)] bg-[var(--sd-box)]",
-        "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]",
-        "transition-colors duration-150",
-        "hover:border-[color-mix(in_srgb,var(--sd-ink)_18%,var(--sd-line))] dark:hover:border-white/10",
+        "craft-glass-tile",
+        "transition-colors duration-[160ms]",
+        "hover:border-[var(--edge-strong)]",
         className,
       )}
     >
@@ -96,7 +99,7 @@ export function WidgetFooter({
   return (
     <div
       className={cn(
-        "flex h-10 shrink-0 flex-row items-center gap-1.5 overflow-hidden border-t border-[var(--sd-line)] px-2",
+        "flex h-10 shrink-0 flex-row items-center gap-2 overflow-hidden border-t border-[var(--sd-line)] px-2",
         className,
       )}
     >

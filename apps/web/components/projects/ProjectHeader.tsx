@@ -1,11 +1,15 @@
 "use client";
 
 import { moveProjectToArea, updateProject } from "@/app/actions/projects";
+import { PageScaffold } from "@/components/ui/PageScaffold";
+import { Button } from "@/components/ui/button";
+import { tableKey } from "@/lib/realtime/query-keys";
 import { cn } from "@/lib/utils";
 import { parseBanner } from "@/lib/utils/banner";
-import { ChevronDown, ImagePlus, Settings2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, Settings2 } from "lucide-react";
+import Link from "next/link";
+import { type ReactNode, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AreaPicker } from "./AreaPicker";
 import { BannerPicker } from "./BannerPicker";
@@ -18,6 +22,7 @@ import { ProjectSettingsDialog } from "./ProjectSettingsDialog";
 interface ProjectData {
   id: string;
   name: string;
+  description: string | null;
   icon: string | null;
   bannerUrl: string | null;
   areaId: string;
@@ -39,11 +44,20 @@ interface Props {
   project: ProjectData;
   graduationYear: number | null;
   addOptimisticProject: ProjectOptimisticDispatch;
-  /** Parent area — rendered as a small pill above the title so the user
-      always knows where this project sits in the hierarchy. */
+  /** Owning user — the collection query key every project mutation settles on. */
+  userId: string;
+  /** Parent area — rendered in the breadcrumb eyebrow and the meta row's
+      move-to-area control. Resolved by the parent from the project's live
+      areaId, so it follows a move. */
   area: { id: string; name: string; emoji: string | null } | null;
-  /** All active areas — for the "move to area" control in settings. */
-  allAreas: { id: string; name: string }[];
+  /** All active areas — for the "move to area" control. */
+  allAreas: { id: string; name: string; emoji?: string | null }[];
+  /** Fired by the header's one primary action; the parent routes it to the
+      tasks section, which opens the create draft panel. */
+  onNewTask: () => void;
+  /** Page sections. Rendered inside the PageScaffold so the header and the
+      body share one measure and left edges line up across routes. */
+  children?: ReactNode;
 }
 
 function formatTerm(term: string): string {
@@ -51,13 +65,18 @@ function formatTerm(term: string): string {
 }
 
 /**
- * Class metadata inline line (UI-SPEC §5j metadata strip):
+ * Class metadata, one meta-row item per part:
  *   PHIL 277 · Prof. Lloyd · Fall 2026 · A-
  */
-function buildClassMeta(project: ProjectData): string {
+function buildClassMetaParts(project: ProjectData): string[] {
   const parts: string[] = [];
   if (project.courseCode) parts.push(project.courseCode);
-  if (project.instructor) parts.push(`Prof. ${project.instructor}`);
+  if (project.instructor) {
+    // Do not double the honorific when the stored value already carries one.
+    parts.push(/^(prof|dr|mr|ms|mrs)\.?\s/i.test(project.instructor)
+      ? project.instructor
+      : `Prof. ${project.instructor}`);
+  }
   if (project.semesterTerm && project.semesterYear) {
     parts.push(`${formatTerm(project.semesterTerm)} ${project.semesterYear}`);
   } else if (project.semesterTerm) {
@@ -66,21 +85,21 @@ function buildClassMeta(project: ProjectData): string {
     parts.push(String(project.semesterYear));
   }
   if (project.grade) parts.push(project.grade);
-  return parts.join(" · ");
+  return parts;
 }
 
 /**
- * Phase 06.1 Plan 04 (UI-SPEC §5j) — Notion-pure project header.
+ * Project header on the SDC-1 register (jul-28 sesh, U9).
  *
- * Visual register:
- *  - bg --canvas, NO card chrome anywhere on the page
- *  - Banner sits flush at the top of the content column (no rounded corners,
- *    no border — pure edge-to-edge image)
- *  - Project icon (Lucide via DynamicIcon at stroke 1.5) inline with H1
- *  - H1 serif 36px 600 in --ink
- *  - Class metadata strip in font-mono text-xs --ink-muted (only mono usage
- *    on this page — UI-SPEC §5j)
- *  - Inline name edit underline on edit becomes --ink-amber
+ * The banner stays flush and edge to edge above the scaffold with no added
+ * chrome; everything below it is a PageScaffold, so the H1 left edge matches
+ * every other route. Breadcrumbs live in the eyebrow, the description renders
+ * as the subtitle, class metadata is a plain-text meta row, and the header
+ * carries exactly one primary button (New task).
+ *
+ * Notion-style inline edits are preserved: the title is click-to-edit (the
+ * edit underline is --edge-strong, not amber), the icon is its own picker
+ * trigger, and the area is a quiet meta-row control that moves the project.
  *
  * Phase 3 wiring (preserved):
  *  - All optimistic edits dispatch through addOptimisticProject so the same
@@ -91,32 +110,37 @@ export function ProjectHeader({
   project,
   graduationYear,
   addOptimisticProject,
+  userId,
   area,
   allAreas,
+  onNewTask,
+  children,
 }: Props) {
   const [, startTransition] = useTransition();
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
-  // Optimistic parent-area override for the inline badge picker. Holds the
-  // freshly-picked area so the badge label swaps instantly; cleared once the
-  // canonical `area` prop (re-fetched via router.refresh) catches up.
-  const [optimisticArea, setOptimisticArea] = useState<{ id: string; name: string } | null>(null);
-  useEffect(() => {
-    if (optimisticArea && area?.id === optimisticArea.id) setOptimisticArea(null);
-  }, [area?.id, optimisticArea]);
-
+  // Moving the project is the same optimistic shape as every other header
+  // edit: patch `areaId` through the shared dispatcher, and the parent
+  // re-resolves the breadcrumb off the live row. Settling then costs one
+  // refetch of the projects collection instead of a router.refresh, which
+  // re-ran the entire route tree, layout queries included. Awaiting the
+  // invalidation inside the transition keeps the optimistic value on screen
+  // until canonical data has landed, so there is no flicker.
   function handleAreaChange(newAreaId: string) {
-    const target = allAreas.find((a) => a.id === newAreaId);
-    if (!target) return;
-    setOptimisticArea(target);
+    if (newAreaId === project.areaId) return;
+    if (!allAreas.some((a) => a.id === newAreaId)) return;
+    addOptimisticProject({
+      type: "update",
+      id: project.id,
+      patch: { areaId: newAreaId },
+    });
     startTransition(async () => {
       const result = await moveProjectToArea({ projectId: project.id, newAreaId });
       if (!result.success) {
         toast.error(result.error);
-        setOptimisticArea(null);
         return;
       }
-      router.refresh();
+      await queryClient.invalidateQueries({ queryKey: tableKey("projects", userId) });
     });
   }
 
@@ -190,185 +214,208 @@ export function ProjectHeader({
     });
   }
 
-  const classMeta = project.isClass ? buildClassMeta(project) : "";
+  const classMetaParts = project.isClass ? buildClassMetaParts(project) : [];
 
-  // The badge shows the optimistic pick first (name only — emoji is unknown
-  // until the canonical area re-fetches), otherwise the server-supplied area.
-  const displayedArea = optimisticArea ?? (area ? { id: area.id, name: area.name } : null);
-  const displayedEmoji = optimisticArea ? null : (area?.emoji ?? null);
+  // Eyebrow — breadcrumb trail. Plain links, no chips, faint separators.
+  const eyebrow = (
+    <span className="flex flex-wrap items-center gap-2">
+      <Link
+        href="/areas"
+        className="transition-colors duration-[160ms] ease-out hover:text-[var(--ink-muted)]"
+      >
+        Areas
+      </Link>
+      {area ? (
+        <>
+          <span aria-hidden>/</span>
+          <Link
+            href={`/areas/${area.id}`}
+            className="transition-colors duration-[160ms] ease-out hover:text-[var(--ink-muted)]"
+          >
+            {area.emoji ? <span aria-hidden>{area.emoji} </span> : null}
+            {area.name}
+          </Link>
+        </>
+      ) : null}
+      <span aria-hidden>/</span>
+      <span className="text-[var(--ink-muted)]">{project.name}</span>
+    </span>
+  );
+
+  // Title — icon picker trigger + click-to-edit name, inside the scaffold H1
+  // so the measured left edge is the scaffold content edge.
+  const title = (
+    <span className="flex min-w-0 items-center gap-3">
+      {project.icon ? (
+        <IconPicker
+          value={project.icon}
+          onChange={handleIconCommit}
+          renderTrigger={
+            <button
+              type="button"
+              aria-label="Change project icon"
+              className={cn(
+                "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                "cursor-pointer-always text-[var(--ink)]",
+                "transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+              )}
+            >
+              <DynamicIcon name={project.icon} size={28} strokeWidth={1.5} />
+            </button>
+          }
+        />
+      ) : null}
+      {isEditingName ? (
+        <input
+          ref={nameInputRef}
+          value={nameValue}
+          onChange={(e) => setNameValue(e.target.value)}
+          onBlur={handleNameCommit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleNameCommit();
+            if (e.key === "Escape") {
+              setIsEditingName(false);
+              setNameValue(project.name);
+            }
+          }}
+          className={cn(
+            "w-full min-w-0 flex-1 bg-transparent outline-none",
+            "text-display font-semibold text-[var(--ink)]",
+            "border-b border-[var(--edge-strong)]"
+          )}
+          autoFocus
+        />
+      ) : (
+        // biome-ignore lint/a11y/useSemanticElements: a <button> cannot flow inside the H1's text register; role+tabIndex keep it keyboard-editable
+        <span
+          role="button"
+          tabIndex={0}
+          aria-label={`Rename project: ${project.name}`}
+          onClick={handleNameClick}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleNameClick();
+          }}
+          className="min-w-0 cursor-text transition-opacity duration-[160ms] ease-out hover:opacity-80"
+        >
+          {project.name}
+        </span>
+      )}
+    </span>
+  );
+
+  // Meta row — the move-to-area control as quiet text, then class metadata as
+  // plain-text items. The MetaRow inserts the faint · separators.
+  const metaItems: ReactNode[] = [
+    <AreaPicker
+      key="area"
+      currentAreaId={project.areaId}
+      areas={allAreas}
+      onSelect={handleAreaChange}
+      renderTrigger={
+        <button
+          type="button"
+          aria-label={
+            area
+              ? `Area: ${area.name}. Click to move this project to another area.`
+              : "Move this project to another area."
+          }
+          className={cn(
+            "inline-flex items-center gap-1 rounded-sm cursor-pointer-always",
+            "text-[var(--ink-muted)] transition-colors duration-[160ms] ease-out hover:text-[var(--ink)]"
+          )}
+        >
+          {area?.emoji ? <span aria-hidden>{area.emoji}</span> : null}
+          <span>{area?.name ?? "No area"}</span>
+          <ChevronDown size={12} strokeWidth={2} className="text-[var(--ink-faint)]" aria-hidden />
+        </button>
+      }
+    />,
+    ...classMetaParts,
+  ];
 
   return (
     <>
-      {/* Banner — flush, edge-to-edge, no rounded corners (UI-SPEC §5j) */}
-      <div
-        className="group/banner-area relative w-full"
-        style={{ height: "120px", background: parseBanner(project.bannerUrl) }}
-      >
-        <div
-          className={cn(
-            "absolute top-3 right-3 flex items-center gap-2",
-            "opacity-0 group-hover/banner-area:opacity-100 focus-within:opacity-100 transition-opacity"
-          )}
-        >
-          <BannerPicker value={project.bannerUrl} onChange={handleBannerChange} />
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            aria-label="Project settings"
+      {/* Banner — jul-29 craft restyle: an inset rounded cover aligned with
+          the scaffold's measure (Craft/Notion cover grammar) instead of an
+          edge-to-edge strip. Rendered only when one is set; a banner-less
+          project starts at the scaffold and gains an "Add banner" ghost
+          action in the header. */}
+      {project.bannerUrl ? (
+        <div className="mx-auto w-full max-w-[1120px] px-8 pt-6">
+          <div
+            className="group/banner-area relative w-full overflow-hidden rounded-2xl border border-[var(--edge)] shadow-[var(--shadow-card)]"
+            style={{ height: "140px", background: parseBanner(project.bannerUrl) }}
+          >
+          <div
             className={cn(
-              "flex items-center justify-center h-8 w-8 rounded-md cursor-pointer-always",
-              "bg-[var(--sd-box)] border border-[var(--sd-line)]",
-              "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-accent)]",
-              "transition-colors duration-150 ease-out focus-visible:outline-none"
+              "absolute top-3 right-3",
+              "opacity-0 transition-opacity duration-[160ms] ease-out",
+              "group-hover/banner-area:opacity-100 focus-within:opacity-100"
             )}
           >
-            <Settings2 size={15} strokeWidth={1.5} />
-          </button>
-        </div>
-      </div>
-
-      {/* Header row: icon + name + class meta — serif throughout (UI-SPEC §5j).
-          Shares the body's horizontal measure (mx-auto max-w-[1080px] px-8
-          md:px-12) so the title's left edge lines up exactly with the TASKS
-          heading and kanban columns below. */}
-      <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pt-8 pb-4 flex flex-col gap-2">
-        {/* Area badge — click-to-change parent-area pill above the title. Opens
-            the AreaPicker (same grammar as the icon's IconPicker) so the
-            project's place in the hierarchy is one glance away and one click to
-            move. Renders nothing when the area isn't supplied (server fetch
-            failure). */}
-        {displayedArea ? (
-          <AreaPicker
-            currentAreaId={displayedArea.id}
-            areas={allAreas}
-            onSelect={handleAreaChange}
-            renderTrigger={
-              <button
-                type="button"
-                aria-label={`Area: ${displayedArea.name}. Click to move this project to another area.`}
-                className={cn(
-                  "self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm",
-                  "font-mono text-[11px] uppercase tracking-[0.08em]",
-                  "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
-                  "border border-[var(--sd-line)] hover:border-[var(--sd-accent)]",
-                  "bg-[var(--sd-box)] hover:bg-[var(--sd-hover)]",
-                  "transition-colors duration-150 ease-out cursor-pointer-always",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
-                )}
-              >
-                {displayedEmoji ? (
-                  <span aria-hidden="true" className="leading-none">
-                    {displayedEmoji}
-                  </span>
-                ) : null}
-                <span>{displayedArea.name}</span>
-                <ChevronDown
-                  size={11}
-                  strokeWidth={2}
-                  className="text-[var(--sd-ink-faint)]"
-                  aria-hidden="true"
-                />
-              </button>
-            }
-          />
-        ) : null}
-
-        <div className="flex items-start gap-3">
-          {/* Icon — click-to-edit (Notion-style): the inline icon is the
-              IconPicker trigger. Hover reveals a subtle tint + edit cursor;
-              when unset, an "add icon" placeholder keeps a click target. */}
-          <IconPicker
-            value={project.icon}
-            onChange={handleIconCommit}
-            renderTrigger={
-              <button
-                type="button"
-                aria-label={project.icon ? "Change project icon" : "Add project icon"}
-                className={cn(
-                  "-ml-1.5 mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md",
-                  "cursor-pointer-always text-[var(--sd-ink)] transition-colors duration-150 ease-out",
-                  "hover:bg-[var(--sd-hover)]",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
-                )}
-              >
-                {project.icon ? (
-                  <DynamicIcon
-                    name={project.icon}
-                    size={30}
-                    strokeWidth={1.5}
-                    className="text-[var(--sd-ink)]"
-                  />
-                ) : (
-                  <ImagePlus
-                    size={24}
-                    strokeWidth={1.5}
-                    className="text-[var(--sd-ink-faint)]"
-                  />
-                )}
-              </button>
-            }
-          />
-
-          <div className="flex flex-col gap-1 flex-1 min-w-0">
-            {/* H1 serif 36px 600 per UI-SPEC §5j */}
-            {isEditingName ? (
-              <input
-                ref={nameInputRef}
-                value={nameValue}
-                onChange={(e) => setNameValue(e.target.value)}
-                onBlur={handleNameCommit}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleNameCommit();
-                  if (e.key === "Escape") {
-                    setIsEditingName(false);
-                    setNameValue(project.name);
-                  }
-                }}
-                className={cn(
-                  "text-4xl font-semibold leading-tight tracking-[-0.01em]",
-                  "bg-transparent border-b border-[var(--ink-amber)] outline-none",
-                  "text-[var(--sd-ink)] w-full"
-                )}
-                autoFocus
-              />
-            ) : (
-              <h1
-                onClick={handleNameClick}
-                className={cn(
-                  "text-4xl font-semibold leading-tight tracking-[-0.01em]",
-                  "text-[var(--sd-ink)] cursor-text hover:opacity-80 transition-opacity duration-150 ease-out"
-                )}
-              >
-                {project.name}
-              </h1>
-            )}
-
-            {/* Class metadata strip — selective mono (SD3 §0) */}
-            {project.isClass && classMeta && (
-              <p className="font-mono text-xs text-[var(--sd-ink-dull)] leading-snug tracking-[0.02em]">
-                {classMeta}
-              </p>
-            )}
-
-            {/* "Edit class" affordance — ghost-tier button surface */}
-            {project.isClass && (
-              <button
-                type="button"
-                onClick={() => setEditClassOpen(true)}
-                className={cn(
-                  "self-start mt-1 px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.08em] cursor-pointer-always",
-                  "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
-                  "border border-transparent hover:border-[var(--sd-line)]",
-                  "transition-colors duration-150 ease-out",
-                  "focus-visible:outline-none"
-                )}
-              >
-                Edit class
-              </button>
-            )}
+            <BannerPicker value={project.bannerUrl} onChange={handleBannerChange} />
+          </div>
           </div>
         </div>
-      </div>
+      ) : null}
+
+      <PageScaffold
+        eyebrow={eyebrow}
+        title={title}
+        subtitle={project.description ?? undefined}
+        meta={<PageScaffold.MetaRow>{metaItems}</PageScaffold.MetaRow>}
+        actions={
+          <>
+            {!project.icon ? (
+              <IconPicker
+                value={project.icon}
+                onChange={handleIconCommit}
+                renderTrigger={
+                  <Button variant="ghost" size="sm" className="rounded-lg">
+                    Add icon
+                  </Button>
+                }
+              />
+            ) : null}
+            {!project.bannerUrl ? (
+              <BannerPicker
+                value={project.bannerUrl}
+                onChange={handleBannerChange}
+                renderTrigger={
+                  <Button variant="ghost" size="sm" className="rounded-lg">
+                    Add banner
+                  </Button>
+                }
+              />
+            ) : null}
+            {project.isClass ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-lg"
+                onClick={() => setEditClassOpen(true)}
+              >
+                Edit class
+              </Button>
+            ) : null}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-lg"
+              aria-label="Project settings"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Settings2 size={15} strokeWidth={1.5} />
+            </Button>
+            {/* The header's ONE primary button. */}
+            <Button size="sm" className="rounded-lg" onClick={onNewTask}>
+              New task
+            </Button>
+          </>
+        }
+      >
+        {children}
+      </PageScaffold>
 
       <ProjectEditClassDialog
         open={editClassOpen}
@@ -384,6 +431,7 @@ export function ProjectHeader({
         project={{
           id: project.id,
           name: project.name,
+          description: project.description,
           areaId: project.areaId,
           startDate: project.startDate,
           endDate: project.endDate,
@@ -391,6 +439,7 @@ export function ProjectHeader({
         }}
         allAreas={allAreas}
         addOptimisticProject={addOptimisticProject}
+        userId={userId}
       />
     </>
   );

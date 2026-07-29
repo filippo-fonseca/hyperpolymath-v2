@@ -27,6 +27,7 @@
 import { useQueryState } from "nuqs";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { tintFor } from "@/lib/tint";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { GcalCalendarMeta } from "@/lib/gcal/calendars";
 
@@ -68,13 +69,13 @@ export function CalendarFilters({ calendars }: Props) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)] transition-colors duration-150 ease-out cursor-pointer-always"
+          className="inline-flex h-8 items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-2.5 text-meta text-[var(--ink-muted)] shadow-[var(--shadow-card)] transition-[border-color,box-shadow,color] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card-hover)] cursor-pointer-always"
           aria-label="Calendar visibility filter"
         >
           <span className="flex items-center gap-1.5">
-            {/* Stacked dots preview — only show colors of visible calendars
-                (max 4 before the +N pill) so the trigger telegraphs current
-                state at a glance. */}
+            {/* Stacked dots preview — max 4 before the label. Each dot carries
+                the calendar's deterministic craft tint, so the trigger reads
+                as a legend for the plates on the grid. */}
             <span className="flex -space-x-1">
               {calendars
                 .filter((c) => visibleSet.has(c.id))
@@ -82,22 +83,24 @@ export function CalendarFilters({ calendars }: Props) {
                 .map((c) => (
                   <span
                     key={c.id}
-                    className="h-2 w-2 rounded-full ring-1 ring-[var(--sd-input)]"
-                    style={{ backgroundColor: c.backgroundColor }}
+                    className={cn(
+                      tintFor(c.id),
+                      "h-2.5 w-2.5 rounded-full bg-[var(--tint-edge)] ring-2 ring-[var(--surface-raised)]",
+                    )}
                     aria-hidden
                   />
                 ))}
             </span>
             {triggerLabel}
           </span>
-          <ChevronDown size={12} strokeWidth={1.5} aria-hidden />
+          <ChevronDown size={12} strokeWidth={1.75} aria-hidden />
         </button>
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-64 p-1.5 rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-ink)]"
+        className="w-64 rounded-2xl border-[var(--edge)] bg-[var(--surface-raised)] p-1.5 text-[var(--ink)]"
       >
-        <p className="px-2 pt-1 pb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+        <p className="px-2 pt-1 pb-1.5 text-meta text-[var(--ink-faint)]">
           Show calendars
         </p>
         <ul className="space-y-0.5">
@@ -110,20 +113,29 @@ export function CalendarFilters({ calendars }: Props) {
                   onClick={() => toggle(c.id)}
                   aria-pressed={active}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-[13px] cursor-pointer-always",
-                    "transition-colors duration-150 ease-out",
-                    "hover:bg-[var(--sd-hover)]",
-                    active ? "text-[var(--sd-ink)]" : "text-[var(--sd-ink-dull)]",
+                    tintFor(c.id),
+                    "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-body cursor-pointer-always",
+                    "transition-colors duration-[160ms] ease-out",
+                    "hover:bg-[var(--hover)]",
+                    active ? "text-[var(--ink)]" : "text-[var(--ink-muted)]",
                   )}
                 >
                   <span
-                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                    className={cn(
+                      "h-2.5 w-2.5 shrink-0 rounded-full",
+                      active
+                        ? "bg-[var(--tint-edge)]"
+                        : "bg-[color-mix(in_srgb,var(--tint-edge)_28%,transparent)]",
+                    )}
                     aria-hidden
-                    style={{ backgroundColor: c.backgroundColor }}
                   />
-                  <span className="flex-1 text-left truncate">{c.summary}</span>
+                  <span className="flex-1 truncate text-left">{c.summary}</span>
                   {active ? (
-                    <Check size={12} strokeWidth={2} className="text-[var(--sd-accent)] flex-shrink-0" />
+                    <Check
+                      size={13}
+                      strokeWidth={2.25}
+                      className="shrink-0 text-[var(--tint-ink)]"
+                    />
                   ) : null}
                 </button>
               </li>

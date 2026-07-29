@@ -1,15 +1,17 @@
 "use client";
 
 import { getPeopleForCurrentUser } from "@/app/actions/people";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
+import { PageScaffold } from "@/components/ui/PageScaffold";
 import type { PersonWithStats } from "@/lib/db/queries/people";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, UserPlus } from "lucide-react";
+import { Search, UserPlus, Users } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import { useMemo, useState } from "react";
 import { PersonCard } from "./PersonCard";
@@ -27,6 +29,13 @@ interface Props {
  * TanStack Query takes over), both Realtime subscriptions (people +
  * people_references so reference counts stay live as entities mention people),
  * search + tag filtering, and the create/edit dialog + detail-sheet state.
+ *
+ * jul-29 craft restyle: the page moves onto the shared PageScaffold, so its
+ * measure, gutter and header rhythm match every other route (the roster used to
+ * own an ad-hoc `p-6` full-height column with its own scroller). Colour comes
+ * from two deterministic hue sources — the person's own tint on their avatar
+ * plate, and each tag's tint on the filter rail and the cards — so a tag looks
+ * the same everywhere it appears.
  */
 export function PeopleClient({ userId, initialPeople }: Props) {
   const queryClient = useQueryClient();
@@ -91,86 +100,113 @@ export function PeopleClient({ userId, initialPeople }: Props) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col p-6 gap-4 overflow-hidden">
-      <div className="flex items-center justify-between gap-4 shrink-0">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">People</h1>
-          <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] tabular-nums">
-            {people.length}
-          </span>
-        </div>
+    <PageScaffold
+      eyebrow="Roster"
+      title="People"
+      subtitle="Everyone who shows up in your tasks, captures, and pages."
+      meta={
+        <PageScaffold.MetaRow>
+          {[
+            <span key="count" className="tabular-nums">
+              {people.length} {people.length === 1 ? "person" : "people"}
+            </span>,
+            allTags.length > 0 ? (
+              <span key="tags" className="tabular-nums">
+                {allTags.length} {allTags.length === 1 ? "tag" : "tags"}
+              </span>
+            ) : null,
+          ]}
+        </PageScaffold.MetaRow>
+      }
+      actions={
         <Button type="button" onClick={openCreate}>
           <UserPlus size={15} className="mr-1.5" />
           Add person
         </Button>
-      </div>
-
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="relative flex-1 max-w-sm">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--sd-ink-faint)]"
-          />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or email"
-            className="pl-9"
-          />
-        </div>
-      </div>
-
-      {allTags.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTag(null)}
-            className={cn(
-              "rounded-[8px] border px-2.5 h-[26px] font-mono text-[10px] uppercase tracking-[0.06em] transition-colors duration-150 ease-out cursor-pointer-always",
-              activeTag === null
-                ? "border-transparent bg-[var(--sd-selected)] text-[var(--sd-ink)]"
-                : "border-[var(--sd-line)] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
-            )}
-          >
-            All
-          </button>
-          {allTags.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setActiveTag((cur) => (cur === t ? null : t))}
-              className={cn(
-                "rounded-[8px] border px-2.5 h-[26px] font-mono text-[10px] uppercase tracking-[0.06em] transition-colors duration-150 ease-out cursor-pointer-always",
-                activeTag === t
-                  ? "border-transparent bg-[var(--sd-selected)] text-[var(--sd-ink)]"
-                  : "border-[var(--sd-line)] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
-              )}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="flex-1 overflow-y-auto min-h-0">
-        {people.length === 0 ? (
-          <EmptyState
-            heading="No one here yet."
-            body="Add the people who matter. Mention them in tasks, captures, and pages and they wire themselves into your knowledge graph."
-            action={{ label: "Add your first person", onClick: openCreate }}
-          />
-        ) : filtered.length === 0 ? (
-          <p className="pt-4 text-[13px] text-[var(--sd-ink-faint)]">
-            No people match this filter.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filtered.map((person) => (
-              <PersonCard key={person.id} person={person} onOpen={(p) => setSelectedId(p.id)} />
-            ))}
+      }
+    >
+      <PageScaffold.Section>
+        <div className="flex flex-col gap-3">
+          <div className="relative max-w-sm">
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-faint)]"
+            />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or email"
+              className="pl-9"
+            />
           </div>
-        )}
-      </div>
+
+          {/* Filter rail — each tag wears its own pastel, the same hue it wears
+              on every person card, so filtering is a colour match. */}
+          {allTags.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setActiveTag(null)}
+                aria-pressed={activeTag === null}
+                className={cn(
+                  "h-[26px] rounded-lg border px-2.5 text-micro font-medium cursor-pointer-always",
+                  "transition-[border-color,box-shadow,background-color] duration-[160ms] ease-out",
+                  activeTag === null
+                    ? "border-[var(--edge-strong)] bg-[var(--surface-raised)] text-[var(--ink)] shadow-[var(--shadow-card)]"
+                    : "border-[var(--edge)] text-[var(--ink-muted)] hover:border-[var(--edge-strong)] hover:text-[var(--ink)]"
+                )}
+              >
+                All
+              </button>
+              {allTags.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setActiveTag((cur) => (cur === t ? null : t))}
+                  aria-pressed={activeTag === t}
+                  className={cn(
+                    tintFor(t),
+                    "h-[26px] rounded-lg border px-2.5 text-micro font-medium cursor-pointer-always",
+                    "transition-[border-color,box-shadow,background-color] duration-[160ms] ease-out",
+                    activeTag === t
+                      ? "border-[var(--tint-edge)] bg-[var(--tint-bg)] text-[var(--tint-ink)] shadow-[var(--shadow-card)]"
+                      : "border-[color-mix(in_srgb,var(--tint-edge)_35%,transparent)] text-[var(--ink-muted)] hover:border-[var(--tint-edge)] hover:text-[var(--tint-ink)]"
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4">
+          {people.length === 0 ? (
+            <EmptyState
+              size="page"
+              className="tint-lavender"
+              icon={<Users strokeWidth={1.5} />}
+              title="No one here yet"
+              description="Add the people who matter. Mention them in tasks, captures, and pages and they wire themselves into your knowledge graph."
+              action={{ label: "Add your first person", onClick: openCreate }}
+            />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              size="section"
+              className="tint-lavender"
+              icon={<Users strokeWidth={1.5} />}
+              title="No people match this filter"
+              description="Try a different tag, or clear the search."
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((person) => (
+                <PersonCard key={person.id} person={person} onOpen={(p) => setSelectedId(p.id)} />
+              ))}
+            </div>
+          )}
+        </div>
+      </PageScaffold.Section>
 
       <PersonEditDialog
         userId={userId}
@@ -190,6 +226,6 @@ export function PeopleClient({ userId, initialPeople }: Props) {
           refetchPeople();
         }}
       />
-    </div>
+    </PageScaffold>
   );
 }

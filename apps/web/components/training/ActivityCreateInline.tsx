@@ -194,7 +194,7 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
         type="button"
         onClick={() => setOpen(true)}
         disabled={types.length === 0}
-        className="flex w-full items-center gap-1 rounded-[6px] px-1.5 py-1 text-left font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] transition-colors duration-150 hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center gap-1 rounded-lg px-1.5 py-1 text-left font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--surface-raised)] hover:text-[var(--sd-ink)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <Plus size={11} strokeWidth={1.5} />
         Add activity
@@ -211,7 +211,9 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
           setOpen(false);
         }
       }}
-      className="flex flex-col gap-1.5 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-1.5"
+      // The composer is a card in the column well, same plate as the activity
+      // cards it will produce.
+      className="flex flex-col gap-1.5 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--shadow-card)]"
     >
       <Select value={typeId} onValueChange={setTypeId}>
         <SelectTrigger className="h-7 text-xs">
@@ -224,9 +226,10 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
               {list.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   <span className="inline-flex items-center gap-1.5">
+                    {/* Saturated identity dot — small accent, never a fill. */}
                     <span
                       aria-hidden
-                      className="h-2 w-2 rounded-sm"
+                      className="size-2 rounded-full"
                       style={{ backgroundColor: t.color }}
                     />
                     {t.name}

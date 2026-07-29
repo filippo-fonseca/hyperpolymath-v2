@@ -3,12 +3,12 @@
 /**
  * MemoryTable — JARVIS persistent fact cards per UI-SPEC §5d.
  *
- * Phase 6.1 Plan 06.1-03: each fact renders as a card with 1px --edge
- * LEFT EDGE ONLY (no full border), --surface background, ambient
- * --hud-cyan-glow-soft shadow, mono uppercase metadata label
- * ("FACT · {type}"), EB Garamond serif body for the fact value, and a
- * mono dim source row at the bottom. Edit/Delete affordances render as
- * agent-secondary / destructive buttons per UI-SPEC §9a.
+ * jul-29 craft restyle: each fact is now a raised white plate on the shared
+ * card shadow ladder (rounded-xl, one --edge hairline, hover deepens the
+ * shadow), replacing the left-edge-only + cyan-glow HUD chrome. The mono
+ * "FACT · {type}" label survives, with the type moved onto a pastel chip whose
+ * hue comes from tintFor(type), and the Edit/Delete affordances become quiet
+ * outlined pills (coral rim on the destructive one, never a red fill).
  *
  * Carry-forward (UI-SPEC §14): useTableSubscription("jarvis_facts",
  * userId) realtime invalidation, queryClient.setQueryData optimistic
@@ -16,6 +16,8 @@
  */
 
 import { useState } from "react";
+import { tintFor } from "@/lib/tint";
+import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -54,27 +56,35 @@ function FactCard({
 }) {
   const sourceLabel = fact.source === "user_explicit" ? "you" : "jarvis";
   return (
+    // Craft register: a raised white plate on the card shadow ladder, replacing
+    // the left-edge-plus-cyan-glow HUD treatment. The fact's type carries the
+    // colour instead, on its own pastel chip.
     <article
-      className="relative bg-[var(--sd-box)] p-4"
-      style={{
-        borderLeft: "1px solid var(--sd-line)",
-        boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
-      }}
+      className={cn(
+        "relative rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] p-4",
+        "shadow-[var(--shadow-card)]",
+        "transition-[border-color,box-shadow] duration-[160ms] ease-out",
+        "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]",
+        tintFor(fact.type),
+      )}
     >
-      {/* Metadata top row — mono uppercase tracking-wide. */}
-      <div className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] mb-2">
-        FACT · {fact.type}
+      {/* Metadata top row — the type sits on its deterministic pastel chip. */}
+      <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <span>FACT</span>
+        <span className="rounded-md border border-[color-mix(in_srgb,var(--tint-edge)_50%,transparent)] bg-[var(--tint-bg)] px-1.5 py-[1px] text-[var(--tint-ink)]">
+          {fact.type}
+        </span>
       </div>
 
       {/* Key + body — serif (content register per UI-SPEC §5d). */}
-      <div className="text-base text-[var(--sd-ink)] leading-snug">
+      <div className="text-base leading-snug text-[var(--ink)]">
         <span className="font-semibold">{fact.key}</span>
-        <span className="text-[var(--sd-ink-dull)] mx-2">·</span>
+        <span className="mx-2 text-[var(--ink-faint)]">·</span>
         <span>{fact.value}</span>
       </div>
 
       {/* Source row — mono dim. */}
-      <div className="font-mono text-[11px] text-[var(--sd-ink-dull)] mt-2 opacity-70 flex items-center gap-2 flex-wrap">
+      <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-[11px] text-[var(--ink-faint)]">
         <span>{sourceLabel}</span>
         <span aria-hidden="true">·</span>
         <span>
@@ -90,8 +100,7 @@ function FactCard({
           type="button"
           onClick={onEdit}
           aria-label="Edit fact"
-          className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] cursor-pointer-always px-2 py-1 transition-colors duration-100 ease-out"
-          style={{ border: "1px solid var(--sd-accent)" }}
+          className="cursor-pointer-always rounded-lg border border-[var(--edge)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)]"
         >
           Edit
         </button>
@@ -99,8 +108,7 @@ function FactCard({
           type="button"
           onClick={onDelete}
           aria-label="Forget fact"
-          className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-coral)] cursor-pointer-always px-2 py-1 transition-colors duration-100 ease-out hover:bg-[color:rgb(220_38_38_/_0.08)]"
-          style={{ border: "1px solid var(--ink-coral)" }}
+          className="cursor-pointer-always rounded-lg border border-[color-mix(in_oklch,var(--ink-coral)_35%,var(--edge))] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-coral)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--ink-coral)] hover:shadow-[var(--shadow-card)]"
         >
           Delete
         </button>
@@ -170,7 +178,7 @@ export function MemoryTable({ userId, initialFacts }: Props) {
           if (list.length === 0) return null;
           return (
             <section key={type} className="space-y-3">
-              <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+              <h2 className="pl-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-faint)]">
                 {TYPE_LABELS[type]}
               </h2>
               <div className="space-y-3">

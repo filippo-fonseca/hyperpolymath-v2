@@ -35,8 +35,11 @@ import { NEUMORPHIC_TILE } from "./tile-style";
 const HUD_CYAN = "#22d3ee";
 const HUD_CYAN_DIM = "#0891b2";
 const HUD_CYAN_SOFT = "#67e8f9";
-const EDGE = "#d4cfc4";
-const INK_MUTED = "#7c7669";
+// Chrome (grid + axis labels) rides the theme tokens: recharts resolves CSS
+// custom properties as SVG presentation attributes, so these follow dark mode.
+// Only the cyan *series* colours stay hex, since they encode data.
+const EDGE = "var(--edge)";
+const INK_MUTED = "var(--ink-muted)";
 
 interface ChartPanelProps {
   title: string;
@@ -54,9 +57,9 @@ function ChartPanel({
   children,
 }: ChartPanelProps) {
   return (
-    <div
-      className={`relative ${NEUMORPHIC_TILE} p-6 ${className}`}
-    >
+    // `.craft-card` via NEUMORPHIC_TILE paints the plate — never add a `bg-*`
+    // utility here, the unlayered class would win over it anyway.
+    <div className={`relative ${NEUMORPHIC_TILE} p-6 ${className}`}>
       <header className="mb-5 flex items-baseline justify-between gap-3">
         <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
           {title}
@@ -79,10 +82,11 @@ function tooltipBoxStyle() {
     fontFamily: "var(--font-sans)",
     fontSize: 12,
     background: "var(--surface-raised)",
-    border: "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
-    borderRadius: "10px",
+    border: "1px solid var(--edge)",
+    borderRadius: "12px",
     color: "var(--ink)",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+    // Craft shadow ladder instead of the old hand-rolled drop shadow.
+    boxShadow: "var(--shadow-pop)",
     padding: "8px 12px",
   } as React.CSSProperties;
 }

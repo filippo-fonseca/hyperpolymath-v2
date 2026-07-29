@@ -34,6 +34,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 
+import {
+  getInputDevice,
+  listInputDevices,
+  setInputDevice,
+  type InputDevice,
+} from "@/audio/input-devices";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 import { type StartupOpenItem } from "@/settings";
 
@@ -267,12 +273,76 @@ function ConnectionSection(): React.ReactElement {
 
 // ── Voice ────────────────────────────────────────────────────────────────────
 
+const SYSTEM_DEFAULT_MIC = "";
+
+/**
+ * Pick the microphone explicitly when the macOS default is wrong.
+ *
+ * It is wrong more often than it sounds. A machine with BlackHole, Loopback or
+ * a virtual conferencing device installed can have any of them as the system
+ * default input, and all of them deliver pure silence unless something is
+ * routed into them. On the user's Mac Studio this cost a whole live session.
+ *
+ * The list is refreshed when the panel mounts rather than kept live: devices
+ * come and go on a timescale of Bluetooth reconnections, and a select whose
+ * options shuffle under the cursor is worse than a slightly stale one.
+ */
+function MicrophoneControl(): React.ReactElement {
+  const [devices, setDevices] = useState<InputDevice[]>([]);
+  const [chosen, setChosen] = useState<string>(SYSTEM_DEFAULT_MIC);
+
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const [list, preference] = await Promise.all([listInputDevices(), getInputDevice()]);
+      if (!live) return;
+      setDevices(list);
+      setChosen(preference ?? SYSTEM_DEFAULT_MIC);
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const systemDefault = devices.find((device) => device.isDefault);
+  const options = [
+    {
+      value: SYSTEM_DEFAULT_MIC,
+      label: systemDefault ? `System default (${systemDefault.name})` : "System default",
+    },
+    ...devices.map((device) => ({
+      value: device.name,
+      label: `${device.name} · ${device.channels}ch · ${Math.round(device.sampleRate / 1000)}kHz`,
+    })),
+  ];
+
+  return (
+    <Select
+      value={chosen}
+      options={options}
+      onChange={(next) => {
+        setChosen(next);
+        void setInputDevice(next === SYSTEM_DEFAULT_MIC ? null : next).catch((error: unknown) => {
+          console.warn("[audio] could not set the input device", error);
+        });
+      }}
+      label="Microphone"
+    />
+  );
+}
+
 function VoiceSection(): React.ReactElement {
   const { settings } = useDesktopSettings();
   const { mode, hotkey, speaking } = useHudStatus();
 
   return (
     <Section title="Voice" id="settings-voice">
+      <Row
+        label="Microphone"
+        hint="Which input JARVIS records from. Virtual devices (BlackHole, Loopback) are silent unless something is routed into them."
+        control={<MicrophoneControl />}
+        stack
+      />
       <Row
         label="Speak responses"
         hint="Read JARVIS's replies aloud"

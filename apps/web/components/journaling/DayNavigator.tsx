@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { addDays, format, isToday, parseISO, subDays } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -25,10 +26,10 @@ function formatDateLabel(dateStr: string): string {
  * removed ("Copy yesterday" button omitted). Future dates are disallowed
  * so the right chevron is disabled when the selected date is today.
  *
- * sd grammar:
- *   - ChevronLeft / ChevronRight as sd ghost icon-buttons (--sd-box plate,
- *     --sd-line hairline, --sd-hover on hover). No glass-button, no glow.
- *   - Center: mono uppercase date label ("TODAY", "YESTERDAY", "MON, JUN 10").
+ * Craft grammar (jul-29 restyle): the whole control is one raised white plate
+ * on the card idiom — two chevron buttons flanking a sentence-case date label,
+ * hairline-separated inside a single rounded shell rather than three floating
+ * boxes. Hover deepens the shadow; the chevrons only warm their own cell.
  */
 export function DayNavigator({ date, onChange }: Props) {
   const today = format(new Date(), "yyyy-MM-dd");
@@ -39,14 +40,22 @@ export function DayNavigator({ date, onChange }: Props) {
   const label = formatDateLabel(date);
 
   const iconBtn =
-    "inline-flex h-8 w-8 items-center justify-center rounded-[8px] " +
-    "border border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-ink-dull)] " +
-    "transition-colors duration-150 hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] " +
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)] " +
-    "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-[var(--sd-box)] disabled:hover:text-[var(--sd-ink-dull)]";
+    "inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--ink-muted)] " +
+    "cursor-pointer-always transition-colors duration-[160ms] ease-out motion-reduce:transition-none " +
+    "hover:bg-[var(--hover)] hover:text-[var(--ink)] " +
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--edge-strong)] " +
+    "disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-[var(--ink-muted)]";
 
   return (
-    <div className="flex items-center gap-2">
+    <div
+      className={cn(
+        "flex items-center gap-1 rounded-xl border p-1",
+        "border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-card)]",
+        "transition-[border-color,box-shadow] duration-[160ms] ease-out",
+        "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]",
+        "motion-reduce:transition-none"
+      )}
+    >
       <button
         type="button"
         aria-label="Previous day"
@@ -57,7 +66,7 @@ export function DayNavigator({ date, onChange }: Props) {
       </button>
 
       <span
-        className="min-w-[132px] text-center font-mono text-[11px] uppercase tracking-[0.09em] text-[var(--sd-ink)]"
+        className="min-w-[112px] text-center text-meta font-medium text-[var(--ink)]"
         aria-live="polite"
         aria-atomic="true"
       >

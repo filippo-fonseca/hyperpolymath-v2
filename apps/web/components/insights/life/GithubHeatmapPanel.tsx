@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Github } from 'lucide-react';
 import { GitHubCalendar } from 'react-github-calendar';
 import { format, parseISO } from 'date-fns';
-import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { INSIGHTS_PANEL } from '../tile-style';
 
 /**
  * GitHub contributions heatmap (260607-h2k, Task 9 + D-01 + D-09).
@@ -34,17 +35,23 @@ interface Props {
 
 export function GithubHeatmapPanel({ username }: Props) {
   return (
+    // `.craft-card` (via INSIGHTS_PANEL) owns the fill, hairline and shadow —
+    // no `bg-*` utility and no inline boxShadow may ride on this element.
+    // GitHub's green stays saturated on the identity dot and inside the
+    // contribution scale, never as a plate fill.
     <section
-      className={`group ${NEUMORPHIC_TILE} p-6`}
-      style={
-        {
-          ['--panel-accent']: ACCENT,
-          boxShadow: glassyTileShadow({ withPanelAccentHalo: true }),
-        } as React.CSSProperties
-      }
+      className={`group ${INSIGHTS_PANEL} p-6`}
+      style={{ ['--panel-accent']: ACCENT } as React.CSSProperties}
     >
       <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="font-serif text-lg text-[var(--ink)]">GitHub</h3>
+        <h3 className="flex items-center gap-2 font-serif text-lg text-[var(--ink)]">
+          <span
+            aria-hidden
+            className="size-2 shrink-0 rounded-full"
+            style={{ backgroundColor: 'var(--panel-accent)' }}
+          />
+          GitHub
+        </h3>
         {username ? (
           <a
             href={`https://github.com/${username}`}
@@ -75,21 +82,22 @@ export function GithubHeatmapPanel({ username }: Props) {
           }
         />
       ) : (
-        <div className="flex flex-col items-center gap-3 py-12 text-center">
-          <Github className="h-6 w-6 text-[var(--ink-muted)]" />
-          <p className="font-serif text-base text-[var(--ink)]">
-            Connect your GitHub.
-          </p>
-          <p className="font-serif text-sm text-[var(--ink-muted)] max-w-sm">
-            Add your username in settings to surface your contributions here.
-          </p>
-          <Link
-            href="/settings"
-            className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)]"
-          >
-            Open settings →
-          </Link>
-        </div>
+        // Shared empty state on the insights hue: the icon rides a soft sky
+        // plate instead of floating grey on grey.
+        <EmptyState
+          className="tint-sky"
+          icon={<Github />}
+          title="Connect your GitHub."
+          description="Add your username in settings to surface your contributions here."
+          actionSlot={
+            <Link
+              href="/settings"
+              className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] transition-colors duration-[160ms] ease-out hover:text-[var(--ink)]"
+            >
+              Open settings →
+            </Link>
+          }
+        />
       )}
     </section>
   );

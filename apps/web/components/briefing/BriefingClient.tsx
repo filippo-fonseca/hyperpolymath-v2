@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
-import { motion } from "motion/react";
+import { Newspaper, RefreshCw } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,7 @@ import {
   type BriefingSection,
 } from "@/lib/briefing/types";
 import type { BriefingPayload } from "@/lib/briefing/queries";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
 import { BriefingSectionCard, type BriefingItemRow } from "./BriefingSectionCard";
 
@@ -55,6 +56,7 @@ function formatEditionDate(date: string): string {
  */
 export function BriefingClient({ userId, initial }: Props) {
   const queryClient = useQueryClient();
+  const reduceMotion = useReducedMotion();
   const [refreshing, setRefreshing] = useState(false);
 
   const { data } = useQuery({
@@ -122,9 +124,9 @@ export function BriefingClient({ userId, initial }: Props) {
               Briefing
             </h1>
             {edition && (
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              <p className="text-meta uppercase tracking-[0.12em] text-[var(--ink-muted)]">
                 {formatEditionDate(edition.editionDate)}
-                <span className="mx-2 text-[var(--edge)]">·</span>
+                <span className="mx-2 text-[var(--edge-strong)]">·</span>
                 Updated {relativeTime(edition.generatedAt)}
               </p>
             )}
@@ -135,9 +137,12 @@ export function BriefingClient({ userId, initial }: Props) {
             disabled={refreshing}
             aria-label="Refresh briefing"
             className={cn(
-              "glass-button inline-flex items-center gap-2 rounded-[0.7rem] px-4 h-10 shrink-0",
-              "font-serif text-[14px] text-[var(--ink)]",
-              "disabled:cursor-not-allowed disabled:opacity-60"
+              "inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-4",
+              "border border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-card)]",
+              "font-serif text-[14px] text-[var(--ink)] cursor-pointer-always",
+              "transition-[border-color,box-shadow] duration-[160ms] ease-out",
+              "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]",
+              "disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-[var(--shadow-card)]"
             )}
           >
             <RefreshCw
@@ -150,12 +155,19 @@ export function BriefingClient({ userId, initial }: Props) {
           </button>
         </div>
 
+        {/* The dateline lede — a raised plate with a lavender left rule, so
+            the edition's own words sit apart from the section stack below. */}
         {edition && (edition.headline || edition.summary) && (
           <motion.div
-            initial={{ opacity: 0, y: 6 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="space-y-2 border-l-2 border-[var(--hud-cyan)] pl-4"
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : { duration: 0.22, ease: [0.25, 1, 0.5, 1] }
+            }
+            className="tint-lavender space-y-2 rounded-2xl border border-[var(--edge)] bg-[var(--surface-raised)] p-5 shadow-[var(--shadow-card)]"
+            style={{ borderLeft: "3px solid var(--tint-edge)" }}
           >
             {edition.headline && (
               <h2 className="font-serif text-2xl font-medium leading-snug text-[var(--ink)]">
@@ -172,17 +184,26 @@ export function BriefingClient({ userId, initial }: Props) {
       </header>
 
       {edition === null ? (
-        <div className="glass-tile rounded-xl px-8 py-14 text-center">
-          <p className="font-serif text-xl text-[var(--ink)]">No briefing yet.</p>
-          <p className="mt-2 font-serif text-base text-[var(--ink-muted)]">
-            Hit Refresh to generate today's digest.
-          </p>
+        <div className="craft-card rounded-2xl">
+          <EmptyState
+            size="section"
+            className="tint-lavender"
+            icon={<Newspaper strokeWidth={1.5} aria-hidden />}
+            title="No briefing yet."
+            description="Hit Refresh to generate today's digest."
+            action={{ label: "Refresh", onClick: () => void handleRefresh() }}
+          />
         </div>
       ) : sections.length === 0 ? (
-        <div className="glass-tile rounded-xl px-8 py-14 text-center">
-          <p className="font-serif text-lg text-[var(--ink-muted)]">
-            This edition has no stories yet — try refreshing.
-          </p>
+        <div className="craft-card rounded-2xl">
+          <EmptyState
+            size="section"
+            className="tint-lavender"
+            icon={<Newspaper strokeWidth={1.5} aria-hidden />}
+            title="This edition has no stories yet."
+            description="Try refreshing to pull a fresh pass over the sources."
+            action={{ label: "Refresh", onClick: () => void handleRefresh() }}
+          />
         </div>
       ) : (
         <div className="space-y-6">

@@ -35,12 +35,12 @@ const toneDot: Record<StatusTone, string> = {
 };
 
 /**
- * §6: h-24px rounded-full, `--sd-input` fill, `--sd-line` border, px-10px,
- * 6px dot + 11px medium tracking-wide label. Sans, not mono.
+ * The one quiet status pill (SDC-1 §2.9): rounded-full, `--sd-input` fill,
+ * `--sd-line` hairline, 6px dot + micro label. Sans, sentence case, no mono.
  */
 export function StatusPill({ tone, label }: { tone: StatusTone; label: string }) {
   return (
-    <span className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 text-[11px] font-medium tracking-wide text-[var(--sd-ink-dull)]">
+    <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 text-micro font-medium text-[var(--sd-ink-dull)]">
       <span
         aria-hidden
         className="size-1.5 shrink-0 rounded-full"
@@ -53,10 +53,10 @@ export function StatusPill({ tone, label }: { tone: StatusTone; label: string })
 
 /* ------------------------------------------------------------- action link */
 
-/** §6: 11px semibold uppercase tracking-wide, ink-faint → ink on hover. */
+/** Micro verb, sentence case (SDC-1 §2.4 bans uppercase), ink-faint → ink on hover. */
 export function ActionLink({ children }: { children: ReactNode }) {
   return (
-    <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--sd-ink-faint)] transition-colors duration-100 group-hover/action:text-[var(--sd-ink)]">
+    <span className="text-micro font-medium text-[var(--sd-ink-faint)] transition-colors duration-[160ms] group-hover/action:text-[var(--sd-ink)]">
       {children}
     </span>
   );
@@ -83,19 +83,19 @@ export function EntityCardHeader({
     <header className="flex items-start justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
         <span className="inline-flex shrink-0 items-center justify-center">{icon}</span>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h3 className="truncate text-subtitle font-medium leading-tight text-[var(--sd-ink)]">
             {title}
           </h3>
           {subtitle != null && (
-            <div className="truncate text-[12px] leading-tight text-[var(--sd-ink-dull)]">
+            <div className="truncate text-micro font-normal text-[var(--sd-ink-dull)]">
               {subtitle}
             </div>
           )}
         </div>
       </div>
       {(pill != null || action != null) && (
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           {pill}
           {action}
         </div>
@@ -106,12 +106,12 @@ export function EntityCardHeader({
 
 /* ---------------------------------------------------------------- meta rows */
 
-/** §6: label 13px ink-dull left ←→ value 13px ink right. */
+/** Label text-meta ink-dull left ←→ value text-meta ink right. */
 export function MetaRow({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 py-[3px]">
-      <span className="min-w-0 truncate text-[13px] text-[var(--sd-ink-dull)]">{label}</span>
-      <span className="shrink-0 text-[13px] tabular-nums text-[var(--sd-ink)]">{value}</span>
+      <span className="min-w-0 truncate text-meta text-[var(--sd-ink-dull)]">{label}</span>
+      <span className="shrink-0 text-meta tabular-nums text-[var(--sd-ink)]">{value}</span>
     </div>
   );
 }
@@ -122,7 +122,7 @@ export function CardDivider({ className }: { className?: string }) {
     <div
       aria-hidden
       className={cn(
-        "my-3.5 h-px w-full bg-[color-mix(in_srgb,var(--sd-line)_60%,transparent)]",
+        "my-3 h-px w-full bg-[color-mix(in_srgb,var(--sd-line)_60%,transparent)]",
         className,
       )}
     />
@@ -150,8 +150,8 @@ export function ProgressRow({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[13px] text-[var(--sd-ink-dull)]">{label}</span>
-        <span className="text-[13px] tabular-nums text-[var(--sd-ink)]">{value}</span>
+        <span className="text-meta text-[var(--sd-ink-dull)]">{label}</span>
+        <span className="text-meta tabular-nums text-[var(--sd-ink)]">{value}</span>
       </div>
       <div className="relative h-1.5 overflow-hidden rounded-full bg-[var(--sd-input)]">
         {/* Projected / remaining — hatched accent beneath the solid fill. */}
@@ -171,9 +171,9 @@ export function ProgressRow({
 /* --------------------------------------------------------------- chip (Pill) */
 
 /**
- * §11 verbatim Pill: `px-1.5 py-[1px] rounded text-tiny font-medium text-ink-dull
- * bg-app-box border border-app-line tracking-wide` (text-tiny = 0.65rem).
- * `tone` swaps in a 15%-alpha functional tint for priority/urgency.
+ * Chip: borderless (SDC-1 §2.6 — one border per nesting level; chips live
+ * inside bordered cards), 4px radius, `--hover` fill, micro type. `tone` swaps
+ * in a 12%-alpha functional tint for priority/urgency.
  */
 export function Chip({
   icon,
@@ -189,15 +189,14 @@ export function Chip({
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded border border-[var(--sd-line)] bg-[var(--sd-box)] px-1.5 py-[1px] text-[0.65rem] font-medium tracking-wide text-[var(--sd-ink-dull)]",
+        "inline-flex max-w-full items-center gap-1 rounded bg-[var(--hover)] px-1.5 py-[1px] text-micro font-medium text-[var(--sd-ink-dull)]",
         className,
       )}
       style={
         tone
           ? {
               color: tone,
-              borderColor: `color-mix(in srgb, ${tone} 30%, var(--sd-line))`,
-              background: `color-mix(in srgb, ${tone} 15%, var(--sd-box))`,
+              background: `color-mix(in srgb, ${tone} 12%, var(--hover))`,
             }
           : undefined
       }
@@ -211,7 +210,7 @@ export function Chip({
 /** Same geometry as Chip, one step quieter (§6). */
 export function OverflowChip({ count }: { count: number }) {
   return (
-    <span className="inline-flex items-center rounded border border-[var(--sd-line)] bg-[var(--sd-box)] px-1.5 py-[1px] text-[0.65rem] font-medium tabular-nums tracking-wide text-[var(--sd-ink-faint)]">
+    <span className="inline-flex items-center rounded bg-[var(--hover)] px-1.5 py-[1px] text-micro font-medium tabular-nums text-[var(--sd-ink-faint)]">
       +{count} more
     </span>
   );
@@ -219,24 +218,28 @@ export function OverflowChip({ count }: { count: number }) {
 
 /** Wrapping chip row for chips that live inside a body (e.g. capture sub-cards). */
 export function ChipRow({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-1.5">{children}</div>;
+  return <div className="flex flex-wrap items-center gap-2">{children}</div>;
 }
 
 /* -------------------------------------------------------------- empty state */
 
 /**
- * §6: plain sans, never italic serif — 13px ink-faint copy above a dimensional
- * icon dimmed to 40%.
+ * Legacy shim over the §2.10 inline anatomy for the two call sites outside
+ * /lifeos (HabitsClient, NutritionDayView). New code uses
+ * `components/ui/EmptyState` with `size="inline"` directly; the icon prop is
+ * accepted for compatibility and dropped, exactly as the inline size drops it.
  */
-export function EmptyState({ icon, children }: { icon?: ReactNode; children: ReactNode }) {
+export function EmptyState({ children }: { icon?: ReactNode; children: ReactNode }) {
+  const reduced = useReducedMotion();
   return (
-    <div className="flex flex-1 flex-col items-start justify-center gap-2.5 py-2">
-      {icon != null && (
-        <span aria-hidden className="inline-flex opacity-40">
-          {icon}
-        </span>
-      )}
-      <p className="text-[13px] text-[var(--sd-ink-faint)]">{children}</p>
-    </div>
+    <motion.div
+      role="status"
+      initial={reduced ? false : { opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={reduced ? { duration: 0 } : { duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+      className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-8 text-center"
+    >
+      <p className="text-meta text-[var(--ink-faint)]">{children}</p>
+    </motion.div>
   );
 }

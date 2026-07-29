@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { TriangleAlert } from "lucide-react";
 
 import { deleteAccountAction } from "@/app/(app)/settings/actions";
 import { Spinner } from "@/components/shared/Spinner";
@@ -41,11 +42,20 @@ export function DangerZoneSection({ email }: { email: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
-        <h3 className="text-2xl font-semibold text-[var(--ink-coral)]">
-          Delete account
-        </h3>
-        <p className="text-sm text-[var(--sd-ink-dull)]">
+      <div className="space-y-2">
+        {/* Same anatomy as every other settings header — small tinted plate,
+            15px title — so the danger zone reads as part of the page rather
+            than a warning banner bolted on. The coral is the accent, not the
+            surface. */}
+        <div className="flex items-center gap-3">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_oklch,var(--ink-coral)_12%,var(--surface-raised))] text-[var(--ink-coral)]">
+            <TriangleAlert className="h-4 w-4" />
+          </span>
+          <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--ink-coral)]">
+            Delete account
+          </h3>
+        </div>
+        <p className="text-[13px] leading-[1.5] text-[var(--ink-muted)]">
           Permanently erase your account and everything in it: tasks, captures, projects, notes,
           calendar connection, and all other data. This cannot be undone.
         </p>
@@ -56,13 +66,13 @@ export function DangerZoneSection({ email }: { email: string }) {
           Delete account…
         </Button>
       ) : (
-        <div className="space-y-3 rounded-lg border border-[var(--ink-coral)]/40 bg-[var(--ink-coral)]/5 p-4">
+        <div className="space-y-3 rounded-xl border border-[color-mix(in_oklch,var(--ink-coral)_30%,var(--edge))] bg-[var(--surface-raised)] p-4 shadow-[var(--shadow-card)]">
           <div className="space-y-2">
             <label
               htmlFor="delete-account-confirm"
-              className="block font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--sd-ink-dull)]"
+              className="block font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-muted)]"
             >
-              Type <span className="text-[var(--sd-ink)] normal-case tracking-normal">{email}</span> to
+              Type <span className="text-[var(--ink)] normal-case tracking-normal">{email}</span> to
               confirm
             </label>
             <Input

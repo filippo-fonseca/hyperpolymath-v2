@@ -28,10 +28,8 @@
 
      EB Garamond is now reachable through exactly one token, `--font-logotype`,
      whose only consumer is components/ui/Logotype.tsx (the wordmark). */
-  --font-sans: var(--font-space-grotesk), system-ui, -apple-system,
-    BlinkMacSystemFont, sans-serif;
-  --font-serif: var(--font-space-grotesk), system-ui, -apple-system,
-    BlinkMacSystemFont, sans-serif;
+  --font-sans: var(--font-space-grotesk), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: var(--font-space-grotesk), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-logotype: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 
@@ -46,13 +44,28 @@
        - Tailwind 4 --color-* bindings rewired to new base palette
      ===================================================================== */
 
-  /* Base palette — warm parchment (light) */
-  --canvas: oklch(97% 0.005 75);
-  --surface: oklch(94% 0.008 75);
-  --surface-raised: oklch(99% 0.003 75);
-  --ink: oklch(22% 0.01 60);
-  --ink-muted: oklch(50% 0.01 60);
-  --edge: oklch(86% 0.008 75);
+  /* Base palette — warm parchment (light).
+
+     jul-28 SDC-1 §2.3, the calmed scale. Body ink drops from 14.4:1 to 12.4:1
+     (Notion sits at 12.26), hairlines drop to a 1.22 contrast ratio, and the
+     accent desaturates and moves from hue 210 to 225. Every value here is
+     pre-measured; do not substitute a hex by eye. Units consume the --sd-*
+     aliases below, so the whole app re-tints from this block alone. */
+  /* jul-29 craft restyle: the canvas warms from near-white parchment to a
+     true cream (Craft.do paper) so white raised surfaces and the floating
+     glass chrome visibly lift off it. Neighbors re-measured to keep the
+     ladder's 1.05-1.4 separations intact. */
+  --canvas: oklch(97.2% 0.008 80); /* warm cream */
+  --surface: oklch(95.6% 0.008 80); /* 1.05 vs canvas */
+  --surface-raised: #ffffff; /* cards lift by being lighter */
+  --ink: oklch(31.5% 0.012 60); /* #36302c  12.4:1 */
+  --ink-muted: oklch(55.5% 0.01 60); /* #78726d   4.6:1 */
+  --ink-faint: oklch(66.5% 0.008 60); /* #98938f   2.9:1  decorative only */
+  --edge: oklch(91.8% 0.004 75); /* #e5e3e1   1.22 Notion-parity hairline */
+  --edge-strong: oklch(87.5% 0.005 75); /* #d8d5d2   1.40 dividers that must read */
+  --hover: oklch(94.6% 0.008 80); /* one step below --surface */
+  --selected: oklch(92.8% 0.01 80);
+  --accent: oklch(55% 0.09 225); /* #277c99   4.53 desaturated */
   --edge-hud: oklch(72% 0.05 210);
 
   /* HUD cyan family (agent-mode signature) */
@@ -88,10 +101,33 @@
      wiring needed). --ring-doc + --ring-hud now alias --ring-focus so every
      existing consumer (buttons, links, role=button, tabindex, inputs) inherits
      the same cyan treatment. Apply the .focus-ring utility to opt new elements
-     in without touching globals again. */
-  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan);
+     in without touching globals again.
+
+     jul-28 SDC-1 §2.3 retires the 4px double-cyan halo: one 2px ring in the
+     calmed --accent, offset by a 2px canvas gap. --ring-doc / --ring-hud keep
+     aliasing it, so every existing consumer updates for free. */
+  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 3.5px var(--accent);
   --ring-doc: var(--ring-focus);
   --ring-hud: var(--ring-focus);
+
+  /* Type ladder — jul-28 SDC-1 §2.4. One ladder, six steps, no arbitrary px.
+     Registered as Tailwind text steps so `text-display` … `text-micro` are real
+     utilities. Weight and colour stay per-use (see the contract table); only
+     size, line-height and tracking are baked in. */
+  --text-display: 30px;
+  --text-display--line-height: 1.2;
+  --text-display--letter-spacing: -0.02em;
+  --text-title: 20px;
+  --text-title--line-height: 1.35;
+  --text-title--letter-spacing: -0.01em;
+  --text-subtitle: 16px;
+  --text-subtitle--line-height: 1.45;
+  --text-body: 14.5px;
+  --text-body--line-height: 1.6;
+  --text-meta: 13px;
+  --text-meta--line-height: 1.5;
+  --text-micro: 11.5px;
+  --text-micro--line-height: 1.4;
 
   /* Motion easing tokens */
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
@@ -127,6 +163,19 @@
      the input focus system. Previously undefined → invisible focus rings. */
   --color-ring: var(--edge-hud);
   --radius: 0.5rem;
+
+  /* jul-29 craft restyle — global radius bump. Overriding Tailwind's own
+     lg/xl/2xl steps re-rounds every existing `rounded-lg` button, menu and
+     `rounded-xl` card in the app without touching a consumer: the whole UI
+     gets its Craft bubbliness from three lines. `rounded`/`rounded-md` stay
+     stock so dense chrome (kbd chips, tiny icons) keeps its tighter look.
+     --radius-card / --radius-panel also mint `rounded-card` / `rounded-panel`
+     utilities for the two canonical Craft surfaces. */
+  --radius-lg: 0.625rem; /* 10px — buttons, rows, menus */
+  --radius-xl: 0.875rem; /* 14px — cards */
+  --radius-2xl: 1.25rem; /* 20px — floating panels */
+  --radius-card: 0.875rem;
+  --radius-panel: 1.25rem;
 }
 
 @keyframes shimmer {
@@ -919,12 +968,20 @@ select,
    Activates via .dark class on <html> (next-themes attribute='class').
    ===================================================================== */
 .dark {
-  --canvas: oklch(15% 0.005 240);
-  --surface: oklch(19% 0.006 240);
-  --surface-raised: oklch(23% 0.007 240);
-  --ink: oklch(92% 0.01 90);
-  --ink-muted: oklch(65% 0.01 90);
-  --edge: oklch(28% 0.008 240);
+  /* jul-28 SDC-1 §2.3, the calmed dark scale. The canvas lifts off near-black
+     (#090b0d was the cascade bug's doing plus a 15% lightness base) to #15171a,
+     and body ink drops from 15.7:1 to 12.7:1. Hue moves 240 → 255. */
+  --canvas: oklch(20.5% 0.006 255); /* #15171a */
+  --surface: oklch(24.5% 0.007 255); /* #1e2124  1.10 */
+  --surface-raised: oklch(28.5% 0.008 255); /* #272a2e  1.25 */
+  --ink: oklch(88.5% 0.006 255); /* #d6d9dd  12.7:1 */
+  --ink-muted: oklch(70.5% 0.008 255); /* #9da0a5   6.8:1 */
+  --ink-faint: oklch(58.5% 0.008 255); /* #797c81   4.3:1 */
+  --edge: oklch(30.5% 0.008 255); /* #2c2f33 */
+  --edge-strong: oklch(36% 0.009 255); /* #3a3d42 */
+  --hover: oklch(26.5% 0.007 255);
+  --selected: oklch(30% 0.008 255);
+  --accent: oklch(74% 0.095 225); /* #62b8d8 */
   --edge-hud: oklch(45% 0.06 210);
   --hud-cyan: oklch(72% 0.13 210);
   --hud-cyan-bright: oklch(78% 0.16 210);
@@ -935,10 +992,11 @@ select,
   --ink-coral: oklch(68% 0.15 25);
   --ink-violet: oklch(68% 0.12 295);
   --ink-blue: oklch(67% 0.12 255);
-  /* Issue #140 — cyan focus identity (dark). See light block for rationale.
+  /* Issue #140 — single focus identity (dark). See light block for rationale.
      sd3 closeout / Tester-r5 D1: the third layer (0 0 12px --hud-cyan-glow) was
-     a banned glow blur; stripped. The crisp cyan ring (canvas gap + accent) stays. */
-  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan);
+     a banned glow blur; stripped. jul-28 SDC-1 §2.3 narrows the outer ring to
+     3.5px and repoints it at the calmed --accent. */
+  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 3.5px var(--accent);
   --ring-doc: var(--ring-focus);
   --ring-hud: var(--ring-focus);
 }
@@ -1166,7 +1224,6 @@ button.entity-pill:focus-visible {
 
 /* react-big-calendar styles removed — CalendarGrid is now hand-rolled. */
 
-
 /* ─── Phase 6.1 Plan 06.1-01 — Focus-visible ring system (UI-SPEC §11a) ─────────
    Applied via focus-visible: only — keyboard navigation surfaces rings;
    mouse clicks do not (UI-SPEC §11a explicit rule).
@@ -1301,21 +1358,43 @@ select:focus-visible,
 
 /* Pill enter/exit: fade + 4px slide, 150ms. */
 @keyframes orb-sfx-pill-enter {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes orb-sfx-pill-leave {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(4px); }
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
-.orb-sfx-pill-enter { animation: orb-sfx-pill-enter 150ms ease-out both; }
-.orb-sfx-pill-leave { animation: orb-sfx-pill-leave 150ms ease-in both; }
+.orb-sfx-pill-enter {
+  animation: orb-sfx-pill-enter 150ms ease-out both;
+}
+.orb-sfx-pill-leave {
+  animation: orb-sfx-pill-leave 150ms ease-in both;
+}
 
 /* Brand mark: a single 2deg tilt-settle on each state change. */
 @keyframes orb-sfx-bird-tilt {
-  0% { transform: rotate(0deg); }
-  45% { transform: rotate(2deg); }
-  100% { transform: rotate(0deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  45% {
+    transform: rotate(2deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
 }
 .orb-sfx-bird {
   display: inline-flex;
@@ -1325,8 +1404,15 @@ select:focus-visible,
 
 /* Thinking dots — three staggered bounces in the pill's currentColor. */
 @keyframes orb-sfx-dot {
-  0%, 100% { opacity: 0.3; transform: translateY(0); }
-  50% { opacity: 1; transform: translateY(-2px); }
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
 }
 .orb-sfx-dot {
   display: inline-block;
@@ -1339,8 +1425,15 @@ select:focus-visible,
 
 /* Recording/speaking mini equalizer — transform-only scaleY on 11px bars. */
 @keyframes orb-sfx-bar {
-  0%, 100% { transform: scaleY(0.35); opacity: 0.55; }
-  50% { transform: scaleY(1); opacity: 1; }
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
 }
 .orb-sfx-bar {
   display: inline-block;
@@ -1425,76 +1518,34 @@ select:focus-visible,
   text-decoration: none;
 }
 
-/* Explorer (Spacedrive) tokens */
+/* Explorer (Spacedrive) tokens.
+
+   jul-28 / U0 C2: the literal hsl(235 …) surface ladder that used to live here
+   is gone. Every --sd-* surface is now an alias onto the SDC-1 base palette, so
+   both themes re-tint from the @theme / .dark blocks alone and the two ladders
+   can never drift apart again. Only the theme-invariant bits (icon shadow) stay
+   literal. The full alias table lives in the D11 remap further down; this block
+   keeps just what that one does not cover. */
 :root {
-  --sd-app: hsl(235 15% 87%);
-  --sd-box: hsl(235 15% 82%);
-  --sd-dark-box: hsl(235 15% 85%);
-  --sd-darker-box: hsl(235 16% 89%);
-  --sd-input: hsl(235 15% 80%);
-  --sd-line: hsl(235 15% 77%);
-  --sd-divider: hsl(235 15% 95%);
-  --sd-hover: hsl(235 15% 81%);
-  --sd-selected: hsl(235 15% 76%);
-  --sd-active: hsl(235 15% 70%);
-  --sd-menu: hsl(235 15% 90%);
-  --sd-menu-hover: hsl(235 15% 70%);
   --sd-icon-shadow: hsl(235 15% 0%);
   --sd-icon-shadow-opacity: 0.18;
 }
 
 .dark {
-  --sd-app: hsl(235 15% 13%);
-  --sd-box: hsl(235 15% 18%);
-  --sd-dark-box: hsl(235 15% 15%);
-  --sd-darker-box: hsl(235 16% 11%);
-  --sd-input: hsl(235 15% 20%);
-  --sd-line: hsl(235 15% 23%);
-  --sd-divider: hsl(235 15% 5%);
-  --sd-sidebar-divider: hsl(235 15% 17%);
-  --sd-hover: hsl(235 15% 19%);
-  --sd-selected: hsl(235 15% 24%);
-  --sd-active: hsl(235 15% 30%);
-  --sd-menu: hsl(235 15% 10%);
-  --sd-menu-hover: hsl(235 15% 30%);
+  --sd-sidebar-divider: var(--edge);
   --sd-icon-shadow-opacity: 0.28;
 }
 
-/* Authentic Spacedrive v1 palette, intentionally scoped so the editorial
-   Journal rail and the rest of the application retain their own register. */
-.wiki-explorer {
-  color-scheme: dark;
-  /* D1b (sanctioned accent retint) — JARVIS cyan supersedes #2599ff. The
-     wiki is always a dark surface (color-scheme: dark) so it takes the
-     dark cyan family; --hud-cyan is theme-invariant, so the wiki reads
-     cyan in both app themes. */
-  --sd-accent: var(--hud-cyan);
-  --sd-accent-faint: var(--hud-cyan-bright);
-  --sd-accent-deep: var(--hud-cyan-dim);
-  --sd-ink: hsl(235 35% 92%);
-  --sd-ink-dull: hsl(235 10% 70%);
-  --sd-ink-faint: hsl(235 10% 55%);
-  --sd-app: hsl(235 15% 13%);
-  --sd-box: hsl(235 15% 18%);
-  --sd-dark-box: hsl(235 15% 15%);
-  --sd-darker-box: hsl(235 16% 11%);
-  --sd-input: hsl(235 15% 20%);
-  --sd-line: hsl(235 15% 23%);
-  --sd-divider: hsl(235 15% 5%);
-  --sd-hover: hsl(235 15% 25%);
-  --sd-selected: hsl(235 15% 26%);
-  --sd-selected-item: hsl(235 15% 18%);
-  --sd-active: hsl(235 15% 30%);
-  --sd-frame: hsl(235 15% 25%);
-  --sd-menu: hsl(235 15% 10%);
-  --sd-menu-line: hsl(235 15% 14%);
-  --sd-menu-hover: hsl(235 15% 30%);
-  --sd-icon-shadow: hsl(235 15% 0%);
-  --sd-icon-shadow-opacity: 0.28;
-  --ink: var(--sd-ink);
-  --ink-muted: var(--sd-ink-dull);
-  scrollbar-color: hsl(235 20% 25%) transparent;
-}
+/* jul-29 craft restyle — the wiki joins the app's theme.
+
+   The always-dark Spacedrive hsl(235 …) ladder that lived here (with
+   `color-scheme: dark`) is retired: the explorer's --sd-* consumers now
+   resolve against the global alias tables like every other surface, so the
+   wiki reads warm cream in light mode and cool ink in dark mode instead of
+   being a permanent dark island inside the Craft shell. Every hardcoded
+   white in wiki components is white-on-accent or an image overlay, both
+   theme-safe (verified before removal). The one thing kept is the accent:
+   the wiki stays on the calmed app accent via the global --sd-accent. */
 
 /* =====================================================================
    sd-campaign — Spacedrive x Raycast restyle shared foundations
@@ -1518,29 +1569,37 @@ select:focus-visible,
    The --sd-ink* ladder is promoted to global scope (previously only
    defined inside .wiki-explorer) so the whole --sd-* register — and the
    utilities below — resolve app-wide in both themes (D1c). */
+/* jul-28 / U0 C2: the accent trio and the ink ladder are aliases onto the SDC-1
+   base palette in BOTH themes, so there is nothing theme-specific left to
+   declare in .dark. The accent moves off the HUD cyan family (hue 210, high
+   chroma) onto the calmed --accent (hue 225, chroma 0.09). The HUD cyan family
+   itself is untouched, so agent-mode surfaces keep their signature, and
+   .wiki-explorer redeclares --sd-accent locally so the wiki stays cyan. */
 :root {
-  --sd-accent: var(--hud-cyan-light);
-  --sd-accent-faint: oklch(54% 0.14 210);
-  --sd-accent-deep: oklch(40% 0.11 210);
+  --sd-accent: var(--accent);
+  --sd-accent-faint: color-mix(in oklch, var(--accent) 55%, var(--canvas));
+  --sd-accent-deep: color-mix(in oklch, var(--accent) 70%, var(--ink));
 
-  --sd-ink: hsl(235 20% 16%);
-  --sd-ink-dull: hsl(235 12% 40%);
-  --sd-ink-faint: hsl(235 10% 52%);
+  --sd-ink: var(--ink);
+  --sd-ink-dull: var(--ink-muted);
+  --sd-ink-faint: var(--ink-faint);
 
   /* Campaign easings. --ease-out-back already exists in @theme (identical
      value) so it is intentionally not re-declared; use it directly. */
   --ease-soft-landing: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-collapse: cubic-bezier(0.32, 0.72, 0, 1);
-}
 
-.dark {
-  --sd-accent: var(--hud-cyan);
-  --sd-accent-faint: var(--hud-cyan-bright);
-  --sd-accent-deep: var(--hud-cyan-dim);
+  /* Motion durations — jul-28 SDC-1 §2.7. Consume the names, not the numbers.
+     Nothing under 140ms, nothing over 320ms.
 
-  --sd-ink: hsl(235 35% 92%);
-  --sd-ink-dull: hsl(235 10% 70%);
-  --sd-ink-faint: hsl(235 10% 55%);
+     These live here rather than in @theme deliberately. Tailwind 4 tree-shakes
+     theme variables it cannot see used, so declaring them up there emitted
+     nothing and `var(--duration-panel)` resolved empty (verified in computed
+     styles). A plain :root block always emits. */
+  --duration-micro: 160ms; /* colour, background, border, opacity */
+  --duration-enter: 220ms; /* enter / exit */
+  --duration-panel: 260ms; /* layout and panel */
+  --duration-collapse: 280ms; /* collapse */
 }
 
 /* --- D11 (Conductor amendment, sesh-1783963573841) ------------------ */
@@ -1558,34 +1617,62 @@ select:focus-visible,
 
    Dark scope: the cool hsl(235 ...) sd ladder already reads correctly;
    we only fill in the sidebar / state members the global .dark block was
-   missing so consumers resolve them outside .wiki-explorer. */
-:root {
+   missing so consumers resolve them outside .wiki-explorer.
+
+   jul-28 / U0 C1 — CASCADE FIX. This block was written as `:root`, which also
+   matches `html.dark`. Both it and the `.dark` sd block above are specificity
+   (0,1,0), so source order decided and this later block won: dark mode resolved
+   `--sd-app` to the dark `--canvas` (oklch(15% 0.005 240), near-black) instead
+   of the intended hsl(235 15% 13%) ladder. Scoping to `:root:where(:not(.dark))`
+   keeps the specificity identical (`:where()` contributes zero) and simply stops
+   the block matching in dark, so the `.dark` ladder wins again. No block moves,
+   no specificity arms race. `--sd-sidebar` was only ever declared here, so the
+   `.dark` block below now declares it too. */
+:root:where(:not(.dark)) {
   --sd-app: var(--canvas);
   --sd-box: var(--surface-raised);
   --sd-dark-box: var(--surface);
-  --sd-darker-box: color-mix(in oklch, var(--ink) 6%, var(--surface));
-  /* The sidebar column's own surface (UI-CONTRACT §1) — the darkest member of
-     the family. An alias rather than a new colour: both themes already ship a
-     correct darkest surface, and custom properties resolve lazily, so this
-     picks up whichever --sd-darker-box is in scope at the consuming element. */
-  --sd-sidebar: var(--sd-darker-box);
+  /* "darker" is directional, not literal: one step of separation away from the
+     canvas, which means darker in light and lighter in dark. --surface is
+     exactly that step in both themes, so the recessed chrome (sidebar, rails)
+     reads the same way either side of the theme toggle. */
+  --sd-darker-box: var(--surface);
+  --sd-sidebar: var(--surface);
   --sd-input: var(--surface);
   --sd-line: var(--edge);
   --sd-divider: var(--edge);
-  --sd-hover: color-mix(in oklch, var(--ink) 5%, var(--surface));
-  --sd-selected: color-mix(in oklch, var(--ink) 9%, var(--surface));
+  --sd-hover: var(--hover);
+  --sd-selected: var(--selected);
   --sd-selected-item: var(--surface);
   --sd-active: color-mix(in oklch, var(--ink) 13%, var(--surface));
-  --sd-frame: var(--edge);
+  --sd-frame: var(--edge-strong);
   --sd-menu: var(--surface-raised);
   --sd-menu-line: var(--edge);
-  --sd-menu-hover: var(--surface);
+  --sd-menu-hover: var(--hover);
 }
 
+/* The same alias table, dark side. It is duplicated rather than hoisted into a
+   single unscoped :root deliberately: the C1 cascade bug happened precisely
+   because one unscoped :root block silently outranked .dark at equal
+   specificity. With both themes declared explicitly at the same place in the
+   cascade, a future literal added to either side can never clobber the other. */
 .dark {
-  --sd-selected-item: hsl(235 15% 18%);
-  --sd-frame: hsl(235 15% 25%);
-  --sd-menu-line: hsl(235 15% 14%);
+  --sd-app: var(--canvas);
+  --sd-box: var(--surface-raised);
+  --sd-dark-box: var(--surface);
+  --sd-darker-box: var(--surface);
+  --sd-sidebar: var(--surface);
+  --sd-input: var(--surface);
+  --sd-line: var(--edge);
+  --sd-divider: var(--edge);
+  --sd-hover: var(--hover);
+  --sd-selected: var(--selected);
+  --sd-selected-item: var(--surface);
+  --sd-active: color-mix(in oklch, var(--ink) 13%, var(--surface));
+  --sd-frame: var(--edge-strong);
+  --sd-menu: var(--surface-raised);
+  --sd-menu-line: var(--edge);
+  --sd-menu-hover: var(--hover);
 }
 
 /* --- 1. Panel grammar ----------------------------------------------- */
@@ -1722,12 +1809,14 @@ select:focus-visible,
 }
 
 /* --- 5. Selective-mono stat label ----------------------------------- */
+/* jul-28 SDC-1 §2.4: a stat label is a micro label, which means sans, sentence
+   case, 11.5px, no tracking. Mono is for dates, kbd hints and numeric units
+   only, and uppercase is banned outside kbd and the sidebar eyebrows. */
 .sd-stat-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--sd-ink-faint);
+  font-size: 11.5px;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--ink-faint);
 }
 
 /* --- 5b. Sidebar chrome primitives (UI-CONTRACT §1, §11) ------------- */
@@ -1752,11 +1841,7 @@ select:focus-visible,
 /* Rows dissolve into the footer instead of hard-clipping at the scroll edge
    (§1.8). Static — nothing animates, so it needs no reduced-motion guard. */
 .mask-fade-out {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black calc(100% - 40px),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
   mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
 }
 
@@ -1771,11 +1856,7 @@ select:focus-visible,
    labels ride, and fading those would dissolve the one anchor telling you which
    area you are looking at while scrolled deep into the canvas. */
 .timeline-edge-fade {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    black calc(100% - 28px),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
   mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
 }
 
@@ -1784,29 +1865,13 @@ select:focus-visible,
    the window; `-lr` is both. The fade is capped at 40% of the bar so a short
    bar fades proportionally instead of vanishing entirely. */
 .timeline-bar-fade-r {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to right,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - min(32px, 40%)), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - min(32px, 40%)), transparent 100%);
 }
 
 .timeline-bar-fade-l {
-  -webkit-mask-image: linear-gradient(
-    to left,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to left,
-    black calc(100% - min(32px, 40%)),
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(to left, black calc(100% - min(32px, 40%)), transparent 100%);
+  mask-image: linear-gradient(to left, black calc(100% - min(32px, 40%)), transparent 100%);
 }
 
 .timeline-bar-fade-lr {
@@ -1866,10 +1931,8 @@ select:focus-visible,
   background: var(--sd-accent);
   border-radius: 9999px;
   color: hsl(235 45% 9%);
-  box-shadow:
-    color-mix(in srgb, var(--sd-accent) 30%, transparent) 0 4px 20px,
-    rgba(255, 255, 255, 0.2) 0 2px 0 inset,
-    rgba(0, 0, 0, 0.1) 0 -2px 0 inset;
+  box-shadow: color-mix(in srgb, var(--sd-accent) 30%, transparent) 0 4px 20px,
+    rgba(255, 255, 255, 0.2) 0 2px 0 inset, rgba(0, 0, 0, 0.1) 0 -2px 0 inset;
 }
 .sd-btn-ghost {
   background: rgb(255 255 255 / 0.1);
@@ -1952,9 +2015,7 @@ select:focus-visible,
   border: 1px solid var(--sd-line);
 }
 .dark .sd-modal-surface {
-  box-shadow:
-    rgba(255, 255, 255, 0.09) 0 1px 0 inset,
-    0 24px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: rgba(255, 255, 255, 0.09) 0 1px 0 inset, 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
 /* =====================================================================
@@ -1974,9 +2035,7 @@ select:focus-visible,
   border: 1px solid var(--sd-line);
   border-radius: 12px;
   box-shadow: none;
-  transition:
-    border-color 140ms var(--ease-out-quart),
-    background-color 140ms var(--ease-out-quart);
+  transition: border-color 140ms var(--ease-out-quart), background-color 140ms var(--ease-out-quart);
 }
 .dark .receipt-card {
   box-shadow: rgba(255, 255, 255, 0.06) 0 1px 0 inset;
@@ -2042,9 +2101,7 @@ select:focus-visible,
   opacity: 0;
   cursor: nwse-resize;
   touch-action: none;
-  transition:
-    opacity 140ms ease,
-    color 140ms ease;
+  transition: opacity 140ms ease, color 140ms ease;
 }
 @media (pointer: fine) {
   @container main (min-width: 48rem) {
@@ -2077,4 +2134,326 @@ select:focus-visible,
   pointer-events: none;
   border: 1px dashed var(--sd-accent);
   border-radius: 14px;
+}
+
+/* =====================================================================
+   craft register — the Craft.do-inspired language (jul-29 restyle).
+
+   Supersedes the sd register's "no blur, no shadow" constitution for
+   CHROME and CARDS. The floating shell (sidebar / dock / kiwi bar), the
+   stage sheet, and feature cards move to this register; the sd alias
+   tables above stay untouched, so every --sd-* consumer keeps resolving
+   against the same base palette and simply inherits the warmer canvas.
+
+   Four ingredients:
+     1. A soft, layered shadow ladder (card → float → pop).
+     2. Real glass: translucent panel fills + saturate/blur backdrops,
+        readable because .craft-backdrop paints a faint pastel wash for
+        the glass to grab. Falls back to a solid fill where
+        backdrop-filter is unsupported.
+     3. A pastel tint family — eight hues, each a (bg, edge, ink) triple
+        in both themes. This is where features get their Craft color:
+        tinted plates with a saturated edge and readable in-family ink.
+     4. Cascade upgrades appending shadow/radius onto the shipped sd
+        surface classes so menus, modals and panels lift without
+        touching a consumer.
+   ===================================================================== */
+
+:root {
+  /* Shadow ladder — warm-black based so shadows stay in the cream family. */
+  --shadow-card: 0 1px 2px rgb(50 40 25 / 0.05), 0 2px 10px -2px rgb(50 40 25 / 0.06);
+  --shadow-card-hover: 0 2px 4px rgb(50 40 25 / 0.05), 0 10px 28px -8px rgb(50 40 25 / 0.13);
+  --shadow-float: 0 1px 2px rgb(50 40 25 / 0.05), 0 8px 22px -6px rgb(50 40 25 / 0.09), 0 28px 60px
+    -18px rgb(50 40 25 / 0.15);
+  --shadow-pop: 0 2px 6px rgb(50 40 25 / 0.07), 0 16px 44px -8px rgb(50 40 25 / 0.18);
+
+  /* Glass panel primitives. */
+  --glass-panel-bg: color-mix(in srgb, #ffffff 66%, transparent);
+  --glass-panel-edge: color-mix(in srgb, #ffffff 55%, var(--edge));
+  --glass-panel-highlight: rgb(255 255 255 / 0.6);
+  --glass-panel-solid: color-mix(in srgb, #ffffff 82%, var(--canvas));
+}
+.dark {
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35), 0 2px 10px -2px rgb(0 0 0 / 0.32);
+  --shadow-card-hover: 0 2px 4px rgb(0 0 0 / 0.35), 0 10px 28px -8px rgb(0 0 0 / 0.5);
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 22px -6px rgb(0 0 0 / 0.42), 0 28px 60px -18px
+    rgb(0 0 0 / 0.55);
+  --shadow-pop: 0 2px 6px rgb(0 0 0 / 0.4), 0 16px 44px -8px rgb(0 0 0 / 0.6);
+
+  --glass-panel-bg: color-mix(in srgb, oklch(27% 0.008 255) 62%, transparent);
+  --glass-panel-edge: rgb(255 255 255 / 0.09);
+  --glass-panel-highlight: rgb(255 255 255 / 0.06);
+  --glass-panel-solid: oklch(25.5% 0.008 255);
+}
+
+/* --- 1. The pastel tint family --------------------------------------- */
+/* Eight hues. Per hue: -bg (the plate fill), -edge (the saturated border
+   that gives Craft cards their candy rim), -ink (readable in-family text).
+   Consume raw for one-offs, or via .tint-<hue> + .craft-tinted below. */
+:root {
+  --tint-rose-bg: oklch(95.7% 0.024 15);
+  --tint-rose-edge: oklch(74% 0.12 15);
+  --tint-rose-ink: oklch(46% 0.13 15);
+  --tint-peach-bg: oklch(96% 0.026 55);
+  --tint-peach-edge: oklch(76% 0.11 55);
+  --tint-peach-ink: oklch(47% 0.1 55);
+  --tint-butter-bg: oklch(96.5% 0.035 95);
+  --tint-butter-edge: oklch(80% 0.11 95);
+  --tint-butter-ink: oklch(47% 0.09 90);
+  --tint-sage-bg: oklch(96% 0.026 140);
+  --tint-sage-edge: oklch(74% 0.1 140);
+  --tint-sage-ink: oklch(44% 0.09 140);
+  --tint-mint-bg: oklch(95.8% 0.025 178);
+  --tint-mint-edge: oklch(73% 0.09 178);
+  --tint-mint-ink: oklch(43% 0.08 178);
+  --tint-sky-bg: oklch(95.8% 0.02 235);
+  --tint-sky-edge: oklch(72% 0.1 235);
+  --tint-sky-ink: oklch(44% 0.1 235);
+  --tint-lavender-bg: oklch(95.7% 0.022 285);
+  --tint-lavender-edge: oklch(72% 0.11 285);
+  --tint-lavender-ink: oklch(45% 0.12 285);
+  --tint-plum-bg: oklch(95.6% 0.022 330);
+  --tint-plum-edge: oklch(73% 0.11 330);
+  --tint-plum-ink: oklch(45% 0.12 330);
+}
+.dark {
+  --tint-rose-bg: oklch(28.5% 0.032 15);
+  --tint-rose-edge: oklch(52% 0.11 15);
+  --tint-rose-ink: oklch(84% 0.05 15);
+  --tint-peach-bg: oklch(28.5% 0.03 55);
+  --tint-peach-edge: oklch(54% 0.1 55);
+  --tint-peach-ink: oklch(85% 0.05 55);
+  --tint-butter-bg: oklch(28.5% 0.032 95);
+  --tint-butter-edge: oklch(56% 0.09 95);
+  --tint-butter-ink: oklch(86% 0.05 95);
+  --tint-sage-bg: oklch(28.5% 0.028 140);
+  --tint-sage-edge: oklch(53% 0.09 140);
+  --tint-sage-ink: oklch(85% 0.05 140);
+  --tint-mint-bg: oklch(28.5% 0.026 178);
+  --tint-mint-edge: oklch(53% 0.08 178);
+  --tint-mint-ink: oklch(85% 0.05 178);
+  --tint-sky-bg: oklch(28.5% 0.026 235);
+  --tint-sky-edge: oklch(54% 0.09 235);
+  --tint-sky-ink: oklch(85% 0.04 235);
+  --tint-lavender-bg: oklch(28.5% 0.03 285);
+  --tint-lavender-edge: oklch(55% 0.1 285);
+  --tint-lavender-ink: oklch(85% 0.05 285);
+  --tint-plum-bg: oklch(28.5% 0.03 330);
+  --tint-plum-edge: oklch(54% 0.1 330);
+  --tint-plum-ink: oklch(85% 0.05 330);
+}
+
+/* Tint selectors — set the generic triple; anything below can consume
+   var(--tint-bg/edge/ink) regardless of which hue was picked. Deterministic
+   hue-from-string helpers in JS should map onto these class names. */
+.tint-rose {
+  --tint-bg: var(--tint-rose-bg);
+  --tint-edge: var(--tint-rose-edge);
+  --tint-ink: var(--tint-rose-ink);
+}
+.tint-peach {
+  --tint-bg: var(--tint-peach-bg);
+  --tint-edge: var(--tint-peach-edge);
+  --tint-ink: var(--tint-peach-ink);
+}
+.tint-butter {
+  --tint-bg: var(--tint-butter-bg);
+  --tint-edge: var(--tint-butter-edge);
+  --tint-ink: var(--tint-butter-ink);
+}
+.tint-sage {
+  --tint-bg: var(--tint-sage-bg);
+  --tint-edge: var(--tint-sage-edge);
+  --tint-ink: var(--tint-sage-ink);
+}
+.tint-mint {
+  --tint-bg: var(--tint-mint-bg);
+  --tint-edge: var(--tint-mint-edge);
+  --tint-ink: var(--tint-mint-ink);
+}
+.tint-sky {
+  --tint-bg: var(--tint-sky-bg);
+  --tint-edge: var(--tint-sky-edge);
+  --tint-ink: var(--tint-sky-ink);
+}
+.tint-lavender {
+  --tint-bg: var(--tint-lavender-bg);
+  --tint-edge: var(--tint-lavender-edge);
+  --tint-ink: var(--tint-lavender-ink);
+}
+.tint-plum {
+  --tint-bg: var(--tint-plum-bg);
+  --tint-edge: var(--tint-plum-edge);
+  --tint-ink: var(--tint-plum-ink);
+}
+
+/* A tinted Craft plate: pastel fill, saturated rim, soft lift. Compose with
+   a .tint-<hue> class (or set the triple inline via style). */
+.craft-tinted {
+  background: var(--tint-bg, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--tint-edge, var(--edge)) 55%, transparent);
+  box-shadow: var(--shadow-card);
+}
+
+/* --- 2. Panels + cards ------------------------------------------------ */
+/* The floating glass panel — sidebar, dock, kiwi bar, floating toolbars.
+   Blur is expensive; reserve for chrome, never for lists of cards. */
+.craft-glass {
+  background: var(--glass-panel-solid);
+  border: 1px solid var(--glass-panel-edge);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), var(--shadow-float);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .craft-glass {
+    background: var(--glass-panel-bg);
+    -webkit-backdrop-filter: saturate(160%) blur(26px);
+    backdrop-filter: saturate(160%) blur(26px);
+  }
+}
+
+/* The glass tile — a lighter cousin of .craft-glass for widget-density
+   surfaces (LifeOS bento cards over the space loop). Shallower blur, card
+   shadow instead of float, so a grid of them stays cheap and quiet. */
+.craft-glass-tile {
+  background: color-mix(in srgb, #ffffff 84%, transparent);
+  border: 1px solid var(--glass-panel-edge);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), var(--shadow-card);
+}
+.dark .craft-glass-tile {
+  background: color-mix(in srgb, oklch(27% 0.008 255) 78%, transparent);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .craft-glass-tile {
+    background: color-mix(in srgb, #ffffff 62%, transparent);
+    -webkit-backdrop-filter: saturate(150%) blur(16px);
+    backdrop-filter: saturate(150%) blur(16px);
+  }
+  .dark .craft-glass-tile {
+    background: color-mix(in srgb, oklch(27% 0.008 255) 58%, transparent);
+  }
+}
+
+/* The stage sheet — the one big rounded surface the active route paints on.
+   A half-step above the canvas so it reads as paper resting on the wash. */
+.craft-sheet {
+  background: color-mix(in srgb, var(--surface-raised) 42%, var(--canvas));
+  border: 1px solid var(--edge);
+  box-shadow: var(--shadow-float);
+}
+.dark .craft-sheet {
+  background: color-mix(in srgb, var(--surface-raised) 22%, var(--canvas));
+}
+
+/* The raised white card — the workhorse content surface. */
+.craft-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--edge);
+  box-shadow: var(--shadow-card);
+}
+.craft-card-hover {
+  transition: box-shadow var(--duration-micro) var(--ease-out-quart), border-color
+    var(--duration-micro) var(--ease-out-quart), transform var(--duration-micro)
+    var(--ease-out-quart);
+}
+.craft-card-hover:hover {
+  border-color: var(--edge-strong);
+  box-shadow: var(--shadow-card-hover);
+}
+@media (prefers-reduced-motion: reduce) {
+  .craft-card-hover {
+    transition: none;
+  }
+}
+
+/* --- 3. The backdrop wash --------------------------------------------- */
+/* What the glass grabs. A barely-there pastel field over the cream canvas:
+   sky top-left, lavender top-right, peach at the foot. Static, no motion,
+   cheap (three radial gradients, painted once). */
+.craft-backdrop {
+  background-color: var(--canvas);
+  background-image: radial-gradient(
+      1100px 750px at 6% -8%,
+      color-mix(in srgb, var(--tint-sky-edge) 11%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      950px 700px at 102% -4%,
+      color-mix(in srgb, var(--tint-lavender-edge) 9%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      1000px 720px at 50% 112%,
+      color-mix(in srgb, var(--tint-peach-edge) 10%, transparent),
+      transparent 60%
+    );
+}
+.dark .craft-backdrop {
+  background-image: radial-gradient(
+      1100px 750px at 6% -8%,
+      color-mix(in srgb, var(--tint-sky-edge) 9%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      950px 700px at 102% -4%,
+      color-mix(in srgb, var(--tint-lavender-edge) 8%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      1000px 720px at 50% 112%,
+      color-mix(in srgb, var(--tint-plum-edge) 7%, transparent),
+      transparent 60%
+    );
+}
+
+/* --- 3b. TipTap placeholder fallback ---------------------------------- */
+/* The composer placeholder rules above key off `.is-editor-empty` +
+   `p[data-placeholder]`, which only the TipTap Placeholder EXTENSION
+   decorates — and that extension is not installed (v3 StarterKit does not
+   bundle it), so every TipTap composer has silently shipped with no
+   placeholder. Key off the structural empty state instead: the container
+   carries data-placeholder, and an empty ProseMirror doc is exactly one
+   paragraph whose only child is the trailing break. The float/height-0
+   trick overlays the prompt on the first text line, same as the intended
+   rules. Disappears the moment real content exists. */
+.lite-jarvis-content[data-placeholder]:has(
+    > p:first-child:last-child > br.ProseMirror-trailingBreak:only-child
+  )::before,
+.jarvis-input-content[data-placeholder]:has(
+    > p:first-child:last-child > br.ProseMirror-trailingBreak:only-child
+  )::before,
+.capture-composer-content[data-placeholder]:has(
+    > p:first-child:last-child > br.ProseMirror-trailingBreak:only-child
+  )::before {
+  content: attr(data-placeholder);
+  color: color-mix(in oklch, var(--ink-muted) 70%, transparent);
+  font-style: italic;
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* --- 4. Cascade upgrades onto shipped sd surfaces --------------------- */
+/* Appended after the sd definitions so these win at equal specificity.
+   Menus and modals lift with the new ladder; the sd panel rounds to the
+   card radius and picks up the soft card shadow. */
+.sd-panel {
+  border-radius: var(--radius-card);
+  box-shadow: rgba(255, 255, 255, 0.15) 0 1px 0 inset, var(--shadow-card);
+}
+.sd-menu-surface {
+  box-shadow: var(--shadow-pop);
+}
+.dark .sd-menu-surface {
+  box-shadow: rgba(255, 255, 255, 0.07) 0 1px 0 inset, var(--shadow-pop);
+}
+.sd-modal-surface {
+  box-shadow: var(--shadow-pop);
+}
+.dark .sd-modal-surface {
+  box-shadow: rgba(255, 255, 255, 0.09) 0 1px 0 inset, var(--shadow-pop);
+}
+.sd-toast {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--shadow-pop) !important;
 }

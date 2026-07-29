@@ -67,9 +67,9 @@ export function IconPicker({ value, onChange, renderTrigger }: Props) {
             type="button"
             aria-label={value ? `${value} icon (click to change)` : "Pick an icon"}
             className={cn(
-              "flex items-center justify-center h-9 w-9 rounded-md border border-[var(--sd-line)]",
-              "bg-[var(--sd-input)] hover:bg-[var(--sd-hover)] transition-colors text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+              "flex size-9 items-center justify-center rounded-lg border border-[var(--edge)]",
+              "bg-[var(--surface)] text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out",
+              "hover:bg-[var(--hover)] hover:text-[var(--ink)]"
             )}
           >
             {SelectedIcon ? (
@@ -96,9 +96,9 @@ export function IconPicker({ value, onChange, renderTrigger }: Props) {
               placeholder="🎓"
               value={selectedEmoji ?? ""}
               onChange={(e) => handleEmojiChange(e.target.value)}
-              className="h-8 w-12 text-center text-[16px]"
+              className="h-8 w-12 text-center text-subtitle"
             />
-            <span className="font-sans text-[11px] text-[var(--sd-ink-faint)]">
+            <span className="font-sans text-micro text-[var(--ink-faint)]">
               Type or paste an emoji
             </span>
           </div>
@@ -106,7 +106,7 @@ export function IconPicker({ value, onChange, renderTrigger }: Props) {
             placeholder="Search icons..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 text-[13px]"
+            className="h-8 text-meta text-[var(--ink)]"
             autoFocus
           />
         </div>
@@ -115,10 +115,10 @@ export function IconPicker({ value, onChange, renderTrigger }: Props) {
         <div className="max-h-[320px] overflow-y-auto p-2">
           {Object.entries(filteredCategories).map(([category, icons]) => (
             <div key={category} className="mb-3 last:mb-0">
-              <p className="font-sans text-[11px] uppercase tracking-widest text-[var(--sd-ink-faint)] px-1 mb-1">
+              <p className="mb-1 px-1 font-sans text-micro font-medium text-[var(--ink-faint)]">
                 {category}
               </p>
-              <div className="grid grid-cols-6 gap-0.5">
+              <div className="grid grid-cols-6 gap-1">
                 {icons.map((iconName) => {
                   const Icon = CURATED_ICONS[iconName];
                   const isSelected = value === iconName;
@@ -130,17 +130,17 @@ export function IconPicker({ value, onChange, renderTrigger }: Props) {
                       title={iconName}
                       onClick={() => handleSelect(iconName)}
                       className={cn(
-                        "flex flex-col items-center gap-1 rounded-md p-1.5 transition-colors",
-                        "hover:bg-[var(--sd-hover)]",
+                        "flex flex-col items-center gap-1 rounded-lg p-1.5 transition-colors duration-[160ms] ease-out",
+                        "hover:bg-[var(--hover)]",
                         isSelected &&
-                          "bg-[var(--sd-selected)] ring-1 ring-inset ring-[var(--sd-accent)]"
+                          "bg-[var(--selected)] ring-1 ring-inset ring-[var(--edge-strong)]"
                       )}
                     >
                       <Icon
                         size={20}
-                        className={isSelected ? "text-[var(--sd-accent)]" : "text-[var(--sd-ink)]"}
+                        className={isSelected ? "text-[var(--accent)]" : "text-[var(--ink)]"}
                       />
-                      <span className="font-sans text-[10px] text-[var(--sd-ink-faint)] truncate w-full text-center leading-tight">
+                      <span className="w-full truncate text-center font-sans text-micro leading-tight text-[var(--ink-faint)]">
                         {iconName}
                       </span>
                     </button>
@@ -150,7 +150,7 @@ export function IconPicker({ value, onChange, renderTrigger }: Props) {
             </div>
           ))}
           {Object.keys(filteredCategories).length === 0 && (
-            <p className="font-sans text-[13px] text-[var(--sd-ink-faint)] text-center py-6">
+            <p className="py-6 text-center font-sans text-meta text-[var(--ink-faint)]">
               No icons match &ldquo;{search}&rdquo;
             </p>
           )}

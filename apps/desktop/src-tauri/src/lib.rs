@@ -1,6 +1,8 @@
 mod audio;
 mod commands;
 mod computer;
+mod flowpill;
+mod optiontap;
 mod say;
 mod studio_webview;
 mod whatsapp;
@@ -175,11 +177,23 @@ pub fn run() {
             // `go run`. Forwards QR/ready events to the HUD; restarts on crash.
             whatsapp::start(app.handle());
 
+            // Flowpill voice overlay: make its window non-activating and park it
+            // in the persisted corner while it is still hidden.
+            flowpill::init(app.handle());
+
+            // Global bare-Option gesture tap for the flowpill overlay. A no-op
+            // when Input Monitoring has not been granted; the app runs on
+            // unaffected and the frontend can retry via `optiontap_*`.
+            optiontap::start(app.handle());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::start_capture,
             commands::stop_capture,
+            commands::list_input_devices,
+            commands::get_input_device,
+            commands::set_input_device,
             commands::show_hud,
             commands::hide_hud,
             commands::tts_play_pcm,
@@ -207,6 +221,13 @@ pub fn run() {
             studio_webview::studio_webview_scroll,
             studio_webview::studio_webview_click,
             whatsapp::whatsapp_reconnect,
+            flowpill::flowpill_show,
+            flowpill::flowpill_hide,
+            flowpill::flowpill_set_corner,
+            flowpill::flowpill_get_corner,
+            optiontap::optiontap_status,
+            optiontap::optiontap_request_permission,
+            optiontap::optiontap_ensure_started,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

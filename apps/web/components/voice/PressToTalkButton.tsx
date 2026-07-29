@@ -73,7 +73,7 @@ export function PressToTalkButton() {
           aria-pressed={busy}
           aria-label={label}
           className={cn(
-            "h-9 w-9 inline-flex items-center justify-center rounded-md border transition-colors duration-150 ease-out cursor-pointer-always",
+            "h-9 w-9 inline-flex items-center justify-center rounded-lg border transition-colors duration-150 ease-out cursor-pointer-always",
             busy
               ? "border-[var(--hud-cyan)] text-[var(--hud-cyan)] bg-[var(--surface-raised)]"
               : "border-transparent hover:border-[var(--edge)]",

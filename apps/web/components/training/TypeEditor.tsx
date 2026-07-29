@@ -217,7 +217,7 @@ export function TypeEditor({ batchId, types, allBatches }: Props) {
           type="button"
           onClick={() => void handleCreate()}
           aria-label="Add type"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
+          className="flex size-7 shrink-0 items-center justify-center rounded-lg text-[var(--sd-ink-dull)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--sd-ink)]"
         >
           <Plus size={14} strokeWidth={1.5} />
         </button>
@@ -270,7 +270,8 @@ function TypeRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group relative flex items-center gap-1 rounded px-1 py-0.5",
+        "group relative flex items-center gap-1 rounded-lg px-1 py-1",
+        "transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
         isDragging && "z-10 opacity-60",
       )}
     >
@@ -289,7 +290,9 @@ function TypeRow({
           <button
             type="button"
             aria-label="Change color"
-            className="h-4 w-4 shrink-0 rounded-full ring-1 ring-[var(--sd-line)]"
+            // The swatch shows the literal stored colour, so it stays
+            // saturated — it is a value, not a fill. The rim softens it.
+            className="size-4 shrink-0 rounded-full shadow-[var(--shadow-card)] ring-1 ring-[var(--edge)] transition-shadow duration-[160ms] ease-out hover:shadow-[var(--shadow-card-hover)]"
             style={{ backgroundColor: type.color }}
           />
         </PopoverTrigger>
@@ -326,7 +329,7 @@ function TypeRow({
 
       {/* Distance toggle — ad-hoc switch (no shadcn Switch in repo yet). */}
       <label
-        className="flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded px-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)]"
+        className="flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] transition-colors duration-[160ms] ease-out hover:bg-[var(--surface-raised)]"
         title="Track distance for this activity"
       >
         <input
@@ -343,7 +346,7 @@ function TypeRow({
           <button
             type="button"
             aria-label="Type actions"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--sd-ink-dull)] opacity-0 hover:bg-[var(--sd-hover)] group-hover:opacity-100 focus-visible:opacity-100"
+            className="flex size-6 shrink-0 items-center justify-center rounded-md text-[var(--sd-ink-dull)] opacity-0 transition-opacity duration-[160ms] ease-out hover:bg-[var(--surface-raised)] group-hover:opacity-100 focus-visible:opacity-100"
           >
             <MoreHorizontal size={12} strokeWidth={1.5} />
           </button>

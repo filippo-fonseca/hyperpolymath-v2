@@ -51,7 +51,7 @@ export function DistanceUnitToggle({ value }: Props) {
     <div
       role="radiogroup"
       aria-label="Distance unit"
-      className="inline-flex rounded-md border border-[var(--sd-line)] bg-[var(--sd-app)] p-0.5"
+      className="inline-flex rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-0.5"
     >
       {options.map((opt) => {
         const selected = opt.value === current;
@@ -63,9 +63,11 @@ export function DistanceUnitToggle({ value }: Props) {
             aria-checked={selected}
             disabled={isPending && !selected}
             onClick={() => handleSelect(opt.value)}
-            className={`font-mono text-xs uppercase tracking-[0.08em] px-3 py-1.5 rounded-sm transition-colors duration-100 cursor-pointer-always disabled:opacity-50 ${
+            // Craft segmented control: the selected option is a raised plate on
+            // a recessed track, not an accent-bordered box.
+            className={`cursor-pointer-always rounded-md px-3 py-1.5 font-mono text-xs uppercase tracking-[0.08em] transition-[background-color,color,box-shadow] duration-[160ms] ease-out disabled:opacity-50 ${
               selected
-                ? "bg-[var(--sd-selected)] text-[var(--sd-ink)] border border-[var(--sd-accent)]"
+                ? "bg-[var(--surface-raised)] font-medium text-[var(--sd-ink)] shadow-[var(--shadow-card)]"
                 : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
             }`}
           >

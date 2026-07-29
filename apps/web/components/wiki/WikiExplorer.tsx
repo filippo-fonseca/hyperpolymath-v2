@@ -1,11 +1,11 @@
 "use client";
 
 import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
-import {
-  type ExplorerBreadcrumbSegment,
-  type ExplorerSortValue,
-  type ExplorerViewMode,
-  InspectorShell,
+import { SidePanel } from "@/components/ui/SidePanel";
+import type {
+  ExplorerBreadcrumbSegment,
+  ExplorerSortValue,
+  ExplorerViewMode,
 } from "@/components/wiki/explorer";
 import {
   ancestryLabelFor,
@@ -101,6 +101,13 @@ export function WikiExplorer({
       return next;
     });
   }, []);
+  // The SidePanel host also closes the panel on Escape and on route change, so
+  // the close path has to persist the same way the toggle does or the inspector
+  // reopens on the next visit.
+  const closeInspector = useCallback(() => {
+    setInspectorOpen(false);
+    localStorage.setItem("wiki:inspector", "0");
+  }, []);
 
   // ─── Folder navigation + ancestry. ────────────────────────────────────
   const folderNav = useExplorerFolder(folders);
@@ -135,12 +142,27 @@ export function WikiExplorer({
 
   // ─── Selection engine keyed to the current visible order. ────────────
   const selection = useExplorerSelection();
+  // Depend on the stable `setOrder` identity, not on the whole `selection`
+  // object: that object is re-memoized on every selection state change, so
+  // keying this effect on it re-ran the order sync for reasons unrelated to
+  // the order.
+  const setSelectionOrder = selection.setOrder;
   useEffect(() => {
-    selection.setOrder(itemOrder);
-  }, [itemOrder, selection]);
+    setSelectionOrder(itemOrder);
+  }, [itemOrder, setSelectionOrder]);
+  // Selection must not survive a folder change. The breadcrumb and drill-down
+  // handlers clear it themselves, but browser Back/Forward moves `folderId`
+  // through nuqs without passing through either, so this stays as the backstop.
+  // It fires on a real change of folder, compared against the last one seen:
+  // the old `folderId !== undefined` guard was always true (folderId is
+  // `string | null`), so it cleared on every run. `clear()` also bails out now
+  // when nothing is selected, so the common path costs no extra render.
   const clearSelection = selection.clear;
+  const lastClearedFolder = useRef(folderId);
   useEffect(() => {
-    if (folderId !== undefined) clearSelection();
+    if (lastClearedFolder.current === folderId) return;
+    lastClearedFolder.current = folderId;
+    clearSelection();
   }, [clearSelection, folderId]);
 
   // ─── Rubber-band on empty canvas. ────────────────────────────────────
@@ -255,11 +277,14 @@ export function WikiExplorer({
         onOpen={openItem}
         onRename={(it) => setRenameTarget(it)}
         onDelete={handleDelete}
+        onToggleStar={(it) => {
+          if (it.kind === "page") void mutations.toggleStar(it.id, !it.page.pinned);
+        }}
       >
         {node}
       </ExplorerItemContextMenu>
     ),
-    [handleDelete, openItem, setRenameTarget]
+    [handleDelete, mutations, openItem, setRenameTarget]
   );
 
   const wrapItemForListView = useCallback(
@@ -273,8 +298,12 @@ export function WikiExplorer({
 
   const isEmptyWiki = pages.length === 0 && folders.length === 0;
 
+  // No `wiki-explorer` class on the wrapper: that scope pins the legacy
+  // always-dark Spacedrive palette (globals.css). Without it the --sd-*
+  // aliases track the SDC-1 theme, so the explorer reads as part of the page
+  // in both light and dark.
   return (
-    <div className="wiki-explorer mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-4">
+    <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
       <DndContext
         id="wiki-explorer-dnd"
         sensors={sensors}
@@ -282,12 +311,19 @@ export function WikiExplorer({
           const pointerHits = pointerWithin(args);
           return pointerHits.length > 0 ? pointerHits : rectIntersection(args);
         }}
-        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        // WhileDragging, not Always. Under `Always`, dnd-kit re-measures every
+        // registered droppable on every DndContext render, and each grid tile
+        // registers a droppable and a draggable, plus one droppable per
+        // breadcrumb segment and one for the canvas. N tiles meant N forced
+        // getBoundingClientRect() calls and a synchronous layout flush on every
+        // keystroke in the search box and every folder navigation. Drop targets
+        // only need to be measured while a drag is actually in flight.
+        measuring={{ droppable: { strategy: MeasuringStrategy.WhileDragging } }}
         onDragStart={dnd.handleDragStart}
         onDragEnd={dnd.handleDragEnd}
         onDragCancel={dnd.handleDragCancel}
       >
-        <div className="flex min-h-0 flex-1 overflow-hidden rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-app)] shadow-[0_12px_32px_hsl(235_15%_0%_/_0.18)]">
+        <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-app)] shadow-[var(--shadow-card)]">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <ExplorerHeaderControls
               canGoBack={canGoBack}
@@ -332,24 +368,20 @@ export function WikiExplorer({
               onOpenNewFolder={() => setNewFolderOpen(true)}
             />
           </div>
-
-          <InspectorShell
-            open={inspectorOpen}
-            header={
-              <div className="font-sans text-[0.7rem] font-bold uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
-                Inspector
-              </div>
-            }
-          >
-            <ExplorerInspectorPanel
-              items={selectedItems}
-              ancestryLabel={inspectorAncestry}
-              onOpen={openItem}
-              onRename={(it) => setRenameTarget(it)}
-              onDelete={handleDelete}
-            />
-          </InspectorShell>
         </div>
+
+        {/* The inspector lives in the cockpit's shared right slot (SDC-1 §2.2,
+            §2.8): opening it slides the Dock out and narrows the stage, so wiki
+            and tasks share one detail affordance instead of a bespoke aside. */}
+        <SidePanel open={inspectorOpen} onClose={closeInspector} title="Inspector" width={320}>
+          <ExplorerInspectorPanel
+            items={selectedItems}
+            ancestryLabel={inspectorAncestry}
+            onOpen={openItem}
+            onRename={(it) => setRenameTarget(it)}
+            onDelete={handleDelete}
+          />
+        </SidePanel>
 
         <DragOverlay style={{ width: "max-content", height: "auto" }}>
           {dnd.activeDrag ? (

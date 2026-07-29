@@ -4,8 +4,13 @@
  *
  * Phase 4 Plan 04-03 (D-04 — discoverable Connect CTA).
  *
+ * jul-29 craft restyle: this is now a thin wrapper over the one shared
+ * EmptyState (`components/ui/EmptyState`). The calendar's feature hue is
+ * sky, passed as a `tint-*` class so the icon lands on a soft circular
+ * pastel plate. The copy is unchanged.
+ *
  * Copy notes (per CONTEXT.md "Deferred"):
- *   - "Hyperpolymath is the writing desk over Google Calendar"reinforces
+ *   - "Hyperpolymath is the writing desk over Google Calendar" reinforces
  *     the project axiom: gcal is the source of truth; this app is a CRUD
  *     operator over it.
  *
@@ -14,33 +19,26 @@
  * as DisconnectBanner.Reconnect).
  */
 
+import { CalendarDays } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { CalendarIcon } from "./CalendarIcon";
+import { EmptyState as UiEmptyState } from "@/components/ui/EmptyState";
 
 export function EmptyState() {
   return (
-    <div className="flex h-full items-center justify-center p-8 bg-[var(--sd-app)]">
-      {/* Calm sd empty grammar (seed): a faint dimensional glyph, an 11px mono
-          eyebrow, a quiet body line, then the Connect CTA. No plate, no glass,
-          no glow — the affordance sits directly on the canvas. */}
-      <div className="flex flex-col items-center gap-5 max-w-md px-10 py-12 text-center">
-        <CalendarIcon size={56} className="opacity-70" aria-hidden />
-        <div className="space-y-1.5">
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
-            Google Calendar
-          </p>
-          <h2 className="text-lg font-semibold tracking-tight text-[var(--sd-ink)]">
-            Connect your calendar
-          </h2>
-          <p className="text-[13px] text-[var(--sd-ink-dull)] mt-1">
-            See your week here. Drag to create. All events live in Google
-            Calendar; Hyperpolymath is the writing desk over it.
-          </p>
-        </div>
-        <Button asChild>
-          <a href="/api/gcal/auth">Connect Google Calendar</a>
-        </Button>
-      </div>
+    <div className="flex h-full items-center justify-center p-8">
+      <UiEmptyState
+        size="page"
+        className="tint-sky"
+        icon={<CalendarDays strokeWidth={1.5} aria-hidden />}
+        title="Connect your calendar"
+        description="See your week here. Drag to create. All events live in Google Calendar; Hyperpolymath is the writing desk over it."
+        actionSlot={
+          <Button asChild>
+            <a href="/api/gcal/auth">Connect Google Calendar</a>
+          </Button>
+        }
+      />
     </div>
   );
 }

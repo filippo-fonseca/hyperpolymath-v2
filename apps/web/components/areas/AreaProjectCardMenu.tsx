@@ -25,7 +25,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MoreHorizontal } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface Props {
@@ -36,13 +35,21 @@ interface Props {
   isClass: boolean;
   currentAreaId: string;
   allAreas: { id: string; name: string }[];
+  /** Page-local settle for a rename or a details edit. */
+  onUpdated: (
+    id: string,
+    patch: { name?: string; description?: string | null; icon?: string | null },
+  ) => void;
+  /** Page-local settle for anything that takes the card out of this area. */
+  onRemoved: (id: string) => void;
 }
 
 /**
  * Per-project-card ⋯ dropdown on the /areas/[areaId] detail page.
  *
  * Items: Rename / Edit details / Move to another area / Delete.
- * Uses router.refresh() as the settle path (SSR page, no optimistic dispatcher).
+ * Settles through the onUpdated / onRemoved callbacks the owning list
+ * supplies rather than refetching the route.
  */
 export function AreaProjectCardMenu({
   projectId,
@@ -52,8 +59,9 @@ export function AreaProjectCardMenu({
   isClass,
   currentAreaId,
   allAreas,
+  onUpdated,
+  onRemoved,
 }: Props) {
-  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Rename
@@ -81,7 +89,7 @@ export function AreaProjectCardMenu({
       success: "Project renamed.",
       onSuccess: () => {
         setRenameOpen(false);
-        router.refresh();
+        onUpdated(projectId, { name: trimmed });
       },
     });
   }
@@ -98,7 +106,10 @@ export function AreaProjectCardMenu({
         success: "Project updated.",
         onSuccess: () => {
           setEditOpen(false);
-          router.refresh();
+          onUpdated(projectId, {
+            description: editDescription.trim() || null,
+            icon: editIcon.trim() || null,
+          });
         },
       }
     );
@@ -109,7 +120,7 @@ export function AreaProjectCardMenu({
       success: "Project deleted.",
       onSuccess: () => {
         setDeleteOpen(false);
-        router.refresh();
+        onRemoved(projectId);
       },
     });
   }
@@ -285,6 +296,7 @@ export function AreaProjectCardMenu({
         allAreas={allAreas}
         open={moveOpen}
         onOpenChange={setMoveOpen}
+        onMoved={onRemoved}
       />
 
       {/* Delete confirmation dialog */}

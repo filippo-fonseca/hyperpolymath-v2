@@ -1,5 +1,17 @@
 import Link from "next/link";
-import { KeyRound, Laptop, Lightbulb } from "lucide-react";
+import {
+  CalendarDays,
+  CloudUpload,
+  GraduationCap,
+  KeyRound,
+  Laptop,
+  Lightbulb,
+  LogOut,
+  MessageSquare,
+  Palette,
+  Ruler,
+  UserRound,
+} from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
@@ -29,6 +41,12 @@ import { PagesBackupSection } from "@/components/settings/PagesBackupSection";
 import { getPagesBackupSettings } from "@/lib/db/queries/pages-backup";
 import { listUserKeyStatus } from "@/lib/byok/keys";
 import { GoveeDevicesSection } from "@/components/settings/GoveeDevicesSection";
+import { MessagingSection } from "@/components/settings/MessagingSection";
+import { getMessagingSettings } from "@/lib/db/queries/messaging";
+import {
+  getAllowedSmsSenders,
+  getTwilioCredentials,
+} from "@/lib/twilio/config";
 import { listGoveeDevices } from "@/app/actions/govee-devices";
 import { resolveGoveeApiKey } from "@/lib/govee/service";
 import {
@@ -38,8 +56,6 @@ import {
 } from "@/lib/gcal/token";
 import { listCalendars, type GcalCalendarMeta } from "@/lib/gcal/calendars";
 
-export const dynamic = "force-dynamic";
-
 export default async function SettingsPage() {
   const user = await requireOnboarded();
   const [
@@ -48,6 +64,7 @@ export default async function SettingsPage() {
     distanceUnitRow,
     apiKeyStatus,
     backupSettings,
+    messagingSettings,
     goveeDevicesResult,
     goveeApiKey,
   ] = await Promise.all([
@@ -60,10 +77,20 @@ export default async function SettingsPage() {
       .limit(1),
     listUserKeyStatus(user.id),
     getPagesBackupSettings(user.id),
+    getMessagingSettings(user.id),
     listGoveeDevices(),
     resolveGoveeApiKey(user.id),
   ]);
   const goveeDevices = goveeDevicesResult.ok ? goveeDevicesResult.data : [];
+  // Twilio config is env-shaped, so it is read here and passed down read-only.
+  // Credentials never cross to the client: only the allowlisted numbers and a
+  // boolean saying whether a reply could be sent at all.
+  const twilioCredentials = getTwilioCredentials();
+  const allowedSmsSenders = [...getAllowedSmsSenders()];
+  const smsReplyFrom =
+    twilioCredentials && "phoneNumber" in twilioCredentials.from
+      ? twilioCredentials.from.phoneNumber
+      : null;
   const hasGoveeApiKey = goveeApiKey !== null;
   const currentDistanceUnit: "km" | "mi" =
     distanceUnitRow[0]?.unit === "mi" ? "mi" : "km";
@@ -102,17 +129,19 @@ export default async function SettingsPage() {
     }
   }
 
+  // "Manage →" links read as quiet pills on the card rather than bare text, so
+  // they sit in the same grammar as the segmented rail above them.
   const manageLink =
-    "inline-flex items-center font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-150 ease-out cursor-pointer-always";
+    "inline-flex w-fit items-center rounded-lg border border-[var(--edge)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] transition-[color,background-color,border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)] cursor-pointer-always";
 
   return (
-    <main className="min-h-screen bg-[var(--sd-app)] px-6 py-10">
+    <main className="min-h-screen bg-[var(--canvas)] px-6 py-10">
       <div className="mx-auto max-w-2xl">
         <header className="mb-6">
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--sd-ink-faint)]">
+          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--ink-faint)]">
             Preferences
           </p>
-          <h1 className="mt-1 text-[26px] font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">
+          <h1 className="mt-1 text-[26px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
             Settings
           </h1>
         </header>
@@ -126,7 +155,7 @@ export default async function SettingsPage() {
 
             <SettingsCard className="space-y-4">
               <div>
-                <CardTitle>Profile</CardTitle>
+                <CardTitle icon={<UserRound className="h-4 w-4" />}>Profile</CardTitle>
                 <CardDescription className="mt-1">{user.email}</CardDescription>
               </div>
               <ProfileSection
@@ -141,7 +170,9 @@ export default async function SettingsPage() {
             </SettingsCard>
 
             <SettingsCard className="space-y-4">
-              <CardTitle>Graduation year</CardTitle>
+              <CardTitle icon={<GraduationCap className="h-4 w-4" />}>
+                Graduation year
+              </CardTitle>
               <SettingsForm
                 currentYear={user.graduationYear ?? new Date().getFullYear() + 4}
               />
@@ -154,7 +185,7 @@ export default async function SettingsPage() {
 
             <SettingsCard className="space-y-4">
               <div>
-                <CardTitle>Theme</CardTitle>
+                <CardTitle icon={<Palette className="h-4 w-4" />}>Theme</CardTitle>
                 <CardDescription className="mt-1">
                   Light, dark, or follow your system.
                 </CardDescription>
@@ -164,7 +195,7 @@ export default async function SettingsPage() {
 
             <SettingsCard className="space-y-4">
               <div>
-                <CardTitle>Distance unit</CardTitle>
+                <CardTitle icon={<Ruler className="h-4 w-4" />}>Distance unit</CardTitle>
                 <CardDescription className="mt-1">
                   Used across the training planner, completion dialog, and stats.
                   Stored data stays in kilometers; only the display converts.
@@ -179,7 +210,7 @@ export default async function SettingsPage() {
             <SectionEyebrow>Integrations</SectionEyebrow>
 
             <SettingsCard className="space-y-4">
-              <CardTitle>Google</CardTitle>
+              <CardTitle icon={<CalendarDays className="h-4 w-4" />}>Google</CardTitle>
               <GcalConnectionRow status={gcalStatus} />
               {gcalStatus === "connected" && calendars.length > 0 && (
                 <>
@@ -198,7 +229,7 @@ export default async function SettingsPage() {
 
             <SettingsCard className="space-y-4">
               <div>
-                <CardTitle>Pages backup</CardTitle>
+                <CardTitle icon={<CloudUpload className="h-4 w-4" />}>Pages backup</CardTitle>
                 <CardDescription className="mt-1">
                   Keep an automatic daily copy of your entire Wiki in Google Drive.
                   Each page is exported as Markdown into a private folder only this
@@ -236,6 +267,31 @@ export default async function SettingsPage() {
           <section id="voice" className="scroll-mt-24 space-y-4">
             <SectionEyebrow>Voice</SectionEyebrow>
             <VoiceSettingsSection />
+          </section>
+
+          {/* MESSAGING */}
+          <section id="messaging" className="scroll-mt-24 space-y-4">
+            <SectionEyebrow>Messaging</SectionEyebrow>
+
+            <SettingsCard className="space-y-4">
+              <div>
+                <CardTitle icon={<MessageSquare className="h-4 w-4" />}>
+                  Text messages
+                </CardTitle>
+                <CardDescription className="mt-2">
+                  Text your Kiwi number and get the same assistant you get here: the
+                  same tools, the same memory, the reply delivered as a text. Off by
+                  default, because an assistant that starts answering your messages
+                  unannounced is the wrong kind of surprise.
+                </CardDescription>
+              </div>
+              <MessagingSection
+                settings={messagingSettings}
+                allowedSenders={allowedSmsSenders}
+                replyFrom={smsReplyFrom}
+                transportConfigured={twilioCredentials !== null}
+              />
+            </SettingsCard>
           </section>
 
           {/* DEVICES */}
@@ -301,11 +357,14 @@ export default async function SettingsPage() {
             <SectionEyebrow>Account</SectionEyebrow>
 
             <SettingsCard className="space-y-4">
-              <CardTitle>Sign out</CardTitle>
+              <CardTitle icon={<LogOut className="h-4 w-4" />}>Sign out</CardTitle>
               <SignOutButton />
             </SettingsCard>
 
-            <SettingsCard className="border-[var(--ink-coral)]/30">
+            {/* Danger zone stays a white card; only the rim and the heading
+                carry coral. A red fill would shout at a surface the user reads
+                every time they open Settings. */}
+            <SettingsCard className="border-[color-mix(in_oklch,var(--ink-coral)_35%,var(--edge))]">
               <DangerZoneSection email={user.email} />
             </SettingsCard>
           </section>

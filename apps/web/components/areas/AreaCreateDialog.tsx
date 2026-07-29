@@ -23,10 +23,11 @@ interface Props {
   children: React.ReactNode;
   userId: string;
   /**
-   * Optimistic dispatcher supplied by the Sidebar. Optional — when absent the
-   * dialog falls back to router.refresh() after a successful create so the SSR
-   * page re-fetches. This keeps the sidebar's existing instant-feedback UX
-   * while allowing the /areas page to use the same dialog without a fake dispatcher.
+   * Optimistic dispatcher supplied by the Sidebar. Optional — when neither this
+   * nor `onCreated` is supplied the dialog falls back to router.refresh() after
+   * a successful create so the SSR page re-fetches. This keeps the sidebar's
+   * existing instant-feedback UX while allowing the /areas page to use the same
+   * dialog without a fake dispatcher.
    */
   addOptimisticArea?: AreaOptimisticDispatch;
   /**
@@ -125,8 +126,11 @@ export function AreaCreateDialog({
         return;
       }
       toast("Area created.");
-      if (!addOptimisticArea) {
-        // No optimistic dispatcher — re-fetch the SSR page to show the new area.
+      if (!addOptimisticArea && !onCreated) {
+        // Neither settle path available — re-fetch the SSR page to show the
+        // new area. Surfaces that pass onCreated already hold the row: it
+        // carries the client-generated id the server persisted, so there is
+        // nothing left to reconcile that a whole-route refetch would supply.
         router.refresh();
       }
       // When the sidebar dispatcher IS present, the Realtime echo invalidates

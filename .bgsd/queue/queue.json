@@ -164,19 +164,24 @@
       "title": "Universal @mentions across the platform and JARVIS",
       "body": "First-class @mention system: typing @ anywhere (task descriptions, captures, wiki pages, chat with JARVIS, comments) opens an entity picker that can reference ANY entity — tasks, captures, projects, areas, people, wiki pages, events. Mentions render as rich inline chips that link to the entity, and JARVIS understands them in prompts ('add this to @Marathon-Training') and can emit them in replies. Needs: shared mention-autocomplete component, canonical entity-reference format (type:id), renderers per surface, and JARVIS tool/prompt support for resolving mentions.",
       "source": "manual",
-      "state": "queued",
+      "state": "done",
       "attempts": 0,
       "github_issue": {
         "number": 265,
         "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/265"
       },
       "created_at": "2026-07-12T00:36:11.084Z",
-      "updated_at": "2026-07-12T00:36:11.084Z",
+      "updated_at": "2026-07-17T23:30:00Z",
       "trail": [
         {
           "from": null,
           "to": "queued",
           "at": "2026-07-12T00:36:11.084Z"
+        },
+        {
+          "ts": "2026-07-17T23:30:00Z",
+          "event": "done",
+          "note": "shipped in sesh-global-refs-1784258306; merged to next at cda45728"
         }
       ]
     },
@@ -357,46 +362,46 @@
       ]
     },
     {
-      "id": "item-4c71191a-1784388231034",
-      "content_key": "2716a2c795b0b5575091a9572daa064ba973d82da25ad264fcd175e883fd2a69",
-      "title": "Ultimate Jarvis: full-context retrieval + agent excellence",
-      "body": "Build session driven by the research blueprint at .bgsd/research/jarvis-ultimate-blueprint.md (Opus researcher dispatched 2026-07-18 during sesh-1784388114864). Scope: retrieval architecture over all Hyperpolymath content + agent-quality overhaul per the report's P0 items. Review the report's 'Questions for Filippo' section at sesh start.",
+      "id": "item-4c228052-1784261702487",
+      "content_key": "66f1f810d4a639d5fa59064d7fbf34e707ccb1e8e643d45cd0ac1ec8a079ad23",
+      "title": "Fix next/og client-bundle leak via app/branding/AssetTile.tsx",
+      "body": "u2 verifier finding (sesh-1784257742502): app/branding/AssetTile.tsx is 'use client' and value-imports ASSETS from lib/branding/svg.ts, which imports next/og via lib/og/fonts at module scope. Pre-existing, builds green today, but next/og is reachable from a client component. Split ASSETS into a leaf module like kiwi-path.ts.",
       "source": "manual",
       "state": "queued",
       "attempts": 0,
       "github_issue": {
-        "number": 308,
-        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/308"
+        "number": 302,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/302"
       },
-      "created_at": "2026-07-18T15:23:51.033Z",
-      "updated_at": "2026-07-18T15:23:51.033Z",
+      "created_at": "2026-07-17T04:15:02.487Z",
+      "updated_at": "2026-07-17T04:15:02.487Z",
       "trail": [
         {
           "from": null,
           "to": "queued",
-          "at": "2026-07-18T15:23:51.033Z"
+          "at": "2026-07-17T04:15:02.487Z"
         }
       ]
     },
     {
-      "id": "item-6578ffbb-1784814008179",
-      "content_key": "e58029cb4dfbc295932c1a10cfce26be41462e28743a5790ce4c59deddf1d4d9",
-      "title": "Hand cursor: better click-awareness + deterministic clickable areas (GitHub-style)",
-      "body": "Implement better click-awareness and deterministic clickable areas for the Studio hand cursor, modeled on https://github.com/Capslockb/tony-stark-hand-control — study its approach to deterministic hit targets/regions and adapt it to the Studio HUD gesture engine (apps/desktop/src/studio/input). Filed 2026-07-23 mid-sesh-1784813908167; Filippo will start a dedicated bgsd sesh for this.",
+      "id": "item-d69fd5d1-1785259631882",
+      "content_key": "e2e96e4f219ea797f344452b09dbcc060b0d52a31efb59c2d49dab2034abe727",
+      "title": "XP / gamification system (intentionality.io style)",
+      "body": "Add an XP integration as a gamification layer across the app, modelled on intentionality.io. Earn XP for completing tasks, habits, captures triaged, journal entries, etc. Needs an XP ledger table, per-action award rules, a level/streak model, and surfacing in the UI (likely a dock widget in the new cockpit shell plus a LifeOS panel). Filed 2026-07-28 during the jul-28 sesh.",
       "source": "manual",
       "state": "queued",
       "attempts": 0,
       "github_issue": {
-        "number": 318,
-        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/318"
+        "number": 345,
+        "url": "https://github.com/filippo-fonseca/hyperpolymath-v2/issues/345"
       },
-      "created_at": "2026-07-23T13:40:08.175Z",
-      "updated_at": "2026-07-23T13:40:08.175Z",
+      "created_at": "2026-07-28T17:27:11.880Z",
+      "updated_at": "2026-07-28T17:27:11.880Z",
       "trail": [
         {
           "from": null,
           "to": "queued",
-          "at": "2026-07-23T13:40:08.175Z"
+          "at": "2026-07-28T17:27:11.880Z"
         }
       ]
     }

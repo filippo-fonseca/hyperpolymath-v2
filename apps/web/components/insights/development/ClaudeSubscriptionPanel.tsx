@@ -64,7 +64,8 @@ function ApproxBar({
         </span>
       </div>
       {percentage != null ? (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--sd-input)]">
+        // Recessed meter track — reads as a groove in the raised craft plate.
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--hover)]">
           <div
             className="h-full rounded-full"
             style={{

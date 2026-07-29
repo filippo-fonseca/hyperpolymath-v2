@@ -136,7 +136,7 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
         </button>
       </div>
 
-      <div className="space-y-4 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+      <div className="space-y-4 rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
         <div>
           <label className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
             Name
@@ -169,7 +169,7 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
         </div>
       </div>
 
-      <div className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+      <div className="rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
         <div>
           <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
             <input
@@ -200,11 +200,11 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
         </div>
       </div>
 
-      <div className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+      <div className="rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
         <TriggerBuilder triggers={triggers} onChange={setTriggers} />
       </div>
 
-      <div className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
+      <div className="rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
         <BlockList blocks={blocks} onChange={setBlocks} />
       </div>
     </div>

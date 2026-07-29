@@ -242,12 +242,11 @@ export function CaptureCard({
           exit={{ opacity: 0, height: 0, marginBottom: 0 }}
           transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
           className={cn(
-            // sd plate (WidgetCard v2 grammar): solid --sd-box surface, 1px
-            // --sd-line hairline, 14px radius, dark-only inset top hairline.
-            // No glass, no glow, no blur. Hover lifts the fill one ladder step.
-            "group relative rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)]",
-            "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors",
-            onOpen && "hover:bg-[var(--sd-hover)]",
+            // jul-29 craft restyle: raised white plate with the soft card
+            // shadow; hover lifts the shadow instead of washing the fill.
+            "group relative rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)]",
+            "shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out",
+            onOpen && "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]",
             compact ? "px-3 py-2" : "px-5 py-4",
             onOpen && "cursor-pointer"
           )}

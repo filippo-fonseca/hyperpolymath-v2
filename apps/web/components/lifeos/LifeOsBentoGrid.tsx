@@ -31,24 +31,26 @@ interface Props {
 /** Cell gap in px — mirrors the `gap-4` on the grid container. */
 const GRID_GAP = 16;
 
-// Campaign motion signature (decision D4): entrances opacity 0->1, y 4->0,
-// 160ms easeOut, 10ms stagger. Transform/opacity only — zero layout shift.
+// Entrances at the 220ms enter/exit step with the contract 20ms stagger
+// (SDC-1 §2.7). Opacity only on the cells: they also carry Motion `layout`
+// for span reflow, and §2.7 forbids `layout` and a `y` transform on the same
+// node (both write `transform`; an interrupted entrance would leave the tile
+// permanently translated — the drooping-wiki-tiles bug).
 const container = {
   hidden: {},
   show: {
     transition: {
-      staggerChildren: 0.01,
+      staggerChildren: 0.02,
       delayChildren: 0.04,
     },
   },
 };
 
 const child = {
-  hidden: { opacity: 0, y: 4 },
+  hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    y: 0,
-    transition: { duration: 0.16, ease: "easeOut" as const },
+    transition: { duration: 0.22, ease: [0.25, 1, 0.5, 1] as const },
   },
 };
 
@@ -282,7 +284,7 @@ function ResizableCell({
     <motion.div
       ref={cellRef}
       layout={!reduced}
-      transition={reduced ? { duration: 0 } : { duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
+      transition={reduced ? { duration: 0 } : { duration: 0.26, ease: [0.32, 0.72, 0, 1] }}
       variants={reduced ? undefined : child}
       className="group/cell relative min-h-0"
       style={{ gridColumn: `span ${span.w}`, gridRow: `span ${span.h}` }}
@@ -298,6 +300,10 @@ function ResizableCell({
         aria-label={`Resize ${label} widget`}
         aria-description="Drag or use arrow keys to resize between 1 and 2 grid cells"
         className="lifeos-resize-handle cursor-pointer-always"
+        // The class in globals.css (U0-owned, frozen for wave 2) still says
+        // 5px; the radius ladder has no 5. Inline wins regardless of layer
+        // order, so this is the one override that cannot lose the cascade.
+        style={{ borderRadius: 4 }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

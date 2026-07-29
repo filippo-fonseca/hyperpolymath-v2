@@ -27,6 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -38,13 +41,16 @@ interface Props {
   project: {
     id: string;
     name: string;
+    description: string | null;
     areaId: string;
     startDate: string | null;
     endDate: string | null;
     archivedAt: string | Date | null;
   };
-  allAreas: { id: string; name: string }[];
+  allAreas: { id: string; name: string; emoji?: string | null }[];
   addOptimisticProject: ProjectOptimisticDispatch;
+  /** Owning user — the collection query key project mutations settle on. */
+  userId: string;
 }
 
 /**
@@ -58,8 +64,10 @@ export function ProjectSettingsDialog({
   project,
   allAreas,
   addOptimisticProject,
+  userId,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [, startTransition] = useTransition();
   const move = usePendingAction();
   const archive = usePendingAction();
@@ -70,10 +78,30 @@ export function ProjectSettingsDialog({
   const [areaId, setAreaId] = useState(project.areaId);
   const [savingDates, setSavingDates] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [description, setDescription] = useState(project.description ?? "");
+  const [savingDescription, setSavingDescription] = useState(false);
 
   const isArchived = project.archivedAt != null;
   const datesDirty =
     (startDate || null) !== project.startDate || (endDate || null) !== project.endDate;
+  const descriptionDirty = (description.trim() || null) !== project.description;
+
+  // Same optimistic shape as the date save: patch through the shared
+  // dispatcher so the page subtitle updates instantly, then persist.
+  async function handleSaveDescription() {
+    setSavingDescription(true);
+    const patch = { description: description.trim() || null };
+    addOptimisticProject({ type: "update", id: project.id, patch });
+    startTransition(async () => {
+      const r = await updateProject({ id: project.id, ...patch });
+      setSavingDescription(false);
+      if (!r.success) {
+        toast.error(r.error);
+        return;
+      }
+      toast("Description updated.");
+    });
+  }
 
   async function handleSaveDates() {
     setSavingDates(true);
@@ -109,7 +137,11 @@ export function ProjectSettingsDialog({
       () => (isArchived ? unarchiveProject(project.id) : archiveProject(project.id)),
       {
         success: isArchived ? "Project unarchived." : "Project archived.",
-        onSuccess: () => router.refresh(),
+        // archivedAt lives on the project row, which the page reads through the
+        // projects collection query, so refetching that one query settles the
+        // toggle. router.refresh() re-ran the whole route tree for the same result.
+        onSuccess: () =>
+          void queryClient.invalidateQueries({ queryKey: tableKey("projects", userId) }),
       }
     );
   }
@@ -132,18 +164,50 @@ export function ProjectSettingsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-sans text-xl font-semibold">Project settings</DialogTitle>
+            <DialogTitle className="font-sans text-title font-semibold">
+              Project settings
+            </DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-6">
-            {/* Run dates */}
+            {/* Description */}
             <section className="flex flex-col gap-3">
-              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
-                Run dates
-              </h3>
+              <h3 className="font-sans text-subtitle font-medium text-[var(--ink)]">Description</h3>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="ps-description" className="font-sans text-meta">
+                  Shown under the project title and on its area card
+                </Label>
+                <Textarea
+                  id="ps-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="What is this project about?"
+                  rows={3}
+                  maxLength={2000}
+                />
+              </div>
+              <Button
+                onClick={handleSaveDescription}
+                disabled={savingDescription || !descriptionDirty}
+                className="self-start rounded-lg"
+              >
+                {savingDescription ? (
+                  <>
+                    <Spinner size={14} label="Saving description" />
+                    Saving…
+                  </>
+                ) : (
+                  "Save description"
+                )}
+              </Button>
+            </section>
+
+            {/* Run dates */}
+            <section className="flex flex-col gap-3 border-t border-[var(--edge)] pt-5">
+              <h3 className="font-sans text-subtitle font-medium text-[var(--ink)]">Run dates</h3>
               <div className="flex gap-3">
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <Label htmlFor="ps-start" className="font-sans text-[13px]">
+                <div className="flex flex-1 flex-col gap-2">
+                  <Label htmlFor="ps-start" className="font-sans text-meta">
                     Start
                   </Label>
                   <Input
@@ -154,8 +218,8 @@ export function ProjectSettingsDialog({
                     className="h-9"
                   />
                 </div>
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <Label htmlFor="ps-end" className="font-sans text-[13px]">
+                <div className="flex flex-1 flex-col gap-2">
+                  <Label htmlFor="ps-end" className="font-sans text-meta">
                     End
                   </Label>
                   <Input
@@ -170,7 +234,7 @@ export function ProjectSettingsDialog({
               <Button
                 onClick={handleSaveDates}
                 disabled={savingDates || !datesDirty}
-                className="self-start"
+                className="self-start rounded-lg"
               >
                 {savingDates ? (
                   <>
@@ -185,12 +249,10 @@ export function ProjectSettingsDialog({
 
             {/* Move to area */}
             <section className="flex flex-col gap-3 border-t border-[var(--edge)] pt-5">
-              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
-                Area
-              </h3>
+              <h3 className="font-sans text-subtitle font-medium text-[var(--ink)]">Area</h3>
               <div className="flex items-end gap-3">
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <Label className="font-sans text-[13px]">Move to area</Label>
+                <div className="flex flex-1 flex-col gap-2">
+                  <Label className="font-sans text-meta">Move to area</Label>
                   <Select value={areaId} onValueChange={setAreaId}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Select area" />
@@ -204,7 +266,11 @@ export function ProjectSettingsDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={handleMove} disabled={move.pending || areaId === project.areaId}>
+                <Button
+                  className="rounded-lg"
+                  onClick={handleMove}
+                  disabled={move.pending || areaId === project.areaId}
+                >
                   {move.pending ? (
                     <>
                       <Spinner size={14} label="Moving project" />
@@ -219,21 +285,24 @@ export function ProjectSettingsDialog({
 
             {/* Lifecycle */}
             <section className="flex flex-col gap-3 border-t border-[var(--edge)] pt-5">
-              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
-                Lifecycle
-              </h3>
+              <h3 className="font-sans text-subtitle font-medium text-[var(--ink)]">Lifecycle</h3>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-col">
-                  <span className="font-sans text-sm text-[var(--sd-ink)]">
+                  <span className="font-sans text-body text-[var(--ink)]">
                     {isArchived ? "Archived" : "Active"}
                   </span>
-                  <span className="font-sans text-[12px] text-[var(--sd-ink-dull)]">
+                  <span className="font-sans text-meta text-[var(--ink-muted)]">
                     {isArchived
                       ? "Hidden from the live area view."
                       : "Archive to move it out of the live view."}
                   </span>
                 </div>
-                <Button variant="outline" onClick={handleArchiveToggle} disabled={archive.pending}>
+                <Button
+                  variant="outline"
+                  className="rounded-lg"
+                  onClick={handleArchiveToggle}
+                  disabled={archive.pending}
+                >
                   {archive.pending ? (
                     <Spinner size={14} label="Updating project" />
                   ) : isArchived ? (
@@ -247,17 +316,15 @@ export function ProjectSettingsDialog({
 
             {/* Danger zone */}
             <section className="flex flex-col gap-3 border-t border-[var(--edge)] pt-5">
-              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-destructive">
-                Danger zone
-              </h3>
+              <h3 className="font-sans text-subtitle font-medium text-destructive">Danger zone</h3>
               <div className="flex items-center justify-between gap-3">
-                <span className="font-sans text-[12px] text-[var(--sd-ink-dull)]">
+                <span className="font-sans text-meta text-[var(--ink-muted)]">
                   Delete this project. Linked tasks and captures stay in your library.
                 </span>
                 <Button
                   variant="destructive"
                   onClick={() => setDeleteOpen(true)}
-                  className="shrink-0"
+                  className="shrink-0 rounded-lg"
                 >
                   Delete
                 </Button>
@@ -272,19 +339,25 @@ export function ProjectSettingsDialog({
           <DialogHeader>
             <DialogTitle>Delete project?</DialogTitle>
             <DialogDescription>
-              Delete &ldquo;{project.name}&rdquo;? Linked tasks and captures stay in your library —
+              Delete &ldquo;{project.name}&rdquo;? Linked tasks and captures stay in your library;
               they just lose this project link.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
+              className="rounded-lg"
               onClick={() => setDeleteOpen(false)}
               disabled={remove.pending}
             >
               Never mind
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={remove.pending}>
+            <Button
+              variant="destructive"
+              className="rounded-lg"
+              onClick={handleDelete}
+              disabled={remove.pending}
+            >
               {remove.pending ? (
                 <>
                   <Spinner size={14} label="Deleting project" />

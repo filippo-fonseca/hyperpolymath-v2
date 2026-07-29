@@ -12,7 +12,8 @@ import {
   YAxis,
 } from "recharts";
 import type { PipelineLatencyStats } from "@/lib/db/queries/analytics";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Gauge } from "lucide-react";
 import { NEUMORPHIC_TILE } from "./tile-style";
 
 /**
@@ -32,7 +33,10 @@ import { NEUMORPHIC_TILE } from "./tile-style";
  * (Renaissance / Garamond / dry — CONTEXT.md §specifics)
  */
 
-const EDGE = "#d4cfc4";
+// Chart chrome rides the theme token (recharts resolves var(--*) as an SVG
+// presentation attribute); the stage colours below stay hex because they
+// encode data, not chrome.
+const EDGE = "var(--edge)";
 
 // D-04 (Claude's Discretion): luminance ladder of --hud-cyan across the 8
 // stages so the stacked bar reads as a single hue gradient. sRGB literals
@@ -59,15 +63,20 @@ export function PipelineLatencyPanel({ stats }: Props) {
   // or fresh re-instrumentation). Copy LOCKED per must_haves.truths.
   if (stats.totalTurns === 0) {
     return (
-      <section className={`${NEUMORPHIC_TILE} p-6 mb-8`}>
+      <section className={`${NEUMORPHIC_TILE} mb-8 p-6`}>
         <header className="mb-4">
           <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
             Pipeline Latency
           </h2>
         </header>
+        {/* Copy is LOCKED per Plan 09-02 must_haves.truths — only the chrome
+            moves to the shared empty state on the insights hue. */}
         <EmptyState
-          heading="Eight stages, no signal yet."
-          body={`No voice turns recorded — say "hey jarvis" and the timeline lights up.`}
+          size="page"
+          className="tint-sky"
+          icon={<Gauge />}
+          title="Eight stages, no signal yet."
+          description={`No voice turns recorded — say "hey jarvis" and the timeline lights up.`}
         />
       </section>
     );
@@ -101,8 +110,8 @@ export function PipelineLatencyPanel({ stats }: Props) {
     : 0;
 
   return (
-    <section className={`${NEUMORPHIC_TILE} p-6 mb-8`}>
-      <header className="mb-5 flex items-baseline justify-between gap-3 flex-wrap">
+    <section className={`${NEUMORPHIC_TILE} mb-8 p-6`}>
+      <header className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
             Pipeline Latency
@@ -133,7 +142,8 @@ export function PipelineLatencyPanel({ stats }: Props) {
               contentStyle={{
                 backgroundColor: "var(--surface-raised)",
                 border: `1px solid ${EDGE}`,
-                borderRadius: 8,
+                borderRadius: 12,
+                boxShadow: "var(--shadow-pop)",
                 fontFamily: "var(--font-mono)",
                 fontSize: 12,
               }}
@@ -179,7 +189,7 @@ function ToggleSwitch({
     <div
       role="radiogroup"
       aria-label="Percentile view"
-      className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)]"
+      className="flex items-center gap-0.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-0.5"
     >
       {(["p50", "p95"] as const).map((v) => (
         <button
@@ -188,9 +198,10 @@ function ToggleSwitch({
           role="radio"
           aria-checked={view === v}
           onClick={() => setView(v)}
-          className={`px-2.5 py-1 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors ${
+          // Craft segmented control: a raised plate on a recessed track.
+          className={`cursor-pointer rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-[background-color,color,box-shadow] duration-[160ms] ease-out ${
             view === v
-              ? "bg-[var(--hud-cyan)]/15 text-[var(--ink)] ring-1 ring-inset ring-[var(--hud-cyan)]/40"
+              ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
               : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
           }`}
         >
@@ -216,16 +227,18 @@ function StageSparkline({
     ms: view === "p50" ? d.p50Ms : d.p95Ms,
   }));
   return (
-    <div
-      className={
-        "rounded-lg p-3 bg-[var(--surface-raised)]/40 " +
-        "border border-[color-mix(in_oklch,var(--edge)_60%,transparent)] " +
-        "shadow-[3px_3px_10px_color-mix(in_oklch,var(--ink)_6%,transparent),-2px_-2px_8px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_50%,transparent)]"
-      }
-    >
-      <div className="flex items-baseline justify-between mb-1">
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
-          {stage.label}
+    // Craft mini-plate: the retired neumorphic bloom becomes a raised white
+    // card on the shadow ladder. `.craft-card` is unlayered, so no `bg-*`
+    // utility rides along; the stage hue survives as a saturated dot.
+    <div className="craft-card rounded-xl p-3">
+      <div className="mb-1 flex items-baseline justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+          <span
+            aria-hidden
+            className="size-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: color }}
+          />
+          <span className="truncate">{stage.label}</span>
         </span>
         <span className="font-mono text-sm font-semibold tabular-nums text-[var(--ink)]">
           {currentMs > 0 ? `${currentMs}` : "—"}

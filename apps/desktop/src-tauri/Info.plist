@@ -2,8 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <!-- Required, not optional: without NSMicrophoneUsageDescription macOS never
+       shows the microphone prompt at all. It denies the request silently, so
+       hold-to-talk would simply record nothing with no visible error. -->
   <key>NSMicrophoneUsageDescription</key>
-  <string>JARVIS listens for your voice commands so you do not have to grant Safari microphone access every session.</string>
+  <string>JARVIS records your voice while you hold the Option key, transcribes what you said, and sends it to your JARVIS conversation. The microphone is only live while you are holding the key or have locked recording on.</string>
   <key>NSCameraUsageDescription</key>
   <string>JARVIS uses the camera for hand-cursor tracking, letting you point and pinch to control the dashboard. The video never leaves your device.</string>
   <key>NSAppleEventsUsageDescription</key>

@@ -7,8 +7,9 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { DayNavigator } from "@/components/journaling/DayNavigator";
 import { JournalEntryEditor } from "@/components/journaling/JournalEntryEditor";
 import { JournalCalendar } from "@/components/journaling/JournalCalendar";
+import { PageScaffold } from "@/components/ui/PageScaffold";
 import { PageIcon } from "@/components/ui/icons";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 interface Props {
   initialDate: string;
@@ -30,9 +31,10 @@ interface Props {
  * ["journaling", userId] prefix on any change so both day and history queries
  * refresh automatically.
  *
- * Layout:
- *   - Desktop (md+): two-column. Editor takes the left 3/5, history the right 2/5.
- *   - Mobile: single column, editor above history feed.
+ * Layout (jul-29 craft restyle): the shared PageScaffold owns the measure, the
+ * gutter and the header rhythm, so /journaling lines up with every other route.
+ * Below it, a two-column band on md+ — the composer card on the left, the
+ * calendar sidebar on the right — collapsing to a single column on mobile.
  */
 export function JournalingClient({
   initialDate,
@@ -80,40 +82,46 @@ export function JournalingClient({
     });
   }
 
+  // Written-days count for the meta row. Entries with no prose are rows the
+  // export toggle created, so they do not count as "written".
+  const writtenCount = useMemo(
+    () => history.filter((e) => (e.mainResponse ?? "").trim().length > 0).length,
+    [history]
+  );
+
   return (
-    <main
-      className="flex min-h-full flex-col gap-5 p-4 md:p-6"
-      style={{ background: "var(--sd-app)" }}
+    <PageScaffold
+      eyebrow="Daily log"
+      icon={<PageIcon size={28} kind="daily" title="Journal" />}
+      title="Journal"
+      subtitle="One question a day, answered in your own words."
+      meta={
+        <PageScaffold.MetaRow>
+          {[
+            <span key="entries" className="tabular-nums">
+              {writtenCount} {writtenCount === 1 ? "entry" : "entries"}
+            </span>,
+            <span key="window">Last 90 days</span>,
+          ]}
+        </PageScaffold.MetaRow>
+      }
+      actions={<DayNavigator date={selectedDate} onChange={handleSelectDate} />}
     >
-      {/* Page header — sd title row: dimensional icon + mono eyebrow + title. */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <PageIcon size={34} kind="daily" title="Journal" />
-          <div className="flex flex-col gap-1">
-            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
-              Daily log
-            </span>
-            <h1 className="text-[22px] font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]">
-              Journal<span className="text-[var(--sd-accent)]">.</span>
-            </h1>
-          </div>
+      <PageScaffold.Section>
+        {/* Two-column on md+: composer left, calendar sidebar right */}
+        <div className="flex flex-col gap-4 md:grid md:grid-cols-[1fr_268px] md:items-start md:gap-5">
+          {/* key={selectedDate} remounts the editor on every date change so local
+              textarea state never lingers from the previous day */}
+          <JournalEntryEditor key={selectedDate} date={selectedDate} entry={activeEntry} />
+
+          {/* Calendar sidebar — month/week/year views, pastel written days */}
+          <JournalCalendar
+            selectedDate={selectedDate}
+            entries={history}
+            onSelectDate={handleSelectDate}
+          />
         </div>
-        <DayNavigator date={selectedDate} onChange={handleSelectDate} />
-      </div>
-
-      {/* Two-column on md+: editor left, calendar sidebar right */}
-      <div className="flex flex-col gap-4 md:grid md:grid-cols-[1fr_260px] md:gap-5 md:items-start">
-        {/* key={selectedDate} remounts the editor on every date change so local
-            textarea state never lingers from the previous day */}
-        <JournalEntryEditor key={selectedDate} date={selectedDate} entry={activeEntry} />
-
-        {/* Calendar sidebar — month/week/year views, sd-tokenized day cells */}
-        <JournalCalendar
-          selectedDate={selectedDate}
-          entries={history}
-          onSelectDate={handleSelectDate}
-        />
-      </div>
-    </main>
+      </PageScaffold.Section>
+    </PageScaffold>
   );
 }

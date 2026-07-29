@@ -51,6 +51,7 @@ import { PERSON_MENTION_TYPE, personMentionInlineSpec } from "./PersonMentionInl
 import { calloutBlock } from "./blocks/CalloutBlock";
 import { linkEmbedBlock } from "./blocks/LinkEmbedBlock";
 import { linkEmbedSlashItems, useLinkEmbedPaste } from "./PageLinkEmbedControls";
+import { usePageImageDrop, usePageImageUploader } from "./page-image-upload";
 import { withSdSlashChrome } from "./slash-menu-chrome";
 
 const schema = BlockNoteSchema.create({
@@ -193,13 +194,21 @@ export default function PageBlockEditor({
   onEditorReady,
   onPersonCreated,
 }: Props) {
+  // Uploads to the page-images bucket. Every BlockNote insertion surface (the
+  // `/` Image item's file panel, the drop plugin, the clipboard file path) is
+  // gated on this option existing, so passing it is what turns all three on at
+  // once. Issue #349.
+  const uploadPageImage = usePageImageUploader(userId, pageId);
+
   const editor = useCreateBlockNote({
     schema,
     initialContent: normalizeInitial(initialContentJson),
+    uploadFile: uploadPageImage,
   });
 
   const queryClient = useQueryClient();
   const linkPaste = useLinkEmbedPaste(editor);
+  const imageDrop = usePageImageDrop(editor, uploadPageImage);
 
   // Local ref to the editor wrapper. Used to scope the Cmd+K keydown listener
   // (below) so it only fires when the user is actually inside the editor. The
@@ -468,19 +477,35 @@ export default function PageBlockEditor({
   );
 
   // Notion-style "click anywhere to write": a click that lands on the empty
-  // surface (not on a block, side menu, or popover) drops the cursor at the
-  // end of the document, appending a trailing paragraph if the last block
-  // already holds content.
+  // surface below the content drops the cursor at the end of the document,
+  // appending a trailing paragraph if the last block already holds content.
+  //
+  // This used to be a blacklist: bail out on .bn-block-content, .bn-side-menu,
+  // .bn-suggestion-menu and .bn-formatting-toolbar, otherwise preventDefault()
+  // and steal focus into the editor. That list never kept up with the surfaces
+  // BlockNote mounts. The link toolbar, the file panel, the emoji picker, the
+  // table handles and the JARVIS and entity pills' own controls all fell
+  // through it, so a click on any of them was cancelled before it could do
+  // anything, which is why nothing inside a wiki page was clickable.
+  //
+  // Inverted, it is safe by construction: act only when the click landed on one
+  // of the four elements that ARE the empty surface, matched exactly rather
+  // than with closest() (every block sits inside .bn-editor, so closest() would
+  // match those too). Anything BlockNote mounts renders inside its own element,
+  // so it can never match, and a new popover added upstream needs no change
+  // here.
   function handleSurfaceMouseDown(e: React.MouseEvent) {
+    // Left button only. A right-click opening the context menu has no business
+    // moving the caret or being preventDefault()ed.
+    if (e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (
-      target.closest(".bn-block-content") ||
-      target.closest(".bn-side-menu") ||
-      target.closest(".bn-suggestion-menu") ||
-      target.closest(".bn-formatting-toolbar")
-    ) {
-      return;
-    }
+    const cl = target.classList;
+    const isEmptySurface =
+      target === e.currentTarget ||
+      cl.contains("bn-root") ||
+      cl.contains("bn-container") ||
+      cl.contains("bn-editor");
+    if (!isEmptySurface) return;
     const blocks = editor.document;
     const last = blocks[blocks.length - 1];
     if (!last) return;
@@ -509,7 +534,16 @@ export default function PageBlockEditor({
         className="flex flex-1 flex-col cursor-text"
         data-hide-receipts={hideReceipts ? "true" : "false"}
         onMouseDown={handleSurfaceMouseDown}
+        // The capture handlers run before BlockNote's own ProseMirror
+        // listeners, which is the only place a disallowed file can be vetoed
+        // before an empty block is inserted for it. `linkPaste.onPaste` stays
+        // on the bubble phase and still unfurls a pasted URL: a file paste
+        // carries no text/plain, so the two never contend.
+        onPasteCapture={imageDrop.onPasteCapture}
         onPaste={linkPaste.onPaste}
+        onDragOver={imageDrop.onDragOver}
+        onDropCapture={imageDrop.onDropCapture}
+        onDrop={imageDrop.onDrop}
       >
         {linkPaste.menu}
         <BlockNoteView

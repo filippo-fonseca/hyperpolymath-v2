@@ -106,16 +106,15 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
   return (
     <div className="space-y-10">
       {/* v1 limit notice */}
-      <aside
-        className="rounded-md border border-[var(--sd-line)] bg-[var(--sd-box)] p-4 flex items-start gap-3"
-        style={{ boxShadow: "0 0 18px var(--hud-cyan-glow-soft, transparent)" }}
-      >
+      {/* Advisory, not alarm: a butter plate with a saturated rim, matching
+          the tint grammar the rest of the app uses for a soft warning. */}
+      <aside className="tint-butter flex items-start gap-3 rounded-xl border border-[color-mix(in_srgb,var(--tint-edge)_55%,transparent)] bg-[var(--tint-bg)] p-4 shadow-[var(--shadow-card)]">
         <AlertTriangle
           size={16}
-          className="shrink-0 mt-0.5 text-[var(--ink-amber)]"
+          className="shrink-0 mt-0.5 text-[var(--tint-ink)]"
         />
-        <p className="text-[14px] leading-[1.55] text-[var(--sd-ink-dull)]">
-          <span className="font-semibold text-[var(--sd-ink)]">
+        <p className="text-[14px] leading-[1.55] text-[var(--ink-muted)]">
+          <span className="font-semibold text-[var(--ink)]">
             One token per account.
           </span>{" "}
           Minting a new token <em>replaces</em> the current one — any device
@@ -125,11 +124,11 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
       </aside>
 
       {/* Mint form */}
-      <section className="rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-6">
-        <h2 className="text-lg text-[var(--sd-ink)]">
+      <section className="rounded-2xl border border-[var(--edge)] bg-[var(--surface-raised)] p-6 shadow-[var(--shadow-card)]">
+        <h2 className="text-lg text-[var(--ink)]">
           {hasExisting ? "Replace token" : "Mint token"}
         </h2>
-        <p className="mt-1 text-[14px] text-[var(--sd-ink-dull)]">
+        <p className="mt-1 text-[14px] text-[var(--ink-muted)]">
           Give the token a label you&rsquo;ll recognize (e.g. &ldquo;Claude
           Desktop on Mac&rdquo;).
         </p>
@@ -140,48 +139,45 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
             onChange={(e) => setName(e.target.value)}
             placeholder="Claude Desktop on Mac"
             maxLength={100}
-            className="flex-1 rounded-md border border-[var(--sd-line)] bg-[var(--sd-hover)] px-3 py-2 text-[15px] text-[var(--sd-ink)] outline-none focus:border-[var(--sd-accent)]"
+            className="flex-1 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 text-[15px] text-[var(--ink)] shadow-[var(--shadow-card)] outline-none transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] focus:border-[var(--edge-strong)]"
             disabled={pending}
           />
           <button
             type="button"
             onClick={onMint}
             disabled={pending}
-            className="rounded-md bg-[var(--sd-ink)] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--sd-app)] hover:opacity-90 disabled:opacity-40 transition-opacity duration-100 ease-out"
+            className="rounded-lg bg-[var(--ink)] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--canvas)] shadow-[var(--shadow-card)] transition-[opacity,box-shadow] duration-[160ms] ease-out hover:opacity-90 hover:shadow-[var(--shadow-card-hover)] disabled:opacity-40"
           >
             {pending ? "Minting…" : hasExisting ? "Replace" : "Mint token"}
           </button>
         </div>
 
+        {/* The one-time reveal earns a hue of its own: a mint plate so the
+            "copy me now" moment is visibly different from the form it sits
+            inside. */}
         {freshToken ? (
-          <div
-            className="mt-5 rounded-md border p-4"
-            style={{
-              borderColor: "var(--edge-hud, var(--sd-line))",
-              boxShadow: "var(--glow-hud-subtle, none)",
-            }}
-          >
-            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--hud-cyan-light,var(--sd-ink))]">
+          <div className="tint-mint mt-5 rounded-xl border border-[color-mix(in_srgb,var(--tint-edge)_55%,transparent)] bg-[var(--tint-bg)] p-4">
+            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--tint-ink)]">
               Copy this token — you won&rsquo;t see it again
             </p>
             <div className="mt-2 flex items-start gap-2">
-              <code className="flex-1 break-all rounded bg-[var(--sd-hover)] px-3 py-2 font-mono text-[13px] text-[var(--sd-ink)]">
+              <code className="flex-1 break-all rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 font-mono text-[13px] text-[var(--ink)]">
                 {freshToken.plaintext}
               </code>
               <button
                 type="button"
                 onClick={onCopy}
-                className="rounded-md border border-[var(--sd-line)] p-2 hover:bg-[var(--sd-hover)] transition-colors duration-100 ease-out"
+                className="rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] p-2 shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]"
                 aria-label="Copy token"
               >
                 {copied ? (
-                  <Check size={16} className="text-[var(--ink-sage,var(--sd-ink))]" />
+                  <Check size={16} className="text-[var(--ink-sage)]" />
                 ) : (
-                  <Copy size={16} className="text-[var(--sd-ink-dull)]" />
+                  <Copy size={16} className="text-[var(--ink-muted)]" />
                 )}
               </button>
             </div>
-            <p className="mt-3 text-[13px] text-[var(--sd-ink-dull)]">
+            <p className="mt-3 text-[13px] text-[var(--ink-muted)]">
               The server stores only the SHA-256 hash; the plaintext above
               never lands on disk again.
             </p>
@@ -191,23 +187,23 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
 
       {/* Existing token list */}
       <section>
-        <h2 className="text-lg text-[var(--sd-ink)]">Active token</h2>
+        <h2 className="text-lg text-[var(--ink)]">Active token</h2>
         {tokens.length === 0 ? (
-          <p className="mt-3 text-[14px] text-[var(--sd-ink-dull)]">
+          <p className="mt-3 text-[14px] text-[var(--ink-muted)]">
             None yet. Mint one above to get started.
           </p>
         ) : (
-          <ul className="mt-3 divide-y divide-[var(--sd-line)] border-y border-[var(--sd-line)]">
+          <ul className="mt-3 divide-y divide-[var(--edge)] overflow-hidden rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-card)]">
             {tokens.map((t) => (
               <li
                 key={t.name + t.createdAt}
-                className="flex items-center justify-between gap-4 py-3"
+                className="flex items-center justify-between gap-4 px-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="text-[15px] text-[var(--sd-ink)] truncate">
+                  <p className="text-[15px] text-[var(--ink)] truncate">
                     {t.name}
                   </p>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--sd-ink-dull)]">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--ink-muted)]">
                     Created{" "}
                     {formatDistanceToNow(new Date(t.createdAt), {
                       addSuffix: true,
@@ -223,7 +219,7 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
                   type="button"
                   onClick={onRevoke}
                   disabled={pending}
-                  className="inline-flex items-center gap-1 rounded-md border border-[var(--sd-line)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--ink-coral,var(--sd-ink))] transition-colors duration-100 ease-out"
+                  className="inline-flex items-center gap-1 rounded-lg border border-[var(--edge)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,box-shadow] duration-[160ms] ease-out hover:border-[color-mix(in_oklch,var(--ink-coral)_35%,var(--edge))] hover:text-[var(--ink-coral)] hover:shadow-[var(--shadow-card)]"
                   aria-label="Revoke token"
                 >
                   <Trash2 size={12} />
@@ -236,36 +232,36 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
       </section>
 
       {/* Connection instructions */}
-      <section className="rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-6">
-        <h2 className="text-lg text-[var(--sd-ink)]">
+      <section className="rounded-2xl border border-[var(--edge)] bg-[var(--surface-raised)] p-6 shadow-[var(--shadow-card)]">
+        <h2 className="text-lg text-[var(--ink)]">
           Connect from an MCP client
         </h2>
-        <p className="mt-1 text-[14px] text-[var(--sd-ink-dull)]">
+        <p className="mt-1 text-[14px] text-[var(--ink-muted)]">
           Point a Streamable-HTTP MCP client (Claude Code, Claude Desktop,
           claude.ai web) at this URL with your token as a Bearer header.
         </p>
         <div className="mt-4 space-y-3">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
               Endpoint
             </p>
-            <code className="mt-1 block break-all rounded bg-[var(--sd-hover)] px-3 py-2 font-mono text-[13px] text-[var(--sd-ink)]">
+            <code className="mt-1 block break-all rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-3 py-2 font-mono text-[13px] text-[var(--ink)]">
               {mcpUrl}
             </code>
           </div>
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
               Header
             </p>
-            <code className="mt-1 block break-all rounded bg-[var(--sd-hover)] px-3 py-2 font-mono text-[13px] text-[var(--sd-ink)]">
+            <code className="mt-1 block break-all rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-3 py-2 font-mono text-[13px] text-[var(--ink)]">
               Authorization: Bearer &lt;your-token&gt;
             </code>
           </div>
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
               Quick verify (MCP inspector)
             </p>
-            <code className="mt-1 block break-all rounded bg-[var(--sd-hover)] px-3 py-2 font-mono text-[13px] text-[var(--sd-ink)] whitespace-pre-wrap">
+            <code className="mt-1 block break-all rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-3 py-2 font-mono text-[13px] text-[var(--ink)] whitespace-pre-wrap">
               {`npx -y @modelcontextprotocol/inspector \\\n  --transport http ${mcpUrl} \\\n  --header "Authorization: Bearer <your-token>"`}
             </code>
           </div>

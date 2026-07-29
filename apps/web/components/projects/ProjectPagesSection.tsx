@@ -11,24 +11,21 @@ import {
 import { createPage, deletePage, getPagesForCurrentUser, updatePage } from "@/app/actions/pages";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
 import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
-import { ExplorerItemContextMenu } from "@/components/wiki/explorer-parts/ExplorerItemContextMenu";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { FolderIcon } from "@/components/ui/icons/FolderIcon";
-import { PagePreviewCard } from "@/components/wiki/preview/PagePreviewCard";
+import { ExplorerItemContextMenu } from "@/components/wiki/explorer-parts/ExplorerItemContextMenu";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
-import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
+import { PagePreviewCard } from "@/components/wiki/preview/PagePreviewCard";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
-import {
-  buildProjectZip,
-  downloadZipFiles,
-  safeFileName,
-} from "@/lib/pages/markdown-export";
-import { buildPagesTree, type TreeFolder } from "@/lib/pages/tree";
+import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
+import { buildProjectZip, downloadZipFiles, safeFileName } from "@/lib/pages/markdown-export";
+import { type TreeFolder, buildPagesTree } from "@/lib/pages/tree";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Download, FolderPlus, Loader2, Plus } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -40,7 +37,8 @@ interface Props {
   initialPages: PageWithProjects[];
 }
 
-const STAGGER_LIMIT = 24;
+// SDC-1 §2.7: stagger is min(i, 12) * 20ms, capped at 240ms.
+const STAGGER_LIMIT = 12;
 
 /**
  * Project-scoped wiki surface. Renders the project's relevant top-level folders
@@ -101,32 +99,28 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
 
   const projectName = useMemo(
     () => projects.find((p) => p.id === projectId)?.name ?? "project",
-    [projects, projectId],
+    [projects, projectId]
   );
 
   // Full wiki tree (effective sets, pills) → prune to subtrees relevant here.
   const tree = useMemo(
     () => buildPagesTree(allFolders, folderLinks, allPages),
-    [allFolders, folderLinks, allPages],
+    [allFolders, folderLinks, allPages]
   );
   const relevantRoots = useMemo(
     () => pruneTreeToProject(tree.roots, projectId),
-    [tree.roots, projectId],
+    [tree.roots, projectId]
   );
 
   // Loose pages linked directly to this project (no folder).
   const looseStandalone = useMemo(
-    () =>
-      tree.standalonePages.filter((p) =>
-        p.projectLinks.some((l) => l.projectId === projectId),
-      ),
-    [tree.standalonePages, projectId],
+    () => tree.standalonePages.filter((p) => p.projectLinks.some((l) => l.projectId === projectId)),
+    [tree.standalonePages, projectId]
   );
 
   const projectPages = useMemo(
-    () =>
-      allPages.filter((p) => p.projects.some((proj) => proj.id === projectId)),
-    [allPages, projectId],
+    () => allPages.filter((p) => p.projects.some((proj) => proj.id === projectId)),
+    [allPages, projectId]
   );
 
   // Item counts for folder tiles (folders + pages under each subtree).
@@ -182,7 +176,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
       }
       router.push(`/wiki/${item.id}`);
     },
-    [router],
+    [router]
   );
 
   async function handleNewPage() {
@@ -240,22 +234,17 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
   }
 
   function handleExportDocs() {
-    const files = buildProjectZip(
-      allFolders,
-      folderLinks,
-      allPages,
-      projectId,
-      projectName,
-    );
+    const files = buildProjectZip(allFolders, folderLinks, allPages, projectId, projectName);
     downloadZipFiles(files, `${safeFileName(projectName)}-docs.zip`);
   }
 
   const hasContent = items.length > 0;
-  const hasExportablePages =
-    projectPages.length > 0 || relevantRoots.length > 0;
+  const hasExportablePages = projectPages.length > 0 || relevantRoots.length > 0;
 
   return (
-    <section className="flex flex-col gap-4">
+    // Rendered inside a <PageScaffold.Section>, which owns the section rhythm
+    // and the landmark element; this root is layout only.
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <button
           type="button"
@@ -263,19 +252,16 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
           aria-expanded={!collapsed}
           aria-controls="project-pages-body"
           className={cn(
-            "group flex items-center gap-2 -ml-1 rounded-[6px] px-1 py-1 cursor-pointer",
-            "transition-[background-color,color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)]",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-0",
+            "group flex items-center gap-2 -ml-1 rounded-lg px-1 py-1 cursor-pointer",
+            "transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
           )}
         >
-          <span className="text-[var(--sd-ink-dull)] transition-colors group-hover:text-[var(--sd-ink)]">
-            {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          <span className="text-[var(--ink-faint)] transition-colors duration-[160ms] group-hover:text-[var(--ink-muted)]">
+            {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
           </span>
-          <h2 className="font-mono text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[var(--sd-ink-dull)] transition-colors group-hover:text-[var(--sd-ink)]">
-            Wiki
-          </h2>
-          <span className="font-mono text-[0.68rem] tabular-nums text-[var(--sd-ink-dull)]">
-            ({projectPages.length})
+          <h2 className="text-title font-semibold text-[var(--ink)]">Wiki</h2>
+          <span className="text-micro font-medium tabular-nums text-[var(--ink-faint)]">
+            {projectPages.length}
           </span>
         </button>
         {!collapsed && (
@@ -310,64 +296,61 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
       </div>
 
       {!collapsed && (
-        <div
-          id="project-pages-body"
-          className="overflow-hidden rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-box)]"
-        >
-          <div className="p-4">
-            {!hasContent ? (
-              <EmptyProjectPages
-                onNewPage={handleNewPage}
-                onNewFolder={() => setNewFolderOpen(true)}
-                creating={creating}
-              />
-            ) : (
-              <div
-                className="grid gap-3"
-                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}
-                data-view="grid"
-              >
-                <AnimatePresence initial={false}>
-                  {items.map((item, index) => {
-                    const id = `${item.kind}:${item.id}`;
-                    const selected = selectedId === id;
-                    const delay = reduceMotion ? 0 : Math.min(index, STAGGER_LIMIT) * 0.01;
-                    return (
-                      <motion.div
-                        key={id}
-                        layout={!reduceMotion}
-                        initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-                        animate={{
-                          opacity: 1,
-                          y: 0,
-                          transition: { duration: 0.18, delay, ease: "easeOut" },
-                        }}
-                        exit={
-                          reduceMotion
-                            ? { opacity: 0 }
-                            : { opacity: 0, y: 4, transition: { duration: 0.12 } }
-                        }
+        // One border per nesting level (§2.6): the tiles carry their own
+        // hairlines, so the grid sits directly on the canvas with no plate.
+        <div id="project-pages-body">
+          {!hasContent ? (
+            <EmptyState
+              size="section"
+              icon={<FolderIcon size={40} variant="closed" />}
+              title="No pages yet"
+              description="Add a page or folder to keep notes, meeting logs, and reference docs linked to this project."
+              action={{ label: "New page", onClick: handleNewPage }}
+            />
+          ) : (
+            <div
+              className="grid gap-3"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}
+              data-view="grid"
+            >
+              <AnimatePresence initial={false}>
+                {items.map((item, index) => {
+                  const id = `${item.kind}:${item.id}`;
+                  const selected = selectedId === id;
+                  const delay = reduceMotion ? 0 : Math.min(index, STAGGER_LIMIT) * 0.02;
+                  return (
+                    // Opacity only: layout projection and a `y` transform on
+                    // the same node both write `transform`, and an interrupted
+                    // animation settles off-grid (the drooping-tiles bug).
+                    <motion.div
+                      key={id}
+                      layout={!reduceMotion}
+                      initial={reduceMotion ? false : { opacity: 0 }}
+                      animate={{
+                        opacity: 1,
+                        transition: { duration: 0.16, delay, ease: "easeOut" },
+                      }}
+                      exit={{ opacity: 0, transition: { duration: reduceMotion ? 0 : 0.16 } }}
+                    >
+                      <ExplorerItemContextMenu
+                        item={item}
+                        onOpen={openItem}
+                        onRename={setRenameTarget}
+                        onDelete={handleDelete}
                       >
-                        <ExplorerItemContextMenu
+                        <ProjectGridTile
                           item={item}
-                          onOpen={openItem}
-                          onRename={setRenameTarget}
-                          onDelete={handleDelete}
-                        >
-                          <ProjectGridTile
-                            item={item}
-                            selected={selected}
-                            onClick={() => setSelectedId(id)}
-                            onDoubleClick={() => openItem(item)}
-                          />
-                        </ExplorerItemContextMenu>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
+                          selected={selected}
+                          onClick={() => setSelectedId(id)}
+                          onDoubleClick={() => openItem(item)}
+                        />
+                      </ExplorerItemContextMenu>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
       )}
 
@@ -395,7 +378,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
         submitLabel="Save"
         onSubmit={submitRename}
       />
-    </section>
+    </div>
   );
 }
 
@@ -425,20 +408,18 @@ function ProjectGridTile({
           }
         }}
         className={cn(
-          "group flex h-full min-h-[176px] cursor-pointer flex-col items-center justify-between gap-2 rounded-[10px] border p-4 text-center outline-none",
-          "border-[var(--sd-line)] bg-[var(--sd-box)]",
-          "transition-[background-color,border-color] duration-[120ms] ease-out",
-          "hover:bg-[var(--sd-hover)]",
-          "focus-visible:border-[var(--hud-cyan)]",
-          selected && "border-[var(--hud-cyan)] bg-[var(--sd-selected)]",
+          "group flex h-full min-h-[176px] cursor-pointer flex-col items-center justify-between gap-2 rounded-xl border p-4 text-center",
+          "border-[var(--edge)] bg-[var(--surface-raised)]",
+          "transition-colors duration-[160ms] ease-out",
+          // Card hover is a border shift only (§2.6): no fill change, no lift.
+          "hover:border-[var(--edge-strong)]",
+          selected && "border-[var(--edge-strong)] bg-[var(--selected)]"
         )}
       >
         <FolderIcon size={72} variant="closed" />
-        <div className="min-w-0 space-y-0.5">
-          <div className="truncate font-sans text-[0.82rem] font-medium text-[var(--sd-ink)]">
-            {item.folder.name}
-          </div>
-          <div className="font-mono text-[0.65rem] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+        <div className="min-w-0 space-y-1">
+          <div className="truncate text-body font-medium text-[var(--ink)]">{item.folder.name}</div>
+          <div className="text-micro text-[var(--ink-faint)] tabular-nums">
             {item.itemCount === 0
               ? "Empty"
               : `${item.itemCount} item${item.itemCount === 1 ? "" : "s"}`}
@@ -461,13 +442,9 @@ function ProjectGridTile({
           onDoubleClick();
         }
       }}
-      className="cursor-pointer rounded-[8px] outline-none focus-visible:shadow-[inset_0_0_0_1px_var(--hud-cyan)]"
+      className="focus-ring cursor-pointer rounded-lg"
     >
-      <PagePreviewCard
-        page={item.page}
-        icon={item.page.emoji ?? null}
-        selected={selected}
-      />
+      <PagePreviewCard page={item.page} icon={item.page.emoji ?? null} selected={selected} />
     </div>
   );
 }
@@ -495,54 +472,14 @@ function ChromeButton({
       aria-busy={busy || undefined}
       title={title}
       className={cn(
-        "flex h-7 items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 text-[0.75rem] text-[var(--sd-ink)] cursor-pointer",
-        "transition-[background-color,border-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)]",
-        "focus-visible:outline-none focus-visible:border-[var(--hud-cyan)]",
-        "disabled:cursor-not-allowed disabled:opacity-40",
+        "flex h-8 items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-2.5 text-meta text-[var(--ink)] cursor-pointer",
+        "transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
+        "disabled:cursor-not-allowed disabled:opacity-40"
       )}
     >
       {icon}
       <span>{label}</span>
     </button>
-  );
-}
-
-function EmptyProjectPages({
-  onNewPage,
-  onNewFolder,
-  creating,
-}: {
-  onNewPage: () => void;
-  onNewFolder: () => void;
-  creating: boolean;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed border-[var(--sd-line)] px-6 py-10 text-center">
-      <FolderIcon size={64} variant="closed" />
-      <p className="font-sans text-[15px] italic text-[var(--sd-ink-dull)]">
-        No pages here yet. Add a page or folder to keep notes, meeting logs, or reference docs.
-      </p>
-      <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-        <ChromeButton
-          onClick={onNewPage}
-          disabled={creating}
-          busy={creating}
-          icon={
-            creating ? (
-              <Loader2 size={12} strokeWidth={1.8} className="animate-spin" />
-            ) : (
-              <Plus size={12} strokeWidth={1.8} />
-            )
-          }
-          label="New page"
-        />
-        <ChromeButton
-          onClick={onNewFolder}
-          icon={<FolderPlus size={12} strokeWidth={1.8} />}
-          label="New folder"
-        />
-      </div>
-    </div>
   );
 }
 
@@ -561,9 +498,7 @@ function pruneTreeToProject(nodes: TreeFolder[], projectId: string): TreeFolder[
       out.push({
         ...node,
         subfolders: prunedSubs,
-        pages: node.pages.filter((p) =>
-          p.projectLinks.some((l) => l.projectId === projectId),
-        ),
+        pages: node.pages.filter((p) => p.projectLinks.some((l) => l.projectId === projectId)),
       });
     }
   }
