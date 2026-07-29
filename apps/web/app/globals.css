@@ -2311,6 +2311,28 @@ select:focus-visible,
   }
 }
 
+/* The glass tile — a lighter cousin of .craft-glass for widget-density
+   surfaces (LifeOS bento cards over the space loop). Shallower blur, card
+   shadow instead of float, so a grid of them stays cheap and quiet. */
+.craft-glass-tile {
+  background: color-mix(in srgb, #ffffff 84%, transparent);
+  border: 1px solid var(--glass-panel-edge);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), var(--shadow-card);
+}
+.dark .craft-glass-tile {
+  background: color-mix(in srgb, oklch(27% 0.008 255) 78%, transparent);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .craft-glass-tile {
+    background: color-mix(in srgb, #ffffff 62%, transparent);
+    -webkit-backdrop-filter: saturate(150%) blur(16px);
+    backdrop-filter: saturate(150%) blur(16px);
+  }
+  .dark .craft-glass-tile {
+    background: color-mix(in srgb, oklch(27% 0.008 255) 58%, transparent);
+  }
+}
+
 /* The stage sheet — the one big rounded surface the active route paints on.
    A half-step above the canvas so it reads as paper resting on the wash. */
 .craft-sheet {

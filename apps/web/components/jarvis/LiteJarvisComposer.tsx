@@ -191,11 +191,10 @@ export function LiteJarvisComposer({
   return (
     <div
       className={cn(
-        "agent-mode-scope group/composer rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-input)]",
+        "agent-mode-scope group/composer craft-glass-tile rounded-xl",
         "px-4 py-3",
         "transition-[border-color,box-shadow] duration-[140ms] ease-out",
         "focus-within:border-[var(--sd-accent)]",
-        "focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--sd-accent)_10%,transparent)]",
         disabled && "opacity-60",
         className,
       )}
