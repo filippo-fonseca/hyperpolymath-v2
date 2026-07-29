@@ -27,7 +27,7 @@ interface Props {
  * `data-polypad-state` is the grep target for verification and CSS targeting.
  *
  * Per locked decisions: presentational only (no onClick), native title for
- * tooltip (no Radix), keyboard icon + "POLYPAD" mono label visible only in
+ * tooltip (no Radix), keyboard icon + "Polypad" micro label visible only in
  * expanded sidebar mode.
  */
 
@@ -47,7 +47,7 @@ const STATE_TITLE: Record<PolypadConnectionState, string> = {
 export function PolypadIndicatorDot({ state, collapsed }: Props) {
   return (
     <span
-      className="inline-flex items-center gap-1.5"
+      className="inline-flex items-center gap-2"
       title={STATE_TITLE[state]}
       aria-label={STATE_TITLE[state]}
     >
@@ -67,8 +67,8 @@ export function PolypadIndicatorDot({ state, collapsed }: Props) {
         )}
       />
       {!collapsed && (
-        <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-muted)]">
-          POLYPAD
+        <span className="text-micro font-medium text-[var(--ink-muted)]">
+          Polypad
         </span>
       )}
     </span>

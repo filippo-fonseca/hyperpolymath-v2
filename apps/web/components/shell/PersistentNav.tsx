@@ -148,7 +148,7 @@ function NavRow({
   const inner = (
     <span
       className={cn(
-        "group relative flex h-8 w-full items-center rounded-[6px] px-2",
+        "group relative flex h-8 w-full items-center rounded-lg px-2",
         "text-sm font-medium tracking-wide",
         // Colour-only transition: no fill, no transform, nothing to jank.
         "transition-colors duration-[120ms] ease-out",
@@ -168,13 +168,13 @@ function NavRow({
         !disabled &&
         (reduceMotion ? (
           <span
-            className="absolute inset-0 rounded-[6px] bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)]"
+            className="absolute inset-0 rounded-lg bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)]"
             aria-hidden="true"
           />
         ) : (
           <motion.span
             layoutId="nav-active-pill"
-            className="absolute inset-0 rounded-[6px] bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)]"
+            className="absolute inset-0 rounded-lg bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)]"
             transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
             aria-hidden="true"
           />
@@ -193,10 +193,11 @@ function NavRow({
 
       {!collapsed && <span className="relative z-10 ml-2 flex-1 truncate">{item.label}</span>}
 
-      {/* SOON chip (§1.4) — mono micro-label on a raised box, never accent. */}
+      {/* Soon chip (§1.4) — sentence-case micro-label on a raised box, never
+          accent. Label register, so no mono and no caps (SDC-1 §2.4). */}
       {disabled && !collapsed && (
         <span
-          className="relative z-10 flex h-[18px] shrink-0 items-center rounded-[5px] bg-[var(--sd-box)] px-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+          className="relative z-10 flex h-[18px] shrink-0 items-center rounded-[4px] bg-[var(--sd-box)] px-1.5 text-micro font-medium text-[var(--sd-ink-faint)]"
           aria-hidden="true"
         >
           Soon
@@ -348,7 +349,7 @@ export function SidebarGcalAlert({ collapsed }: Props) {
   if (!badge) return null;
 
   const chrome = cn(
-    "flex items-center rounded-[6px] transition-colors duration-[120ms] ease-out",
+    "flex items-center rounded-lg transition-colors duration-[120ms] ease-out",
     "bg-[color-mix(in_oklch,var(--ink-coral)_12%,transparent)]",
     "hover:bg-[color-mix(in_oklch,var(--ink-coral)_18%,transparent)]",
     "shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--ink-coral)_22%,transparent)]",
@@ -453,7 +454,7 @@ export function SidebarStatusRow({ collapsed }: Props) {
                   role="status"
                   aria-live="polite"
                   aria-label="Voice input via desktop app"
-                  className="inline-flex h-5 w-5 items-center justify-center rounded-md"
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-[4px]"
                   style={{
                     color: "var(--hud-cyan)",
                     background: "color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
@@ -471,7 +472,7 @@ export function SidebarStatusRow({ collapsed }: Props) {
               role="status"
               aria-live="polite"
               aria-label="Voice input via desktop app"
-              className="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-[3px] font-mono text-[10px] uppercase tracking-[0.1em]"
+              className="ml-auto inline-flex items-center gap-2 rounded-[4px] px-2 py-[3px] text-micro font-medium"
               style={{
                 color: "var(--hud-cyan)",
                 background: "color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
