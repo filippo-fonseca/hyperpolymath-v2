@@ -138,6 +138,73 @@ export default function ChangelogPage() {
       </header>
 
       <Release
+        date="2026-07-29"
+        title="The craft release: the whole app got color."
+        summary="A ground-up visual rebuild in the Craft.do spirit: floating glass chrome, a cream canvas, soft depth everywhere, and a pastel tint system that gives every entity in the app a color of its own. Every feature surface was repainted in one campaign, and a few long-broken details got fixed on the way through."
+      >
+        <Group label="Removed · Breaking" tone="break">
+          <Entry lead="The sidebar HOME strip is gone.">
+            Its wifi indicator, link tally, and device list moved into the
+            dock&apos;s Home card — which also gained the power switches the
+            strip never had.
+          </Entry>
+          <Entry lead="The wiki's always-dark palette is retired.">
+            The explorer now follows the app theme like every other surface.
+          </Entry>
+        </Group>
+
+        <Group label="The craft register">
+          <Entry lead="Floating glass cockpit:">
+            the sidebar, dock, and side panels are detached blurred-glass
+            panels; the active route sits on a rounded sheet over a pastel
+            wash; Kiwi is a floating glass pill.
+          </Entry>
+          <Entry lead="Eight-hue pastel tint system.">
+            Kanban columns tint by status, habits and people and hashtags and
+            journal days each keep a stable hue of their own, training types
+            paint with their stored color, and calendar events wear their
+            calendar&apos;s pastel with a saturated edge.
+          </Entry>
+          <Entry lead="One shadow ladder, one radius scale,">
+            applied from task cards to settings sections to the JARVIS console
+            — which kept its cyan identity and only borrowed the depth.
+          </Entry>
+        </Group>
+
+        <Group label="New">
+          <Entry lead="Star wiki pages.">
+            A star in the page toolbar and the explorer&apos;s context menu;
+            starred pages badge in amber and sort first.
+          </Entry>
+          <Entry lead="Control your lights from the dock.">
+            The Home card now flips Govee lights directly, with live state,
+            a wifi indicator, and lit bulbs glowing in their actual color.
+          </Entry>
+          <Entry lead="The dock got substance:">
+            today&apos;s actual tasks with status dots, per-habit tinted
+            check rings with a completion bar, and the next event rendered as
+            a miniature calendar plate.
+          </Entry>
+        </Group>
+
+        <Group label="Fixed">
+          <Entry lead="The LifeOS space loop is visible again.">
+            A stacking-context regression had hidden the ISS timelapse
+            entirely; it now drifts at half speed behind the glass widgets in
+            both themes.
+          </Entry>
+          <Entry lead="Composer placeholders returned from the dead.">
+            Every TipTap composer had silently shipped promptless since the
+            editor migration.
+          </Entry>
+          <Entry lead="Long wiki names no longer walk across the grid.">
+            Tiles truncate at their column instead of painting over their
+            neighbors.
+          </Entry>
+        </Group>
+      </Release>
+
+      <Release
         date="2026-07-16"
         title="JARVIS left the browser tab."
         summary="The release where Hyperpolymath stopped being a web app with an agent and became a desktop-native ambient computer. JARVIS moved onto the desktop as a floating HUD you can drive with your hands, learned to read and send real messages, and the entire web surface was repainted."
