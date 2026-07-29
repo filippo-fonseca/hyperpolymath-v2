@@ -1536,41 +1536,16 @@ select:focus-visible,
   --sd-icon-shadow-opacity: 0.28;
 }
 
-/* Authentic Spacedrive v1 palette, intentionally scoped so the editorial
-   Journal rail and the rest of the application retain their own register. */
-.wiki-explorer {
-  color-scheme: dark;
-  /* D1b (sanctioned accent retint) — JARVIS cyan supersedes #2599ff. The
-     wiki is always a dark surface (color-scheme: dark) so it takes the
-     dark cyan family; --hud-cyan is theme-invariant, so the wiki reads
-     cyan in both app themes. */
-  --sd-accent: var(--hud-cyan);
-  --sd-accent-faint: var(--hud-cyan-bright);
-  --sd-accent-deep: var(--hud-cyan-dim);
-  --sd-ink: hsl(235 35% 92%);
-  --sd-ink-dull: hsl(235 10% 70%);
-  --sd-ink-faint: hsl(235 10% 55%);
-  --sd-app: hsl(235 15% 13%);
-  --sd-box: hsl(235 15% 18%);
-  --sd-dark-box: hsl(235 15% 15%);
-  --sd-darker-box: hsl(235 16% 11%);
-  --sd-input: hsl(235 15% 20%);
-  --sd-line: hsl(235 15% 23%);
-  --sd-divider: hsl(235 15% 5%);
-  --sd-hover: hsl(235 15% 25%);
-  --sd-selected: hsl(235 15% 26%);
-  --sd-selected-item: hsl(235 15% 18%);
-  --sd-active: hsl(235 15% 30%);
-  --sd-frame: hsl(235 15% 25%);
-  --sd-menu: hsl(235 15% 10%);
-  --sd-menu-line: hsl(235 15% 14%);
-  --sd-menu-hover: hsl(235 15% 30%);
-  --sd-icon-shadow: hsl(235 15% 0%);
-  --sd-icon-shadow-opacity: 0.28;
-  --ink: var(--sd-ink);
-  --ink-muted: var(--sd-ink-dull);
-  scrollbar-color: hsl(235 20% 25%) transparent;
-}
+/* jul-29 craft restyle — the wiki joins the app's theme.
+
+   The always-dark Spacedrive hsl(235 …) ladder that lived here (with
+   `color-scheme: dark`) is retired: the explorer's --sd-* consumers now
+   resolve against the global alias tables like every other surface, so the
+   wiki reads warm cream in light mode and cool ink in dark mode instead of
+   being a permanent dark island inside the Craft shell. Every hardcoded
+   white in wiki components is white-on-accent or an image overlay, both
+   theme-safe (verified before removal). The one thing kept is the accent:
+   the wiki stays on the calmed app accent via the global --sd-accent. */
 
 /* =====================================================================
    sd-campaign — Spacedrive x Raycast restyle shared foundations

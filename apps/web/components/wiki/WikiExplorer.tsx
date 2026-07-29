@@ -320,7 +320,7 @@ export function WikiExplorer({
         onDragEnd={dnd.handleDragEnd}
         onDragCancel={dnd.handleDragCancel}
       >
-        <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-app)]">
+        <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-app)] shadow-[var(--shadow-card)]">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <ExplorerHeaderControls
               canGoBack={canGoBack}

@@ -41,7 +41,7 @@ export function ExplorerListView({
   const bands = partitionExplorerItems(items);
   return (
     <div
-      className="overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] font-sans text-meta text-[var(--ink)]"
+      className="overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] font-sans text-meta text-[var(--ink)] shadow-[var(--shadow-card)]"
       data-view="list"
     >
       <ExplorerListHeaderRow />

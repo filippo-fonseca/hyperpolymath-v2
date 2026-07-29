@@ -4,6 +4,7 @@ import { PagePreviewThumb } from "@/components/wiki/preview/PagePreviewThumb";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import { dailyPageTitle } from "@/lib/pages/daily-page";
 import { extractPreviewModel } from "@/lib/pages/preview";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { Loader2, Plus } from "lucide-react";
@@ -52,8 +53,10 @@ export function JournalTodayCard({ iso, page, exists, loading, onActivate }: Jou
       onClick={onActivate}
       disabled={loading}
       className={cn(
-        "group relative flex w-[300px] flex-shrink-0 snap-start cursor-pointer flex-col overflow-hidden rounded-xl border border-[var(--edge-strong)] bg-[var(--sd-box)] p-3 text-left",
-        "transition-colors duration-[160ms] ease-out hover:bg-[var(--sd-hover)] disabled:cursor-progress"
+        // jul-29 craft restyle: today's card is the butter plate of the rail.
+        "tint-butter group relative flex w-[300px] flex-shrink-0 snap-start cursor-pointer flex-col overflow-hidden rounded-xl border p-3 text-left",
+        "border-[color-mix(in_srgb,var(--tint-edge)_55%,transparent)] bg-[var(--tint-bg)] shadow-[var(--shadow-card)]",
+        "transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--tint-edge)] hover:shadow-[var(--shadow-card-hover)] disabled:cursor-progress"
       )}
       aria-label={`${exists ? "Open" : "Create"} today's daily page`}
     >
@@ -92,9 +95,18 @@ export function JournalTrailCard({ iso, page, exists, loading, onActivate }: Jou
       disabled={loading}
       title={dailyPageTitle(iso)}
       className={cn(
-        "group relative flex w-[120px] flex-shrink-0 snap-start cursor-pointer flex-col rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-3 text-left",
-        "transition-colors duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:bg-[var(--sd-hover)] disabled:cursor-progress",
-        !exists && "text-[var(--sd-ink-faint)]"
+        // jul-29 craft restyle: each past day keeps a stable pastel of its
+        // own (hash of the ISO date), Craft's mixed-card rail feel. Days with
+        // no entry stay quiet on the plain white plate.
+        "group relative flex w-[120px] flex-shrink-0 snap-start cursor-pointer flex-col rounded-xl border p-3 text-left",
+        "shadow-[var(--shadow-card)] transition-[border-color,box-shadow,background-color] duration-[160ms] ease-out",
+        "hover:shadow-[var(--shadow-card-hover)] disabled:cursor-progress",
+        exists
+          ? cn(
+              tintFor(iso),
+              "border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] hover:border-[var(--tint-edge)]"
+            )
+          : "border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-ink-faint)] hover:border-[var(--edge-strong)]"
       )}
       aria-label={`${exists ? "Open" : "Create"} daily page for ${dailyPageTitle(iso)}`}
     >
