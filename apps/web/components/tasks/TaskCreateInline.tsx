@@ -1,17 +1,11 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Plus } from "lucide-react";
 import { Spinner } from "@/components/shared/Spinner";
 import { cn } from "@/lib/utils";
-
-type TaskStatus =
-  | "not started"
-  | "up next"
-  | "in progress"
-  | "almost done"
-  | "lesno";
+import type { TaskStatus } from "./status";
 
 interface Props {
   status: TaskStatus;
@@ -25,6 +19,7 @@ interface Props {
 }
 
 export function TaskCreateInline({ status, onCreateTask, onStartCreate }: Props) {
+  const reduced = useReducedMotion();
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -77,12 +72,12 @@ export function TaskCreateInline({ status, onCreateTask, onStartCreate }: Props)
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -2 }}
-          transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: reduced ? 0 : 0.16, ease: [0.25, 1, 0.5, 1] }}
           className={cn(
-            "w-full bg-card border border-border rounded-md px-3 py-2",
-            "font-sans text-[13px] text-foreground placeholder:text-muted-foreground",
-            "focus:outline-none focus:ring-2 focus:ring-ring",
-            "transition-colors",
+            "w-full rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2",
+            "text-meta text-[var(--ink)] placeholder:text-[var(--ink-faint)]",
+            "focus:outline-none focus:ring-2 focus:ring-[var(--accent)]",
+            "transition-colors duration-[160ms] ease-out",
           )}
         />
       ) : (
@@ -94,12 +89,12 @@ export function TaskCreateInline({ status, onCreateTask, onStartCreate }: Props)
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.12 }}
+          transition={{ duration: reduced ? 0 : 0.16 }}
           className={cn(
-            "flex items-center gap-1 w-full px-1 py-1",
-            "font-sans text-[13px] text-muted-foreground",
-            "hover:text-foreground transition-colors rounded",
-            "disabled:opacity-60 disabled:cursor-not-allowed",
+            "flex w-full items-center gap-2 rounded-lg px-1 py-1",
+            "text-meta text-[var(--ink-muted)]",
+            "transition-colors duration-[160ms] ease-out hover:text-[var(--ink)]",
+            "disabled:cursor-not-allowed disabled:opacity-60",
           )}
         >
           {isPending ? (

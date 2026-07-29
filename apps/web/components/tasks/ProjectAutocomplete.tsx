@@ -157,7 +157,7 @@ export function ProjectAutocomplete({
         <PopoverContent className="w-[300px] p-0">
           {creating ? (
             <div className="flex flex-col gap-2.5 p-3">
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+              <p className="text-micro font-medium text-[var(--ink-muted)]">
                 New project
               </p>
               <Input
