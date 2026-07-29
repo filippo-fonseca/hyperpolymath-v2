@@ -467,7 +467,7 @@ export function EventDetailPanel({
       <Sheet open={open} onOpenChange={handleSheetOpenChange}>
         <SheetContent
           side="right"
-          className="w-full sm:max-w-[560px] p-0 flex flex-col bg-[var(--sd-box)] text-[var(--sd-ink)] border-l border-[var(--sd-line)]"
+          className="w-full sm:max-w-[560px] p-0 flex flex-col bg-[var(--surface-raised)] text-[var(--ink)] border-l border-[var(--edge)]"
           showCloseButton={false}
         >
           {open && (
@@ -475,13 +475,13 @@ export function EventDetailPanel({
               onSubmit={handleSubmit(onValidSubmit)}
               className="flex flex-col h-full"
             >
-              <SheetHeader className="px-6 pt-6 pb-3 border-b border-[var(--sd-line)]">
+              <SheetHeader className="px-6 pt-6 pb-3 border-b border-[var(--edge)]">
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    <SheetTitle className="text-[20px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)] p-0 m-0">
+                    <SheetTitle className="text-[20px] font-semibold leading-tight tracking-[-0.01em] text-[var(--ink)] p-0 m-0">
                       {headerLabel}
                     </SheetTitle>
-                    <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+                    <p className="text-meta text-[var(--ink-faint)]">
                       Timezone: {userTimezone}
                     </p>
                   </div>
@@ -489,28 +489,23 @@ export function EventDetailPanel({
                     type="button"
                     onClick={() => handleSheetOpenChange(false)}
                     aria-label="Close detail panel"
-                    className="p-1 rounded-[6px] hover:bg-[var(--sd-hover)] transition-colors flex-shrink-0 mt-1"
+                    className="mt-1 flex-shrink-0 rounded-lg p-1 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
                   >
-                    <X size={16} className="text-[var(--sd-ink-dull)]" />
+                    <X size={16} className="text-[var(--ink-muted)]" />
                   </button>
                 </div>
               </SheetHeader>
 
               <div className="flex-1 overflow-y-auto flex flex-col gap-5 px-6 py-5">
                 {recurringEventId && (
-                  // Functional amber note-pill (amber = advisory, allowed as a
-                  // functional hue) on the sd surface — no raw amber plates.
+                  // Advisory note on a butter plate — pastel fill, saturated
+                  // rim, in-family ink. Advisory, not alarming.
                   <div
-                    className="flex items-start gap-2 text-[12px] leading-relaxed px-3 py-2 rounded-[8px] text-[var(--sd-ink-dull)]"
-                    style={{
-                      background: "color-mix(in srgb, var(--ink-amber) 12%, var(--sd-box))",
-                      boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--ink-amber) 30%, var(--sd-line))",
-                    }}
+                    className="tint-butter flex items-start gap-2 rounded-xl border border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] px-3 py-2.5 text-[12px] leading-relaxed text-[var(--tint-ink)]"
                   >
                     <span
                       aria-hidden
-                      className="mt-[6px] h-[6px] w-[6px] shrink-0 rounded-full"
-                      style={{ background: "var(--ink-amber)" }}
+                      className="mt-[6px] h-[6px] w-[6px] shrink-0 rounded-full bg-[var(--tint-edge)]"
                     />
                     <span>
                       Recurring event — edits will apply to this instance only
@@ -520,7 +515,7 @@ export function EventDetailPanel({
                           href={htmlLink}
                           target="_blank"
                           rel="noreferrer"
-                          className="underline text-[var(--sd-accent)]"
+                          className="font-medium underline underline-offset-2"
                         >
                           Open in Google Calendar
                         </a>
@@ -540,7 +535,7 @@ export function EventDetailPanel({
                   <Input
                     id="event-title"
                     placeholder="Event title"
-                    className="text-[var(--sd-ink)]"
+                    className="text-[var(--ink)]"
                     autoFocus={state.mode === "create"}
                     {...register("title")}
                   />
@@ -651,13 +646,13 @@ export function EventDetailPanel({
                     id="event-description"
                     rows={4}
                     placeholder="Add details (optional)"
-                    className="text-[var(--sd-ink)]"
+                    className="text-[var(--ink)]"
                     {...register("description")}
                   />
                 </section>
               </div>
 
-              <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--sd-line)]">
+              <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--edge)]">
                 {state.mode === "edit" && onDelete ? (
                   <Button
                     type="button"
@@ -676,8 +671,8 @@ export function EventDetailPanel({
                   <span
                     className={
                       isDirty
-                        ? "font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]"
-                        : "font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] opacity-0"
+                        ? "text-meta text-[var(--ink-faint)]"
+                        : "text-meta text-[var(--ink-faint)] opacity-0"
                     }
                     aria-hidden={!isDirty}
                   >
@@ -729,12 +724,12 @@ export function EventDetailPanel({
           if (!v) setPendingDiscard(null);
         }}
       >
-        <AlertDialogContent className="bg-[var(--sd-box)] border-[var(--sd-line)] text-[var(--sd-ink)]">
+        <AlertDialogContent className="rounded-2xl border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">
+            <AlertDialogTitle className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
               Discard changes?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-[13px] text-[var(--sd-ink-dull)]">
+            <AlertDialogDescription className="text-[13px] text-[var(--ink-muted)]">
               Your edits to this event will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -758,12 +753,12 @@ export function EventDetailPanel({
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
       >
-        <AlertDialogContent className="bg-[var(--sd-box)] border-[var(--sd-line)] text-[var(--sd-ink)]">
+        <AlertDialogContent className="rounded-2xl border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">
+            <AlertDialogTitle className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
               Delete this event?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-[13px] text-[var(--sd-ink-dull)]">
+            <AlertDialogDescription className="text-[13px] text-[var(--ink-muted)]">
               This removes the event from Google Calendar. This can&apos;t be
               undone.
             </AlertDialogDescription>

@@ -12,15 +12,15 @@
  * Handler that 302s to Google's consent screen — client-side nav would
  * try to render its body as a page.
  *
- * Phase 6.1 Plan 06.1-05 (UI-SPEC §5g + §3f + §12e + §12f):
+ * Phase 6.1 Plan 06.1-05 / jul-29 craft restyle:
  *
- * Diplomatic banner chrome — bg --surface + 3px --ink-coral LEFT edge
- * (UI-SPEC §3f reserved-for list: coral for "error/destructive UI signal").
- * Serif body copy (the banner is reading to the user — document register),
- * mono CTA label (the action is chrome — calls into OAuth). Copy per
- * UI-SPEC §12e — exact strings "Google Calendar disconnected. Reconnect
- * from Settings." for revoked, "Google Calendar isn't connected." for
- * never-connected. CTA label "Connect Google Calendar" per §12f.
+ * The banner is a rose plate — pastel fill, a saturated 3px rose left edge,
+ * in-family rose ink. Rose is the craft register's alarm hue, so this reads
+ * as "something is wrong" without shouting in raw coral. The Reconnect CTA
+ * is a raised white plate so it separates cleanly from the tinted field.
+ * Copy per UI-SPEC §12e — exact strings "Google Calendar disconnected.
+ * Reconnect from Settings." for revoked, "Google Calendar isn't connected."
+ * for never-connected. CTA label "Connect Google Calendar" per §12f.
  *
  * Variants:
  *   - "revoked"       — user previously connected; refresh failed with
@@ -44,24 +44,22 @@ export function DisconnectBanner({ variant }: Props) {
       : "Google Calendar isn't connected.";
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 bg-[var(--sd-box)] border-b border-[var(--sd-line)]"
-      style={{ borderLeft: "3px solid var(--ink-coral)" }}
+      className="tint-rose flex items-center gap-3 border-b border-[color-mix(in_srgb,var(--tint-edge)_38%,transparent)] bg-[var(--tint-bg)] px-6 py-3"
+      style={{ borderLeft: "3px solid var(--tint-edge)" }}
       role="alert"
     >
       <AlertCircle
         size={16}
-        strokeWidth={1.5}
-        className="shrink-0 text-[var(--ink-coral)]"
+        strokeWidth={1.75}
+        className="shrink-0 text-[var(--tint-ink)]"
         aria-hidden="true"
       />
-      <span className="text-[13px] flex-1 text-[var(--sd-ink)]">
-        {copy}
-      </span>
-      {/* UI-SPEC §12f — "Connect Google Calendar" CTA. Mono chrome register
-          per UI-SPEC §5l toast Undo-button precedent (banner is diplomatic). */}
+      <span className="flex-1 text-body text-[var(--tint-ink)]">{copy}</span>
+      {/* UI-SPEC §12f — "Connect Google Calendar" CTA, on a raised white
+          plate so the action reads as a control, not part of the wash. */}
       <a
         href="/api/gcal/auth"
-        className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink)] border border-[var(--sd-line)] rounded-[6px] px-2 py-1 hover:bg-[var(--sd-hover)] transition-colors duration-150 ease-out cursor-pointer-always"
+        className="cursor-pointer-always rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-1.5 text-meta font-medium text-[var(--ink)] shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]"
       >
         Connect Google Calendar
       </a>

@@ -740,12 +740,13 @@ export function CalendarClient({
     return handleDelete(panelState.event.id, panelState.event.calendarId);
   }, [panelState, handleDelete]);
 
-  // sd3 register (UI-CONTRACT-SD3 §0/§1):
-  //   - Outer container on the Spacedrive app surface (--sd-app).
-  //   - The grid's today column carries a faint --sd-accent wash + a crisp 1px
-  //     cyan ring (CalendarGrid) rather than the old amber wash.
-  //   - Event chips stay on the sd surface (--sd-input + --sd-line hairline);
-  //     the calendar-source colour only tints the chip's leading dot.
+  // jul-29 craft restyle:
+  //   - Outer container sits on the canvas; the grid is the one large raised
+  //     panel (craft-card at the panel radius, in CalendarGrid).
+  //   - Event blocks are pastel plates tinted per calendar source; today's
+  //     column carries only a whisper of butter wash.
+  //   - The toolbar controls follow the shared idioms: a segmented view
+  //     toggle, a raised filter pill, and a sage plate for "New event".
   //
   // Calendar copy register per UI-SPEC §12e:
   //   - "New event" CTA (header)
@@ -753,25 +754,25 @@ export function CalendarClient({
   //   - "Save event" + "Discard changes" + "Delete"button labels (per §12f)
   //   - "Google Calendar disconnected. Reconnect from Settings." (toast above)
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[var(--sd-app)]">
-      {/* sd title row — dimensional CalendarIcon + Space Grotesk title + a mono
-          metadata line for the in-view count (matches the LifeOsHero grammar). */}
+    <div className="flex-1 flex flex-col min-h-0 bg-[var(--canvas)]">
+      {/* Title row — the dimensional CalendarIcon as the feature glyph, the
+          route title, and a quiet metadata line for the in-view count. */}
       <header className="px-8 pt-10 pb-5">
         <div className="flex items-center gap-3">
           <CalendarIcon size={34} aria-hidden />
           <div className="flex flex-col gap-1">
-            <h1 className="text-[26px] font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]">
-              Calendar<span className="text-[var(--sd-accent)]">.</span>
+            <h1 className="text-[26px] font-semibold leading-none tracking-[-0.01em] text-[var(--ink)]">
+              Calendar<span className="text-[var(--tint-sky-edge)]">.</span>
             </h1>
-            <p className="font-mono text-[11px] uppercase tracking-[0.1em] tabular-nums text-[var(--sd-ink-faint)]">
+            <p className="text-meta tabular-nums text-[var(--ink-faint)]">
               {displayEvents.length} event{displayEvents.length === 1 ? "" : "s"} in view
             </p>
           </div>
         </div>
       </header>
 
-      {/* Toolbar — sits directly on the canvas (no plate); the view toggle and
-          filter carry their own hairline sd controls. */}
+      {/* Toolbar — sits directly on the canvas (no plate); the view toggle,
+          filter pill and New event plate each carry their own craft chrome. */}
       <div className="mx-8 mb-5 flex items-center justify-between gap-4">
         <DayWeekToggle
           view={view}
@@ -782,8 +783,8 @@ export function CalendarClient({
         <div className="flex items-center gap-3">
           <CalendarFilters calendars={calendars} />
           {/* "New event" CTA opens the create Sheet at the next round
-              half-hour (parity with the Cmd+K?create=now path). Accent-ghost
-              on the sd register — cyan tint + accent hairline, --sd-ink label. */}
+              half-hour (parity with the Cmd+K ?create=now path). A sage
+              plate: pastel fill, saturated rim, in-family ink. */}
           <button
             type="button"
             onClick={() => {
@@ -796,13 +797,7 @@ export function CalendarClient({
                 allDay: false,
               });
             }}
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--sd-ink)] rounded-[6px] px-3 py-1.5 transition-colors duration-150 ease-out cursor-pointer-always"
-            style={{
-              backgroundColor:
-                "color-mix(in oklch, var(--sd-accent) 14%, transparent)",
-              boxShadow:
-                "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 34%, transparent)",
-            }}
+            className="tint-sage inline-flex h-8 cursor-pointer-always items-center gap-1.5 rounded-lg border border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] px-3 text-meta font-medium text-[var(--tint-ink)] shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--tint-edge)] hover:shadow-[var(--shadow-card-hover)]"
           >
             <Plus size={15} strokeWidth={2} aria-hidden />
             New event
