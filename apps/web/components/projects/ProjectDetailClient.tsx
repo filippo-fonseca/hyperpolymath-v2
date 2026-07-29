@@ -1,7 +1,7 @@
 "use client";
 
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
-import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
+import { PageScaffold } from "@/components/ui/PageScaffold";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
@@ -9,7 +9,7 @@ import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimis
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery } from "@tanstack/react-query";
-import { useOptimistic } from "react";
+import { useOptimistic, useState } from "react";
 import { ProjectCapturesSection } from "./ProjectCapturesSection";
 import { ProjectHeader } from "./ProjectHeader";
 import { ProjectPagesSection } from "./ProjectPagesSection";
@@ -77,6 +77,10 @@ export function ProjectDetailClient({
   // which re-runs `select` below.
   useTableSubscription("projects", userId);
 
+  // Header "New task" → tasks section draft panel. A monotonic counter so
+  // repeated clicks re-open the panel after it closes.
+  const [newTaskRequest, setNewTaskRequest] = useState(0);
+
   // B1: collection key + select. Hydrated from initialProjects (SSR).
   const { data: project } = useQuery({
     queryKey: tableKey("projects", userId),
@@ -106,36 +110,19 @@ export function ProjectDetailClient({
   // the area against `allAreas` keeps the badge and the breadcrumb correct
   // without refetching the route. `area` remains the fallback for the case
   // where the project sits under an archived area, which `allAreas` omits.
-  const currentArea =
-    allAreas.find((a) => a.id === liveProject.areaId) ?? area;
+  const currentArea = allAreas.find((a) => a.id === liveProject.areaId) ?? area;
 
   return (
-    // Notion-document register. Banner sits flush at top via ProjectHeader.
-    // Body is a single centered measure (max-w-[1080px]) of stacked sections
-    // with hairline dividers — no card chrome, no neumorphic shadows; depth
-    // comes from edge contrast + restraint, matching the journal aesthetic.
-    <div className="flex flex-col min-h-full bg-[var(--canvas)] text-[var(--sd-ink)]">
-      {/* Breadcrumb strip — sits flush at the top above the banner so the
-          user always sees Areas → {area} → {project} from inside the
-          project. Live-bound to `liveProject.name` so renames refresh
-          here without a navigation. */}
-      <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pt-4 pb-6">
-        <Breadcrumbs
-          items={[
-            { label: "Areas", href: "/areas" },
-            {
-              label: currentArea.name,
-              href: `/areas/${currentArea.id}`,
-              glyph: currentArea.emoji ?? undefined,
-            },
-            { label: liveProject.name },
-          ]}
-        />
-      </div>
+    // SDC-1 register: the banner sits flush at the top via ProjectHeader, and
+    // everything below shares the one PageScaffold measure so this route's
+    // left edge lines up with every other route. Sections separate by rhythm
+    // and a single hairline (§2.9), not gradient dividers or card chrome.
+    <div className="flex flex-col min-h-full bg-[var(--canvas)] text-[var(--ink)]">
       <ProjectHeader
         project={{
           id: liveProject.id,
           name: liveProject.name,
+          description: liveProject.description,
           icon: liveProject.icon,
           bannerUrl: liveProject.bannerUrl,
           areaId: liveProject.areaId,
@@ -157,50 +144,41 @@ export function ProjectDetailClient({
         userId={userId}
         area={currentArea}
         allAreas={allAreas}
-      />
+        onNewTask={() => setNewTaskRequest((n) => n + 1)}
+      >
+        <PageScaffold.Section>
+          <ProjectTasksSection
+            userId={userId}
+            projectId={projectId}
+            projects={activeProjectsForComposer}
+            areas={allAreas}
+            initialTasks={initialTasks}
+            createRequest={newTaskRequest}
+          />
+        </PageScaffold.Section>
 
-      <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pb-24 pt-2 flex flex-col gap-12">
-        <ProjectTasksSection
-          userId={userId}
-          projectId={projectId}
-          projects={activeProjectsForComposer}
-          areas={allAreas}
-          initialTasks={initialTasks}
-        />
+        {/* §2.6: section separation prefers whitespace over hairlines, and
+            §2.5 names 32px between sections; plain Section rhythm delivers
+            exactly that. */}
+        <PageScaffold.Section>
+          <ProjectCapturesSection
+            userId={userId}
+            projectId={projectId}
+            hashtags={hashtagsForComposer}
+            projects={activeProjectsForComposer.map((p) => ({
+              id: p.id,
+              name: p.name,
+              isClass: p.isClass,
+              courseCode: p.courseCode,
+            }))}
+            initialCaptures={initialCaptures}
+          />
+        </PageScaffold.Section>
 
-        <div
-          aria-hidden="true"
-          className="h-px w-full"
-          style={{
-            background:
-              "linear-gradient(to right, transparent, var(--edge) 20%, var(--edge) 80%, transparent)",
-          }}
-        />
-
-        <ProjectCapturesSection
-          userId={userId}
-          projectId={projectId}
-          hashtags={hashtagsForComposer}
-          projects={activeProjectsForComposer.map((p) => ({
-            id: p.id,
-            name: p.name,
-            isClass: p.isClass,
-            courseCode: p.courseCode,
-          }))}
-          initialCaptures={initialCaptures}
-        />
-
-        <div
-          aria-hidden="true"
-          className="h-px w-full"
-          style={{
-            background:
-              "linear-gradient(to right, transparent, var(--edge) 20%, var(--edge) 80%, transparent)",
-          }}
-        />
-
-        <ProjectPagesSection userId={userId} projectId={projectId} initialPages={initialPages} />
-      </div>
+        <PageScaffold.Section>
+          <ProjectPagesSection userId={userId} projectId={projectId} initialPages={initialPages} />
+        </PageScaffold.Section>
+      </ProjectHeader>
     </div>
   );
 }

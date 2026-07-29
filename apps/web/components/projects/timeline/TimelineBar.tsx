@@ -79,7 +79,7 @@ interface Props {
 
 export const TimelineBar = forwardRef<HTMLButtonElement, Props>(function TimelineBar(
   { project, geometry, isOpen, onOpen, heightPx, onBeginDrag },
-  ref,
+  ref
 ) {
   // The engine reports visible:false when a clamped window excludes the project
   // entirely; leftPx/widthPx are 0 and there is nothing to draw.
@@ -108,8 +108,7 @@ export const TimelineBar = forwardRef<HTMLButtonElement, Props>(function Timelin
       aria-expanded={isOpen}
       className={cn(
         "group absolute top-1/2 -translate-y-1/2 rounded-full",
-        "cursor-pointer-always outline-none",
-        "focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+        "cursor-pointer-always outline-none"
       )}
       style={{ left: geometry.leftPx, width: geometry.widthPx, height: heightPx }}
     >
@@ -121,10 +120,10 @@ export const TimelineBar = forwardRef<HTMLButtonElement, Props>(function Timelin
         aria-hidden="true"
         className={cn(
           "absolute inset-0 rounded-full border border-transparent bg-[var(--sd-accent)]",
-          "transition-colors duration-150 ease-out group-hover:border-[var(--sd-ink-dull)]",
+          "transition-colors duration-[160ms] ease-out group-hover:border-[var(--sd-ink-dull)]",
           "group-data-[dragging]:border-[var(--sd-ink-dull)] group-data-[drag-armed]:border-[var(--sd-accent)]",
           project.isGhost && "opacity-40",
-          fadeClassFor(geometry),
+          fadeClassFor(geometry)
         )}
       />
 
@@ -154,7 +153,7 @@ export const TimelineBar = forwardRef<HTMLButtonElement, Props>(function Timelin
       )}
 
       {fitsInside ? (
-        <span className="pointer-events-none relative z-[1] block truncate px-2 text-left font-medium text-[13px] text-[var(--sd-app)] leading-none">
+        <span className="pointer-events-none relative z-[1] block truncate px-2 text-left font-medium text-meta text-[var(--sd-app)] leading-none">
           {project.name}
         </span>
       ) : (
@@ -163,11 +162,11 @@ export const TimelineBar = forwardRef<HTMLButtonElement, Props>(function Timelin
         <span
           className={cn(
             "pointer-events-none absolute top-1/2 left-full ml-1.5 -translate-y-1/2 whitespace-nowrap",
-            "rounded-[4px] font-medium text-[13px] leading-none",
+            "rounded-sm font-medium text-meta leading-none",
             isOpen
               ? "bg-[color-mix(in_oklch,var(--sd-accent)_18%,transparent)] px-1.5 py-0.5 text-[var(--sd-ink)]"
               : "text-[var(--sd-ink-dull)]",
-            project.isGhost && !isOpen && "text-[var(--sd-ink-faint)]",
+            project.isGhost && !isOpen && "text-[var(--sd-ink-faint)]"
           )}
         >
           {project.name}

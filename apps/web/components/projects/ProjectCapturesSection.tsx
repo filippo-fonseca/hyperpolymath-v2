@@ -4,13 +4,14 @@ import { getCapturesForCurrentUser } from "@/app/actions/captures";
 import { CaptureCard } from "@/components/captures/CaptureCard";
 import { CaptureComposer } from "@/components/captures/CaptureComposer";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
 interface Props {
@@ -41,6 +42,7 @@ export function ProjectCapturesSection({
   const queryClient = useQueryClient();
   const [, startTransition] = useTransition();
   const [collapsed, setCollapsed] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -95,28 +97,28 @@ export function ProjectCapturesSection({
   }
 
   return (
-    <section className="flex flex-col gap-4">
+    // Rendered inside a <PageScaffold.Section>, which owns the section rhythm
+    // and the landmark element; this root is layout only.
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
           aria-expanded={!collapsed}
           aria-controls="project-captures-body"
-          className="group flex items-center gap-2 -ml-1 px-1 py-1 rounded-sm hover:bg-[var(--surface)] transition-colors cursor-pointer"
+          className="group flex items-center gap-2 -ml-1 rounded-lg px-1 py-1 hover:bg-[var(--hover)] transition-colors duration-[160ms] ease-out cursor-pointer"
         >
-          <span className="text-[var(--sd-ink-dull)] group-hover:text-[var(--sd-ink)] transition-colors">
-            {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          <span className="text-[var(--ink-faint)] group-hover:text-[var(--ink-muted)] transition-colors duration-[160ms]">
+            {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
           </span>
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sd-ink-dull)] group-hover:text-[var(--sd-ink)] transition-colors">
-            Captures
-          </h2>
-          <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-dull)]">
-            ({projectCaptures.length})
+          <h2 className="text-title font-semibold text-[var(--ink)]">Captures</h2>
+          <span className="text-micro font-medium tabular-nums text-[var(--ink-faint)]">
+            {projectCaptures.length}
           </span>
         </button>
         {!collapsed && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
-            ⌘↵ to capture
+          <span className="text-micro text-[var(--ink-faint)]">
+            <kbd className="font-mono">⌘↵</kbd> to capture
           </span>
         )}
       </div>
@@ -138,16 +140,24 @@ export function ProjectCapturesSection({
           {/* Feed — vertical stack, document register, FLIP-free entry/exit. */}
           <div className="flex flex-col gap-2">
             {projectCaptures.length === 0 ? (
-              <EmptyCaptures />
+              // Quiet inline register: the composer directly above is already
+              // the call to action, so the empty state only names the absence.
+              <EmptyState size="inline" title="Nothing captured here yet" />
             ) : (
               <AnimatePresence mode="popLayout" initial={false}>
                 {projectCaptures.map((c) => (
                   <motion.div
                     key={c.id}
-                    initial={{ opacity: 0, y: -4 }}
+                    initial={reduceMotion ? false : { opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 4, transition: { duration: 0.12 } }}
-                    transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                    exit={
+                      reduceMotion
+                        ? { opacity: 0, transition: { duration: 0 } }
+                        : { opacity: 0, y: 4, transition: { duration: 0.22 } }
+                    }
+                    transition={
+                      reduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.25, 1, 0.5, 1] }
+                    }
                   >
                     <CaptureCard
                       capture={c}
@@ -164,19 +174,6 @@ export function ProjectCapturesSection({
           </div>
         </div>
       )}
-    </section>
-  );
-}
-
-function EmptyCaptures() {
-  return (
-    <div className="rounded-md border border-dashed border-[var(--edge)] px-5 py-6 text-center">
-      <p className="font-sans italic text-[15px] text-[var(--sd-ink-dull)]">
-        Nothing captured here yet.
-      </p>
-      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]/70 mt-1.5">
-        Type a thought above — ⌘↵ to file it.
-      </p>
     </div>
   );
 }

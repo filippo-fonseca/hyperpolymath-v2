@@ -35,19 +35,19 @@ interface Props {
 export function TimelineZoomToggle({ zoom, onZoomChange, onToday, todayDisabled = false }: Props) {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-0.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5">
+      <div className="flex items-center gap-1 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5">
         {SEGMENTS.map((seg) => (
           <button
             key={seg.value}
             type="button"
             onClick={() => onZoomChange(seg.value)}
             className={cn(
-              "cursor-pointer-always rounded-[5px] px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em]",
-              "transition-colors duration-150 ease-out",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+              "cursor-pointer-always rounded-sm px-2 py-0.5 font-sans text-micro font-medium",
+              "transition-colors duration-[160ms] ease-out",
+
               zoom === seg.value
                 ? "bg-[var(--sd-selected)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]"
-                : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
+                : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
             )}
             aria-pressed={zoom === seg.value}
           >
@@ -60,7 +60,7 @@ export function TimelineZoomToggle({ zoom, onZoomChange, onToday, todayDisabled 
         type="button"
         variant="ghost"
         size="sm"
-        className="h-7 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
+        className="h-7 px-2 font-sans text-micro font-medium"
         onClick={onToday}
         disabled={todayDisabled}
         title={todayDisabled ? "Today is outside the current range" : undefined}

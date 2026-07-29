@@ -1,15 +1,16 @@
 "use client";
 
-import { createTask, deleteTask, getTasksForCurrentUser } from "@/app/actions/tasks";
 import { createProject } from "@/app/actions/projects";
+import { createTask, deleteTask, getTasksForCurrentUser } from "@/app/actions/tasks";
+import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { TaskDetailPanel } from "@/components/tasks/TaskDetailPanel";
 import { TaskList } from "@/components/tasks/TaskList";
-import { useUndoToast } from "@/components/shared/use-undo-toast";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { tableKey } from "@/lib/realtime/query-keys";
-import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Kanban as KanbanIcon, List as ListIcon } from "lucide-react";
@@ -35,6 +36,11 @@ interface Props {
   areas: { id: string; name: string; emoji: string | null }[];
   /** SSR-hydrated tasks for THIS project. Filters the global cache below. */
   initialTasks: TaskWithProjects[];
+  /**
+   * Monotonic counter from the page header's primary "New task" button. Each
+   * increment un-collapses the section and opens the create draft panel.
+   */
+  createRequest?: number;
 }
 
 type ProjectOption = {
@@ -72,13 +78,14 @@ export function ProjectTasksSection({
   projects: initialProjectOptions,
   areas,
   initialTasks,
+  createRequest = 0,
 }: Props) {
   const queryClient = useQueryClient();
   // Local project list so an inline-created project (issue #34) is immediately
   // selectable in the detail panel without a navigation. Seeded from props and
   // re-synced when the SSR prop changes.
   const [projects, setProjects] = useState<ProjectOption[]>(() =>
-    initialProjectOptions.map((p) => ({ ...p })),
+    initialProjectOptions.map((p) => ({ ...p }))
   );
   useEffect(() => {
     setProjects(initialProjectOptions.map((p) => ({ ...p })));
@@ -114,7 +121,7 @@ export function ProjectTasksSection({
       toast("Project created.");
       return newId;
     },
-    [areas, queryClient, userId],
+    [areas, queryClient, userId]
   );
   const [, startTransition] = useTransition();
   const [view, setView] = useState<View>("kanban");
@@ -142,6 +149,15 @@ export function ProjectTasksSection({
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem(SHOW_LESNO_KEY, String(showLesno));
   }, [showLesno]);
+
+  // Page-header "New task" → open the create draft, un-collapsing first so
+  // the panel's result is visible. Guarded so the initial 0 does nothing.
+  useEffect(() => {
+    if (createRequest > 0) {
+      setCollapsed(false);
+      setDraftStatus("not started");
+    }
+  }, [createRequest]);
 
   // Canonical realtime subscription — shared with /tasks.
   useTableSubscription("tasks", userId);
@@ -181,7 +197,7 @@ export function ProjectTasksSection({
   // the header brings them back without losing the rest of the view state.
   const projectTasks = useMemo(() => {
     const linked = optimisticTasks.filter(
-      (t) => !pendingDeleteIds.has(t.id) && t.projects.some((p) => p.id === projectId),
+      (t) => !pendingDeleteIds.has(t.id) && t.projects.some((p) => p.id === projectId)
     );
     return showLesno ? linked : linked.filter((t) => t.status !== "lesno");
   }, [optimisticTasks, projectId, showLesno, pendingDeleteIds]);
@@ -267,63 +283,60 @@ export function ProjectTasksSection({
     : null;
 
   return (
-    <section className="flex flex-col gap-4">
-      {/* Section header — eyebrow + count + collapse on the left; lesno
-          toggle + view toggle on the right. Hidden body still shows the
-          row so the user can flip the section back on. */}
+    // Rendered inside a <PageScaffold.Section>, which owns the section rhythm
+    // and the landmark element; this root is layout only.
+    <div className="flex flex-col gap-4">
+      {/* Section header — title + count + collapse on the left; lesno toggle
+          + view toggle on the right. Hidden body still shows the row so the
+          user can flip the section back on. */}
       <div className="flex items-center justify-between gap-4">
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
           aria-expanded={!collapsed}
           aria-controls="project-tasks-body"
-          className="group flex items-center gap-2 -ml-1 px-1 py-1 rounded-sm hover:bg-[var(--surface)] transition-colors cursor-pointer"
+          className="group flex items-center gap-2 -ml-1 rounded-lg px-1 py-1 hover:bg-[var(--hover)] transition-colors duration-[160ms] ease-out cursor-pointer"
         >
-          <span className="text-[var(--sd-ink-dull)] group-hover:text-[var(--sd-ink)] transition-colors">
-            {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          <span className="text-[var(--ink-faint)] group-hover:text-[var(--ink-muted)] transition-colors duration-[160ms]">
+            {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
           </span>
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sd-ink-dull)] group-hover:text-[var(--sd-ink)] transition-colors">
-            Tasks
-          </h2>
-          <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-dull)]">
-            ({projectTasks.length}
-            {!showLesno && lesnoCount > 0 ? (
-              <span className="text-[var(--sd-ink-dull)]/70"> · {lesnoCount} lesno hidden</span>
-            ) : null}
-            )
+          <h2 className="text-title font-semibold text-[var(--ink)]">Tasks</h2>
+          <span className="text-micro font-medium tabular-nums text-[var(--ink-faint)]">
+            {projectTasks.length}
+            {!showLesno && lesnoCount > 0 ? <span> · {lesnoCount} lesno hidden</span> : null}
           </span>
         </button>
 
         {!collapsed && (
           <div className="flex items-center gap-2">
-            {/* Lesno visibility toggle — small inline pill. */}
+            {/* Lesno visibility toggle — quiet text control. */}
             <button
               type="button"
               onClick={() => setShowLesno((v) => !v)}
               aria-pressed={showLesno}
               className={cn(
-                "px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out border",
+                "h-8 rounded-lg border px-2 text-micro font-medium cursor-pointer transition-colors duration-[160ms] ease-out",
                 showLesno
-                  ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--sd-ink)]"
-                  : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--edge)]"
+                  ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
+                  : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]"
               )}
               title={showLesno ? "Hide completed (lesno) tasks" : "Show completed (lesno) tasks"}
             >
               {showLesno ? "Hide lesno" : "Show lesno"}
             </button>
 
-            <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)]">
+            <div className="flex items-center gap-1 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-0.5">
               <ViewToggle
                 active={view === "kanban"}
                 onClick={() => setView("kanban")}
                 label="Kanban"
-                icon={<KanbanIcon size={11} />}
+                icon={<KanbanIcon size={12} />}
               />
               <ViewToggle
                 active={view === "list"}
                 onClick={() => setView("list")}
                 label="List"
-                icon={<ListIcon size={11} />}
+                icon={<ListIcon size={12} />}
               />
             </div>
           </div>
@@ -331,9 +344,17 @@ export function ProjectTasksSection({
       </div>
 
       {!collapsed && (
+        // Kanban gets a BLOCK container (the old row-flex made the board a
+        // shrink-to-fit flex item that collapsed to its card-text width and
+        // hugged the left edge — same shape as TasksClient's working wrapper).
+        // Height is content-driven with a max-h so a three-task board doesn't
+        // rattle around a fixed 560px box, and a sixty-task board scrolls
+        // internally instead of colliding with the section divider. The
+        // -mx-2/px-2 pair keeps card focus rings from clipping at the scroll
+        // container's edge without moving the board off the page measure.
         <div
           id="project-tasks-body"
-          className={cn(view === "kanban" ? "h-[560px] min-h-0 flex" : "", "rounded-lg")}
+          className={cn(view === "kanban" && "max-h-[560px] min-h-0 overflow-y-auto -mx-2 px-2")}
         >
           {view === "kanban" ? (
             <KanbanBoard
@@ -343,6 +364,15 @@ export function ProjectTasksSection({
               onCreateTask={handleCreateTask}
               onStartCreate={(s) => setDraftStatus(s)}
               addOptimistic={addOptimistic}
+            />
+          ) : projectTasks.length === 0 ? (
+            // TaskList renders null at zero tasks; without this guard the body
+            // collapses to 0px and the user sees a bare "(0)" header.
+            <EmptyState
+              size="section"
+              title="No tasks yet"
+              description="Tasks linked to this project appear here."
+              action={{ label: "Add a task", onClick: () => setDraftStatus("not started") }}
             />
           ) : (
             <TaskList
@@ -405,7 +435,7 @@ export function ProjectTasksSection({
         addOptimistic={addOptimistic}
         mode="create"
       />
-    </section>
+    </div>
   );
 }
 
@@ -426,10 +456,10 @@ function ViewToggle({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out inline-flex items-center gap-1.5",
+        "inline-flex h-7 items-center gap-1 rounded-sm px-2 text-micro font-medium cursor-pointer transition-colors duration-[160ms] ease-out",
         active
-          ? "bg-[var(--surface-raised)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--edge)]"
-          : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
+          ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
+          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
       )}
     >
       {icon}
