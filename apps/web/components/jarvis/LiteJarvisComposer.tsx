@@ -202,8 +202,12 @@ export function LiteJarvisComposer({
     >
       <EditorContent editor={editor} />
       <div className="mt-2 flex items-center justify-end">
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
-          ⌘⏎ to send · ⎋ to cancel
+        {/* kbd hint: the glyphs keep mono inside real <kbd> elements; the
+            words stay sentence case (SDC-1 §2.4 bans the uppercase transform
+            outside kbd, and this span used to carry it). */}
+        <span className="text-micro text-[var(--ink-faint)]">
+          <kbd className="font-mono">⌘⏎</kbd> to send · <kbd className="font-mono">⎋</kbd> to
+          cancel
         </span>
       </div>
     </div>

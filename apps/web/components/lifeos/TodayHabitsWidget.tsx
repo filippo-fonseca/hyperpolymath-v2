@@ -14,11 +14,11 @@ import {
 } from "@/app/actions/habits";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { HabitIcon } from "@/components/ui/icons";
 import {
   ActionLink,
   Chip,
-  EmptyState,
   EntityCardHeader,
   OverflowChip,
   ProgressRow,
@@ -132,17 +132,19 @@ export function TodayHabitsWidget({
           }
         />
         {total === 0 ? (
-          <EmptyState icon={<HabitIcon size={40} />}>No habits yet.</EmptyState>
+          <div className="flex min-h-0 flex-1 flex-col justify-center">
+            <EmptyState size="inline" title="No habits yet." />
+          </div>
         ) : (
           <>
-            <div className="mt-3.5">
+            <div className="mt-4">
               <ProgressRow
                 label="Completed"
                 value={`${doneCount}/${total}`}
                 ratio={doneCount / total}
               />
             </div>
-            <ul className="sd-scroll-hover -mr-2 mt-3.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pr-2">
+            <ul className="sd-scroll-hover -mr-2 mt-4 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-2">
               {habits.slice(0, 6).map((h) => {
                 const done = isDone(h.id);
                 return (
@@ -150,7 +152,7 @@ export function TodayHabitsWidget({
                     <button
                       type="button"
                       onClick={() => handleToggle(h.id)}
-                      className="group/habit flex w-full cursor-pointer-always items-center gap-2.5 rounded-md px-1.5 py-1 text-left transition-colors duration-100 hover:bg-[var(--sd-hover)]"
+                      className="group/habit flex w-full cursor-pointer-always items-center gap-2 rounded-[8px] px-1.5 py-1 text-left transition-colors duration-[160ms] hover:bg-[var(--sd-hover)]"
                     >
                       <motion.span
                         initial={false}
@@ -170,12 +172,12 @@ export function TodayHabitsWidget({
                           <Circle
                             size={14}
                             strokeWidth={1.5}
-                            className="text-[var(--sd-ink-faint)] transition-colors duration-100 group-hover/habit:text-[var(--sd-ink)]"
+                            className="text-[var(--sd-ink-faint)] transition-colors duration-[160ms] group-hover/habit:text-[var(--sd-ink)]"
                           />
                         )}
                       </motion.span>
                       <span
-                        className={`truncate text-[14px] ${
+                        className={`truncate text-body ${
                           done
                             ? "text-[var(--sd-ink-faint)] line-through"
                             : "text-[var(--sd-ink)]"

@@ -7,11 +7,11 @@ import type { ActivityWithType } from "@/lib/db/queries/training";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { formatDistance, type DistanceUnit } from "@/lib/training/distance";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { TrainingIcon } from "@/components/ui/icons";
 import {
   ActionLink,
   Chip,
-  EmptyState,
   EntityCardHeader,
   ProgressRow,
   StatusPill,
@@ -107,7 +107,7 @@ export function TodayTrainingWidget({
         />
 
         {visible.length > 0 && (
-          <div className="mt-3.5">
+          <div className="mt-4">
             <ProgressRow
               label="Completed"
               value={`${doneCount}/${visible.length}`}
@@ -118,11 +118,11 @@ export function TodayTrainingWidget({
 
         {visible.length === 0 ? (
           // Rest day — positive, intentional. Not "nothing to do".
-          <EmptyState icon={<TrainingIcon size={40} />}>
-            Rest day. Recover well; tomorrow earns more.
-          </EmptyState>
+          <div className="flex min-h-0 flex-1 flex-col justify-center">
+            <EmptyState size="inline" title="Rest day. Recover well; tomorrow earns more." />
+          </div>
         ) : (
-          <ul className="sd-scroll-hover -mr-2 mt-3.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-2">
+          <ul className="sd-scroll-hover -mr-2 mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-2">
             {visible.map((a) => {
               const done = a.status === "done";
               const plannedMin = a.plannedDurationMin;
@@ -131,7 +131,7 @@ export function TodayTrainingWidget({
                 <li key={a.id}>
                   <Link
                     href="/training"
-                    className="group/training flex w-full cursor-pointer-always items-center gap-2.5 text-left"
+                    className="group/training flex w-full cursor-pointer-always items-center gap-2 text-left"
                   >
                     <span
                       className="inline-block size-2.5 shrink-0 rounded-full"
@@ -139,7 +139,7 @@ export function TodayTrainingWidget({
                       aria-hidden
                     />
                     <span
-                      className={`min-w-0 flex-1 truncate text-[14px] ${
+                      className={`min-w-0 flex-1 truncate text-body ${
                         done
                           ? "text-[var(--sd-ink-faint)] line-through"
                           : "text-[var(--sd-ink)]"
@@ -147,7 +147,7 @@ export function TodayTrainingWidget({
                     >
                       {a.title}
                     </span>
-                    <span className="shrink-0 text-[12px] tabular-nums text-[var(--sd-ink-faint)]">
+                    <span className="shrink-0 text-micro tabular-nums text-[var(--sd-ink-faint)]">
                       {plannedMin != null ? `${plannedMin}m` : null}
                       {plannedMin != null && a.type.hasDistance && plannedKm != null
                         ? " · "

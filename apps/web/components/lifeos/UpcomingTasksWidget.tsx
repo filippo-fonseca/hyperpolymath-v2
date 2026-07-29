@@ -16,10 +16,10 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { TaskIcon } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   ActionLink,
   Chip,
-  EmptyState,
   EntityCardHeader,
   OverflowChip,
   StatusPill,
@@ -59,12 +59,12 @@ const urgencyToken: Record<Urgency, { dot: string; text: string; label: string }
   overdue: {
     dot: "var(--ink-coral)",
     text: "var(--ink-coral)",
-    label: "OVERDUE",
+    label: "Overdue",
   },
   today: {
     dot: "var(--hud-cyan)",
     text: "var(--hud-cyan)",
-    label: "TODAY",
+    label: "Today",
   },
   soon: {
     dot: "var(--hud-cyan)",
@@ -215,7 +215,7 @@ export function UpcomingTasksWidget({
         />
 
         {/* Inline composer — Enter to create with today's due date. */}
-        <div className="mb-1 mt-3.5 flex items-center gap-2 rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 transition-colors duration-150 focus-within:border-[color-mix(in_srgb,var(--sd-accent)_40%,var(--sd-line))]">
+        <div className="mb-1 mt-4 flex items-center gap-2 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 transition-colors duration-[160ms] focus-within:border-[color-mix(in_srgb,var(--sd-accent)_40%,var(--sd-line))]">
           <Plus
             size={13}
             strokeWidth={1.75}
@@ -234,17 +234,17 @@ export function UpcomingTasksWidget({
             }}
             placeholder="New task, Enter to add"
             disabled={creating}
-            className="min-w-0 flex-1 bg-transparent text-[14px] text-[var(--sd-ink)] outline-none placeholder:text-[var(--sd-ink-faint)]"
+            className="min-w-0 flex-1 bg-transparent text-body text-[var(--sd-ink)] outline-none placeholder:text-[var(--sd-ink-faint)]"
           />
           {newTitle.trim() && (
-            <span className="font-mono text-[9px] uppercase tracking-[0.10em] tabular-nums text-[var(--sd-ink-faint)]">
-              ⏎
-            </span>
+            <kbd className="font-mono text-micro text-[var(--ink-faint)]">⏎</kbd>
           )}
         </div>
 
         {upcoming.length === 0 ? (
-          <EmptyState icon={<TaskIcon size={40} />}>Nothing due. Breathe.</EmptyState>
+          <div className="flex min-h-0 flex-1 flex-col justify-center">
+            <EmptyState size="inline" title="Nothing due. Breathe." />
+          </div>
         ) : (
           <ul className="sd-scroll-hover -mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto pr-2">
           <AnimatePresence mode="popLayout" initial={false}>
@@ -266,7 +266,7 @@ export function UpcomingTasksWidget({
                     type="button"
                     onClick={() => handleCheck(t)}
                     aria-label={`Mark "${t.title}" as done`}
-                    className="relative flex size-4 shrink-0 cursor-pointer-always items-center justify-center rounded-[3px] border transition-colors duration-100"
+                    className="relative flex size-4 shrink-0 cursor-pointer-always items-center justify-center rounded border transition-colors duration-[160ms]"
                     style={{
                       borderColor:
                         u === "overdue" || u === "today" ? tone.dot : "var(--sd-line)",
@@ -274,26 +274,26 @@ export function UpcomingTasksWidget({
                   >
                     <span
                       aria-hidden
-                      className="absolute -left-2 top-1/2 h-[14px] w-[2px] -translate-y-1/2 rounded-sm opacity-0 transition-opacity duration-100 group-hover/task:opacity-100"
+                      className="absolute -left-2 top-1/2 h-[14px] w-[2px] -translate-y-1/2 rounded-sm opacity-0 transition-opacity duration-[160ms] group-hover/task:opacity-100"
                       style={{ backgroundColor: tone.dot }}
                     />
                   </button>
-                  <span className="min-w-0 flex-1 truncate text-[14px] text-[var(--sd-ink)]">
+                  <span className="min-w-0 flex-1 truncate text-body text-[var(--sd-ink)]">
                     {t.title}
                   </span>
-                  <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="flex shrink-0 items-center gap-2">
                     {priorityTone[t.priority] && (
                       <Chip tone={priorityTone[t.priority]}>{t.priority}</Chip>
                     )}
                     {project && (
-                      <span className="max-w-[110px] truncate text-[12px] text-[var(--sd-ink-faint)]">
+                      <span className="max-w-[110px] truncate text-micro text-[var(--sd-ink-faint)]">
                         {project.name}
                       </span>
                     )}
                     {u === "overdue" || u === "today" ? (
                       <Chip tone={tone.text}>{tone.label}</Chip>
                     ) : (
-                      <span className="text-[12px] tabular-nums text-[var(--sd-ink-faint)]">
+                      <span className="text-micro tabular-nums text-[var(--sd-ink-faint)]">
                         {format(new Date(t.dueDate as string), "MMM d")}
                       </span>
                     )}

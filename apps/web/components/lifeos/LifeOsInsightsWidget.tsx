@@ -45,15 +45,15 @@ export function LifeOsInsightsWidget({
           action={<ActionLink>Open →</ActionLink>}
         />
         <div className="mt-3 flex min-h-0 flex-1 flex-col justify-center">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[34px] font-black leading-none tracking-[-0.02em] tabular-nums text-[var(--sd-ink)]">
+          <div className="flex items-baseline gap-2">
+            <span className="text-display font-black leading-none tabular-nums text-[var(--sd-ink)]">
               {jarvisTurns}
             </span>
-            <span className="text-[13px] font-medium text-[var(--sd-ink-dull)]">
+            <span className="text-meta font-medium text-[var(--sd-ink-dull)]">
               JARVIS turns · 7d
             </span>
           </div>
-          <p className="mt-2 flex items-center gap-2 text-[12px] text-[var(--sd-ink-dull)]">
+          <p className="mt-2 flex items-center gap-2 text-meta text-[var(--sd-ink-dull)]">
             <HabitIcon size={16} aria-hidden />
             <span className="tabular-nums">
               {habitsDone}/{habitsTotal} habits

@@ -64,17 +64,22 @@ export function LifeOsCanvas({ hero, quickSend, widgets, areas }: Props) {
     }
   }, []);
 
-  // Flip: opacity + 2px translate, ~140ms. Transform/opacity only (zero jank).
+  // Flip: opacity + 2px translate at the 220ms enter/exit step (§2.7).
+  // Transform/opacity only (zero jank).
   const flip = reduced
     ? { initial: false as const }
     : {
         initial: { opacity: 0, y: 2 },
         animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.14, ease: [0.25, 1, 0.5, 1] as const },
+        transition: { duration: 0.22, ease: [0.25, 1, 0.5, 1] as const },
       };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden px-6 pt-5">
+    // The horizontal measure mirrors PageScaffold (§2.9: mx-auto, 1120px cap,
+    // px-8) so the /lifeos H1 left edge lines up with every scaffold route,
+    // while the vertical architecture stays the one-screen deck (h-full,
+    // overflow-hidden, no scroll) the scaffold's scrolling anatomy cannot host.
+    <div className="mx-auto flex h-full w-full max-w-[1120px] flex-col overflow-hidden px-8 pt-8">
       <div className="shrink-0">{hero}</div>
       <div className="shrink-0">{quickSend}</div>
 
@@ -86,7 +91,7 @@ export function LifeOsCanvas({ hero, quickSend, widgets, areas }: Props) {
         {view === "areas" ? (
           <Link
             href="/areas"
-            className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)] transition-colors duration-100 hover:text-[var(--sd-ink)] cursor-pointer-always"
+            className="text-micro font-medium text-[var(--ink-faint)] transition-colors duration-[160ms] hover:text-[var(--sd-ink)] cursor-pointer-always"
           >
             Open full view →
           </Link>
@@ -117,8 +122,8 @@ const SEGMENTS: { id: View; label: string; icon: React.ReactNode }[] = [
 ];
 
 /**
- * Reset layout — a ghost mono verb that clears the persisted widget spans back
- * to the default deck. Only appears once the user has actually resized
+ * Reset layout — a ghost micro verb that clears the persisted widget spans
+ * back to the default deck. Only appears once the user has actually resized
  * something (custom spans present), so the header stays quiet by default.
  */
 function ResetLayoutVerb() {
@@ -128,7 +133,7 @@ function ResetLayoutVerb() {
     <button
       type="button"
       onClick={() => resetWidgetSpans()}
-      className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)] transition-colors duration-100 hover:text-[var(--sd-ink)] cursor-pointer-always"
+      className="text-micro font-medium text-[var(--ink-faint)] transition-colors duration-[160ms] hover:text-[var(--sd-ink)] cursor-pointer-always"
     >
       Reset layout
     </button>
@@ -154,7 +159,7 @@ function ViewToggle({
     <div
       role="tablist"
       aria-label="LifeOS view"
-      className="inline-flex items-center gap-0.5 rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5"
+      className="inline-flex items-center gap-1 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5"
     >
       {SEGMENTS.map((seg) => {
         const active = view === seg.id;
@@ -166,8 +171,8 @@ function ViewToggle({
             aria-selected={active}
             onClick={() => onSelect(seg.id)}
             className={cn(
-              "relative inline-flex items-center gap-1.5 rounded-[8px] px-3 py-1.5 text-[13px] font-medium",
-              "cursor-pointer-always transition-colors duration-150",
+              "relative inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-meta font-medium",
+              "cursor-pointer-always transition-colors duration-[160ms]",
               active
                 ? "text-[var(--sd-ink)]"
                 : "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]",
@@ -177,7 +182,7 @@ function ViewToggle({
               <motion.span
                 layoutId="lifeos-view-pill"
                 aria-hidden
-                className="absolute inset-0 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)]"
+                className="absolute inset-0 rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)]"
                 transition={
                   reduced ? { duration: 0 } : { duration: 0.16, ease: [0.25, 1, 0.5, 1] }
                 }

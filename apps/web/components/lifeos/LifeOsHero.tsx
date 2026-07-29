@@ -214,7 +214,7 @@ export function LifeOsHero({
     : {
         initial: { opacity: 0, y: 4 },
         animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.16, ease: [0.25, 1, 0.5, 1] as const },
+        transition: { duration: 0.22, ease: [0.25, 1, 0.5, 1] as const },
       };
 
   return (
@@ -224,11 +224,13 @@ export function LifeOsHero({
         className="mb-4 flex items-center justify-between gap-6"
         {...headerAnim}
       >
-        <div className="flex flex-col gap-1.5">
-          <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+        <div className="flex flex-col gap-2">
+          {/* Mono survives here because this is a date (SDC-1 §2.4); the
+              uppercase transform does not. */}
+          <span className="font-mono text-micro font-medium text-[var(--ink-faint)]">
             {format(now, "EEEE · MMMM d, yyyy")}
           </span>
-          <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+          <h1 className="text-display font-semibold text-[var(--ink)]">
             {greeting(now.getHours())}
             {firstName ? `, ${firstName}` : ""}
             <span className="text-[var(--sd-accent)]">.</span>
@@ -237,16 +239,14 @@ export function LifeOsHero({
 
         {/* Presence lamp: JARVIS is here. Not a planet (R1). Soft intensity
             keeps the chrome bob quiet while the landing hero runs bold. */}
-        <div className="lifeos-presence flex shrink-0 flex-col items-center gap-1.5">
+        <div className="lifeos-presence flex shrink-0 flex-col items-center gap-2">
           <FocalOrb size={ORB_SIZE} intensity="soft" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
-            JARVIS
-          </span>
+          <span className="text-micro font-medium text-[var(--ink-faint)]">Jarvis</span>
         </div>
       </motion.div>
 
       {/* Stat strip — icon-left anatomy, no chrome (§5). */}
-      <div className="lifeos-stats mb-5 grid max-w-[1200px] grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="lifeos-stats mb-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
         <style>{STAT_ICON_CSS}</style>
         {stats.map((s, i) => {
           const color = dotColor(s.dot);
@@ -256,22 +256,22 @@ export function LifeOsHero({
                 initial: { opacity: 0, y: 4 },
                 animate: { opacity: 1, y: 0 },
                 transition: {
-                  duration: 0.16,
+                  duration: 0.22,
                   ease: [0.25, 1, 0.5, 1] as const,
-                  delay: Math.min(i, 24) * 0.01,
+                  delay: Math.min(i, 12) * 0.02,
                 },
               };
           return (
             <motion.div key={s.key} {...cellAnim}>
               <Link
                 href={s.href}
-                className="group/stat flex items-center gap-3 rounded-[8px] -mx-2 px-2 py-1.5 outline-none transition-colors duration-150 ease-out hover:bg-[var(--sd-hover)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+                className="group/stat flex items-center gap-3 rounded-[8px] -mx-2 px-2 py-1.5 outline-none transition-colors duration-[160ms] ease-out hover:bg-[var(--sd-hover)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
               >
                 <span className="inline-flex size-10 shrink-0 items-center justify-center">
                   {s.icon}
                 </span>
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+                <span className="flex min-w-0 flex-col gap-1">
+                  <span className="text-micro font-medium text-[var(--ink-faint)]">
                     {s.label}
                   </span>
                   <span className="flex items-baseline leading-none">
@@ -279,16 +279,16 @@ export function LifeOsHero({
                       {s.value}
                     </span>
                     {s.unit ? (
-                      <span className="ml-1 text-[16px] font-medium tabular-nums text-[var(--sd-ink-faint)]">
+                      <span className="ml-1 text-subtitle font-medium tabular-nums text-[var(--sd-ink-faint)]">
                         {s.unit}
                       </span>
                     ) : null}
                   </span>
-                  <span className="flex items-center gap-1.5 truncate text-[12px] text-[var(--sd-ink-dull)]">
+                  <span className="flex items-center gap-1 truncate text-micro font-normal text-[var(--sd-ink-dull)]">
                     {color ? (
                       <span
                         aria-hidden
-                        className="size-[5px] shrink-0 rounded-full"
+                        className="size-1.5 shrink-0 rounded-full"
                         style={{ backgroundColor: color }}
                       />
                     ) : null}
