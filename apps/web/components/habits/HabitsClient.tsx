@@ -738,7 +738,7 @@ function CheckCircle({
         "inline-flex size-7 shrink-0 items-center justify-center rounded-full border-2",
         "cursor-pointer-always transition-colors duration-[160ms] ease-out",
         completed
-          ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--canvas)]"
+          ? "border-transparent bg-[var(--accent)] text-[var(--canvas)]"
           : "border-[var(--edge-strong)] bg-transparent hover:border-[var(--ink-faint)]",
         disabled && "cursor-not-allowed opacity-40"
       )}
