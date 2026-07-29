@@ -26,3 +26,18 @@ export const STATUS_DOT: Record<TaskStatus, string> = {
   "almost done": "var(--ink-violet)",
   lesno: "var(--ink-sage)",
 };
+
+/**
+ * Per-status craft tint class (jul-29 craft restyle). Sets the generic
+ * --tint-bg / --tint-edge / --tint-ink triple on the column so its well,
+ * hairline and header pick up the pastel identity. Hues track STATUS_DOT
+ * (amber→butter, blue→sky, violet→lavender, sage→sage); "not started"
+ * stays neutral and falls back to the plain surface.
+ */
+export const STATUS_TINT: Record<TaskStatus, string | null> = {
+  "not started": null,
+  "up next": "tint-butter",
+  "in progress": "tint-sky",
+  "almost done": "tint-lavender",
+  lesno: "tint-sage",
+};

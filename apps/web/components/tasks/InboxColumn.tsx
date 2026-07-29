@@ -107,7 +107,7 @@ export function InboxColumn({
         e.currentTarget.style.boxShadow = "none";
         void onDrop();
       }}
-      className="overflow-hidden rounded-xl border border-[var(--edge)] bg-[var(--surface)]"
+      className="overflow-hidden rounded-xl border border-[var(--edge)] bg-[var(--surface)] shadow-[var(--shadow-card)]"
     >
       {/* Panel header: toggle open/closed + summary count. Neutral grammar
           (no functional hue), matching the Overdue panel's chevron affordance. */}

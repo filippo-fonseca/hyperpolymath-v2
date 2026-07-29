@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { memo, useRef } from "react";
 import { type CardFields, TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
-import { STATUS_DOT, STATUS_LABELS, type TaskStatus } from "./status";
+import { STATUS_DOT, STATUS_LABELS, STATUS_TINT, type TaskStatus } from "./status";
 
 interface Props {
   status: TaskStatus;
@@ -67,7 +67,11 @@ export const KanbanColumn = memo(function KanbanColumn({
   const isValidTarget = (): boolean => draggedTaskId !== null && draggedFromStatus !== status;
 
   const lightUp = () => {
-    if (ref.current) ref.current.style.background = "var(--selected)";
+    // Tint-aware drop wash: deepen the column's own pastel rather than
+    // washing every status to the same neutral --selected.
+    if (ref.current)
+      ref.current.style.background =
+        "color-mix(in srgb, var(--tint-edge, var(--accent)) 14%, var(--tint-bg, var(--surface)))";
     if (slotRef.current) {
       slotRef.current.style.height = "2.75rem";
       slotRef.current.style.marginTop = "0.5rem";
@@ -75,7 +79,9 @@ export const KanbanColumn = memo(function KanbanColumn({
     }
   };
   const dimDown = () => {
-    if (ref.current) ref.current.style.background = "var(--surface)";
+    // Clearing the inline override lets the class-level tint show through
+    // again (hardcoding a value here would strip the tint on drag-leave).
+    if (ref.current) ref.current.style.background = "";
     if (slotRef.current) {
       slotRef.current.style.height = "0px";
       slotRef.current.style.marginTop = "0px";
@@ -86,7 +92,16 @@ export const KanbanColumn = memo(function KanbanColumn({
   return (
     <div
       ref={ref}
-      className="flex w-full flex-col rounded-xl @4xl/main:flex-1 @4xl/main:basis-0 @4xl/main:min-w-0"
+      className={cn(
+        "flex w-full flex-col rounded-xl @4xl/main:flex-1 @4xl/main:basis-0 @4xl/main:min-w-0",
+        // jul-29 craft restyle: the column is a pastel well with a whisper of
+        // its tint on the hairline. "not started" has no tint class, so both
+        // arbitrary values fall back to the neutral surface/edge.
+        STATUS_TINT[status],
+        "border border-[color-mix(in_srgb,var(--tint-edge,var(--edge))_38%,transparent)]",
+        "bg-[var(--tint-bg,var(--surface))]",
+        "transition-[background-color,border-color] duration-[160ms] ease-out"
+      )}
       data-status={status}
       onDragOver={(e) => {
         if (!isValidTarget()) return;
@@ -104,10 +119,6 @@ export const KanbanColumn = memo(function KanbanColumn({
         dimDown();
         if (isValidTarget()) onDropOnColumn(status);
       }}
-      // Elevation is fill, not shadow (SDC-1 §2.6): the column is a recessed
-      // --surface well under the cards' raised fill. No border; the cards
-      // inside carry the one hairline for this nesting level.
-      style={{ background: "var(--surface)", transition: "background-color 160ms ease-out" }}
     >
       <div className="group/colhdr flex min-w-0 items-center gap-2 px-4 pt-3 pb-2">
         <span
@@ -115,7 +126,7 @@ export const KanbanColumn = memo(function KanbanColumn({
           className="size-1.5 shrink-0 rounded-full"
           style={{ background: STATUS_DOT[status] }}
         />
-        <span className="truncate text-meta font-medium text-[var(--ink)]">
+        <span className="truncate text-meta font-medium text-[var(--tint-ink,var(--ink))]">
           {STATUS_LABELS[status]}
         </span>
         <span className="shrink-0 text-micro tabular-nums text-[var(--ink-faint)]">
@@ -182,7 +193,7 @@ export const KanbanColumn = memo(function KanbanColumn({
           }}
         />
 
-        <div className="mt-2 border-t border-[var(--edge)] pt-2">
+        <div className="mt-2 border-t border-[color-mix(in_srgb,var(--tint-edge,var(--edge))_30%,transparent)] pt-2">
           <TaskCreateInline
             status={status}
             onCreateTask={onCreateTask}

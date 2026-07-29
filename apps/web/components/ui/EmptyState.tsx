@@ -74,7 +74,10 @@ export function EmptyState({
       )}
     >
       {icon && !inline ? (
-        <div className="flex size-10 items-center justify-center opacity-40 [&_svg]:size-10">
+        // jul-29 craft restyle: the icon sits on a soft circular pastel
+        // plate. Neutral by default; a caller can pass a `tint-*` class via
+        // className to give a feature its hue.
+        <div className="flex size-14 items-center justify-center rounded-full bg-[var(--tint-bg,var(--hover))] text-[var(--tint-ink,var(--ink-muted))] [&_svg]:size-6">
           {icon}
         </div>
       ) : null}

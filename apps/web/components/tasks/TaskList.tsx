@@ -114,7 +114,7 @@ export function TaskList({
         items={tasks.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="flex flex-col">
+        <div className="craft-card flex flex-col rounded-xl px-1.5 py-1">
           {/* Column captions — quiet text-micro register over one hairline. */}
           {showHeader && (
             <div className="flex h-8 items-center gap-2 border-b border-[var(--edge)] px-2">
@@ -154,7 +154,7 @@ export function TaskList({
         {activeTask ? (
           <div
             className="flex h-9 items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 opacity-95"
-            style={{ boxShadow: "0 4px 16px rgb(0 0 0 / 0.06)" }}
+            style={{ boxShadow: "var(--shadow-pop)" }}
           >
             <PriorityChip priority={activeTask.priority} />
             <span className="flex-1 truncate text-body text-[var(--ink)]">

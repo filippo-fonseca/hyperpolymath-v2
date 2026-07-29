@@ -149,15 +149,16 @@ export const TaskCard = memo(function TaskCard({
               : { duration: 0.16, ease: "easeOut" }
         }
         className={cn(
-          // Card register (SDC-1 §2.6): raised fill, one hairline, 12px
-          // radius, no shadow. Hover moves border-color to --edge-strong
-          // only: no scale, no lift, no glow, no accent.
+          // Card register (jul-29 craft restyle): raised white plate, one
+          // hairline, soft card shadow, hover deepens the shadow. Still no
+          // scale and no glow — the lift is shadow-only.
           "relative rounded-xl border px-3 py-2.5",
-          "transition-[border-color,background-color] duration-[160ms] ease-out",
+          "shadow-[var(--shadow-card)]",
+          "transition-[border-color,background-color,box-shadow] duration-[160ms] ease-out",
           isSelected
             ? "border-[var(--edge-strong)] bg-[var(--selected)]"
             : "border-[var(--edge)] bg-[var(--surface-raised)]",
-          !isDragging && !isSelected && "hover:border-[var(--edge-strong)]"
+          !isDragging && !isSelected && "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]"
         )}
       >
         {onToggleSelected ? (
