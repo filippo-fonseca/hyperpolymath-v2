@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useQueryClient } from "@tanstack/react-query";
 import { MoreHorizontal } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -62,6 +63,7 @@ export function AreaActionsMenu({
   onArchiveWithUndo,
 }: Props) {
   const [, startTransition] = useTransition();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -96,6 +98,7 @@ export function AreaActionsMenu({
         toast.error(result.error);
         return;
       }
+      queryClient.invalidateQueries({ queryKey: ["areas"] });
       toast("Area archived.", {
         action: {
           label: "Undo",
@@ -105,7 +108,7 @@ export function AreaActionsMenu({
               if (!undoResult.success) {
                 toast.error(undoResult.error);
               }
-              // Realtime echo will restore the row; no manual refresh needed.
+              queryClient.invalidateQueries({ queryKey: ["areas"] });
             });
           },
         },
@@ -124,7 +127,9 @@ export function AreaActionsMenu({
       const result = await unarchiveArea(areaId);
       if (!result.success) {
         toast.error(result.error);
+        return;
       }
+      queryClient.invalidateQueries({ queryKey: ["areas"] });
     });
   }
 
@@ -142,7 +147,8 @@ export function AreaActionsMenu({
     }
     toast("Area deleted.");
     setDeleteDialogOpen(false);
-    // Realtime DELETE echo invalidates → refetch → cache aligns.
+    // Invalidate directly rather than waiting on the Realtime DELETE echo.
+    queryClient.invalidateQueries({ queryKey: ["areas"] });
   }
 
   async function handleRename() {
@@ -161,6 +167,9 @@ export function AreaActionsMenu({
       return;
     }
     setRenameDialogOpen(false);
+    // Invalidate the collection directly so pages bound to ['areas', userId]
+    // (the detail H1, the index) repaint even if the Realtime echo drops.
+    queryClient.invalidateQueries({ queryKey: ["areas"] });
   }
 
   return (

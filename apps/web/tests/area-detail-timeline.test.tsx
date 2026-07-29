@@ -149,14 +149,32 @@ describe("AreaProjectList — grid | timeline", () => {
     expect(screen.getByRole("button", { name: "Old Seminar" })).toHaveAttribute("data-ghost", "true");
   });
 
-  it("keeps the grid empty-state byte-for-byte, and reaches the timeline panel", () => {
+  it("renders the shared EmptyState for zero projects, and keeps the timeline's empty panel reachable", () => {
+    // u8 replaces the old bordered empty card with the shared EmptyState and
+    // returns it early: an area with zero projects shows no toggle, no tabs.
     renderList([]);
 
-    // Grid view (default): the original empty copy, unchanged.
-    expect(screen.getByText("No projects in this area yet.")).toBeInTheDocument();
-    expect(screen.getByTestId("area-detail-view-toggle")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("No projects in this area yet")).toBeInTheDocument();
+    expect(
+      screen.getByText("Projects group this area's tasks, captures, and pages into bodies of work."),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("area-detail-view-toggle")).not.toBeInTheDocument();
+  });
 
-    // Timeline view: the ProjectsTimeline empty panel WITH its zoom toolbar.
+  it("shows the timeline's empty panel, toolbar intact, when every project is filtered out", () => {
+    // An expired project keeps the toggle around but leaves the Active tab
+    // with nothing to draw, which is the path to ProjectsTimeline's own
+    // empty panel now that zero-projects early-returns the EmptyState.
+    renderList([
+      project({
+        id: "old",
+        name: "Old Seminar",
+        startDate: addDaysISO(TODAY, -40),
+        endDate: addDaysISO(TODAY, -10),
+      }),
+    ]);
+
     fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
     expect(screen.getByText("No active projects")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Months" })).toBeInTheDocument();

@@ -9,7 +9,7 @@ import { AreasPageHeader } from "@/components/areas/AreasPageHeader";
 import { AreasTree } from "@/components/areas/AreasTree";
 import { ProjectsTimeline } from "@/components/projects/timeline/ProjectsTimeline";
 import { useTimelineView } from "@/components/projects/timeline/useTimelineView";
-import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
+import { PageScaffold } from "@/components/ui/PageScaffold";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
@@ -118,11 +118,12 @@ export function AreasPageClient({
     a.name === "No Area" && a.emoji === null;
 
   return (
-    <>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        <Breadcrumbs items={[{ label: "Areas" }]} />
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-0.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5">
+    <PageScaffold
+      title="Areas"
+      subtitle={'"Energy is the currency of productivity." (Ali Abdaal)'}
+      actions={
+        <>
+          <div className="flex items-center gap-1 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-1">
             {VIEW_SEGMENTS.map((seg) => (
               <button
                 key={seg.value}
@@ -130,12 +131,11 @@ export function AreasPageClient({
                 onClick={() => setView(seg.value)}
                 aria-pressed={view === seg.value}
                 className={cn(
-                  "cursor-pointer-always rounded-[5px] px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em]",
-                  "transition-colors duration-150 ease-out",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+                  "cursor-pointer-always rounded px-2 py-1 text-meta",
+                  "transition-colors duration-[160ms] ease-out",
                   view === seg.value
-                    ? "bg-[var(--sd-selected)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]"
-                    : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
+                    ? "bg-[var(--selected)] font-medium text-[var(--ink)]"
+                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
                 )}
               >
                 {seg.label}
@@ -148,87 +148,75 @@ export function AreasPageClient({
             onCreated={handleCreated}
             onCreateFailed={handleCreateFailed}
           />
-        </div>
-      </div>
-
-      <header className="mb-4 text-center space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight text-[var(--ink)]">
-          Areas
-        </h1>
-        <p className="text-[14px] text-[var(--ink-muted)]">
-          "Energy is the currency of productivity." — Ali Abdaal
-        </p>
-      </header>
-
-      {view === "tree" ? (
-        <AreasTree
-          areas={areas}
-          rootAvatarUrl={rootAvatarUrl}
-          rootInitial={rootInitial}
-          rootLabel={rootLabel}
-        />
-      ) : isPending ? (
-        <div className="sd-panel flex items-center justify-center px-6 py-14">
-          <span className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.08em]">
-            Loading timeline…
-          </span>
-        </div>
-      ) : (
-        <ProjectsTimeline
-          areas={areas}
-          projects={projectRows ?? []}
-          showArchived={showArchived}
-          scope="all"
-          toolbarSlot={
-            <button
-              type="button"
-              onClick={toggleShowArchived}
-              aria-pressed={showArchived}
-              title="Archived and ended projects render as muted ghost bars"
-              className={cn(
-                "inline-flex h-[26px] items-center gap-1.5 rounded-[8px] border px-2 text-[12px] font-medium",
-                "cursor-pointer-always transition-colors duration-150 ease-out",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-                showArchived
-                  ? "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink)]"
-                  : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
-              )}
-            >
-              Show archived
-            </button>
-          }
-        />
-      )}
+        </>
+      }
+    >
+      <PageScaffold.Section>
+        {view === "tree" ? (
+          <AreasTree
+            areas={areas}
+            rootAvatarUrl={rootAvatarUrl}
+            rootInitial={rootInitial}
+            rootLabel={rootLabel}
+          />
+        ) : isPending ? (
+          <div className="sd-panel flex items-center justify-center px-6 py-14">
+            <span className="text-meta text-[var(--ink-muted)]">Loading timeline…</span>
+          </div>
+        ) : (
+          <ProjectsTimeline
+            areas={areas}
+            projects={projectRows ?? []}
+            showArchived={showArchived}
+            scope="all"
+            toolbarSlot={
+              <button
+                type="button"
+                onClick={toggleShowArchived}
+                aria-pressed={showArchived}
+                title="Archived and ended projects render as muted ghost bars"
+                className={cn(
+                  "inline-flex h-8 items-center gap-2 rounded-lg border px-2 text-meta font-medium",
+                  "cursor-pointer-always transition-colors duration-[160ms] ease-out",
+                  showArchived
+                    ? "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink)]"
+                    : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]",
+                )}
+              >
+                Show archived
+              </button>
+            }
+          />
+        )}
+      </PageScaffold.Section>
 
       {areas.length > 0 && (
-        <section className="mt-10">
-          <div className="flex items-baseline gap-3 mb-3">
-            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-              Manage areas
-            </h2>
-            <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)]">
-              ({areas.length})
-            </span>
-          </div>
+        <PageScaffold.Section
+          title="Manage areas"
+          divided
+          action={
+            <span className="text-meta tabular-nums text-[var(--ink-muted)]">{areas.length}</span>
+          }
+        >
           <ul className="flex flex-col divide-y divide-[var(--edge)]">
             {areas.map((area) => (
-              <li key={area.id} className="group/area-row flex items-center gap-3 py-2.5 px-1">
+              <li key={area.id} className="group/area-row flex items-center gap-3 px-1 py-3">
                 {area.emoji ? (
-                  <span className="text-base leading-none shrink-0" aria-hidden="true">
+                  <span className="shrink-0 text-base leading-none" aria-hidden="true">
                     {area.emoji}
                   </span>
                 ) : (
                   <span className="w-5 shrink-0" aria-hidden="true" />
                 )}
-                <span className="text-[15px] text-[var(--ink)] flex-1 leading-snug">
+                <span className="flex-1 text-body leading-snug text-[var(--ink)]">
                   {area.name}
                   {isSentinel(area) && (
-                    <em className="font-mono text-[10px] not-italic text-[var(--ink-muted)] ml-2 tracking-[0.06em]">
+                    <span className="ml-2 text-micro text-[var(--ink-faint)]">
                       (auto-created bucket)
-                    </em>
+                    </span>
                   )}
                 </span>
-                <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)] shrink-0">
+                <span className="shrink-0 text-meta tabular-nums text-[var(--ink-muted)]">
                   {area.projects.length} project
                   {area.projects.length === 1 ? "" : "s"}
                 </span>
@@ -242,8 +230,8 @@ export function AreasPageClient({
               </li>
             ))}
           </ul>
-        </section>
+        </PageScaffold.Section>
       )}
-    </>
+    </PageScaffold>
   );
 }

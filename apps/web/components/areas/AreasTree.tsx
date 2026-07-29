@@ -245,9 +245,7 @@ export function AreasTree({
       {/* Controls strip — chip grammar (§7). Mono "VIEW" eyebrow grounds the
           band as chrome; the toggles read as the same chips the cards use. */}
       <div className="mb-4 flex items-center justify-between gap-4 border-b border-[var(--sd-line)] px-2 pb-3">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
-          View
-        </span>
+        <span className="text-micro text-[var(--sd-ink-faint)]">View</span>
         <div className="flex items-center gap-2">
           <ChipButton
             active={!hideAllProjects}
@@ -523,7 +521,7 @@ function AreaBranch({
                 defaults to the dimensional AreaIcon (never drop user data). */}
             <span
               aria-hidden="true"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] border border-[var(--sd-line)] bg-[var(--sd-input)] text-[15px] leading-none"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--sd-line)] bg-[var(--sd-input)] text-[15px] leading-none"
             >
               {area.emoji ? area.emoji : <AreaIcon size={18} />}
             </span>
@@ -531,7 +529,7 @@ function AreaBranch({
               {area.name}
             </span>
           </div>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+          <span className="text-micro font-medium text-[var(--sd-ink-faint)]">
             {activeCount} project{activeCount === 1 ? "" : "s"}
             {showArchived && archivedCount > 0 ? (
               <span className="ml-1">· {archivedCount} archived</span>
@@ -550,7 +548,7 @@ function AreaBranch({
           aria-label={collapsed ? "Show projects" : "Hide projects"}
           aria-expanded={!collapsed}
           className={cn(
-            "absolute top-2.5 right-2 inline-flex h-6 w-6 items-center justify-center rounded-[6px]",
+            "absolute top-2.5 right-2 inline-flex h-6 w-6 items-center justify-center rounded-lg",
             "text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
             "cursor-pointer-always transition-colors duration-150 ease-out",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
