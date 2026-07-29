@@ -87,7 +87,7 @@ export function PersonListField({
             <li key={name} className="group inline-flex items-center">
               <span
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-2 py-1",
+                  "inline-flex items-center gap-1.5 rounded-lg px-2 py-1",
                   "font-sans text-[13px] text-[var(--ink-amber)]",
                   "border border-[color-mix(in_oklch,var(--ink-amber)_35%,transparent)]",
                   "bg-[color-mix(in_oklch,var(--ink-amber)_10%,transparent)]",
@@ -153,7 +153,7 @@ export function PersonListField({
             </button>
           </div>
           {(filtered.length > 0 || (trimmed.length > 0 && !exactExists)) && (
-            <ul className="flex flex-col rounded-md border border-[var(--edge)] overflow-hidden">
+            <ul className="flex flex-col rounded-lg border border-[var(--edge)] overflow-hidden">
               {filtered.map((p) => (
                 <li key={p.id}>
                   <button
@@ -196,7 +196,7 @@ export function PersonListField({
           onClick={() => !disabled && setAdding(true)}
           disabled={disabled}
           className={cn(
-            "inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1",
+            "inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1",
             "font-sans text-[13px] text-[var(--ink-muted)] cursor-pointer-always",
             "border border-dashed border-[var(--edge)] hover:border-[var(--edge-hud)] hover:text-[var(--ink)]",
             "transition-colors duration-150 ease-out disabled:opacity-40",

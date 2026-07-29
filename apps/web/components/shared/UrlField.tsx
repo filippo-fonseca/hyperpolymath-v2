@@ -114,7 +114,7 @@ export function UrlField({
         onClick={startEditing}
         disabled={disabled}
         className={cn(
-          "inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1",
+          "inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1",
           "font-sans text-[13px] text-[var(--ink-muted)] cursor-pointer-always",
           "border border-dashed border-[var(--edge)] hover:border-[var(--edge-hud)] hover:text-[var(--ink)]",
           "transition-colors duration-150 ease-out disabled:opacity-40",
@@ -134,7 +134,7 @@ export function UrlField({
         target="_blank"
         rel="noopener noreferrer"
         className={cn(
-          "inline-flex items-center gap-1.5 min-w-0 max-w-full rounded-md px-2 py-1",
+          "inline-flex items-center gap-1.5 min-w-0 max-w-full rounded-lg px-2 py-1",
           "font-sans text-[13px] text-[var(--hud-cyan)] cursor-pointer-always",
           "border border-[color-mix(in_oklch,var(--hud-cyan)_35%,transparent)]",
           "hover:bg-[color-mix(in_oklch,var(--hud-cyan)_12%,transparent)]",
