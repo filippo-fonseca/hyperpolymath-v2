@@ -4,8 +4,8 @@ import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
 import { fromYmd } from "@/lib/tasks/date-shortcuts";
 import { differenceInCalendarDays, format } from "date-fns";
-import { AlarmClock, Check, ChevronDown, ChevronRight, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AlarmClock, ChevronDown, ChevronRight, X } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MoveToMenu } from "./MoveToMenu";
 import { TaskCard } from "./TaskCard";
@@ -105,9 +105,9 @@ interface Props {
  * select-all + select-all-across-panel) feeds a mass-reschedule via the shared
  * MoveToMenu affordance.
  *
- * Aesthetic (sd register): .sd-panel surface, coral as the overdue functional
- * hue expressed only as 6px sd-dots + 15%-alpha tinted chips (D6), neutral
- * --sd-selected backplates for the select toggles, accent cyan for focus.
+ * Aesthetic (SDC-1): a 12px panel on `--surface`, coral as the overdue
+ * functional hue expressed only as 6px dots + 12%-alpha chips, neutral
+ * `--selected` backplates for the select toggles, accent reserved for focus.
  */
 export function OverdueTasksPanel({
   overdueTasks,
@@ -117,6 +117,7 @@ export function OverdueTasksPanel({
   onDragStart,
   onDragEnd,
 }: Props) {
+  const reduced = useReducedMotion();
   const [panelOpen, setPanelOpen] = usePersistentBoolean(PANEL_OPEN_KEY, true);
   const [collapsedGroups, toggleGroup] = usePersistentStringSet(COLLAPSED_GROUPS_KEY);
 
@@ -205,30 +206,32 @@ export function OverdueTasksPanel({
   return (
     <section
       aria-label="Overdue tasks"
-      className="sd-panel mb-4 overflow-hidden"
+      className="overflow-hidden rounded-xl border border-[var(--edge)] bg-[var(--surface)]"
     >
-      {/* Panel header — toggle open/closed + summary count. Overdue reads as a
-          coral functional hue kept to a 6px sd-dot + the status label (D6). */}
+      {/* Panel header: toggle open/closed + summary count. Overdue reads as a
+          coral functional hue kept to a 6px dot + the label. */}
       <header className="flex items-center justify-between gap-3 px-4 py-2.5">
         <button
           type="button"
           onClick={() => setPanelOpen(!panelOpen)}
           aria-expanded={panelOpen}
-          className="group/header flex items-center gap-2 cursor-pointer-always text-left rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+          className="group/header flex items-center gap-2 rounded-lg text-left cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
-          <span className="text-[var(--sd-ink-dull)]">
+          <span className="text-[var(--ink-muted)]">
             {panelOpen ? (
               <ChevronDown size={15} strokeWidth={2} />
             ) : (
               <ChevronRight size={15} strokeWidth={2} />
             )}
           </span>
-          <span aria-hidden className="sd-dot" style={{ background: "var(--ink-coral)" }} />
+          <span
+            aria-hidden
+            className="size-1.5 rounded-full"
+            style={{ background: "var(--ink-coral)" }}
+          />
           <AlarmClock size={14} strokeWidth={1.75} className="text-[var(--ink-coral)]" />
-          <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--ink-coral)]">
-            Overdue
-          </span>
-          <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-dull)]">
+          <span className="text-meta font-medium text-[var(--ink-coral)]">Overdue</span>
+          <span className="font-mono text-micro tabular-nums text-[var(--ink-muted)]">
             {overdueTasks.length}
           </span>
         </button>
@@ -239,10 +242,12 @@ export function OverdueTasksPanel({
             onClick={toggleSelectAll}
             aria-pressed={allSelected}
             className={cn(
-              "rounded-[6px] border px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-[120ms] ease-out shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+              "shrink-0 rounded-lg px-2.5 py-0.5 text-micro cursor-pointer-always",
+              "transition-colors duration-[160ms] ease-out",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
               allSelected
-                ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)]"
-                : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-line)]"
+                ? "bg-[var(--selected)] text-[var(--ink)]"
+                : "text-[var(--ink-muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
             )}
           >
             {allSelected ? "Deselect all" : "Select all"}
@@ -257,11 +262,11 @@ export function OverdueTasksPanel({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reduced ? 0 : 0.28, ease: [0.32, 0.72, 0, 1] }}
             className="overflow-hidden"
           >
             <div className="max-h-[40vh] overflow-y-auto px-4 pb-3">
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 {groups.map((group) => {
                   const groupIds = group.tasks.map((t) => t.id);
                   const collapsed = collapsedGroups.has(group.ymd);
@@ -302,12 +307,12 @@ export function OverdueTasksPanel({
             initial={{ y: 12, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 12, opacity: 0 }}
-            transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
-            className="flex items-center justify-between gap-3 border-t border-[var(--sd-line)] px-4 py-2.5"
+            transition={{ duration: reduced ? 0 : 0.22, ease: [0.25, 1, 0.5, 1] }}
+            className="flex items-center justify-between gap-3 border-t border-[var(--edge)] px-4 py-2.5"
             role="toolbar"
             aria-label="Overdue bulk actions"
           >
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+            <span className="text-micro tabular-nums text-[var(--ink-muted)]">
               {selectedIds.size} selected
             </span>
             <div className="flex items-center gap-2">
@@ -315,7 +320,7 @@ export function OverdueTasksPanel({
               <button
                 type="button"
                 onClick={clearSelection}
-                className="rounded-full p-1 text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+                className="rounded-full p-1 text-[var(--ink-faint)] hover:text-[var(--ink)] cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                 aria-label="Clear overdue selection"
               >
                 <X size={14} strokeWidth={1.75} />
@@ -368,52 +373,59 @@ function OverdueDateGroup({
   const relative = daysAgo === 1 ? "Yesterday" : daysAgo > 1 ? `${daysAgo} days ago` : "";
 
   return (
-    <div className="rounded-[6px] border border-[var(--sd-line)] bg-[color-mix(in_srgb,var(--sd-box)_40%,transparent)]">
-      <div className="flex items-center justify-between gap-2 px-2.5 py-1.5">
+    // No box around the group: the panel already carries the border, so a
+    // group is just a header row plus its cards (one border per nesting level).
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2 px-0.5">
         <button
           type="button"
           onClick={onToggleCollapse}
           aria-expanded={!collapsed}
-          className="flex min-w-0 items-center gap-1.5 cursor-pointer-always text-left rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+          className="flex min-w-0 items-center gap-2 rounded-lg text-left cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
-          <span className="text-[var(--sd-ink-dull)]">
+          <span className="text-[var(--ink-muted)]">
             {collapsed ? (
               <ChevronRight size={13} strokeWidth={2} />
             ) : (
               <ChevronDown size={13} strokeWidth={2} />
             )}
           </span>
-          <span className="font-sans text-[13px] text-[var(--sd-ink)]">
+          <span className="text-meta font-medium text-[var(--ink)]">
             {format(date, "EEE, MMM d")}
           </span>
           {relative ? (
-            // "how overdue" as a 15%-alpha coral tinted chip + 6px dot (D6).
+            // "How overdue" as a 12%-alpha coral chip + 6px dot.
             <span
-              className="inline-flex items-center gap-1 rounded-md border px-1.5 py-px font-mono text-[10px] uppercase tracking-[0.06em]"
+              className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-micro tabular-nums"
               style={{
                 color: "var(--ink-coral)",
-                borderColor: "color-mix(in srgb, var(--ink-coral) 30%, var(--sd-line))",
-                background: "color-mix(in srgb, var(--ink-coral) 15%, var(--sd-box))",
+                background: "color-mix(in oklch, var(--ink-coral) 12%, transparent)",
               }}
             >
-              <span aria-hidden className="sd-dot" style={{ background: "var(--ink-coral)" }} />
+              <span
+                aria-hidden
+                className="size-1.5 rounded-full"
+                style={{ background: "var(--ink-coral)" }}
+              />
               {relative}
             </span>
           ) : null}
-          <span className="font-mono text-[10px] tabular-nums text-[var(--sd-ink-faint)]">
-            · {group.tasks.length}
+          <span className="font-mono text-micro tabular-nums text-[var(--ink-faint)]">
+            {group.tasks.length}
           </span>
         </button>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={onToggleGroupSelection}
             aria-pressed={groupAllSelected}
             className={cn(
-              "rounded-[5px] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-[120ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+              "rounded-lg px-1.5 py-0.5 text-micro cursor-pointer-always",
+              "transition-colors duration-[160ms] ease-out",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
               groupAllSelected
-                ? "text-[var(--sd-accent)]"
-                : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
+                ? "bg-[var(--selected)] text-[var(--ink)]"
+                : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
             )}
           >
             {groupAllSelected ? "Clear" : "Select"}
@@ -426,7 +438,7 @@ function OverdueDateGroup({
       </div>
 
       {!collapsed ? (
-        <div className="flex flex-col gap-2 px-2.5 pb-2.5">
+        <div className="flex flex-col gap-2">
           {group.tasks.map((t) => (
             <TaskCard
               key={t.id}
