@@ -32,9 +32,10 @@ interface Props {
  *     Defaults to unchecked (no_export=true) so journal entries stay private
  *     unless the user actively opts in (issue #191).
  *
- * Chrome: WidgetCard v2 grammar — a `--sd-box` plate on a 14px radius with a
- * `--sd-line` hairline and the dark-only inset top hairline. No serif (logotype
- * rule), no glass, no glow. The save indicator is a functional sd status pill.
+ * Chrome (jul-29 craft restyle): the composer is a raised white `craft-card` on
+ * the large-panel radius — the page's one sheet of paper. Colour stays off the
+ * fill and lives on the small accents: a butter plate behind the prompt, a
+ * pastel dot in the save pill. No glass, no glow.
  *
  * Autosave: debounced at 800ms. Skips write if both text fields are empty
  * (avoids creating empty rows on first visit). Save indicator cycles:
@@ -139,44 +140,42 @@ export function JournalEntryEditor({ date, entry }: Props) {
       };
 
   return (
-    <motion.div
-      {...fade}
-      className={cn(
-        "flex flex-col gap-5 rounded-[14px] p-6 md:p-7",
-        "border border-[var(--sd-line)] bg-[var(--sd-box)]",
-        "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]",
-      )}
-    >
-      {/* Fixed prompt + save-state pill */}
+    <motion.div {...fade} className="craft-card flex flex-col gap-5 rounded-2xl p-6 md:p-7">
+      {/* Fixed prompt on its butter plate + save-state pill. The plate is the
+          one tinted element in the composer: it marks the question as given,
+          not typed. */}
       <div className="flex items-start justify-between gap-4">
-        <p className="text-[18px] font-semibold leading-snug tracking-[-0.01em] text-[var(--sd-ink)]">
+        <p
+          className={cn(
+            "tint-butter min-w-0 rounded-xl border px-3 py-2 text-subtitle font-medium leading-snug",
+            "border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] text-[var(--tint-ink)]"
+          )}
+        >
           {PROMPT}
         </p>
-        {/* Save indicator — functional sd status pill, right-aligned. */}
+        {/* Save indicator — a pastel pill; sage once the write has landed. */}
         <span
           className={cn(
-            "sd-status-pill shrink-0 font-mono uppercase tracking-[0.05em] transition-opacity duration-200",
-            saveState === "idle" ? "opacity-0" : "opacity-100",
+            saveState === "saved" ? "tint-sage" : "tint-sky",
+            "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-micro font-medium",
+            "border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] text-[var(--tint-ink)]",
+            "transition-opacity duration-[160ms] ease-out motion-reduce:transition-none",
+            saveState === "idle" ? "opacity-0" : "opacity-100"
           )}
           aria-live="polite"
           aria-atomic="true"
         >
-          <span
-            className={cn(
-              "sd-dot",
-              saveState === "saved" ? "sd-dot-synced" : "sd-dot-idle",
-            )}
-          />
+          <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-[var(--tint-edge)]" />
           {saveState === "saving" ? "Saving…" : "Saved"}
         </span>
       </div>
 
-      {/* Main response textarea — Space Grotesk body at a comfortable read size. */}
+      {/* Main response textarea — body copy at a comfortable read size. */}
       <textarea
         className={cn(
-          "w-full min-h-[220px] resize-none border-none bg-transparent",
-          "text-[16px] leading-[1.7] text-[var(--sd-ink)]",
-          "placeholder:text-[var(--sd-ink-faint)] focus:outline-none",
+          "min-h-[220px] w-full resize-none border-none bg-transparent",
+          "text-[16px] leading-[1.7] text-[var(--ink)]",
+          "placeholder:text-[var(--ink-faint)] focus:outline-none"
         )}
         placeholder="Write freely…"
         value={mainResponse}
@@ -185,18 +184,16 @@ export function JournalEntryEditor({ date, entry }: Props) {
       />
 
       {/* Divider */}
-      <div className="border-t border-[var(--sd-line)]" />
+      <div className="border-t border-[var(--edge)]" />
 
       {/* Notes / Misc section */}
       <div className="flex flex-col gap-2">
-        <label className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
-          Notes / Misc
-        </label>
+        <label className="text-meta font-medium text-[var(--ink-muted)]">Notes / Misc</label>
         <textarea
           className={cn(
-            "w-full min-h-[100px] resize-none border-none bg-transparent",
-            "text-[14.5px] leading-[1.6] text-[var(--sd-ink)]",
-            "placeholder:text-[var(--sd-ink-faint)] focus:outline-none",
+            "min-h-[100px] w-full resize-none border-none bg-transparent",
+            "text-body text-[var(--ink)]",
+            "placeholder:text-[var(--ink-faint)] focus:outline-none"
           )}
           placeholder="Anything else on your mind…"
           value={notesSection}
@@ -206,7 +203,7 @@ export function JournalEntryEditor({ date, entry }: Props) {
       </div>
 
       {/* Divider */}
-      <div className="border-t border-[var(--sd-line)]" />
+      <div className="border-t border-[var(--edge)]" />
 
       {/* Opt-in AI/MCP export toggle. UI is the inverse of the underlying
           no_export column: checked ⇒ include in export ⇒ noExport=false.
@@ -215,13 +212,11 @@ export function JournalEntryEditor({ date, entry }: Props) {
         <Checkbox
           id={`include-in-export-${date}`}
           checked={!noExport}
-          onCheckedChange={(checked) =>
-            handleNoExportChange(checked !== true)
-          }
+          onCheckedChange={(checked) => handleNoExportChange(checked !== true)}
         />
         <label
           htmlFor={`include-in-export-${date}`}
-          className="cursor-pointer select-none font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
+          className="cursor-pointer select-none text-meta text-[var(--ink-muted)]"
         >
           Include in AI export (MCP)
         </label>

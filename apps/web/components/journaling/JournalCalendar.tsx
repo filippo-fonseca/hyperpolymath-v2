@@ -32,18 +32,24 @@ const MONTH_NAMES = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-// Token-driven day-cell states. Inline styles keep the color-mix tints and the
-// today ring out of the Tailwind scan gap (§0) and resolve in both themes.
-const CELL_BASE: CSSProperties = { background: "var(--sd-box)" };
+// Token-driven day-cell states (jul-29 craft restyle). Inline styles keep the
+// color-mix tints and the today ring out of the Tailwind scan gap (§0) and
+// resolve in both themes.
+//
+// The written days wear ONE hue rather than a per-day hash: a 42-cell grid of
+// eight rotating pastels reads as confetti, not as a calendar. Peach is the
+// journal's feature hue (it is the empty state's tint too), so a month of
+// entries reads as a single warm streak with the plain days quiet behind it.
+const CELL_BASE: CSSProperties = { background: "var(--surface-raised)" };
 const CELL_ENTRY: CSSProperties = {
-  background: "color-mix(in srgb, var(--sd-accent) 16%, var(--sd-box))",
+  background: "var(--tint-peach-bg)",
 };
 const CELL_SELECTED: CSSProperties = {
-  background: "color-mix(in srgb, var(--sd-accent) 30%, var(--sd-box))",
-  boxShadow: "inset 0 0 0 1px var(--sd-accent)",
+  background: "var(--tint-peach-bg)",
+  boxShadow: "inset 0 0 0 1.5px var(--tint-peach-edge)",
 };
 const CELL_TODAY_RING: CSSProperties = {
-  boxShadow: "inset 0 0 0 1px var(--sd-accent)",
+  boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--tint-peach-edge) 55%, transparent)",
 };
 
 interface Props {
@@ -133,7 +139,7 @@ export function JournalCalendar({
           {DOW.map((d) => (
             <div
               key={d}
-              className="py-1 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+              className="py-1 text-center text-micro font-medium text-[var(--ink-faint)]"
             >
               {d}
             </div>
@@ -141,8 +147,8 @@ export function JournalCalendar({
         </div>
         {/* Hairline grid: the wrapper line color shows through the 1px gaps. */}
         <div
-          className="grid grid-cols-7 gap-px overflow-hidden rounded-[8px]"
-          style={{ background: "var(--sd-line)" }}
+          className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-[var(--edge)]"
+          style={{ background: "var(--edge)" }}
         >
           {days.map((day) => {
             const iso = format(day, "yyyy-MM-dd");
@@ -161,13 +167,16 @@ export function JournalCalendar({
                 aria-current={isSelected ? "date" : undefined}
                 style={cellStyle(isSelected, isCurrDay, hasEntry)}
                 className={cn(
-                  "relative flex h-9 w-full items-center justify-center text-[12px] transition-colors duration-150",
+                  "relative flex h-9 w-full items-center justify-center text-meta cursor-pointer-always",
+                  "transition-colors duration-[160ms] ease-out motion-reduce:transition-none",
                   !inMonth && "pointer-events-none opacity-40",
                   isSelected
-                    ? "font-semibold text-[var(--sd-accent)]"
+                    ? "font-semibold text-[var(--tint-peach-ink)]"
                     : isCurrDay
-                      ? "font-semibold text-[var(--sd-accent)] hover:bg-[var(--sd-hover)]"
-                      : "text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
+                      ? "font-semibold text-[var(--tint-peach-ink)] hover:bg-[var(--hover)]"
+                      : hasEntry
+                        ? "text-[var(--tint-peach-ink)] hover:bg-[var(--hover)]"
+                        : "text-[var(--ink-muted)] hover:bg-[var(--hover)]",
                 )}
               >
                 {format(day, "d")}
@@ -187,8 +196,8 @@ export function JournalCalendar({
 
     return (
       <div
-        className="grid grid-cols-7 gap-px overflow-hidden rounded-[8px]"
-        style={{ background: "var(--sd-line)" }}
+        className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-[var(--edge)]"
+        style={{ background: "var(--edge)" }}
       >
         {days.map((day) => {
           const iso = format(day, "yyyy-MM-dd");
@@ -205,17 +214,18 @@ export function JournalCalendar({
               aria-current={isSelected ? "date" : undefined}
               style={cellStyle(isSelected, isCurrDay, hasEntry)}
               className={cn(
-                "relative flex h-14 w-full flex-col items-center justify-center gap-0.5 text-[12px] transition-colors duration-150",
+                "relative flex h-14 w-full flex-col items-center justify-center gap-0.5 text-meta cursor-pointer-always",
+                "transition-colors duration-[160ms] ease-out motion-reduce:transition-none",
                 isSelected
-                  ? "font-semibold text-[var(--sd-accent)]"
+                  ? "font-semibold text-[var(--tint-peach-ink)]"
                   : isCurrDay
-                    ? "font-semibold text-[var(--sd-accent)] hover:bg-[var(--sd-hover)]"
-                    : "text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
+                    ? "font-semibold text-[var(--tint-peach-ink)] hover:bg-[var(--hover)]"
+                    : hasEntry
+                      ? "text-[var(--tint-peach-ink)] hover:bg-[var(--hover)]"
+                      : "text-[var(--ink-muted)] hover:bg-[var(--hover)]",
               )}
             >
-              <span className="font-mono text-[8px] uppercase tracking-wider text-[var(--sd-ink-faint)]">
-                {format(day, "EEE")}
-              </span>
+              <span className="text-micro text-[var(--ink-faint)]">{format(day, "EEE")}</span>
               <span>{format(day, "d")}</span>
             </button>
           );
@@ -230,8 +240,8 @@ export function JournalCalendar({
 
     return (
       <div
-        className="grid grid-cols-3 gap-px overflow-hidden rounded-[8px]"
-        style={{ background: "var(--sd-line)" }}
+        className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-[var(--edge)]"
+        style={{ background: "var(--edge)" }}
       >
         {MONTH_NAMES.map((name, i) => {
           const monthDate = new Date(yr, i, 1);
@@ -257,18 +267,17 @@ export function JournalCalendar({
                     : CELL_BASE
               }
               className={cn(
-                "flex flex-col items-center gap-1 px-2 py-3 transition-colors duration-150",
+                "flex flex-col items-center gap-1 px-2 py-3 cursor-pointer-always",
+                "transition-colors duration-[160ms] ease-out motion-reduce:transition-none",
                 isSelectedMonth || isCurrentMonth
-                  ? "font-semibold text-[var(--sd-accent)]"
-                  : "text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
-                isCurrentMonth && !isSelectedMonth && "hover:bg-[var(--sd-hover)]",
+                  ? "font-semibold text-[var(--tint-peach-ink)]"
+                  : "text-[var(--ink-muted)] hover:bg-[var(--hover)]",
+                isCurrentMonth && !isSelectedMonth && "hover:bg-[var(--hover)]",
               )}
             >
-              <span className="text-[13px]">{name}</span>
+              <span className="text-meta">{name}</span>
               {count > 0 && (
-                <span className="font-mono text-[8px] text-[var(--sd-ink-faint)]">
-                  {count}
-                </span>
+                <span className="text-micro tabular-nums text-[var(--ink-faint)]">{count}</span>
               )}
             </button>
           );
@@ -279,18 +288,11 @@ export function JournalCalendar({
 
   return (
     <aside
-      className={cn(
-        "sticky top-4 flex flex-col gap-3 self-start rounded-[14px] p-4",
-        "border border-[var(--sd-line)] bg-[var(--sd-box)]",
-        "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]",
-      )}
+      className="craft-card sticky top-4 flex flex-col gap-3 self-start rounded-2xl p-4"
       aria-label={ariaLabel}
     >
-      {/* View-mode segmented control */}
-      <div
-        className="flex items-center gap-0.5 rounded-[8px] border border-[var(--sd-line)] p-0.5"
-        style={{ background: "var(--sd-input)" }}
-      >
+      {/* View-mode segmented control — active segment is a raised white plate. */}
+      <div className="flex items-center gap-1 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-1">
         {(["week", "month", "year"] as ViewMode[]).map((mode) => {
           const active = viewMode === mode;
           return (
@@ -298,12 +300,13 @@ export function JournalCalendar({
               key={mode}
               type="button"
               onClick={() => setViewMode(mode)}
-              style={active ? { background: "var(--sd-box)" } : undefined}
+              aria-pressed={active}
               className={cn(
-                "flex-1 rounded-[6px] py-1 font-mono text-[9.5px] uppercase tracking-[0.07em] transition-colors duration-150",
+                "flex-1 rounded px-2 py-1 text-micro cursor-pointer-always",
+                "transition-colors duration-[160ms] ease-out motion-reduce:transition-none",
                 active
-                  ? "text-[var(--sd-accent)]"
-                  : "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]",
+                  ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
               )}
             >
               {mode}
@@ -312,24 +315,24 @@ export function JournalCalendar({
         })}
       </div>
 
-      {/* Nav row — ghost icon-buttons + mono label */}
+      {/* Nav row — ghost icon-buttons + sentence-case label */}
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
           aria-label="Previous"
           onClick={navPrev}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-[7px] text-[var(--sd-ink-faint)] transition-colors duration-150 hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+          className="inline-flex size-7 items-center justify-center rounded-lg text-[var(--ink-faint)] cursor-pointer-always transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--edge-strong)] motion-reduce:transition-none"
         >
           <ChevronLeft size={13} strokeWidth={2} />
         </button>
-        <span className="flex-1 truncate text-center font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink)]">
+        <span className="flex-1 truncate text-center text-meta font-medium text-[var(--ink)]">
           {navLabel()}
         </span>
         <button
           type="button"
           aria-label="Next"
           onClick={navNext}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-[7px] text-[var(--sd-ink-faint)] transition-colors duration-150 hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+          className="inline-flex size-7 items-center justify-center rounded-lg text-[var(--ink-faint)] cursor-pointer-always transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--edge-strong)] motion-reduce:transition-none"
         >
           <ChevronRight size={13} strokeWidth={2} />
         </button>

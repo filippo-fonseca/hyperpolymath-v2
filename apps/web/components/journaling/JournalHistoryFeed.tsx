@@ -1,10 +1,12 @@
 "use client";
 
 import { format, isToday, parseISO, subDays } from "date-fns";
-import type { CSSProperties } from "react";
 import type { JournalEntry } from "@/app/actions/journal";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { stripReferences } from "@/lib/references/token";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
+import { NotebookPen } from "lucide-react";
 
 interface Props {
   entries: JournalEntry[];
@@ -22,85 +24,84 @@ function formatDateLabel(dateStr: string): string {
   return format(d, "EEE, MMM d");
 }
 
-// Selected row: a faint accent wash plus a 1px accent bar down the left edge.
-// Inline styles keep the color-mix + inset bar out of the Tailwind scan gap (§0).
-const ROW_SELECTED: CSSProperties = {
-  background: "color-mix(in srgb, var(--sd-accent) 12%, var(--sd-box))",
-  boxShadow: "inset 2px 0 0 0 var(--sd-accent)",
-};
-
 /**
- * JournalHistoryFeed — scrollable list of past journal entries (sd register).
+ * JournalHistoryFeed — the past entries as a column of tinted date cards
+ * (jul-29 craft restyle).
  *
- * A single `--sd-box` plate holds hairline-separated rows (`divide-y`,
- * `--sd-line`). Each row shows:
- *   - Date label (Today / Yesterday / "Mon, Jun 10")
- *   - A `private` sd status pill when the entry is excluded from AI export
- *   - Truncated mainResponse preview (or "No entry yet" when empty)
+ * It follows the wiki journal rail's card idiom exactly: each day keeps a
+ * stable pastel of its own, hashed from its ISO date, so the same day is the
+ * same colour wherever it is shown. Pastel on the fill, the saturated hue only
+ * on the rim and on hover; shadow deepens on hover, nothing moves.
  *
- * Clicking a row calls onSelectDate to navigate the editor to that date. The
- * active row gets a faint accent wash and a left accent bar.
- *
- * Empty state: a single `--sd-box` plate reading "No entries yet."
+ * The active day is the one card that wears its full saturated edge, so the
+ * selection reads without a second colour vocabulary. Clicking a card calls
+ * onSelectDate to navigate the editor to that date.
  */
 export function JournalHistoryFeed({ entries, selectedDate, onSelectDate }: Props) {
   if (entries.length === 0) {
     return (
       <aside aria-label="Journal history">
-        <div className="rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-4 py-3 text-center">
-          <p className="text-[13px] text-[var(--sd-ink-faint)]">No entries yet.</p>
-        </div>
+        <EmptyState
+          size="section"
+          className="tint-peach"
+          icon={<NotebookPen strokeWidth={1.5} />}
+          title="No entries yet"
+          description="Answer today's question and it starts here."
+        />
       </aside>
     );
   }
 
   return (
     <aside aria-label="Journal history">
-      <div className="max-h-[60vh] overflow-y-auto rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)] md:max-h-[calc(100vh-180px)]">
-        <div className="divide-y divide-[var(--sd-line)]">
-          {entries.map((entry) => {
-            const isSelected = entry.date === selectedDate;
-            // Stripped to label text rather than chipped: this preview lives
-            // inside the row's own <button>, so it can hold no interactive
-            // pill. A reference reads as its label, which is what the sentence
-            // meant anyway.
-            const preview = stripReferences(entry.mainResponse ?? "").trim();
+      <div className="custom-scrollbar flex max-h-[60vh] flex-col gap-2 overflow-y-auto pr-1 md:max-h-[calc(100vh-180px)]">
+        {entries.map((entry) => {
+          const isSelected = entry.date === selectedDate;
+          // Stripped to label text rather than chipped: this preview lives
+          // inside the row's own <button>, so it can hold no interactive
+          // pill. A reference reads as its label, which is what the sentence
+          // meant anyway.
+          const preview = stripReferences(entry.mainResponse ?? "").trim();
 
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => onSelectDate(entry.date)}
-                style={isSelected ? ROW_SELECTED : undefined}
-                className={cn(
-                  "w-full px-4 py-3 text-left transition-colors duration-150",
-                  !isSelected && "hover:bg-[var(--sd-hover)]",
-                )}
-                aria-current={isSelected ? "date" : undefined}
-                aria-label={`Journal entry for ${formatDateLabel(entry.date)}`}
-              >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span
-                    className={cn(
-                      "text-[13px] font-semibold",
-                      isSelected ? "text-[var(--sd-accent)]" : "text-[var(--sd-ink)]",
-                    )}
-                  >
-                    {formatDateLabel(entry.date)}
+          return (
+            <button
+              key={entry.id}
+              type="button"
+              onClick={() => onSelectDate(entry.date)}
+              className={cn(
+                tintFor(entry.date),
+                "w-full shrink-0 rounded-xl border p-3 text-left cursor-pointer-always",
+                "bg-[var(--tint-bg)] shadow-[var(--shadow-card)]",
+                "transition-[border-color,box-shadow] duration-[160ms] ease-out",
+                "hover:border-[var(--tint-edge)] hover:shadow-[var(--shadow-card-hover)]",
+                "motion-reduce:transition-none",
+                isSelected
+                  ? "border-[var(--tint-edge)] shadow-[var(--shadow-card-hover)]"
+                  : "border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)]"
+              )}
+              aria-current={isSelected ? "date" : undefined}
+              aria-label={`Journal entry for ${formatDateLabel(entry.date)}`}
+            >
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="text-meta font-medium text-[var(--ink)]">
+                  {formatDateLabel(entry.date)}
+                </span>
+                {entry.noExport && (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-micro text-[var(--tint-ink)]">
+                    <span
+                      aria-hidden
+                      className="size-1.5 shrink-0 rounded-full bg-[var(--tint-edge)]"
+                    />
+                    Private
                   </span>
-                  {entry.noExport && (
-                    <span className="sd-status-pill sd-tint-idle shrink-0 font-mono uppercase tracking-[0.06em]">
-                      private
-                    </span>
-                  )}
-                </div>
-                <p className="line-clamp-2 text-[13px] leading-[1.45] text-[var(--sd-ink-dull)]">
-                  {preview || <span className="text-[var(--sd-ink-faint)]">No entry yet.</span>}
-                </p>
-              </button>
-            );
-          })}
-        </div>
+                )}
+              </div>
+              <p className="line-clamp-2 text-meta text-[var(--ink-muted)]">
+                {preview || <span className="text-[var(--ink-faint)]">No entry yet.</span>}
+              </p>
+            </button>
+          );
+        })}
       </div>
     </aside>
   );
