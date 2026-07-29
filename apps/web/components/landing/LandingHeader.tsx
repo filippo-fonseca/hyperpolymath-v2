@@ -14,8 +14,11 @@ import { Logotype } from "@/components/ui/Logotype";
  */
 export function LandingHeader() {
   return (
-    <header className="sticky top-0 z-10 h-14 w-full max-w-[100vw] overflow-x-clip border-b border-[var(--edge)] bg-[color:var(--canvas)]/95 backdrop-blur-sm">
-      <div className="mx-auto flex h-full min-w-0 max-w-[1200px] items-center justify-between gap-3 px-5 sm:px-6 md:px-10">
+    // jul-29 craft pass: the header floats as a detached glass pill (the
+    // Craft.do nav grammar) instead of a full-bleed bordered bar. Same
+    // contents, same sticky behavior — only the chrome detaches.
+    <header className="sticky top-3 z-10 w-full max-w-[100vw] overflow-x-clip px-4 sm:px-6">
+      <div className="mx-auto flex h-12 min-w-0 max-w-[1080px] items-center justify-between gap-3 rounded-full border border-white/10 bg-[color-mix(in_srgb,#0b0d12_66%,transparent)] px-4 shadow-[var(--shadow-float)] backdrop-blur-xl sm:px-5">
         <Link
           href="/"
           className="group inline-flex min-w-0 items-center gap-2 text-[var(--ink)] sm:gap-2.5"
@@ -35,7 +38,7 @@ export function LandingHeader() {
           <ThemeToggle variant="header" />
           <Link
             href="/sign-in"
-            className="group inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--ink)] px-3 font-serif text-[14px] font-medium tracking-tight text-[var(--canvas)] shadow-[0_1px_0_color-mix(in_oklch,var(--ink)_22%,transparent),0_4px_12px_color-mix(in_oklch,var(--ink)_18%,transparent)] transition-[background-color,transform] duration-150 ease-out hover:bg-[color-mix(in_oklch,var(--ink)_88%,var(--ink-muted))] active:translate-y-px sm:px-4"
+            className="group inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--ink)] px-3.5 font-serif text-[14px] font-medium tracking-tight text-[var(--canvas)] shadow-[var(--shadow-card)] transition-[background-color,transform,box-shadow] duration-150 ease-out hover:bg-[color-mix(in_oklch,var(--ink)_88%,var(--ink-muted))] hover:shadow-[var(--shadow-card-hover)] active:translate-y-px sm:px-4"
           >
             <span>Sign in</span>
             <ArrowUpRight

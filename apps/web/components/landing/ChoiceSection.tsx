@@ -34,8 +34,9 @@ export function ChoiceSection() {
       </p>
 
       <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Door 1 — USE IT (waitlist) */}
-        <div className="space-y-4 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 md:p-7">
+        {/* Door 1 — USE IT (waitlist). Each door carries its own tint so the
+            fork in the road reads as two colors, not two grey boxes. */}
+        <div className="tint-sky space-y-4 rounded-xl border border-[color-mix(in_srgb,var(--tint-edge)_40%,var(--sd-line))] bg-[var(--sd-box)] p-6 shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[color-mix(in_srgb,var(--tint-edge)_65%,var(--sd-line))] hover:shadow-[var(--shadow-card-hover)] md:p-7">
           <SectionEyebrow label="USE IT" />
           <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
             v2 is single-user while I&rsquo;m building it in public. Multi-user comes once the foundation is bulletproof.
@@ -44,7 +45,7 @@ export function ChoiceSection() {
         </div>
 
         {/* Door 2 — FORK IT */}
-        <div className="space-y-4 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 md:p-7">
+        <div className="tint-sage space-y-4 rounded-xl border border-[color-mix(in_srgb,var(--tint-edge)_40%,var(--sd-line))] bg-[var(--sd-box)] p-6 shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[color-mix(in_srgb,var(--tint-edge)_65%,var(--sd-line))] hover:shadow-[var(--shadow-card-hover)] md:p-7">
           <SectionEyebrow label="FORK IT" />
           <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
             Read the framework, clone the repo, and adapt the primitives to your own life-OS. It&rsquo;s MIT-licensed. Go.

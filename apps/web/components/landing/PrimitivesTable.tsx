@@ -197,7 +197,7 @@ export function PrimitivesTable() {
 function PrimitiveTree() {
   return (
     <div
-      className="text-[18px] leading-[1.4] text-[var(--sd-ink)] relative p-6 md:p-7 rounded-[14px] bg-[var(--sd-box)]"
+      className="text-[18px] leading-[1.4] text-[var(--sd-ink)] relative p-6 md:p-7 rounded-xl border border-[color-mix(in_srgb,var(--tint-edge,var(--sd-line))_35%,var(--sd-line))] bg-[var(--sd-box)] shadow-[var(--shadow-card)]"
       style={{
         // The one accent surface in this section: a cyan-tinted edge, no glow.
         border:
