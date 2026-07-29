@@ -23,7 +23,7 @@ export function SelectionRubberBand({
     <div
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute z-20 rounded-[6px] border border-[var(--sd-accent)] bg-[color-mix(in_srgb,var(--sd-accent)_20%,transparent)]",
+        "pointer-events-none absolute z-20 rounded border border-[var(--sd-accent)] bg-[color-mix(in_srgb,var(--sd-accent)_20%,transparent)]",
         className
       )}
       style={{

@@ -1,11 +1,11 @@
 "use client";
 
 import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
-import {
-  type ExplorerBreadcrumbSegment,
-  type ExplorerSortValue,
-  type ExplorerViewMode,
-  InspectorShell,
+import { SidePanel } from "@/components/ui/SidePanel";
+import type {
+  ExplorerBreadcrumbSegment,
+  ExplorerSortValue,
+  ExplorerViewMode,
 } from "@/components/wiki/explorer";
 import {
   ancestryLabelFor,
@@ -100,6 +100,13 @@ export function WikiExplorer({
       localStorage.setItem("wiki:inspector", next ? "1" : "0");
       return next;
     });
+  }, []);
+  // The SidePanel host also closes the panel on Escape and on route change, so
+  // the close path has to persist the same way the toggle does or the inspector
+  // reopens on the next visit.
+  const closeInspector = useCallback(() => {
+    setInspectorOpen(false);
+    localStorage.setItem("wiki:inspector", "0");
   }, []);
 
   // ─── Folder navigation + ancestry. ────────────────────────────────────
@@ -288,8 +295,12 @@ export function WikiExplorer({
 
   const isEmptyWiki = pages.length === 0 && folders.length === 0;
 
+  // No `wiki-explorer` class on the wrapper: that scope pins the legacy
+  // always-dark Spacedrive palette (globals.css). Without it the --sd-*
+  // aliases track the SDC-1 theme, so the explorer reads as part of the page
+  // in both light and dark.
   return (
-    <div className="wiki-explorer mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-4">
+    <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
       <DndContext
         id="wiki-explorer-dnd"
         sensors={sensors}
@@ -309,7 +320,7 @@ export function WikiExplorer({
         onDragEnd={dnd.handleDragEnd}
         onDragCancel={dnd.handleDragCancel}
       >
-        <div className="flex min-h-0 flex-1 overflow-hidden rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-app)] shadow-[0_12px_32px_hsl(235_15%_0%_/_0.18)]">
+        <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-app)]">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <ExplorerHeaderControls
               canGoBack={canGoBack}
@@ -354,24 +365,20 @@ export function WikiExplorer({
               onOpenNewFolder={() => setNewFolderOpen(true)}
             />
           </div>
-
-          <InspectorShell
-            open={inspectorOpen}
-            header={
-              <div className="font-sans text-[0.7rem] font-bold uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
-                Inspector
-              </div>
-            }
-          >
-            <ExplorerInspectorPanel
-              items={selectedItems}
-              ancestryLabel={inspectorAncestry}
-              onOpen={openItem}
-              onRename={(it) => setRenameTarget(it)}
-              onDelete={handleDelete}
-            />
-          </InspectorShell>
         </div>
+
+        {/* The inspector lives in the cockpit's shared right slot (SDC-1 §2.2,
+            §2.8): opening it slides the Dock out and narrows the stage, so wiki
+            and tasks share one detail affordance instead of a bespoke aside. */}
+        <SidePanel open={inspectorOpen} onClose={closeInspector} title="Inspector" width={320}>
+          <ExplorerInspectorPanel
+            items={selectedItems}
+            ancestryLabel={inspectorAncestry}
+            onOpen={openItem}
+            onRename={(it) => setRenameTarget(it)}
+            onDelete={handleDelete}
+          />
+        </SidePanel>
 
         <DragOverlay style={{ width: "max-content", height: "auto" }}>
           {dnd.activeDrag ? (

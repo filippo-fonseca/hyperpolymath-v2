@@ -80,9 +80,9 @@ export function ExplorerHeaderControls({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search wiki (press /)"
             className={cn(
-              "h-8 w-full rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] pl-7 pr-2 text-[0.78rem] text-[var(--sd-ink)] outline-none",
-              "transition-[border-color] duration-[120ms] ease-out",
-              "placeholder:text-[var(--sd-ink-faint)] focus:border-[var(--sd-accent)]"
+              "h-8 w-full rounded-lg bg-[var(--sd-input)] pl-7 pr-2 text-meta text-[var(--sd-ink)] outline-none",
+              "transition-[background-color] duration-[160ms] ease-out",
+              "placeholder:text-[var(--sd-ink-faint)] focus:bg-[var(--sd-hover)]"
             )}
           />
         </div>
@@ -99,8 +99,8 @@ export function ExplorerHeaderControls({
             aria-pressed={inspectorOpen}
             aria-label={inspectorOpen ? "Close inspector" : "Open inspector"}
             className={cn(
-              "flex size-8 items-center justify-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--ink-muted)]",
-              "transition-[background-color,color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
+              "flex size-8 items-center justify-center rounded-lg bg-[var(--sd-box)] text-[var(--ink-muted)]",
+              "transition-[background-color,color] duration-[160ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
               inspectorOpen && "bg-[var(--sd-selected)] text-[var(--sd-accent)]"
             )}
           >
@@ -123,10 +123,9 @@ function BreadcrumbDroppable({ id, children }: { id: string; children: ReactNode
     <span
       ref={setNodeRef}
       className={cn(
-        "inline-flex rounded-[6px] transition-[background-color,box-shadow,transform] duration-[140ms] ease-out",
+        "inline-flex rounded-lg transition-[background-color,box-shadow] duration-[160ms] ease-out",
         isOver &&
-          "bg-[color-mix(in_oklch,var(--sd-accent)_12%,transparent)] shadow-[inset_0_0_0_1px_var(--sd-accent)]",
-        isOver && !reduceMotion && "scale-[1.02]"
+          "bg-[color-mix(in_oklch,var(--sd-accent)_12%,transparent)] shadow-[inset_0_0_0_1px_var(--sd-accent)]"
       )}
     >
       {children}

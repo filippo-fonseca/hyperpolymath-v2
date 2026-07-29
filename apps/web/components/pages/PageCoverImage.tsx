@@ -70,7 +70,7 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
         <button
           type="button"
           onClick={openPicker}
-          className="group inline-flex w-fit items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[11px] text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)] cursor-pointer"
+          className="group inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-micro text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)]"
         >
           <ImagePlus size={13} strokeWidth={1.5} />
           Add cover
@@ -91,7 +91,9 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
 
   return (
     <>
-      <div className="group relative -mx-6 mb-2 h-44 w-[calc(100%+3rem)] overflow-hidden border-b border-[var(--edge)] sm:h-52">
+      {/* Flush, edge to edge above the PageScaffold (SDC-1 §2.9) — the caller
+          renders this outside the page measure when a cover is set. */}
+      <div className="group relative h-44 w-full overflow-hidden border-b border-[var(--edge)] sm:h-52">
         <Image
           src={coverUrl}
           alt={attribution ? `Cover photo — ${attribution}` : "Page cover"}
@@ -108,7 +110,7 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
             type="button"
             onClick={openPicker}
             title="Change cover"
-            className="inline-flex items-center gap-1 rounded-sm bg-black/55 px-2 py-1 font-mono text-[11px] text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70 cursor-pointer"
+            className="inline-flex cursor-pointer items-center gap-1 rounded bg-black/55 px-2 py-1 text-micro text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70"
           >
             <RefreshCw size={11} strokeWidth={1.75} />
             Change cover
@@ -118,7 +120,7 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
             onClick={handleRemove}
             title="Remove cover"
             aria-label="Remove cover"
-            className="inline-flex items-center rounded-sm bg-black/55 px-1.5 py-1 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70 hover:text-red-300 cursor-pointer"
+            className="inline-flex cursor-pointer items-center rounded bg-black/55 px-1.5 py-1 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70 hover:text-[var(--ink-coral)]"
           >
             <Trash2 size={12} strokeWidth={1.75} />
           </button>
@@ -127,7 +129,7 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
         {/* Unsplash attribution credit, bottom-right. Required by the Unsplash
             API Guidelines when a photo is displayed. */}
         {attribution && (
-          <span className="absolute bottom-1.5 right-2 rounded-sm bg-black/45 px-1.5 py-0.5 font-mono text-[10px] text-white/85 backdrop-blur-sm">
+          <span className="absolute bottom-1.5 right-2 rounded bg-black/45 px-1.5 py-0.5 text-micro text-white/85 backdrop-blur-sm">
             {attribution}
           </span>
         )}

@@ -1,12 +1,12 @@
 "use client";
 
 import { Tile } from "@/components/ui/explorer";
+import { FolderIcon } from "@/components/ui/icons/FolderIcon";
+import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { partitionExplorerItems } from "@/components/wiki/explorer-hooks/explorer-items";
 import type { SelectionClickModifiers } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
-import { FolderIcon } from "@/components/ui/icons/FolderIcon";
-import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -67,7 +67,7 @@ export function ExplorerGridView({
   };
 
   return (
-    <div className="space-y-7" data-view="grid">
+    <div className="space-y-8" data-view="grid">
       {/* The bands are conditionally rendered HERE rather than returning null
           from inside ExplorerGridBand. AnimatePresence only sees a removal when
           its own child disappears; a custom component that renders null is
@@ -118,12 +118,10 @@ function ExplorerGridBand({
 }) {
   return (
     <motion.section
-      className="space-y-2.5"
+      className="space-y-2"
       exit={{ opacity: 0, transition: { duration: reduceMotion ? 0 : ENTER_DURATION } }}
     >
-      <h2 className="px-0.5 font-sans text-[0.72rem] font-semibold text-[var(--sd-ink-dull)]">
-        {label}
-      </h2>
+      <h2 className="px-0.5 font-sans text-micro font-medium text-[var(--sd-ink-dull)]">{label}</h2>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(118px,1fr))] gap-2">
         {items.map((item, index) => {
           const id = explorerItemId(item);
@@ -245,13 +243,12 @@ function ExplorerGridTile({
       onContextMenu={onContextMenu}
       style={style}
       className={cn(
-        "group flex min-h-[154px] flex-col items-center rounded-[8px] border border-transparent p-1.5 text-center outline-none",
-        "transition-[background-color,border-color,transform] duration-[140ms] ease-out hover:bg-[var(--sd-box)] focus-visible:border-[var(--sd-accent)]",
+        "group flex min-h-[154px] flex-col items-center rounded-lg border border-transparent p-1 text-center outline-none",
+        "transition-[background-color,border-color] duration-[160ms] ease-out hover:bg-[var(--sd-box)]",
         selected &&
-          "border-[var(--sd-accent)] bg-[color-mix(in_srgb,var(--sd-accent)_8%,var(--sd-selected-item))]",
+          "border-[var(--edge-strong)] bg-[color-mix(in_srgb,var(--sd-accent)_8%,var(--sd-selected-item))]",
         isOver &&
-          "border-[var(--sd-accent)] bg-[color-mix(in_srgb,var(--sd-accent)_12%,var(--sd-selected-item))]",
-        isOver && !reduceMotion && "scale-[1.02]",
+          "border-[var(--edge-strong)] bg-[color-mix(in_srgb,var(--sd-accent)_12%,var(--sd-selected-item))]",
         rejected && !reduceMotion && "animate-[explorer-drop-denied_180ms_ease-in-out_2]"
       )}
     >
@@ -272,7 +269,7 @@ function ExplorerGridTile({
             <>
               <PageIcon size={74} kind="note" />
               {item.page.emoji ? (
-                <span className="absolute bottom-3 right-3 grid size-6 place-items-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[13px] shadow-sm">
+                <span className="absolute bottom-3 right-3 grid size-6 place-items-center rounded bg-[var(--sd-box)] text-meta">
                   {item.page.emoji}
                 </span>
               ) : null}

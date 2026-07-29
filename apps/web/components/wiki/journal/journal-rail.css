@@ -1,10 +1,13 @@
 .journal-calendar-popover {
   border: 1px solid var(--sd-line) !important;
-  border-radius: 8px !important;
+  border-radius: 12px !important;
   background: var(--sd-box) !important;
-  box-shadow: 0 10px 28px hsl(235 15% 0% / 0.4),
-    inset 0 0 0 1px color-mix(in oklch, var(--sd-ink) 5%, transparent) !important;
+  /* Popover elevation per SDC-1 §2.6: 0 4px 16px, 6% light / 30% dark. */
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.06) !important;
   font-family: inherit;
+}
+.dark .journal-calendar-popover {
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3) !important;
 }
 .journal-calendar-popover aside {
   position: static;
@@ -20,9 +23,9 @@
   border-color: var(--sd-line);
 }
 .journal-calendar-popover button {
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: inherit;
-  transition-duration: 140ms;
+  transition-duration: 160ms;
 }
 .journal-calendar-popover button:hover {
   background: var(--sd-hover) !important;

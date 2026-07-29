@@ -1,11 +1,11 @@
 "use client";
 
+import { FolderIcon } from "@/components/ui/icons/FolderIcon";
+import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { partitionExplorerItems } from "@/components/wiki/explorer-hooks/explorer-items";
 import type { SelectionClickModifiers } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
-import { FolderIcon } from "@/components/ui/icons/FolderIcon";
-import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { formatDistanceToNow } from "date-fns";
@@ -41,7 +41,7 @@ export function ExplorerListView({
   const bands = partitionExplorerItems(items);
   return (
     <div
-      className="rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] font-sans text-[0.8rem] text-[var(--ink)]"
+      className="overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] font-sans text-meta text-[var(--ink)]"
       data-view="list"
     >
       <ExplorerListHeaderRow />
@@ -91,7 +91,7 @@ function ExplorerListBand({
   if (items.length === 0) return null;
   return (
     <section>
-      <h2 className="border-b border-[var(--sd-line)] bg-[var(--sd-dark-box)] px-3 py-1.5 text-[0.68rem] font-semibold text-[var(--sd-ink-dull)]">
+      <h2 className="border-b border-[var(--sd-line)] bg-[var(--sd-dark-box)] px-3 py-1 text-micro font-medium text-[var(--sd-ink-dull)]">
         {label}
       </h2>
       <ul className="divide-y divide-[var(--sd-divider)]">
@@ -128,7 +128,7 @@ function ExplorerListBand({
 function ExplorerListHeaderRow() {
   return (
     <div
-      className="grid h-7 items-center gap-3 border-b border-[var(--sd-divider)] px-3 font-sans text-[0.65rem] font-semibold text-[var(--sd-ink-dull)]"
+      className="grid h-7 items-center gap-3 border-b border-[var(--sd-divider)] px-3 font-sans text-micro font-medium text-[var(--sd-ink-dull)]"
       style={{ gridTemplateColumns: LIST_GRID_TEMPLATE }}
     >
       <span>Name</span>
@@ -210,12 +210,10 @@ function ExplorerListRow({
       onContextMenu={onContextMenu}
       className={cn(
         "relative grid h-10 w-full items-center gap-3 px-3 text-left text-[var(--ink)] outline-none",
-        "transition-[background-color,transform] duration-[140ms] ease-out hover:bg-[var(--sd-hover)]",
-        "focus-visible:bg-[var(--sd-hover)] focus-visible:shadow-[inset_0_0_0_1px_var(--sd-accent)]",
+        "transition-[background-color] duration-[160ms] ease-out hover:bg-[var(--sd-hover)]",
+        "focus-visible:bg-[var(--sd-hover)]",
         selected && "bg-[var(--sd-selected-item)]",
-        isOver &&
-          "bg-[color-mix(in_srgb,var(--sd-accent)_10%,var(--sd-box))] shadow-[inset_0_0_0_1px_var(--sd-accent)]",
-        isOver && !reduceMotion && "scale-[1.02]",
+        isOver && "bg-[color-mix(in_srgb,var(--sd-accent)_10%,var(--sd-box))]",
         rejected && !reduceMotion && "animate-[explorer-drop-denied_180ms_ease-in-out_2]"
       )}
       style={{ ...style, gridTemplateColumns: LIST_GRID_TEMPLATE }}
@@ -238,8 +236,8 @@ function ExplorerListRow({
         )}
         <span className="truncate">{name}</span>
       </span>
-      <span className="text-[0.7rem] text-[var(--sd-ink-dull)]">{kindLabel}</span>
-      <span className="truncate text-[0.7rem] text-[var(--sd-ink-dull)]">{updated}</span>
+      <span className="text-micro text-[var(--sd-ink-dull)]">{kindLabel}</span>
+      <span className="truncate text-micro text-[var(--sd-ink-dull)]">{updated}</span>
       <ProjectChips names={projectNames} />
     </button>
   );
@@ -247,21 +245,23 @@ function ExplorerListRow({
 
 function ProjectChips({ names }: { names: string[] }) {
   if (names.length === 0) {
-    return <span className="text-[0.7rem] text-[var(--sd-ink-faint)]">—</span>;
+    return <span className="text-micro text-[var(--sd-ink-faint)]">—</span>;
   }
+  // Chips inside a bordered list card lose their border and read as fills,
+  // per the one-border-per-nesting-level rule (SDC-1 §2.6).
   return (
     <span className="flex min-w-0 items-center gap-1 overflow-hidden">
       {names.slice(0, 2).map((name) => (
         <span
           key={name}
-          className="max-w-[90px] truncate rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-0.5 text-[0.7rem] leading-none text-[var(--sd-ink-dull)]"
+          className="max-w-[90px] truncate rounded-full bg-[var(--hover)] px-2 py-0.5 text-micro leading-none text-[var(--sd-ink-dull)]"
           title={name}
         >
           {name}
         </span>
       ))}
       {names.length > 2 ? (
-        <span className="shrink-0 rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-0.5 text-[0.7rem] leading-none text-[var(--sd-ink-dull)]">
+        <span className="shrink-0 rounded-full bg-[var(--hover)] px-2 py-0.5 text-micro leading-none text-[var(--sd-ink-dull)]">
           +{names.length - 2}
         </span>
       ) : null}

@@ -30,8 +30,7 @@ export function InspectorShell({
             ease: [0.32, 0.72, 0, 1],
           }}
           className={cn(
-            "flex h-full w-[260px] shrink-0 flex-col border-l border-[var(--sd-line)] bg-[var(--sd-app)] font-sans text-[0.8rem] text-[var(--sd-ink)]",
-            "shadow-[-10px_0_24px_hsl(235_15%_0%_/_0.16)]",
+            "flex h-full w-[260px] shrink-0 flex-col border-l border-[var(--sd-line)] bg-[var(--sd-app)] font-sans text-meta text-[var(--sd-ink)]",
             className
           )}
         >
@@ -56,11 +55,7 @@ export function MetaSection({
 }) {
   return (
     <section className={cn("space-y-1 px-4 py-2", className)}>
-      {title ? (
-        <h3 className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-[var(--sd-ink)]">
-          {title}
-        </h3>
-      ) : null}
+      {title ? <h3 className="text-micro font-medium text-[var(--sd-ink-dull)]">{title}</h3> : null}
       <div className="space-y-1">{children}</div>
     </section>
   );
@@ -78,7 +73,7 @@ export function MetaRow({
   return (
     <div
       className={cn(
-        "flex min-h-6 items-center gap-3 text-[0.72rem] text-[var(--sd-ink-dull)]",
+        "flex min-h-6 items-center gap-3 text-micro text-[var(--sd-ink-dull)]",
         className
       )}
     >

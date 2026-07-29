@@ -55,7 +55,7 @@ export function Rail({
         <button
           type="button"
           onClick={onToggleCollapsed}
-          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-[6px] px-1.5 text-left hover:bg-[var(--sd-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+          className="flex h-7 cursor-pointer items-center gap-2 rounded-lg px-2 text-left hover:bg-[var(--sd-hover)]"
           aria-expanded={!collapsed}
           aria-controls={bodyId}
         >
@@ -63,11 +63,9 @@ export function Rail({
             {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </span>
           {icon}
-          <span className="text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-[var(--sd-ink-dull)]">
-            {title}
-          </span>
+          <span className="text-micro font-medium text-[var(--sd-ink-dull)]">{title}</span>
           {count != null ? (
-            <span className="font-mono text-[0.65rem] tabular-nums text-[var(--sd-ink-faint)]">
+            <span className="font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
               {count}
             </span>
           ) : null}

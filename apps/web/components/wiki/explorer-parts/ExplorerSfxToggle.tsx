@@ -1,8 +1,8 @@
 "use client";
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Volume2, VolumeX } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function ExplorerSfxToggle() {
   const [enabled, setEnabled] = useState(true);
@@ -36,7 +36,7 @@ export function ExplorerSfxToggle() {
             onClick={toggle}
             aria-pressed={!enabled}
             aria-label={label}
-            className="flex size-8 items-center justify-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+            className="flex size-8 items-center justify-center rounded-lg bg-[var(--sd-box)] text-[var(--sd-ink-dull)] transition-colors duration-[160ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]"
           >
             {enabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
