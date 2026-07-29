@@ -11,6 +11,7 @@
  */
 
 import Link from "next/link";
+import { Waypoints } from "lucide-react";
 import { and, desc, eq } from "drizzle-orm";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
@@ -60,22 +61,21 @@ export default async function GraphPage() {
 
   if (!row || !payload) {
     return (
-      <main className="grid min-h-full place-items-center bg-[var(--sd-app)] px-6 text-center text-[var(--sd-ink)]">
-        <div
-          className={
-            "max-w-md rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-8 " +
-            "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset] " +
-            "transition-colors duration-150 ease-out hover:border-[var(--sd-accent)]"
-          }
-        >
-          <h1 className="text-3xl font-semibold tracking-[-0.01em]">Knowledge graph</h1>
-          <p className="mt-3 text-[15px] leading-[1.55] text-[var(--sd-ink-dull)]">
+      <main className="grid min-h-full place-items-center bg-[var(--canvas)] px-6 text-center text-[var(--ink)]">
+        {/* Craft register: a raised white plate, and the page's lavender hue
+            carried on the icon so the empty state still says "graph". */}
+        <div className="max-w-md rounded-2xl border border-[var(--edge)] bg-[var(--surface-raised)] p-8 shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]">
+          <span className="tint-lavender mx-auto flex size-14 items-center justify-center rounded-full bg-[var(--tint-bg)] text-[var(--tint-ink)]">
+            <Waypoints className="size-6" />
+          </span>
+          <h1 className="mt-4 text-3xl font-semibold tracking-[-0.01em]">Knowledge graph</h1>
+          <p className="mt-3 text-[15px] leading-[1.55] text-[var(--ink-muted)]">
             No snapshot has been built yet. The nightly job assembles your graph
-            at 00:00 ET — or build one now from settings, then come back.
+            at 00:00 ET. You can also build one now from settings, then come back.
           </p>
           <Link
             href="/settings/context"
-            className="sd-btn-primary mt-6 inline-flex rounded-full px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em]"
+            className="mt-6 inline-flex rounded-lg bg-[var(--ink)] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--canvas)] shadow-[var(--shadow-card)] transition-[opacity,box-shadow] duration-[160ms] ease-out hover:opacity-90 hover:shadow-[var(--shadow-card-hover)]"
           >
             Go build a snapshot
           </Link>

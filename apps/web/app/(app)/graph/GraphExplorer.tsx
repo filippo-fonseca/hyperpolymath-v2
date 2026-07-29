@@ -18,12 +18,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { Waypoints } from "lucide-react";
 import { forceCollide } from "d3-force";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
   loading: () => (
-    <div className="grid h-full w-full place-items-center font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+    <div className="grid h-full w-full place-items-center font-mono text-[11px] uppercase tracking-[0.12em] text-white/50">
       loading graph…
     </div>
   ),
@@ -97,12 +98,12 @@ interface GLink {
   tgtType: string;
 }
 
-// Shared sd plate chrome for the graph toolbars and node inspector: --sd-box
-// surface, 12px radius, 1px hairline + dark-only inset top highlight. No glass,
-// no blur, no glow.
+// Shared plate chrome for the graph's page furniture: the header, the filter
+// legend, and the frame around the canvas. jul-29 craft restyle — a raised
+// white card, one --edge hairline, the card shadow. The canvas itself and every
+// node/edge colour inside it are untouched; only the furniture moved register.
 const tile =
-  "rounded-[12px] border border-[var(--sd-line)] " +
-  "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]";
+  "rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-card)]";
 
 export function GraphExplorer({
   snapshotDate,
@@ -259,21 +260,28 @@ export function GraphExplorer({
   }
 
   return (
-    <main className="relative flex h-full min-h-0 flex-col gap-3 bg-[var(--sd-app)] p-4 text-[var(--sd-ink)]">
+    <main className="relative flex h-full min-h-0 flex-col gap-3 bg-[var(--canvas)] p-4 text-[var(--ink)]">
       {/* MCP / snapshot header */}
       <header
-        className={`${tile} flex flex-wrap items-center justify-between gap-3 bg-[var(--sd-box)] px-5 py-3`}
+        className={`${tile} flex flex-wrap items-center justify-between gap-3 px-5 py-3`}
       >
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold">Knowledge graph</h1>
-          <p className="mt-0.5 font-mono text-[11px] text-[var(--sd-ink-faint)]">
-            {meta.totalNodes} nodes · {meta.totalEdges} edges · snapshot {snapshotDate} · schema v{schemaVersion}
-          </p>
+        <div className="tint-lavender flex min-w-0 items-center gap-3">
+          {/* The page's own identity plate — same anatomy as every other
+              section header in the app. */}
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--tint-bg)] text-[var(--tint-ink)]">
+            <Waypoints className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-[-0.01em]">Knowledge graph</h1>
+            <p className="mt-0.5 font-mono text-[11px] text-[var(--ink-faint)]">
+              {meta.totalNodes} nodes · {meta.totalEdges} edges · snapshot {snapshotDate} · schema v{schemaVersion}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3 font-mono text-[11px]">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 py-1 text-[var(--sd-ink-dull)]"
-          >
+        <div className="flex items-center gap-2 font-mono text-[11px]">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-2.5 py-1 text-[var(--ink-muted)]">
+            {/* Status stays saturated: it is a dot, and dots are where
+                saturation is allowed to live. */}
             <span
               className="inline-block size-1.5 rounded-full"
               style={{
@@ -284,7 +292,7 @@ export function GraphExplorer({
           </span>
           <Link
             href="/settings/mcp-tokens"
-            className="text-[var(--sd-ink-faint)] underline-offset-2 hover:text-[var(--sd-ink)] hover:underline"
+            className="inline-flex items-center rounded-lg border border-[var(--edge)] px-2.5 py-1 text-[var(--ink-muted)] transition-[color,border-color,background-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)]"
           >
             manage MCP →
           </Link>
@@ -293,9 +301,9 @@ export function GraphExplorer({
 
       {/* Filter legend */}
       <div
-        className={`${tile} flex flex-wrap items-center gap-2 bg-[var(--sd-box)] px-5 py-2.5`}
+        className={`${tile} flex flex-wrap items-center gap-1.5 px-4 py-2`}
       >
-        <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+        <span className="mr-1 pl-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-faint)]">
           show
         </span>
         {presentTypes.map((t) => {
@@ -306,10 +314,15 @@ export function GraphExplorer({
               key={t}
               type="button"
               onClick={() => toggleType(t)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] transition-opacity ${
+              aria-pressed={on}
+              // Legend chips are toggles, so they follow the segmented-control
+              // grammar: the "on" state is a lifted white plate, the "off"
+              // state recedes to flat muted type. The colour dot is the one
+              // saturated element and it never dims to nothing.
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[11px] transition-[color,border-color,background-color,box-shadow,opacity] duration-[160ms] ease-out ${
                 on
-                  ? "border-[var(--sd-line)] text-[var(--sd-ink)]"
-                  : "border-transparent text-[var(--sd-ink-faint)] opacity-50"
+                  ? "border-[var(--edge)] bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
+                  : "border-transparent text-[var(--ink-faint)] opacity-60 hover:opacity-100"
               }`}
             >
               <span
@@ -323,8 +336,11 @@ export function GraphExplorer({
       </div>
 
       {/* Graph canvas + detail panel */}
+      {/* The canvas frame keeps the craft hairline + shadow, but the plate
+          inside stays the graph engine's own near-black: the force graph paints
+          its background colour there and its palette is tuned for it. */}
       <div
-        className={`${tile} relative flex min-h-0 flex-1 overflow-hidden bg-[#0a0c10]`}
+        className={`${tile} relative flex min-h-0 flex-1 overflow-hidden rounded-2xl`}
       >
         <div ref={wrapRef} className="relative min-h-0 flex-1 bg-[#0a0c10]">
           {dims.w > 0 && (
@@ -363,34 +379,36 @@ export function GraphExplorer({
           )}
 
           {/* hint pill */}
-          <div className="pointer-events-none absolute bottom-3 left-3 rounded-[8px] border border-white/10 bg-black/50 px-2.5 py-1 font-mono text-[10px] text-white/60">
+          <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-white/[0.12] bg-black/55 px-2.5 py-1 font-mono text-[10px] text-white/65">
             scroll to zoom · drag to pan · click a node to inspect
           </div>
         </div>
 
         {/* Detail panel */}
         {selected && (
-          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-[var(--sd-line)] bg-[var(--sd-box)] p-5">
+          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-[var(--edge)] bg-[var(--surface-raised)] p-5">
             <div className="flex items-center gap-2">
               <span
                 className="inline-block h-3 w-3 rounded-full"
                 style={{ background: selected.color }}
               />
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-faint)]">
                 {typeLabel(selected.type)}
               </span>
             </div>
-            <h2 className="mt-2 text-lg leading-snug text-[var(--sd-ink)]">
+            <h2 className="mt-2 text-lg font-medium leading-snug text-[var(--ink)]">
               {selected.name}
             </h2>
 
-            <dl className="mt-4 space-y-1.5 font-mono text-[11px]">
+            {/* Field list sits on its own quiet inset card so the panel reads
+                as chrome + content rather than one undifferentiated column. */}
+            <dl className="mt-4 space-y-1.5 rounded-xl border border-[var(--edge)] bg-[var(--surface)] px-3 py-2.5 font-mono text-[11px]">
               {Object.entries(selected.raw)
                 .filter(([k]) => !["id", "type", "name", "title", "text"].includes(k))
                 .map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-3">
-                    <dt className="text-[var(--sd-ink-faint)]">{k}</dt>
-                    <dd className="truncate text-right text-[var(--sd-ink)]">
+                    <dt className="text-[var(--ink-faint)]">{k}</dt>
+                    <dd className="truncate text-right text-[var(--ink)]">
                       {Array.isArray(v) ? v.join(", ") || "—" : String(v ?? "—")}
                     </dd>
                   </div>
@@ -398,7 +416,7 @@ export function GraphExplorer({
             </dl>
 
             <div className="mt-5">
-              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-faint)]">
                 connected · {neighbors.length}
               </p>
               <ul className="mt-2 space-y-1">
@@ -407,20 +425,20 @@ export function GraphExplorer({
                     <button
                       type="button"
                       onClick={() => selectById(n.id)}
-                      className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left hover:bg-[var(--sd-hover)]"
+                      className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-left transition-[border-color,background-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge)] hover:bg-[var(--surface-raised)] hover:shadow-[var(--shadow-card)]"
                     >
                       <span
                         className="inline-block h-2 w-2 shrink-0 rounded-full"
                         style={{ background: n.color }}
                       />
-                      <span className="truncate text-[13px] text-[var(--sd-ink)]">
+                      <span className="truncate text-[13px] text-[var(--ink)]">
                         {n.name}
                       </span>
                     </button>
                   </li>
                 ))}
                 {neighbors.length === 0 && (
-                  <li className="px-1.5 text-[13px] text-[var(--sd-ink-faint)]">
+                  <li className="px-2 text-[13px] text-[var(--ink-faint)]">
                     No connections in the current view.
                   </li>
                 )}
