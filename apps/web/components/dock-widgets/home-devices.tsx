@@ -1,33 +1,73 @@
 "use client";
 
+import { setGoveeDevicePower } from "@/app/actions/govee-devices";
 import { defineDockWidget } from "@/components/shell/cockpit/dock-registry";
-import { type HomeLightDeviceView, formatLightMeta, swatchColor } from "@/lib/govee/home-display";
-import { useHomeLightsState } from "@/lib/govee/useHomeLightsState";
-import { Lightbulb } from "lucide-react";
+import {
+  type HomeLightDeviceView,
+  type HomeLightsReceiptView,
+  formatLightMeta,
+  swatchColor,
+} from "@/lib/govee/home-display";
+import { HOME_LIGHTS_QUERY_KEY, useHomeLightsState } from "@/lib/govee/useHomeLightsState";
+import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { Lightbulb, Wifi, WifiOff } from "lucide-react";
+import Link from "next/link";
+import { toast } from "sonner";
 
 /**
- * Home devices — light status at a glance.
+ * Home — lights you can actually flip from the dock.
  *
- * It reuses `useHomeLightsState`, the same hook and the same query key the
- * sidebar strip already polls, rather than opening a second path to the same
- * Govee data. Two subscribers, one request, one cache entry.
+ * This widget absorbed the retired sidebar HOME strip: the wifi/cloud
+ * indicator, the "N on · M linked" status, the on-first/default/alphabetical
+ * sort, and the settings hint all live here now, plus the one thing the strip
+ * never had — a per-light power switch.
  *
- * A Govee outage surfaces here as this widget's own line. It does not take the
- * strip down: the Dock mounts every widget inside its own error boundary.
+ * Control path: `setGoveeDevicePower` (server action → Govee cloud). The
+ * toggle patches the shared `HOME_LIGHTS_QUERY_KEY` cache optimistically and
+ * lets the existing 3s `/api/studio/home` poll confirm or correct; on action
+ * failure it toasts and invalidates so the poll restores truth.
+ *
+ * A Govee outage surfaces as this widget's own line; the Dock's per-widget
+ * error boundary keeps the rest of the strip alive.
  */
 
 type HomeDevicesData = {
   devices: HomeLightDeviceView[];
   connected: boolean;
+  hint: string | null;
   state: "loading" | "ready" | "error";
+  toggle: (light: HomeLightDeviceView) => void;
 };
 
 function useHomeDevices(): HomeDevicesData {
   const { data, isPending, isError } = useHomeLightsState();
+  const qc = useQueryClient();
 
-  if (isPending) return { devices: [], connected: false, state: "loading" };
+  const toggle = (light: HomeLightDeviceView) => {
+    const next = !(light.on === true);
+    // Optimistic: flip in the shared cache the sidebar/dock/poll all read.
+    qc.setQueryData<HomeLightsReceiptView>(HOME_LIGHTS_QUERY_KEY, (old) =>
+      old
+        ? {
+            ...old,
+            devices: old.devices.map((d) =>
+              d.deviceId === light.deviceId ? { ...d, on: next } : d
+            ),
+          }
+        : old
+    );
+    void setGoveeDevicePower(light.deviceId, next).then((res) => {
+      if (!res.ok) {
+        toast.error(res.error);
+        qc.invalidateQueries({ queryKey: HOME_LIGHTS_QUERY_KEY });
+      }
+    });
+  };
+
+  if (isPending) return { devices: [], connected: false, hint: null, state: "loading", toggle };
   if (isError || !data) {
-    return { devices: [], connected: false, state: "error" };
+    return { devices: [], connected: false, hint: null, state: "error", toggle };
   }
 
   // On first, default first, then alphabetical: the light you are most likely
@@ -40,7 +80,7 @@ function useHomeDevices(): HomeDevicesData {
     return a.name.localeCompare(b.name);
   });
 
-  return { devices, connected: data.connected, state: "ready" };
+  return { devices, connected: data.connected, hint: data.hint ?? null, state: "ready", toggle };
 }
 
 function statusLine(light: HomeLightDeviceView, connected: boolean): string {
@@ -50,22 +90,93 @@ function statusLine(light: HomeLightDeviceView, connected: boolean): string {
     const meta = formatLightMeta(light);
     return meta ? `On · ${meta}` : "On";
   }
-  if (light.on === false) return "Off";
+  if (light.on === false) return "Connected · Off";
   return "Connected";
 }
 
-function DeviceRow({
-  light,
-  connected,
-}: {
-  light: HomeLightDeviceView;
-  connected: boolean;
-}) {
-  const isOn = light.on === true;
-  const swatch = swatchColor(light);
+/** Wifi + linked/on tally — the sidebar strip's header, dock-sized. */
+function ConnectionRow({ data }: { data: HomeDevicesData }) {
+  const onCount = data.devices.filter((d) => d.on === true).length;
+  const reachable = data.connected ? data.devices.filter((d) => !d.stateError).length : 0;
+  const label = !data.connected
+    ? "Offline"
+    : data.devices.length === 0
+      ? "Connected"
+      : onCount > 0
+        ? `${onCount} on · ${reachable} linked`
+        : `${reachable} linked`;
 
   return (
-    <div className="flex h-8 min-w-0 items-center gap-2 px-1.5">
+    <div className="mb-1 flex items-center gap-1.5 px-1.5">
+      {data.connected ? (
+        <Wifi size={11} strokeWidth={2} className="shrink-0 text-[var(--tint-ink)]" aria-hidden />
+      ) : (
+        <WifiOff
+          size={11}
+          strokeWidth={2}
+          className="shrink-0 text-[var(--ink-faint)]"
+          aria-hidden
+        />
+      )}
+      <span
+        className={cn(
+          "text-micro tabular-nums",
+          data.connected ? "text-[var(--ink-muted)]" : "text-[var(--ink-faint)]"
+        )}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/** Tiny switch — the dock's control affordance. Track takes the widget tint. */
+function PowerSwitch({
+  on,
+  disabled,
+  label,
+  onToggle,
+}: {
+  on: boolean;
+  disabled: boolean;
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onToggle}
+      className={cn(
+        "relative h-4 w-7 shrink-0 rounded-full transition-colors duration-[160ms] ease-out cursor-pointer-always",
+        on ? "bg-[var(--tint-edge)]" : "bg-[var(--edge-strong)] hover:bg-[var(--ink-faint)]",
+        disabled && "cursor-not-allowed opacity-40"
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "absolute top-0.5 size-3 rounded-full bg-white shadow-[var(--shadow-card)] transition-[left] duration-[160ms] ease-out",
+          on ? "left-3.5" : "left-0.5"
+        )}
+      />
+    </button>
+  );
+}
+
+function DeviceRow({ light, data }: { light: HomeLightDeviceView; data: HomeDevicesData }) {
+  const isOn = light.on === true;
+  const swatch = swatchColor(light);
+  const controllable = data.connected && !light.stateError;
+
+  return (
+    <div
+      className="flex min-h-9 min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+      title={light.stateError ?? undefined}
+    >
       {/* Lit bulbs get a soft halo of their own color; off bulbs a quiet ring. */}
       <span
         aria-hidden
@@ -79,17 +190,35 @@ function DeviceRow({
             : { border: "1.5px solid var(--edge-strong)" }
         }
       />
-      <span className="min-w-0 flex-1 truncate text-meta text-[var(--ink)]">{light.name}</span>
-      <span
-        className={
-          isOn
-            ? "shrink-0 truncate rounded-full bg-[var(--tint-bg,var(--hover))] px-1.5 py-0.5 text-micro font-medium text-[var(--tint-ink,var(--ink-muted))]"
-            : "shrink-0 truncate text-micro text-[var(--ink-faint)]"
-        }
-      >
-        {statusLine(light, connected)}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-meta text-[var(--ink)]">{light.name}</span>
+        <span
+          className={cn(
+            "block truncate text-micro tabular-nums",
+            controllable ? "text-[var(--ink-faint)]" : "text-[var(--ink-faint)] opacity-70"
+          )}
+        >
+          {statusLine(light, data.connected)}
+        </span>
       </span>
+      <PowerSwitch
+        on={isOn}
+        disabled={!controllable}
+        label={isOn ? `Turn ${light.name} off` : `Turn ${light.name} on`}
+        onToggle={() => data.toggle(light)}
+      />
     </div>
+  );
+}
+
+function SettingsHint({ hint }: { hint: string | null }) {
+  return (
+    <Link
+      href="/settings#govee-lights"
+      className="block rounded-lg px-1.5 py-1 text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+    >
+      {hint ?? "Add lights in Settings"}
+    </Link>
   );
 }
 
@@ -100,15 +229,17 @@ function Compact({ data }: { data: HomeDevicesData }) {
   if (data.state === "error") {
     return <p className="px-2 text-meta text-[var(--ink-faint)]">Home is unreachable.</p>;
   }
-  if (data.devices.length === 0) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">No devices registered.</p>;
-  }
 
   return (
     <div className="flex flex-col">
-      {data.devices.slice(0, 4).map((light) => (
-        <DeviceRow key={light.deviceId} light={light} connected={data.connected} />
-      ))}
+      <ConnectionRow data={data} />
+      {data.devices.length === 0 ? (
+        <SettingsHint hint={data.hint} />
+      ) : (
+        data.devices
+          .slice(0, 4)
+          .map((light) => <DeviceRow key={light.deviceId} light={light} data={data} />)
+      )}
     </div>
   );
 }
@@ -119,9 +250,11 @@ function Expanded({ data }: { data: HomeDevicesData }) {
   }
   return (
     <div className="flex flex-col">
+      <ConnectionRow data={data} />
       {data.devices.map((light) => (
-        <DeviceRow key={light.deviceId} light={light} connected={data.connected} />
+        <DeviceRow key={light.deviceId} light={light} data={data} />
       ))}
+      <SettingsHint hint="Manage lights" />
     </div>
   );
 }

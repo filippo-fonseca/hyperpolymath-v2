@@ -47,7 +47,6 @@ import {
   SidebarStatusRow,
   SidebarSystemNav,
 } from "./PersistentNav";
-import { SidebarHomeDevicesStrip } from "./SidebarHomeDevicesStrip";
 import { SidebarTree } from "./SidebarTree";
 import { deriveSidebarLayout, planToggle, useIsBelowMd } from "./use-sidebar-breakpoint";
 
@@ -346,7 +345,8 @@ export function Sidebar({
           </section>
 
           <SidebarStatusRow collapsed={effectiveCollapsed} />
-          <SidebarHomeDevicesStrip collapsed={effectiveCollapsed} />
+          {/* The HOME strip moved to the dock's Home widget (jul-29), which
+              also gained the power controls the strip never had. */}
           <IdentityBlock collapsed={effectiveCollapsed} profile={profile} />
           <UtilityStrip
             collapsed={effectiveCollapsed}
