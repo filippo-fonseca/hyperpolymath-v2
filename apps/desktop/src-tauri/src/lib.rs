@@ -191,6 +191,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::start_capture,
             commands::stop_capture,
+            commands::list_input_devices,
+            commands::get_input_device,
+            commands::set_input_device,
             commands::show_hud,
             commands::hide_hud,
             commands::tts_play_pcm,
