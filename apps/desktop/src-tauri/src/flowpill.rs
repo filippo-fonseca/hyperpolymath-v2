@@ -221,6 +221,20 @@ fn reposition<R: Runtime>(window: &WebviewWindow<R>, corner: Corner) -> Result<(
         margin,
         corner,
     );
+    // Every input to the placement, once per show. An overlay parked off the
+    // edge of the display is indistinguishable from one that never appeared, and
+    // this is the arithmetic that decides which it is. All physical pixels.
+    eprintln!(
+        "[flowpill] placing {corner:?}: window {}x{} into work area {}x{} at ({}, {}), \
+         margin {margin} → origin ({x}, {y}), scale {}",
+        size.width,
+        size.height,
+        area.size.width,
+        area.size.height,
+        area.position.x,
+        area.position.y,
+        monitor.scale_factor(),
+    );
     window
         .set_position(PhysicalPosition::new(x, y))
         .map_err(|error| format!("flowpill set_position failed: {error}"))
@@ -320,6 +334,74 @@ fn apply_native_behaviour<R: Runtime>(_window: &WebviewWindow<R>) {}
 /// pointless risk, so on macOS we call `orderFront:` directly. Tauri reads
 /// visibility straight off `NSWindow.isVisible`, so bypassing `show()` leaves no
 /// stale bookkeeping behind.
+/// Everything the diagnostics below read off the live window after it has been
+/// ordered front.
+///
+/// This exists because of a real failure that no test could see. On a live run
+/// the log showed `flowpill_show` reaching this function on every single Option
+/// gesture, and the user still never saw the pill. Headless verification can
+/// prove the webview mounts and that the pill paints (it does, in both Chromium
+/// and WebKit; see `scripts/verify-flowpill-paint.mjs`), but everything from the
+/// `NSWindow` outwards is invisible to it. These five properties are the whole
+/// remaining space, and printing them turns the next live run into an answer
+/// rather than another round of guessing:
+///
+/// - `visible=NO` means `orderFront:` did not take, which is a window problem.
+/// - `alpha` below 1 or `screen=nil` means the window is on screen in the
+///   bookkeeping sense but not in the seeing sense. `screen=nil` in particular
+///   is the signature of a frame placed outside every display.
+/// - `occluded` means something is covering it, which at status level would be
+///   surprising and worth knowing.
+/// - `frame` against `screen` is the arithmetic check on `reposition`.
+#[cfg(target_os = "macos")]
+fn log_show_diagnostics(ns_window: &objc2_app_kit::NSWindow) {
+    use objc2_app_kit::NSWindowOcclusionState;
+
+    let frame = ns_window.frame();
+    let visible = ns_window.isVisible();
+    let alpha = ns_window.alphaValue();
+    let occluded = !ns_window
+        .occlusionState()
+        .contains(NSWindowOcclusionState::Visible);
+    let screen = ns_window.screen();
+    let screen_desc = match screen.as_ref() {
+        Some(screen) => {
+            let bounds = screen.frame();
+            format!(
+                "{}x{} at ({}, {})",
+                bounds.size.width, bounds.size.height, bounds.origin.x, bounds.origin.y
+            )
+        }
+        None => "nil (the window is not on ANY display)".to_string(),
+    };
+
+    eprintln!(
+        "[flowpill] after orderFront: visible={} alpha={alpha} occluded={occluded} \
+         frame={}x{} at ({}, {}) screen={screen_desc}",
+        if visible { "YES" } else { "NO" },
+        frame.size.width,
+        frame.size.height,
+        frame.origin.x,
+        frame.origin.y,
+    );
+
+    // Each of these is a complete explanation for "I held Option and saw
+    // nothing", so say so rather than leaving the reader to spot it in a line of
+    // numbers.
+    if !visible {
+        eprintln!("[flowpill] INVISIBLE: orderFront: did not make the window visible.");
+    }
+    if alpha < 0.99 {
+        eprintln!("[flowpill] INVISIBLE: the window's alphaValue is {alpha}, not 1.");
+    }
+    if screen.is_none() {
+        eprintln!(
+            "[flowpill] INVISIBLE: the window is on no display at all. Its frame was placed \
+             outside every screen; check the work area arithmetic in `reposition`."
+        );
+    }
+}
+
 #[cfg(target_os = "macos")]
 fn order_front<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), String> {
     let handle = window.clone();
@@ -341,6 +423,7 @@ fn order_front<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), String> {
             // SAFETY: as in `apply_native_behaviour` — live pointer, main thread.
             let ns_window = unsafe { &*ptr };
             ns_window.orderFront(None);
+            log_show_diagnostics(ns_window);
         })
         .map_err(|error| format!("flowpill orderFront failed: {error}"))
 }

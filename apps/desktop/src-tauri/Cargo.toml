@@ -51,6 +51,10 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "std",
   "NSResponder",
   "NSWindow",
+  # Reading the window's screen back after ordering it front. A window that
+  # reports no screen is off-screen, which is one of the two ways the overlay
+  # can be "shown" and still invisible. See flowpill.rs's show diagnostics.
+  "NSScreen",
 ] }
 
 # CGEventTap for the global bare-Option gesture tap (optiontap.rs). Rolled on
