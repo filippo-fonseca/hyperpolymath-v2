@@ -45,7 +45,7 @@ export function CommandMenuDialog({ open, onOpenChange, hashtags, projects }: Pr
             <button
               type="button"
               onClick={() => setCompose(false)}
-              className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] cursor-pointer-always"
+              className="text-micro font-medium text-[var(--ink-muted)] hover:text-[var(--ink)] cursor-pointer-always"
             >
               ← Commands
             </button>

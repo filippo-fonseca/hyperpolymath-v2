@@ -50,7 +50,7 @@ export function Breadcrumbs({ items, className }: Props) {
                 <Link
                   href={c.href}
                   className={cn(
-                    "font-mono text-[11px] uppercase tracking-[0.08em]",
+                    "text-micro font-medium",
                     "text-[var(--ink-muted)] hover:text-[var(--ink)]",
                     "transition-colors duration-150 ease-out cursor-pointer-always",
                   )}
@@ -61,7 +61,7 @@ export function Breadcrumbs({ items, className }: Props) {
                 <span
                   aria-current={isLast ? "page" : undefined}
                   className={cn(
-                    "font-mono text-[11px] uppercase tracking-[0.08em]",
+                    "text-micro font-medium",
                     isLast ? "text-[var(--ink)]" : "text-[var(--ink-muted)]",
                   )}
                 >

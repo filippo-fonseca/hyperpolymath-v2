@@ -195,7 +195,7 @@ export function TopTabBar({ userId }: { userId: string }) {
         aria-label="Open command palette"
         title="Open command palette (⌘⇧K)"
         className={cn(
-          "inline-flex shrink-0 items-center justify-center rounded-md p-1.5",
+          "inline-flex shrink-0 items-center justify-center rounded-lg p-1.5",
           "text-[var(--sd-ink-faint)] transition-colors duration-[160ms] ease-out",
           "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
@@ -220,7 +220,7 @@ function SplitToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
       aria-label={on ? "Exit split screen" : "Enter split screen"}
       title={on ? "Exit split screen" : "Split screen with JARVIS"}
       className={cn(
-        "inline-flex h-6 w-6 items-center justify-center rounded-md",
+        "inline-flex h-6 w-6 items-center justify-center rounded-lg",
         "transition-colors duration-[160ms] ease-out",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
         on
@@ -308,12 +308,12 @@ function TabPill({
       )}
 
       {kbd && (
-        <span
-          className="pointer-events-none absolute right-3 hidden font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--sd-ink-faint)] md:inline"
+        <kbd
+          className="pointer-events-none absolute right-3 hidden font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] md:inline"
           aria-hidden
         >
           {kbd}
-        </span>
+        </kbd>
       )}
     </div>
   );

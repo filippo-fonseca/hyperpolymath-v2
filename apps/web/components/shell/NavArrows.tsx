@@ -59,7 +59,7 @@ function NavArrowButton({
       aria-label={label}
       title={`${label} (${kbd})`}
       className={cn(
-        "inline-flex h-6 w-6 items-center justify-center rounded-md",
+        "inline-flex h-6 w-6 items-center justify-center rounded-lg",
         "transition-[background-color,color,opacity] duration-150 ease-out",
         disabled
           ? "text-[var(--ink-muted)] opacity-30 cursor-default"

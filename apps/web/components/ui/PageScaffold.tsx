@@ -34,7 +34,12 @@ import type { ReactNode } from "react";
 type PageScaffoldProps = {
   /** Sentence case breadcrumb or parent area. `text-micro` in --ink-faint. */
   eyebrow?: ReactNode;
-  /** 28px dimensional icon (nouns only), sitting in a `size-8` optical box. */
+  /**
+   * 28px dimensional icon (nouns only), sitting in a `size-8` optical box.
+   * Renders on its own row above the title (F3 adjudication of §2.9): the H1
+   * TEXT left edge is the cross-route invariant, so the icon must never
+   * displace it.
+   */
   icon?: ReactNode;
   title: ReactNode;
   /** One line. `text-meta`. */
@@ -67,12 +72,16 @@ function PageScaffoldRoot({
           <p className="mb-2 text-micro font-medium text-[var(--ink-faint)]">{eyebrow}</p>
         ) : null}
 
+        {/* The icon sits on its own row so it never displaces the H1 text:
+            the H1 TEXT left edge is what must be visually equal across every
+            route (F3 adjudication of §2.9). */}
+        {icon ? (
+          <span aria-hidden className="mb-2 flex size-8 shrink-0 items-center justify-center">
+            {icon}
+          </span>
+        ) : null}
+
         <div className="flex items-start gap-3">
-          {icon ? (
-            <span aria-hidden className="flex size-8 shrink-0 items-center justify-center">
-              {icon}
-            </span>
-          ) : null}
           <h1 className="min-w-0 flex-1 text-display font-semibold text-[var(--ink)]">{title}</h1>
           {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
         </div>

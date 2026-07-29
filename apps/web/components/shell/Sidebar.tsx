@@ -83,13 +83,13 @@ export const SIDEBAR_SURFACE = "sd-sidebar-surface";
  * nothing else.
  */
 export const SB_ROW =
-  "rounded-[6px] px-2 text-sm font-medium tracking-wide text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)]";
+  "rounded-lg px-2 text-sm font-medium tracking-wide text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)]";
 /** Active row — the neutral selected backplate + ink text. No accent tint. */
 export const SB_ROW_ACTIVE = "bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)] text-[var(--sd-ink)]";
 /** Quiet icon-button / emoji-chip backplate. Buttons DO take a hover fill —
  *  they're discrete targets, not a scanning column. */
 export const SB_GHOST =
-  "rounded-[6px] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)]";
+  "rounded-lg transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)]";
 /** Keyboard focus convention (D6). */
 export const SB_FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]";
 
@@ -484,7 +484,11 @@ function SectionHeader({
 
   return (
     <div className="group/section mb-1 flex h-6 items-center gap-1.5 px-2">
-      <span className={cn(labelClasses, "select-none")}>{label}</span>
+      {/* Sanctioned uppercase: the sidebar section eyebrow (SDC-1 §2.4).
+          data-eyebrow lets computed-style audits exclude it explicitly. */}
+      <span data-eyebrow="sidebar-section" className={cn(labelClasses, "select-none")}>
+        {label}
+      </span>
 
       {count !== undefined && count > 0 && (
         <span
@@ -580,7 +584,7 @@ function IdentityBlock({
       href="/settings"
       className={cn(
         SB_FOCUS,
-        "group flex h-12 items-center gap-2.5 rounded-[6px] px-2",
+        "group flex h-12 items-center gap-2.5 rounded-lg px-2",
         "cursor-pointer-always transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)]"
       )}
     >

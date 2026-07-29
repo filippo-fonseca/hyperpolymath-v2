@@ -283,8 +283,13 @@ Anatomy, fixed, do not vary:
 
 - Outer: `mx-auto w-full max-w-[1120px] px-8 pt-10 pb-24`, centred **within the stage**, not within
   the viewport. One measure on every page so left edges line up across routes.
-- Eyebrow → 8px → title row (`icon` + `h1.text-display`, `gap-3`, `items-start`, actions
-  right-aligned) → 8px → subtitle → 12px → meta row.
+- Eyebrow → 8px → icon (own row, `size-8` optical box, 8px below it) → title row
+  (`h1.text-display`, actions right-aligned) → 8px → subtitle → 12px → meta row.
+- **Amended by F3 (Conductor adjudication, jul-28 sesh):** the icon never sits inline with the H1.
+  The criterion behind the shared measure is that the H1 TEXT left edge is visually equal on every
+  route; an inline icon slot shifted /habits' H1 text 44px right even though the scaffold measure
+  agreed. A route that wants an icon keeps it, rendered on its own row above the title (or in the
+  meta row), so the text always starts at the shared measure.
 - Meta row: `flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-[var(--ink-muted)]`;
   separator is a `·` at `--ink-faint`, not a chip and not a border. Values are plain text; only
   status uses `StatusPill` from `components/lifeos/entity-card.tsx`.
