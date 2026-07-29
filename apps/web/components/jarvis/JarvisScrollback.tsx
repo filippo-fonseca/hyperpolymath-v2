@@ -25,11 +25,12 @@ import { CalendarDays } from "lucide-react";
  * JARVIS Console interaction machine:
  *
  *   State 5 (thinking): assistant turn streaming + no textDelta yet →
- *     mount HudThinkingRing + "THINKING" caption. Replaced by streaming
+ *     mount HudThinkingRing + "Thinking" caption. Replaced by streaming
  *     prose once the first textDelta arrives.
  *
  *   State 6 (streaming): textDelta arriving + status === "streaming" →
- *     JARVIS prose renders in JetBrains Mono 500 italic 16px (UI-SPEC §4a).
+ *     JARVIS prose renders in Space Grotesk 500 italic 16px (UI-SPEC §4a
+ *     register, retyped to sans per SDC-1 §2.4: mono never sits on prose).
  *     A 2px --hud-cyan-bright caret with --hud-cyan-glow halo trails the
  *     last rendered character via .hud-streaming-caret class. A 32px wide
  *     --hud-cyan-glow-soft light-trail follows behind the caret as an
@@ -130,7 +131,7 @@ function isUndoable(a: ScrollbackAction): boolean {
 function TurnTimestamp({ createdAt }: { createdAt: Date }) {
   return (
     <span
-      className="font-mono text-[11px] text-[var(--sd-ink-faint)] opacity-40 group-hover:opacity-90 transition-opacity select-none whitespace-nowrap"
+      className="font-mono text-micro text-[var(--sd-ink-faint)] opacity-40 group-hover:opacity-90 transition-opacity select-none whitespace-nowrap"
       title={createdAt.toLocaleString()}
     >
       {createdAt.toLocaleTimeString([], {
@@ -353,7 +354,7 @@ export function JarvisScrollback({
         // Full-width + pointer-events-none so it never captures clicks meant
         // for Studio widgets behind the console.
         <div className="flex h-full items-end justify-center pb-24 pointer-events-none">
-          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] opacity-70 select-none">
+          <p className="text-meta text-[var(--sd-ink-faint)] opacity-70 select-none">
             Type below, or hold ⌘+J and speak.
           </p>
         </div>
@@ -376,7 +377,7 @@ export function JarvisScrollback({
             type="button"
             onClick={handleLoadOlderClick}
             disabled={loadingOlder}
-            className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] px-3 py-1.5 rounded text-[var(--sd-ink-dull)] hover:text-[var(--sd-accent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="text-meta font-medium px-3 py-1.5 rounded-lg text-[var(--sd-ink-dull)] hover:text-[var(--sd-accent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Load older messages"
           >
             {loadingOlder ? "Loading…" : "↑ Older messages"}
@@ -389,7 +390,7 @@ export function JarvisScrollback({
           {/* Date divider — Today / Yesterday / weekday / "Mon DD" / "Mon DD, YYYY" */}
           <div className="flex items-center gap-3 my-4 select-none">
             <div className="flex-1 h-px bg-[var(--sd-line)]" />
-            <span className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] opacity-70">
+            <span className="font-mono text-meta font-medium text-[var(--sd-ink-faint)] opacity-70">
               {formatDayHeader(group.turns[0].createdAt)}
             </span>
             <div className="flex-1 h-px bg-[var(--sd-line)]" />
@@ -418,17 +419,17 @@ export function JarvisScrollback({
                               background: "color-mix(in oklch, var(--sd-accent) 14%, transparent)",
                               boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 30%, transparent)",
                             }}
-                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--sd-accent)]"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-micro text-[var(--sd-accent)]"
                           >
                             <CalendarDays size={11} strokeWidth={1.75} />
                             Daily Page
                           </span>
-                          <span className="text-[14px] text-[var(--sd-ink-dull)]">
+                          <span className="text-body text-[var(--sd-ink-dull)]">
                             Processed this page
                           </span>
                         </span>
                       ) : (
-                        <p className="text-[15px] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
+                        <p className="text-body text-[var(--sd-ink)] whitespace-pre-wrap break-words">
                           {renderUserText(stripSystemTags(turn.text), {
                             personNames,
                           })}
@@ -441,12 +442,12 @@ export function JarvisScrollback({
                   </div>
                 </div>
               ) : (
-                // LEFT-aligned JARVIS turn. KiwiIcon mark + mono cyan "JARVIS"
+                // LEFT-aligned JARVIS turn. KiwiIcon mark + a quiet cyan "JARVIS"
                 // label name the speaker; the body is a solid recessed
                 // --sd-darker-box plate with a hairline — no glow halo, no blur.
                 <div className="flex justify-start mb-3">
                   <div className="flex flex-col max-w-[82%]">
-                    <span className="mb-1 ml-1 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-accent)]">
+                    <span className="mb-1 ml-1 inline-flex items-center gap-1 text-micro font-medium text-[var(--sd-accent)]">
                       <KiwiIcon size={16} aria-hidden="true" />
                       JARVIS
                     </span>
@@ -474,8 +475,8 @@ export function JarvisScrollback({
                       turn.actions.length === 0 ? (
                         <div className="flex items-center gap-3 mb-2">
                           <HudThinkingRing size={32} />
-                          <span className="font-mono text-xs text-[var(--sd-ink-dull)] uppercase tracking-[0.08em]">
-                            THINKING
+                          <span className="text-micro text-[var(--sd-ink-dull)]">
+                            Thinking
                           </span>
                         </div>
                       ) : null}
@@ -486,7 +487,7 @@ export function JarvisScrollback({
                           rendered character while status === "streaming". */}
                       {turn.textDelta ? (
                         <div
-                          className="font-mono text-base italic font-medium leading-relaxed"
+                          className="text-base italic font-medium leading-relaxed"
                           style={{ color: "var(--sd-ink)" }}
                         >
                           {renderInlineMarkdown(stripSystemTags(turn.textDelta), {
@@ -568,7 +569,7 @@ export function JarvisScrollback({
                       ) : null}
                       {turn.status === "error" ? (
                         <div
-                          className="text-xs font-mono mt-2"
+                          className="text-meta mt-2"
                           style={{ color: "var(--ink-coral)" }}
                         >
                           {turn.errorMessage}
@@ -578,7 +579,7 @@ export function JarvisScrollback({
                         <button
                           type="button"
                           onClick={() => onRetry(turn.id)}
-                          className="mt-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--sd-accent)] hover:opacity-80 transition-opacity"
+                          className="mt-2 text-meta text-[var(--sd-accent)] hover:opacity-80 transition-opacity"
                         >
                           ↺ Retry
                         </button>
