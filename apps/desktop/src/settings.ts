@@ -12,6 +12,12 @@
 //   startup.briefingEnabled boolean  — spoken briefing on session-start (OPT-IN, default false)
 //   startup.openOnStart     array    — apps/URLs opened on session-start (default [])
 //   startup.shortcuts       array    — macOS Shortcuts run on session-start (default [])
+//   audio.inputDevice       string|null — chosen microphone NAME, or null to follow
+//                                      the macOS default. NOT read or written here:
+//                                      src-tauri/src/audio.rs owns this key so the
+//                                      device can be resolved at stream-open time
+//                                      from whichever webview is recording. The UI
+//                                      goes through src/audio/input-devices.ts.
 
 import { load, type Store } from "@tauri-apps/plugin-store";
 
