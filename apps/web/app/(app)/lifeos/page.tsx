@@ -93,8 +93,13 @@ export default async function LifeOsPage() {
   ).length;
   const projectsActive = availableProjects.length;
 
+  // `isolate` on <main> is load-bearing: the space backdrop is `absolute
+  // -z-10`, and without a stacking context here it escapes to the cockpit
+  // root and paints BEHIND the stage sheet's opaque fill (which is exactly
+  // what happened when .craft-sheet landed). Isolation pins it above this
+  // main's ancestors and below its content.
   return (
-    <main className="relative h-full text-[var(--sd-ink)]">
+    <main className="relative isolate h-full text-[var(--sd-ink)]">
       {/* One-screen command deck (UI-CONTRACT-SD3 §2): hero + quick-send stay
           pinned; a two-segment toggle swaps the widget deck vs the areas tree
           into a single fixed region. The page never scrolls — the canvas is

@@ -36,9 +36,19 @@ import { useReducedMotion } from "motion/react";
 const VIDEO_SRC = "/lifeos/space-loop.mp4";
 const POSTER_SRC = "/lifeos/space-poster.jpg";
 
-/** Scrim strength per theme: how much `--canvas` covers the footage. */
-const SCRIM_LIGHT = "color-mix(in srgb, var(--canvas) 88%, transparent)";
-const SCRIM_DARK = "color-mix(in srgb, var(--canvas) 72%, transparent)";
+/** Scrim per theme: how much `--canvas` covers the footage.
+ *
+ * jul-29 craft restyle: the flat 88%/72% washes date from when the widget
+ * cards were solid plates and ALL legibility had to come from the scrim —
+ * at 88% the loop was effectively invisible in light mode. The bento tiles
+ * are now .craft-glass-tile (their own blur + fill carries their text), so
+ * the scrim's only jobs are the hero text at the top and overall calm.
+ * Hence a vertical gradient: strongest behind the hero, opening up toward
+ * the grid so the drift actually reads. */
+const SCRIM_LIGHT =
+  "linear-gradient(to bottom, color-mix(in srgb, var(--canvas) 80%, transparent), color-mix(in srgb, var(--canvas) 52%, transparent))";
+const SCRIM_DARK =
+  "linear-gradient(to bottom, color-mix(in srgb, var(--canvas) 62%, transparent), color-mix(in srgb, var(--canvas) 30%, transparent))";
 
 /** Slow-motion drift rate for the loop. 1 is native speed. */
 const PLAYBACK_RATE = 0.5;
