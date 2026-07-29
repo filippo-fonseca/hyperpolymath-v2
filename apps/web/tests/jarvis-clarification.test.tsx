@@ -113,15 +113,15 @@ describe("JarvisClarification (JARVIS-19 / D-A2)", () => {
     expect(screen.queryByPlaceholderText(/type a reply/i)).toBeNull();
   });
 
-  it("renders 'clarify' chrome label (UI-SPEC §5a)", () => {
+  it("renders 'Clarify' chrome label (UI-SPEC §5a)", () => {
     // Phase 6.1 Plan 02: the Phase 5.1 "QUESTION" label was retired in favor
-    // of a lowercase mono 'clarify' chrome label per UI-SPEC §5a +
-    // §12c — clarification surface bridges agent (HUD chrome) and doc
-    // (serif body) registers.
+    // of a quiet 'clarify' chrome label per UI-SPEC §5a + §12c. jul-28 SDC-1
+    // §2.4 then retired the lowercase mono register itself — the label now
+    // reads sentence-case 'Clarify' in sans text-micro.
     render(
       <JarvisClarification clarification={baseClarification} onReply={vi.fn()} />,
     );
-    expect(screen.getByText("clarify")).toBeTruthy();
+    expect(screen.getByText("Clarify")).toBeTruthy();
   });
 
   it("renders correctly with no chip options (free-text only mode)", () => {
