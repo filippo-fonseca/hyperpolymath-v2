@@ -243,7 +243,14 @@ function ExplorerGridTile({
       onContextMenu={onContextMenu}
       style={style}
       className={cn(
-        "group flex min-h-[154px] flex-col items-center rounded-lg border border-transparent p-1 text-center outline-none",
+        // `w-full` is geometry, not styling: a <button> is a form control, so
+        // its auto width is shrink-to-fit even as a flex container. Without an
+        // explicit width every tile sizes to its own label, and the
+        // `aspect-square w-full` media backplate inside turns that text width
+        // into a text-driven *height* — the "Another page" tile sat 32px below
+        // "Test" because its label was wider. Filling the grid cell pins the
+        // backplate at its 110px cap for every tile, so row geometry is fixed.
+        "group flex min-h-[154px] w-full flex-col items-center rounded-lg border border-transparent p-1 text-center outline-none",
         "transition-[background-color,border-color] duration-[160ms] ease-out hover:bg-[var(--sd-box)]",
         selected &&
           "border-[var(--edge-strong)] bg-[color-mix(in_srgb,var(--sd-accent)_8%,var(--sd-selected-item))]",
