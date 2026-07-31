@@ -3,10 +3,12 @@
 import { listCalendarsForUser } from "@/app/actions/gcal-calendars";
 import { listEventsForUser } from "@/app/actions/gcal-events";
 import { defineDockWidget } from "@/components/shell/cockpit/dock-registry";
+import { formatEventCountdown } from "@/lib/gcal/event-countdown";
 import type { GcalEventDTO } from "@/lib/gcal/event-dto";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarClock } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 /**
  * Next event — the next thing on the calendar, at a glance.
@@ -17,8 +19,10 @@ import Link from "next/link";
  * route (`/api/device/calendar`) is bearer-authenticated for the desktop app
  * and is not reachable from a cookie session, which is why it is not used here.
  *
- * The window is the next 24 hours and it refetches every five minutes: a dock
- * widget that says "in 3 hours" forever is worse than no widget.
+ * The window is the next 24 hours. Event *data* refetches every five minutes;
+ * the countdown label ticks on its own so "in 12 min" stays honest between
+ * refetches (a dock that says "in 1 h" while the meeting is twelve minutes
+ * away is worse than no widget).
  */
 
 type NextEventData = {
@@ -28,6 +32,8 @@ type NextEventData = {
 
 const LOOKAHEAD_MS = 24 * 60 * 60 * 1000;
 const REFETCH_MS = 5 * 60 * 1000;
+/** Tick the countdown often enough that minute-level labels feel live. */
+const COUNTDOWN_TICK_MS = 15_000;
 
 async function fetchNextEvent(): Promise<{ event: GcalEventDTO | null } | { notConnected: true }> {
   const calendars = await listCalendarsForUser();
@@ -78,18 +84,19 @@ function useNextEvent(): NextEventData {
   return { event: data.event, state: "ready" };
 }
 
-function whenLabel(event: GcalEventDTO): string {
-  if (event.allDay) return "All day";
-  const start = new Date(event.start);
-  const minutes = Math.round((start.getTime() - Date.now()) / 60000);
-  if (minutes <= 0) return "Now";
-  if (minutes < 60) return `In ${minutes} min`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `In ${hours} h`;
-  return start.toLocaleDateString(undefined, { weekday: "short" });
+/** Wall-clock tick so countdown labels re-render without waiting on gcal refetch. */
+function useNow(intervalMs: number): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), intervalMs);
+    return () => window.clearInterval(id);
+  }, [intervalMs]);
+  return now;
 }
 
 function Compact({ data }: { data: NextEventData }) {
+  const now = useNow(COUNTDOWN_TICK_MS);
+
   if (data.state === "loading") {
     return <p className="px-2 text-meta text-[var(--ink-faint)]">Checking…</p>;
   }
@@ -113,6 +120,15 @@ function Compact({ data }: { data: NextEventData }) {
     return <p className="px-2 text-meta text-[var(--ink-faint)]">Nothing in the next 24 hours.</p>;
   }
 
+  const when = formatEventCountdown(data.event.start, data.event.allDay, now);
+  const absolute = data.event.allDay
+    ? "All day"
+    : new Date(data.event.start).toLocaleString(undefined, {
+        weekday: "short",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+
   return (
     // The event renders as a miniature of the calendar page's pastel plate:
     // tinted fill, saturated left edge, in-family ink.
@@ -123,8 +139,11 @@ function Compact({ data }: { data: NextEventData }) {
       <span className="truncate text-meta font-medium text-[var(--tint-ink)]">
         {data.event.title || "Untitled event"}
       </span>
-      <span className="text-micro tabular-nums text-[color-mix(in_srgb,var(--tint-ink)_75%,transparent)]">
-        {whenLabel(data.event)}
+      <span
+        className="text-micro tabular-nums text-[color-mix(in_srgb,var(--tint-ink)_75%,transparent)]"
+        title={absolute}
+      >
+        {when}
       </span>
     </Link>
   );
