@@ -1,13 +1,23 @@
 "use client";
 
+import { saveJarvisTurn } from "@/app/actions/jarvis-turns";
 import {
   type JarvisActionEvent,
   type JarvisClarificationEvent,
   type JarvisRequest,
   streamJarvis,
 } from "@/components/jarvis/jarvis-stream-client";
+import type {
+  ScrollbackAction,
+  ScrollbackClarification,
+  ScrollbackTurn,
+} from "@/components/jarvis/jarvis-types";
+import { useCurrentUserId } from "@/components/providers/CurrentUserProvider";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
+import { bumpUnread } from "@/lib/jarvis/unread-bus";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { Maximize2, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,6 +34,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * what makes it safe next to editors: BlockNote surfaces, sticky toolbars and
  * slash menus all live inside the scroll box above it and simply have ~48px
  * less viewport. It cannot cover them and they cannot cover it.
+ *
+ * Turns typed here persist to `jarvis_turns` the same way GlobalJarvisHandler
+ * does, so the /today console (and split panel) live-merge them over Realtime.
  *
  * What it deliberately does NOT do:
  *  - It does not autofocus, ever, on mount or on navigation. Stealing focus
@@ -46,13 +59,31 @@ const MAX_HISTORY_TURNS = 20;
 /**
  * Rolling history, module-local so it survives the bar unmounting on a
  * suppressed route and coming back. Trimmed hard: the bar is for one-sentence
- * turns, and the console owns the long conversation.
+ * turns, and the console owns the long conversation — but every turn is also
+ * written to `jarvis_turns` so the console sees it live.
  */
 let history: JarvisRequest["history"] = [];
 
 function rememberTurn(role: "user" | "assistant", content: string) {
   if (!content) return;
   history = [...history, { role, content }].slice(-MAX_HISTORY_TURNS);
+}
+
+/** Fire-and-forget — mirrors GlobalJarvisHandler / JarvisConsole.persistTurn. */
+function persistTurn(turn: ScrollbackTurn): void {
+  void saveJarvisTurn({
+    id: turn.id,
+    kind: turn.kind,
+    text: turn.kind === "user" ? turn.text : null,
+    textDelta: turn.kind === "assistant" ? turn.textDelta : null,
+    actions: turn.kind === "assistant" ? turn.actions : [],
+    clarification: turn.kind === "assistant" ? (turn.clarification ?? null) : null,
+    status: turn.kind === "assistant" ? turn.status : null,
+    errorMessage: turn.kind === "assistant" ? (turn.errorMessage ?? null) : null,
+    createdAt: turn.createdAt.toISOString(),
+  }).catch((err) => {
+    console.warn("[jarvis] command-bar persistTurn failed (non-fatal)", err);
+  });
 }
 
 function actionLine(action: JarvisActionEvent): string {
@@ -71,6 +102,8 @@ function actionLine(action: JarvisActionEvent): string {
 export function JarvisCommandBar() {
   const pathname = usePathname() ?? "";
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -97,45 +130,118 @@ export function JarvisCommandBar() {
     setError(null);
   }, []);
 
-  const send = useCallback((text: string) => {
-    const input = text.trim();
-    if (!input) return;
+  const send = useCallback(
+    (text: string) => {
+      const input = text.trim();
+      if (!input) return;
 
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setBusy(true);
-    setAnswer("");
-    setActions([]);
-    setClarification(null);
-    setError(null);
-    rememberTurn("user", input);
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setBusy(true);
+      setAnswer("");
+      setActions([]);
+      setClarification(null);
+      setError(null);
+      rememberTurn("user", input);
 
-    let reply = "";
-    void streamJarvis(
-      { input, history: history.slice(0, -1) },
-      {
-        onText: (delta) => {
-          reply += delta;
-          setAnswer(reply);
+      // Persist into the shared jarvis_turns stream so /today (and the split
+      // console) merge this turn over Realtime — same contract as voice/Cmd+K.
+      const userTurnId = crypto.randomUUID();
+      const assistantTurnId = crypto.randomUUID();
+      persistTurn({
+        kind: "user",
+        id: userTurnId,
+        text: input,
+        createdAt: new Date(),
+      });
+
+      const assistant: {
+        kind: "assistant";
+        id: string;
+        textDelta: string;
+        actions: ScrollbackAction[];
+        clarification: ScrollbackClarification | undefined;
+        createdAt: Date;
+        status: "streaming" | "done" | "error";
+        errorMessage?: string;
+      } = {
+        kind: "assistant",
+        id: assistantTurnId,
+        textDelta: "",
+        actions: [],
+        clarification: undefined,
+        createdAt: new Date(),
+        status: "streaming",
+      };
+
+      let reply = "";
+      void streamJarvis(
+        { input, history: history.slice(0, -1) },
+        {
+          onText: (delta) => {
+            reply += delta;
+            assistant.textDelta = reply;
+            setAnswer(reply);
+          },
+          onQueued: (data) => {
+            assistant.actions.push({
+              toolUseId: data.toolUseId,
+              name: data.name as ScrollbackAction["name"],
+              status: "queued",
+            });
+          },
+          onAction: (action) => {
+            const existing = assistant.actions.find((a) => a.toolUseId === action.toolUseId);
+            if (existing) {
+              existing.status = "done";
+              existing.result = action.result as ScrollbackAction["result"];
+            } else {
+              assistant.actions.push({
+                toolUseId: action.toolUseId,
+                name: action.name as ScrollbackAction["name"],
+                status: "done",
+                result: action.result as ScrollbackAction["result"],
+              });
+            }
+            setActions((lines) => [...lines, actionLine(action)]);
+            if (action.result.ok && userId) {
+              invalidateAfterJarvisAction(queryClient, action.name, userId);
+            }
+          },
+          onClarification: (event) => {
+            assistant.clarification = {
+              toolUseId: event.toolUseId,
+              question: event.question,
+              options: event.options ?? [],
+              suggestedAction: event.suggestedAction ?? null,
+              answered: false,
+            };
+            setClarification(event);
+          },
+          onDone: () => {
+            rememberTurn("assistant", reply);
+            assistant.status = "done";
+            persistTurn(assistant);
+            // Console isn't mounted on these routes, so a completed reply here
+            // is unread until the user opens /today (or the split panel).
+            bumpUnread();
+            setBusy(false);
+            abortRef.current = null;
+          },
+          onError: (message) => {
+            assistant.status = "error";
+            assistant.errorMessage = message;
+            persistTurn(assistant);
+            setError(message);
+            setBusy(false);
+            abortRef.current = null;
+          },
         },
-        onAction: (action) => {
-          setActions((lines) => [...lines, actionLine(action)]);
-        },
-        onClarification: (event) => setClarification(event),
-        onDone: () => {
-          rememberTurn("assistant", reply);
-          setBusy(false);
-          abortRef.current = null;
-        },
-        onError: (message) => {
-          setError(message);
-          setBusy(false);
-          abortRef.current = null;
-        },
-      },
-      controller.signal
-    );
-  }, []);
+        controller.signal
+      );
+    },
+    [queryClient, userId]
+  );
 
   function submit() {
     if (busy) return;
@@ -191,101 +297,101 @@ export function JarvisCommandBar() {
     // the scroll box — the floating look is padding + chrome, not an overlay.
     <div className="shrink-0 px-3 pt-1.5 pb-3">
       <div className="craft-glass overflow-hidden rounded-2xl">
-      {hasStrip ? (
-        <div className="sd-scroll-hover max-h-[40vh] overflow-y-auto border-b border-[var(--edge)] px-4 py-3">
-          {answer ? (
-            <p className="max-w-[68ch] whitespace-pre-wrap text-body text-[var(--ink)]">{answer}</p>
-          ) : null}
+        {hasStrip ? (
+          <div className="sd-scroll-hover max-h-[40vh] overflow-y-auto border-b border-[var(--edge)] px-4 py-3">
+            {answer ? (
+              <p className="max-w-[68ch] whitespace-pre-wrap text-body text-[var(--ink)]">{answer}</p>
+            ) : null}
 
-          {actions.length > 0 ? (
-            <ul className="mt-2 flex flex-col gap-1">
-              {actions.map((line) => (
-                <li key={line} className="text-meta text-[var(--ink-muted)]">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+            {actions.length > 0 ? (
+              <ul className="mt-2 flex flex-col gap-1">
+                {actions.map((line) => (
+                  <li key={line} className="text-meta text-[var(--ink-muted)]">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
 
-          {clarification ? (
-            <div className="mt-2 flex flex-col gap-2">
-              <p className="max-w-[68ch] text-body text-[var(--ink)]">{clarification.question}</p>
-              {clarification.options.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {clarification.options.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => send(option)}
-                      className="h-8 rounded-lg bg-[var(--hover)] px-3 text-meta text-[var(--ink)] transition-colors duration-[160ms] ease-out hover:bg-[var(--selected)]"
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+            {clarification ? (
+              <div className="mt-2 flex flex-col gap-2">
+                <p className="max-w-[68ch] text-body text-[var(--ink)]">{clarification.question}</p>
+                {clarification.options.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {clarification.options.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => send(option)}
+                        className="h-8 rounded-lg bg-[var(--hover)] px-3 text-meta text-[var(--ink)] transition-colors duration-[160ms] ease-out hover:bg-[var(--selected)]"
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
-          {error ? <p className="text-meta text-[var(--ink-coral)]">{error}</p> : null}
-        </div>
-      ) : null}
+            {error ? <p className="text-meta text-[var(--ink-coral)]">{error}</p> : null}
+          </div>
+        ) : null}
 
-      <div className="flex h-12 items-center gap-2 px-2.5">
-        <KiwiIcon size={18} aria-hidden="true" className="ml-1 shrink-0" />
+        <div className="flex h-12 items-center gap-2 px-2.5">
+          <KiwiIcon size={18} aria-hidden="true" className="ml-1 shrink-0" />
 
-        <input
-          ref={inputRef}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          disabled={busy}
-          placeholder="ask kiwi…"
-          aria-label="Ask Kiwi"
-          className={cn(
-            "min-w-0 flex-1 bg-transparent text-body text-[var(--ink)] outline-none",
-            "placeholder:text-[var(--ink-faint)] disabled:opacity-60"
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            disabled={busy}
+            placeholder="hi jarv"
+            aria-label="Ask Jarvis"
+            className={cn(
+              "min-w-0 flex-1 bg-transparent text-body text-[var(--ink)] outline-none",
+              "placeholder:text-[var(--ink-faint)] disabled:opacity-60"
+            )}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                submit();
+                return;
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                // Escape collapses the answer strip first, then gives focus back
+                // to whatever the user was actually doing.
+                if (hasStrip) collapseStrip();
+                else event.currentTarget.blur();
+              }
+            }}
+          />
+
+          {busy ? (
+            <button
+              type="button"
+              onClick={stop}
+              aria-label="Stop"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--ink-muted)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+            >
+              <X size={15} strokeWidth={1.75} />
+            </button>
+          ) : (
+            <kbd className="hidden shrink-0 rounded bg-[var(--hover)] px-1.5 py-0.5 font-mono text-micro text-[var(--ink-faint)] md:inline-block">
+              ⌘J
+            </kbd>
           )}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              submit();
-              return;
-            }
-            if (event.key === "Escape") {
-              event.preventDefault();
-              // Escape collapses the answer strip first, then gives focus back
-              // to whatever the user was actually doing.
-              if (hasStrip) collapseStrip();
-              else event.currentTarget.blur();
-            }
-          }}
-        />
 
-        {busy ? (
           <button
             type="button"
-            onClick={stop}
-            aria-label="Stop"
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--ink-muted)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+            onClick={expand}
+            aria-label="Open the full console"
+            title="Open the full console (⌘⇧J)"
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
           >
-            <X size={15} strokeWidth={1.75} />
+            <Maximize2 size={14} strokeWidth={1.75} />
           </button>
-        ) : (
-          <kbd className="hidden shrink-0 rounded bg-[var(--hover)] px-1.5 py-0.5 font-mono text-micro text-[var(--ink-faint)] md:inline-block">
-            ⌘J
-          </kbd>
-        )}
-
-        <button
-          type="button"
-          onClick={expand}
-          aria-label="Open the full console"
-          title="Open the full console (⌘⇧J)"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
-        >
-          <Maximize2 size={14} strokeWidth={1.75} />
-        </button>
-      </div>
+        </div>
       </div>
     </div>
   );
