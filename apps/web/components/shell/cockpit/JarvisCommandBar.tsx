@@ -14,11 +14,13 @@ import type {
 } from "@/components/jarvis/jarvis-types";
 import { useCurrentUserId } from "@/components/providers/CurrentUserProvider";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
 import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
 import { bumpUnread } from "@/lib/jarvis/unread-bus";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Maximize2, X } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -104,6 +106,7 @@ export function JarvisCommandBar() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const userId = useCurrentUserId();
+  const reduceMotion = useReducedMotion();
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -121,7 +124,8 @@ export function JarvisCommandBar() {
     pathname.startsWith(`${JARVIS_SETTINGS_PATH}/`) ||
     pathname.startsWith("/onboarding");
 
-  const hasStrip = Boolean(answer || actions.length > 0 || clarification || error);
+  const thinking = busy && !answer && actions.length === 0 && !clarification && !error;
+  const hasStrip = Boolean(answer || actions.length > 0 || clarification || error || busy);
 
   const collapseStrip = useCallback(() => {
     setAnswer("");
@@ -299,8 +303,28 @@ export function JarvisCommandBar() {
       <div className="craft-glass overflow-hidden rounded-2xl">
         {hasStrip ? (
           <div className="sd-scroll-hover max-h-[40vh] overflow-y-auto border-b border-[var(--edge)] px-4 py-3">
+            {thinking ? (
+              <div className="flex items-center gap-3" role="status" aria-live="polite">
+                <HudThinkingRing size={22} />
+                <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+                  Thinking
+                </span>
+              </div>
+            ) : null}
+
             {answer ? (
-              <p className="max-w-[68ch] whitespace-pre-wrap text-body text-[var(--ink)]">{answer}</p>
+              <p className="max-w-[68ch] whitespace-pre-wrap text-body text-[var(--ink)]">
+                {answer}
+                {busy ? (
+                  <span
+                    className={cn(
+                      "ml-0.5 inline-block h-[1em] w-0.5 align-[-0.1em] bg-[var(--hud-cyan-bright)]",
+                      !reduceMotion && "hud-streaming-caret"
+                    )}
+                    aria-hidden
+                  />
+                ) : null}
+              </p>
             ) : null}
 
             {actions.length > 0 ? (
@@ -338,15 +362,20 @@ export function JarvisCommandBar() {
         ) : null}
 
         <div className="flex h-12 items-center gap-2 px-2.5">
-          <KiwiIcon size={18} aria-hidden="true" className="ml-1 shrink-0" />
+          <KiwiIcon
+            size={18}
+            aria-hidden="true"
+            className={cn("ml-1 shrink-0", busy && !reduceMotion && "animate-pulse")}
+          />
 
           <input
             ref={inputRef}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             disabled={busy}
-            placeholder="hi jarv"
+            placeholder={busy ? (thinking ? "thinking…" : "streaming…") : "hi jarv"}
             aria-label="Ask Jarvis"
+            aria-busy={busy}
             className={cn(
               "min-w-0 flex-1 bg-transparent text-body text-[var(--ink)] outline-none",
               "placeholder:text-[var(--ink-faint)] disabled:opacity-60"
@@ -360,7 +389,9 @@ export function JarvisCommandBar() {
               if (event.key === "Escape") {
                 event.preventDefault();
                 // Escape collapses the answer strip first, then gives focus back
-                // to whatever the user was actually doing.
+                // to whatever the user was actually doing. Don't dismiss while
+                // a turn is in flight — Stop owns that.
+                if (busy) return;
                 if (hasStrip) collapseStrip();
                 else event.currentTarget.blur();
               }
