@@ -1,5 +1,9 @@
 export { EmptyState } from "./EmptyState";
-export { ExplorerBreadcrumbs, type ExplorerBreadcrumbSegment } from "./ExplorerBreadcrumbs";
+export {
+  ExplorerBreadcrumbs,
+  splitBreadcrumbSegments,
+  type ExplorerBreadcrumbSegment,
+} from "./ExplorerBreadcrumbs";
 export {
   ExplorerContextMenu,
   ExplorerContextMenuContent,
