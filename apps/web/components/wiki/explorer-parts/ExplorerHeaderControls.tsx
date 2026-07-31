@@ -118,12 +118,13 @@ export function ExplorerHeaderControls({
 
 function BreadcrumbDroppable({ id, children }: { id: string; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id });
-  const reduceMotion = useReducedMotion();
   return (
     <span
       ref={setNodeRef}
       className={cn(
-        "inline-flex rounded-lg transition-[background-color,box-shadow] duration-[160ms] ease-out",
+        // min-w-0/max-w-full so a long current crumb can truncate with … inside
+        // the toolbar slot instead of being clipped mid-character by overflow.
+        "inline-flex min-w-0 max-w-full rounded-lg transition-[background-color,box-shadow] duration-[160ms] ease-out",
         isOver &&
           "bg-[color-mix(in_oklch,var(--sd-accent)_12%,transparent)] shadow-[inset_0_0_0_1px_var(--sd-accent)]"
       )}

@@ -75,7 +75,7 @@ export function ExplorerBreadcrumbs({
 
   return (
     <nav aria-label="Explorer breadcrumbs" className={cn("min-w-0 font-sans", className)}>
-      <ol className="flex min-w-0 items-center gap-1 overflow-hidden">
+      <ol className="flex min-w-0 items-center gap-1">
         {items.map((item, index) => {
           if (item.kind === "collapsed") {
             return (
@@ -128,10 +128,13 @@ function BreadcrumbItem({
     <button
       type="button"
       aria-current={isCurrent ? "page" : undefined}
+      title={truncate ? segment.label : undefined}
       {...segment.buttonProps}
       className={cn(
-        "rounded-[6px] px-2 py-1 text-[0.8rem]",
-        truncate ? "min-w-0 max-w-[12rem] truncate" : "shrink-0",
+        "rounded-[6px] px-2 py-1 text-left text-[0.8rem]",
+        // Fill the flex slot and ellipsize here — not via the parent ol clipping
+        // mid-glyph when the toolbar runs out of room.
+        truncate ? "block w-full min-w-0 truncate" : "shrink-0",
         "transition-[background-color,color] duration-[120ms] ease-out",
         isCurrent
           ? "pointer-events-none text-[var(--ink)]"
@@ -143,10 +146,24 @@ function BreadcrumbItem({
     </button>
   );
 
+  const node = renderSegment ? renderSegment(segment, defaultNode) : defaultNode;
+
   return (
-    <li className={cn("flex items-center gap-1", truncate ? "min-w-0" : "shrink-0")}>
+    <li
+      className={cn(
+        "flex items-center gap-1",
+        truncate ? "min-w-0 flex-1 overflow-hidden" : "shrink-0"
+      )}
+      title={truncate ? segment.label : undefined}
+    >
       {showChevron ? <BreadcrumbChevron /> : null}
-      {renderSegment ? renderSegment(segment, defaultNode) : defaultNode}
+      {truncate ? (
+        <span className="min-w-0 flex-1 overflow-hidden [&_*]:min-w-0 [&_*]:max-w-full">
+          {node}
+        </span>
+      ) : (
+        node
+      )}
     </li>
   );
 }
