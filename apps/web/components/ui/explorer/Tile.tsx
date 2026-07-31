@@ -1,5 +1,6 @@
 "use client";
 
+import { OverflowTooltip } from "@/components/ui/OverflowTooltip";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -18,6 +19,9 @@ export interface TileTag {
  * and an optional overlapping tag-dot row. Purely presentational and
  * data-agnostic; the consumer owns the interactive wrapper (button, drag/drop,
  * context menu). Rendered as a fragment so it drops straight into a tile button.
+ *
+ * When `label` is a string and the text ellipsizes, hover reveals the full name
+ * via {@link OverflowTooltip} (sd chrome — not the OS tooltip).
  */
 export function Tile({
   media,
@@ -39,6 +43,12 @@ export function Tile({
   labelLines?: 1 | 2;
   backplateClassName?: string;
 }) {
+  const labelText = typeof label === "string" ? label : null;
+  const labelClassName = cn(
+    "rounded px-1 py-0.5 font-sans text-meta font-medium text-[var(--sd-ink)]",
+    selected && "bg-[var(--sd-accent)] text-white"
+  );
+
   return (
     <>
       <div
@@ -50,16 +60,23 @@ export function Tile({
       >
         {media}
       </div>
-      <div className="mt-1 min-w-0 max-w-full">
-        <div
-          className={cn(
-            "rounded px-1 py-0.5 font-sans text-meta font-medium text-[var(--sd-ink)]",
-            labelLines === 2 ? "line-clamp-2" : "truncate",
-            selected && "bg-[var(--sd-accent)] text-white"
-          )}
-        >
-          {label}
-        </div>
+      <div className="mt-1 w-full min-w-0 max-w-full">
+        {labelText ? (
+          <OverflowTooltip
+            text={labelText}
+            clampLines={labelLines}
+            className={cn(labelClassName, "w-full max-w-full")}
+          />
+        ) : (
+          <div
+            className={cn(
+              labelClassName,
+              labelLines === 2 ? "line-clamp-2" : "truncate"
+            )}
+          >
+            {label}
+          </div>
+        )}
         {caption != null ? (
           <div className="truncate rounded px-1 py-px font-sans text-micro text-[var(--sd-ink-dull)]">
             {caption}
