@@ -14,7 +14,6 @@ import { ExplorerSfxToggle } from "@/components/wiki/explorer-parts/ExplorerSfxT
 import { cn } from "@/lib/utils";
 import { useDroppable } from "@dnd-kit/core";
 import { PanelRightClose, PanelRightOpen, Search } from "lucide-react";
-import { useReducedMotion } from "motion/react";
 import type { ReactNode, RefObject } from "react";
 
 interface ExplorerHeaderControlsProps {
