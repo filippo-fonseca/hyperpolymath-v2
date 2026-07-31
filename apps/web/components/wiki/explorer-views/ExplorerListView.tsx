@@ -1,5 +1,6 @@
 "use client";
 
+import { OverflowTooltip } from "@/components/ui/OverflowTooltip";
 import { FolderIcon } from "@/components/ui/icons/FolderIcon";
 import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { partitionExplorerItems } from "@/components/wiki/explorer-hooks/explorer-items";
@@ -235,7 +236,7 @@ function ExplorerListRow({
         ) : (
           <PageIcon size={20} kind={item.page.dailyDate ? "daily" : "note"} />
         )}
-        <span className="truncate">{name}</span>
+        <OverflowTooltip text={name} className="min-w-0" />
         {item.kind === "page" && item.page.pinned ? (
           <Star
             size={11}
@@ -262,13 +263,11 @@ function ProjectChips({ names }: { names: string[] }) {
   return (
     <span className="flex min-w-0 items-center gap-1 overflow-hidden">
       {names.slice(0, 2).map((name) => (
-        <span
+        <OverflowTooltip
           key={name}
-          className="max-w-[90px] truncate rounded-full bg-[var(--hover)] px-2 py-0.5 text-micro leading-none text-[var(--sd-ink-dull)]"
-          title={name}
-        >
-          {name}
-        </span>
+          text={name}
+          className="max-w-[90px] rounded-full bg-[var(--hover)] px-2 py-0.5 text-micro leading-none text-[var(--sd-ink-dull)]"
+        />
       ))}
       {names.length > 2 ? (
         <span className="shrink-0 rounded-full bg-[var(--hover)] px-2 py-0.5 text-micro leading-none text-[var(--sd-ink-dull)]">
