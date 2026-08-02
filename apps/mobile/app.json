@@ -59,7 +59,9 @@
               "displayName": "Today",
               "description": "Tasks, habits, and calendar for today.",
               "ios": {
-                "supportedFamilies": ["systemLarge"],
+                "supportedFamilies": [
+                  "systemLarge"
+                ],
                 "contentMarginsDisabled": true
               }
             },
@@ -68,7 +70,9 @@
               "displayName": "Talk to JARVIS",
               "description": "Open JARVIS and start talking.",
               "ios": {
-                "supportedFamilies": ["systemSmall"],
+                "supportedFamilies": [
+                  "systemSmall"
+                ],
                 "contentMarginsDisabled": true
               }
             },
@@ -77,7 +81,9 @@
               "displayName": "New Task",
               "description": "Jump straight into a new task.",
               "ios": {
-                "supportedFamilies": ["systemSmall"],
+                "supportedFamilies": [
+                  "systemSmall"
+                ],
                 "contentMarginsDisabled": true
               }
             },
@@ -86,13 +92,16 @@
               "displayName": "Capture",
               "description": "Capture a thought instantly.",
               "ios": {
-                "supportedFamilies": ["systemSmall"],
+                "supportedFamilies": [
+                  "systemSmall"
+                ],
                 "contentMarginsDisabled": true
               }
             }
           ]
         }
-      ]
+      ],
+      "./plugins/with-widget-version.js"
     ],
     "extra": {
       "eas": {
