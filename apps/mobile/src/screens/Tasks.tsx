@@ -334,10 +334,16 @@ const bulkStyles = StyleSheet.create({
   },
 });
 
-export function TasksScreen({ active }: { active: boolean }) {
+export function TasksScreen({ active, composeToken = 0 }: { active: boolean; composeToken?: number }) {
   const insets = useSafeAreaInsets();
   const { data, loading, error, refresh, mutate } = useCollection(getTasks, active);
   const [form, setForm] = useState<FormState | null>(null);
+
+  // Widget / deep-link: open the new-task composer when composeToken bumps.
+  useEffect(() => {
+    if (composeToken > 0) setForm({ ...EMPTY_FORM });
+  }, [composeToken]);
+
   const [showDone, setShowDone] = useState(false);
   const [showProjects, setShowProjects] = useState(false);
   const [query, setQuery] = useState("");

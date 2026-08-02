@@ -16,7 +16,7 @@ import {
 } from "@expo-google-fonts/space-grotesk";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { AppState, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { isAuthed } from "./src/lib/auth-token";
@@ -26,6 +26,12 @@ import { initAuth, onAuthChange } from "./src/lib/supabase";
 import { LoginScreen } from "./src/screens/Login";
 import { Root } from "./src/screens/Root";
 import { sd } from "./src/theme";
+import { registerWidgets } from "./src/widgets";
+import { seedWidgetSnapshots, syncTodayWidget } from "./src/widgets/sync";
+import { onDataInvalidate } from "./src/lib/use-collection";
+
+registerWidgets();
+seedWidgetSnapshots();
 
 export default function App() {
   const [spaceLoaded] = useSpaceGrotesk({
@@ -52,17 +58,41 @@ export default function App() {
       await initAuth();
       if (!isAuthed()) await maybeDevAutoSignIn();
       if (cancelled) return;
-      setSignedIn(isAuthed());
+      const authed = isAuthed();
+      setSignedIn(authed);
       setReady(true);
+      if (authed) void syncTodayWidget();
     })();
     const off = onAuthChange(() => {
-      setSignedIn(isAuthed());
+      const authed = isAuthed();
+      setSignedIn(authed);
+      if (authed) void syncTodayWidget();
     });
     return () => {
       cancelled = true;
       off();
     };
   }, []);
+
+  // Keep the Today widget fresh: foreground + JARVIS tool invalidation + poll.
+  useEffect(() => {
+    if (!signedIn) return;
+    void syncTodayWidget();
+    const appSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void syncTodayWidget();
+    });
+    const offInvalidate = onDataInvalidate(() => {
+      void syncTodayWidget();
+    });
+    const interval = setInterval(() => {
+      void syncTodayWidget();
+    }, 60_000);
+    return () => {
+      appSub.remove();
+      offInvalidate();
+      clearInterval(interval);
+    };
+  }, [signedIn]);
 
   if (!spaceLoaded || !monoLoaded || !logoLoaded || !ready) {
     return <View style={{ flex: 1, backgroundColor: sd.app }} />;
