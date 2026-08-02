@@ -2,7 +2,7 @@
   "expo": {
     "name": "JARVIS",
     "slug": "jarvis-mobile",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "jarvis",
@@ -46,6 +46,51 @@
         {
           "microphonePermission": "JARVIS listens when you tap the orb so you can dictate commands.",
           "speechRecognitionPermission": "JARVIS shows your words live on screen while you dictate."
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.hyperpolymath.jarvis.widgets",
+          "groupIdentifier": "group.com.hyperpolymath.jarvis",
+          "widgets": [
+            {
+              "name": "TodayWidget",
+              "displayName": "Today",
+              "description": "Tasks, habits, and calendar for today.",
+              "ios": {
+                "supportedFamilies": ["systemLarge"],
+                "contentMarginsDisabled": true
+              }
+            },
+            {
+              "name": "TalkWidget",
+              "displayName": "Talk to JARVIS",
+              "description": "Open JARVIS and start talking.",
+              "ios": {
+                "supportedFamilies": ["systemSmall"],
+                "contentMarginsDisabled": true
+              }
+            },
+            {
+              "name": "NewTaskWidget",
+              "displayName": "New Task",
+              "description": "Jump straight into a new task.",
+              "ios": {
+                "supportedFamilies": ["systemSmall"],
+                "contentMarginsDisabled": true
+              }
+            },
+            {
+              "name": "CaptureWidget",
+              "displayName": "Capture",
+              "description": "Capture a thought instantly.",
+              "ios": {
+                "supportedFamilies": ["systemSmall"],
+                "contentMarginsDisabled": true
+              }
+            }
+          ]
         }
       ]
     ],
