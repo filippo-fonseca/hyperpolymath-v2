@@ -105,25 +105,30 @@ const TodayWidget = (props: TodayWidgetProps, _environment: WidgetEnvironment) =
         <Text modifiers={[font({ size: 10, weight: "medium", design: "monospaced" }), foregroundStyle(inkFaint)]}>
           NEXT TASKS
         </Text>
-        {tasks.length === 0 ? (
-          <Text modifiers={[font({ size: 13 }), foregroundStyle(inkFaint)]}>No open tasks.</Text>
-        ) : (
-          tasks.map((task) => (
-            <HStack key={`${task.title}-${task.meta}`} spacing={8} alignment="center">
-              <Text modifiers={[font({ size: 10 }), foregroundStyle(task.overdue ? coral : accent)]}>●</Text>
-              <VStack alignment="leading" spacing={1} modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}>
-                <Text
-                  modifiers={[font({ size: 13, weight: "medium" }), foregroundStyle(ink)]}
-                >
-                  {task.title}
-                </Text>
-                <Text modifiers={[font({ size: 10, design: "monospaced" }), foregroundStyle(inkFaint)]}>
-                  {task.meta}
-                </Text>
-              </VStack>
-            </HStack>
-          ))
-        )}
+        {/* The list must be the sole child of its container: expo-widgets' Swift
+            child parser casts each child to a dictionary and silently drops
+            nested arrays, so a .map() may never sit beside a sibling element. */}
+        <VStack alignment="leading" spacing={4} modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}>
+          {tasks.length === 0 ? (
+            <Text modifiers={[font({ size: 13 }), foregroundStyle(inkFaint)]}>No open tasks.</Text>
+          ) : (
+            tasks.map((task) => (
+              <HStack key={`${task.title}-${task.meta}`} spacing={8} alignment="center">
+                <Text modifiers={[font({ size: 10 }), foregroundStyle(task.overdue ? coral : accent)]}>●</Text>
+                <VStack alignment="leading" spacing={1} modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}>
+                  <Text
+                    modifiers={[font({ size: 13, weight: "medium" }), foregroundStyle(ink)]}
+                  >
+                    {task.title}
+                  </Text>
+                  <Text modifiers={[font({ size: 10, design: "monospaced" }), foregroundStyle(inkFaint)]}>
+                    {task.meta}
+                  </Text>
+                </VStack>
+              </HStack>
+            ))
+          )}
+        </VStack>
       </VStack>
 
       <HStack spacing={12} alignment="top" modifiers={[frame({ maxWidth: Infinity, alignment: "topLeading" })]}>
@@ -135,23 +140,25 @@ const TodayWidget = (props: TodayWidgetProps, _environment: WidgetEnvironment) =
           <Text modifiers={[font({ size: 10, weight: "medium", design: "monospaced" }), foregroundStyle(inkFaint)]}>
             HABITS
           </Text>
-          {habits.length === 0 ? (
-            <Text modifiers={[font({ size: 13 }), foregroundStyle(inkFaint)]}>None today.</Text>
-          ) : (
-            habits.map((habit) => (
-              <HStack key={habit.name} spacing={6} alignment="center">
-                <Text
-                  modifiers={[
-                    font({ size: 9, weight: "medium", design: "monospaced" }),
-                    foregroundStyle(habit.done ? sage : inkFaint),
-                  ]}
-                >
-                  {habit.done ? "DONE" : "TODO"}
-                </Text>
-                <Text modifiers={[font({ size: 13 }), foregroundStyle(ink)]}>{habit.name}</Text>
-              </HStack>
-            ))
-          )}
+          <VStack alignment="leading" spacing={4} modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}>
+            {habits.length === 0 ? (
+              <Text modifiers={[font({ size: 13 }), foregroundStyle(inkFaint)]}>None today.</Text>
+            ) : (
+              habits.map((habit) => (
+                <HStack key={habit.name} spacing={6} alignment="center">
+                  <Text
+                    modifiers={[
+                      font({ size: 9, weight: "medium", design: "monospaced" }),
+                      foregroundStyle(habit.done ? sage : inkFaint),
+                    ]}
+                  >
+                    {habit.done ? "DONE" : "TODO"}
+                  </Text>
+                  <Text modifiers={[font({ size: 13 }), foregroundStyle(ink)]}>{habit.name}</Text>
+                </HStack>
+              ))
+            )}
+          </VStack>
         </VStack>
 
         <VStack
@@ -162,18 +169,20 @@ const TodayWidget = (props: TodayWidgetProps, _environment: WidgetEnvironment) =
           <Text modifiers={[font({ size: 10, weight: "medium", design: "monospaced" }), foregroundStyle(inkFaint)]}>
             UP NEXT
           </Text>
-          {events.length === 0 ? (
-            <Text modifiers={[font({ size: 13 }), foregroundStyle(inkFaint)]}>No events.</Text>
-          ) : (
-            events.map((event) => (
-              <HStack key={`${event.time}-${event.title}`} spacing={6} alignment="center">
-                <Text modifiers={[font({ size: 10, design: "monospaced" }), foregroundStyle(accent)]}>
-                  {event.time}
-                </Text>
-                <Text modifiers={[font({ size: 13 }), foregroundStyle(ink)]}>{event.title}</Text>
-              </HStack>
-            ))
-          )}
+          <VStack alignment="leading" spacing={4} modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}>
+            {events.length === 0 ? (
+              <Text modifiers={[font({ size: 13 }), foregroundStyle(inkFaint)]}>No events.</Text>
+            ) : (
+              events.map((event) => (
+                <HStack key={`${event.time}-${event.title}`} spacing={6} alignment="center">
+                  <Text modifiers={[font({ size: 10, design: "monospaced" }), foregroundStyle(accent)]}>
+                    {event.time}
+                  </Text>
+                  <Text modifiers={[font({ size: 13 }), foregroundStyle(ink)]}>{event.title}</Text>
+                </HStack>
+              ))
+            )}
+          </VStack>
         </VStack>
       </HStack>
     </VStack>
