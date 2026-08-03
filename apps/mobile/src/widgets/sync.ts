@@ -32,7 +32,6 @@ function buildEmptySnapshot(): TodayWidgetProps {
     habitDone: 0,
     habitTotal: 0,
     tasks: [],
-    habits: [],
     events: [],
     updatedAt: "",
   };
@@ -66,10 +65,9 @@ export async function syncTodayWidget(): Promise<void> {
 
     const nextTasks = [...openTasks]
       .sort((a, z) => taskRank(a).localeCompare(taskRank(z)) || a.title.localeCompare(z.title))
-      .slice(0, 4)
+      .slice(0, 7)
       .map((task) => ({
         title: task.title,
-        meta: `${task.dueDate ? (task.dueDate === today ? "today" : task.dueDate) : "no date"} / ${task.priority}`,
         overdue: Boolean(task.dueDate && task.dueDate < today),
       }));
 
@@ -80,11 +78,6 @@ export async function syncTodayWidget(): Promise<void> {
         .filter((c) => c.completedDate === today)
         .map((c) => c.habitId),
     );
-    const habitRows = todaysHabits.slice(0, 4).map((habit) => ({
-      name: habit.icon ? `${habit.icon} ${habit.name}` : habit.name,
-      done: completed.has(habit.id),
-    }));
-
     const events = (calendar?.events ?? []).slice(0, 3).map((event) => ({
       time: eventTime(event.start, event.allDay),
       title: event.title,
@@ -101,7 +94,6 @@ export async function syncTodayWidget(): Promise<void> {
       habitDone: todaysHabits.filter((h) => completed.has(h.id)).length,
       habitTotal: todaysHabits.length,
       tasks: nextTasks,
-      habits: habitRows,
       events,
       updatedAt: new Date().toLocaleTimeString("en-US", {
         hour: "numeric",
