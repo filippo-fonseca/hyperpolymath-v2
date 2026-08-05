@@ -1,9 +1,8 @@
 "use client";
 
+import { undoJarvisAction } from "@/app/actions/jarvis";
 import { saveJarvisTurn } from "@/app/actions/jarvis-turns";
 import {
-  type JarvisActionEvent,
-  type JarvisClarificationEvent,
   type JarvisRequest,
   streamJarvis,
 } from "@/components/jarvis/jarvis-stream-client";
@@ -12,10 +11,15 @@ import type {
   ScrollbackClarification,
   ScrollbackTurn,
 } from "@/components/jarvis/jarvis-types";
+import { JarvisClarification } from "@/components/jarvis/JarvisClarification";
+import { JarvisReceipt } from "@/components/jarvis/JarvisReceipt";
 import { useCurrentUserId } from "@/components/providers/CurrentUserProvider";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
+import { actionToUndoTarget, isActionUndoable } from "@/lib/jarvis/action-to-undo-target";
+import { renderInlineMarkdown } from "@/lib/jarvis/inline-markdown";
 import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
+import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 import { bumpUnread } from "@/lib/jarvis/unread-bus";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -23,6 +27,8 @@ import { Maximize2, X } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { toast } from "sonner";
 
 /**
  * The JARVIS command bar — Kiwi as furniture, not a dialog you summon.
@@ -40,6 +46,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * Turns typed here persist to `jarvis_turns` the same way GlobalJarvisHandler
  * does, so the /today console (and split panel) live-merge them over Realtime.
  *
+ * The response strip renders the console's REAL receipt UX, scaled down: each
+ * bar-session turn keeps its own `ScrollbackAction[]` and renders through
+ * `JarvisReceipt` (queued shimmer, intent chips, undo, click-to-navigate),
+ * `JarvisClarification`, and the same `renderInlineMarkdown(stripSystemTags())`
+ * prose pipeline `JarvisScrollback` uses. Earlier turns from this bar session
+ * stay stacked above the latest one, faded, inside the scrollable strip.
+ *
  * What it deliberately does NOT do:
  *  - It does not autofocus, ever, on mount or on navigation. Stealing focus
  *    from an editor is the fastest way to make furniture feel hostile.
@@ -48,8 +61,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *  - It does not duplicate GlobalJarvisDialog: no quick-create list, no search
  *    dropdown, no Cmd+K binding. The dialog stays the palette; the bar is for
  *    sending one sentence. If both ever want a keystroke, the dialog wins.
- *  - It does not render the full receipt UX (`JarvisReceipt`,
- *    `JarvisScrollback`). Those belong to the console surfaces.
+ *  - It does not mount `JarvisScrollback` itself: the persisted conversation
+ *    (history, pagination, day headers) belongs to the console surfaces. The
+ *    strip only shows this bar session's turns.
  */
 
 /** Routes that ARE the console. Two live inputs to one brain is the confusion D3 removes. */
@@ -88,17 +102,34 @@ function persistTurn(turn: ScrollbackTurn): void {
   });
 }
 
-function actionLine(action: JarvisActionEvent): string {
-  const phrase = action.name.replace(/_/g, " ");
-  if (!action.result.ok) {
-    return action.result.error ? `${phrase} failed: ${action.result.error}` : `${phrase} failed`;
-  }
-  const receipt = action.result.receipt ?? {};
-  for (const field of ["title", "summary", "text", "name"]) {
-    const value = receipt[field];
-    if (typeof value === "string" && value.trim()) return `${phrase}: ${value.trim()}`;
-  }
-  return phrase;
+/**
+ * One bar-session turn: the prompt the user sent plus the assistant response
+ * accumulated for it. `id` is the assistant turn id — the SAME id the row is
+ * persisted under, so the console's realtime merge dedupes cleanly.
+ */
+interface BarTurn {
+  id: string;
+  prompt: string;
+  status: "queued" | "streaming" | "done" | "error";
+  textDelta: string;
+  actions: ScrollbackAction[];
+  clarification: ScrollbackClarification | null;
+  errorMessage: string | null;
+  createdAt: Date;
+}
+
+/** Rebuild the persistable assistant turn from a bar turn. */
+function toAssistantTurn(t: BarTurn): ScrollbackTurn {
+  return {
+    kind: "assistant",
+    id: t.id,
+    textDelta: t.textDelta,
+    actions: t.actions,
+    clarification: t.clarification ?? undefined,
+    createdAt: t.createdAt,
+    status: t.status === "error" ? "error" : "done",
+    errorMessage: t.errorMessage ?? undefined,
+  };
 }
 
 export function JarvisCommandBar() {
@@ -108,14 +139,11 @@ export function JarvisCommandBar() {
   const userId = useCurrentUserId();
   const reduceMotion = useReducedMotion();
   const inputRef = useRef<HTMLInputElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const [draft, setDraft] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [actions, setActions] = useState<string[]>([]);
-  const [clarification, setClarification] = useState<JarvisClarificationEvent | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [turns, setTurns] = useState<BarTurn[]>([]);
   const [focused, setFocused] = useState(false);
 
   const suppressed =
@@ -125,8 +153,14 @@ export function JarvisCommandBar() {
     pathname.startsWith(`${JARVIS_SETTINGS_PATH}/`) ||
     pathname.startsWith("/onboarding");
 
-  const thinking = busy && !answer && actions.length === 0 && !clarification && !error;
-  const hasStrip = Boolean(answer || actions.length > 0 || clarification || error || busy);
+  const streamingTurn = turns.find((t) => t.status === "streaming");
+  const busy = turns.some((t) => t.status === "streaming" || t.status === "queued");
+  const thinking =
+    !!streamingTurn &&
+    !streamingTurn.textDelta &&
+    streamingTurn.actions.length === 0 &&
+    !streamingTurn.clarification;
+  const hasStrip = turns.length > 0;
   // aug-04 craft-ui-v2: the bar rests as Craft's centered floating pill and
   // expands to the wide panel on engagement — focus, a draft in hand, or any
   // response activity (hasStrip covers streaming and busy). The change is a
@@ -135,10 +169,18 @@ export function JarvisCommandBar() {
   const engaged = focused || draft.length > 0 || hasStrip;
 
   const collapseStrip = useCallback(() => {
-    setAnswer("");
-    setActions([]);
-    setClarification(null);
-    setError(null);
+    setTurns([]);
+  }, []);
+
+  // Keep the newest activity in view as replies stream into the strip.
+  useEffect(() => {
+    const el = stripRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [turns]);
+
+  /** Patch one bar turn immutably by assistant-turn id. */
+  const patchTurn = useCallback((id: string, patch: Partial<BarTurn>) => {
+    setTurns((prev) => (prev.some((t) => t.id === id) ? prev.map((t) => (t.id === id ? { ...t, ...patch } : t)) : prev));
   }, []);
 
   const send = useCallback(
@@ -148,11 +190,6 @@ export function JarvisCommandBar() {
 
       const controller = new AbortController();
       abortRef.current = controller;
-      setBusy(true);
-      setAnswer("");
-      setActions([]);
-      setClarification(null);
-      setError(null);
       rememberTurn("user", input);
 
       // Persist into the shared jarvis_turns stream so /today (and the split
@@ -166,33 +203,46 @@ export function JarvisCommandBar() {
         createdAt: new Date(),
       });
 
-      const assistant: {
-        kind: "assistant";
-        id: string;
-        textDelta: string;
-        actions: ScrollbackAction[];
-        clarification: ScrollbackClarification | undefined;
-        createdAt: Date;
-        status: "streaming" | "done" | "error";
-        errorMessage?: string;
-      } = {
-        kind: "assistant",
+      // Accumulator mirrored into the strip's BarTurn on every SSE event. It
+      // stays the persistence source of truth so persistTurn never races a
+      // batched React update.
+      const assistant: BarTurn = {
         id: assistantTurnId,
+        prompt: input,
+        status: "streaming",
         textDelta: "",
         actions: [],
-        clarification: undefined,
+        clarification: null,
+        errorMessage: null,
         createdAt: new Date(),
-        status: "streaming",
+      };
+      const sync = () => {
+        patchTurn(assistant.id, {
+          status: assistant.status,
+          textDelta: assistant.textDelta,
+          actions: assistant.actions.map((a) => ({ ...a })),
+          clarification: assistant.clarification ? { ...assistant.clarification } : null,
+          errorMessage: assistant.errorMessage,
+        });
       };
 
-      let reply = "";
+      // A new send answers any clarification still open in the strip — same
+      // last-question-wins rule as JarvisConsole.handleSubmit.
+      setTurns((prev) => [
+        ...prev.map((t) =>
+          t.clarification && !t.clarification.answered
+            ? { ...t, clarification: { ...t.clarification, answered: true } }
+            : t
+        ),
+        { ...assistant },
+      ]);
+
       void streamJarvis(
         { input, history: history.slice(0, -1) },
         {
           onText: (delta) => {
-            reply += delta;
-            assistant.textDelta = reply;
-            setAnswer(reply);
+            assistant.textDelta += delta;
+            sync();
           },
           onQueued: (data) => {
             assistant.actions.push({
@@ -200,6 +250,7 @@ export function JarvisCommandBar() {
               name: data.name as ScrollbackAction["name"],
               status: "queued",
             });
+            sync();
           },
           onAction: (action) => {
             const existing = assistant.actions.find((a) => a.toolUseId === action.toolUseId);
@@ -214,7 +265,7 @@ export function JarvisCommandBar() {
                 result: action.result as ScrollbackAction["result"],
               });
             }
-            setActions((lines) => [...lines, actionLine(action)]);
+            sync();
             if (action.result.ok && userId) {
               invalidateAfterJarvisAction(queryClient, action.name, userId);
             }
@@ -227,31 +278,30 @@ export function JarvisCommandBar() {
               suggestedAction: event.suggestedAction ?? null,
               answered: false,
             };
-            setClarification(event);
+            sync();
           },
           onDone: () => {
-            rememberTurn("assistant", reply);
+            rememberTurn("assistant", assistant.textDelta);
             assistant.status = "done";
-            persistTurn(assistant);
+            persistTurn(toAssistantTurn(assistant));
+            sync();
             // Console isn't mounted on these routes, so a completed reply here
             // is unread until the user opens /today (or the split panel).
             bumpUnread();
-            setBusy(false);
             abortRef.current = null;
           },
           onError: (message) => {
             assistant.status = "error";
             assistant.errorMessage = message;
-            persistTurn(assistant);
-            setError(message);
-            setBusy(false);
+            persistTurn(toAssistantTurn(assistant));
+            sync();
             abortRef.current = null;
           },
         },
         controller.signal
       );
     },
-    [queryClient, userId]
+    [patchTurn, queryClient, userId]
   );
 
   function submit() {
@@ -264,8 +314,52 @@ export function JarvisCommandBar() {
   function stop() {
     abortRef.current?.abort();
     abortRef.current = null;
-    setBusy(false);
   }
+
+  /**
+   * Undo an executed action from a strip receipt. Mirrors
+   * JarvisConsole.handleUndoAction: optimistic `undone` flip (flushSync so the
+   * captured snapshot is real), persist, server round-trip, revert on failure.
+   */
+  const handleUndo = useCallback(
+    async (turnId: string, action: ScrollbackAction) => {
+      const target = actionToUndoTarget(action);
+      if (!target) return;
+
+      const flipUndone = (undone: boolean): BarTurn | undefined => {
+        let updated: BarTurn | undefined;
+        flushSync(() => {
+          setTurns((prev) =>
+            prev.map((t) => {
+              if (t.id !== turnId) return t;
+              updated = {
+                ...t,
+                actions: t.actions.map((a) =>
+                  a.toolUseId === action.toolUseId ? { ...a, undone } : a
+                ),
+              };
+              return updated;
+            })
+          );
+        });
+        return updated;
+      };
+
+      const updated = flipUndone(true);
+      if (updated) persistTurn(toAssistantTurn(updated));
+
+      const result = await undoJarvisAction(target);
+      if (!result.ok) {
+        toast.error(`Couldn't undo: ${result.error}`);
+        const reverted = flipUndone(false);
+        if (reverted) persistTurn(toAssistantTurn(reverted));
+      } else {
+        if (userId) invalidateAfterJarvisAction(queryClient, action.name, userId);
+        toast.success("Undone");
+      }
+    },
+    [queryClient, userId]
+  );
 
   /** Hand the unsent draft to the console the way every other surface does. */
   const expand = useCallback(() => {
@@ -316,62 +410,92 @@ export function JarvisCommandBar() {
         )}
       >
         {hasStrip ? (
-          <div className="sd-scroll-hover max-h-[40vh] overflow-y-auto border-b border-[var(--edge)] px-4 py-3">
-            {thinking ? (
-              <div className="flex items-center gap-3" role="status" aria-live="polite">
-                <HudThinkingRing size={22} />
-                <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
-                  Thinking
-                </span>
-              </div>
-            ) : null}
-
-            {answer ? (
-              <p className="max-w-[68ch] whitespace-pre-wrap text-body text-[var(--ink)]">
-                {answer}
-                {busy ? (
-                  <span
-                    className={cn(
-                      "ml-0.5 inline-block h-[1em] w-0.5 align-[-0.1em] bg-[var(--hud-cyan-bright)]",
-                      !reduceMotion && "hud-streaming-caret"
-                    )}
-                    aria-hidden
-                  />
-                ) : null}
-              </p>
-            ) : null}
-
-            {actions.length > 0 ? (
-              <ul className="mt-2 flex flex-col gap-1">
-                {actions.map((line) => (
-                  <li key={line} className="text-meta text-[var(--ink-muted)]">
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            {clarification ? (
-              <div className="mt-2 flex flex-col gap-2">
-                <p className="max-w-[68ch] text-body text-[var(--ink)]">{clarification.question}</p>
-                {clarification.options.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {clarification.options.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => send(option)}
-                        className="h-8 rounded-lg bg-[var(--hover)] px-3 text-meta text-[var(--ink)] transition-colors duration-[160ms] ease-out hover:bg-[var(--selected)]"
-                      >
-                        {option}
-                      </button>
-                    ))}
+          <div
+            ref={stripRef}
+            className="sd-scroll-hover flex max-h-[40vh] flex-col gap-3 overflow-y-auto border-b border-[var(--edge)] px-4 py-3"
+          >
+            {turns.map((t, i) => {
+              const latest = i === turns.length - 1;
+              return (
+                <div
+                  key={t.id}
+                  className={cn(
+                    "flex flex-col gap-1.5 transition-opacity duration-[160ms] ease-out",
+                    !latest && "opacity-55"
+                  )}
+                >
+                  {/* Prompt echo — keeps stacked turns legible and gives a
+                      queued send somewhere calm to wait. */}
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    <span
+                      className="shrink-0 font-mono text-micro text-[var(--ink-faint)]"
+                      aria-hidden
+                    >
+                      ›
+                    </span>
+                    <span className="truncate text-meta text-[var(--ink-muted)]">{t.prompt}</span>
+                    {t.status === "queued" ? (
+                      <span className="shrink-0 font-mono text-micro uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+                        queued
+                      </span>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-            ) : null}
 
-            {error ? <p className="text-meta text-[var(--ink-coral)]">{error}</p> : null}
+                  {t.status === "streaming" &&
+                  !t.textDelta &&
+                  t.actions.length === 0 &&
+                  !t.clarification ? (
+                    <div className="flex items-center gap-3" role="status" aria-live="polite">
+                      <HudThinkingRing size={22} />
+                      <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+                        Thinking
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {t.textDelta ? (
+                    <div className="max-w-[68ch] whitespace-pre-wrap text-body text-[var(--ink)]">
+                      {renderInlineMarkdown(stripSystemTags(t.textDelta))}
+                      {t.status === "streaming" ? (
+                        <span
+                          className={cn(
+                            "ml-0.5 inline-block h-[1em] w-0.5 align-[-0.1em] bg-[var(--hud-cyan-bright)]",
+                            !reduceMotion && "hud-streaming-caret"
+                          )}
+                          aria-hidden
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {t.clarification ? (
+                    <JarvisClarification
+                      clarification={t.clarification}
+                      onReply={(reply) => send(`[CLARIFICATION REPLY] ${reply}`)}
+                    />
+                  ) : null}
+
+                  {t.actions.length > 0 ? (
+                    <div className="flex flex-col">
+                      {t.actions.map((a, idx) => (
+                        <JarvisReceipt
+                          key={a.toolUseId || `${t.id}-action-${idx}`}
+                          action={a}
+                          variant="compact"
+                          onUndo={
+                            isActionUndoable(a) ? () => void handleUndo(t.id, a) : undefined
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {t.status === "error" && t.errorMessage ? (
+                    <p className="text-meta text-[var(--ink-coral)]">{t.errorMessage}</p>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         ) : null}
 
