@@ -21,7 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
-import { STATUS_LABELS, type TaskStatus as Status } from "./status";
+import { tintFor } from "@/lib/tint";
+import { STATUS_LABELS, STATUS_TINT, type TaskStatus as Status } from "./status";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 
 interface Props {
@@ -225,11 +226,22 @@ export const TaskListRow = memo(function TaskListRow({
         )}
       </div>
 
+      {/* Trailing meta, right-aligned (Craft Tasks hub grammar): quiet
+          text-micro chips where color is data — project tinted via tintFor,
+          status via STATUS_TINT ("not started" has no tint and falls back to
+          the neutral --hover fill), overdue keeps the coral functional chip. */}
+
       {/* Project */}
       {task.projects.length > 0 && (
-        <span className="max-w-[120px] shrink-0 truncate text-micro text-[var(--ink-faint)]">
-          {task.projects[0]!.name}
-          {task.projects.length > 1 && ` +${task.projects.length - 1}`}
+        <span
+          className={cn(
+            "inline-flex max-w-[140px] shrink-0 items-center rounded-full px-2 py-0.5 text-micro font-medium",
+            "bg-[var(--tint-bg,var(--hover))] text-[var(--tint-ink,var(--ink-muted))]",
+            tintFor(task.projects[0]!.id)
+          )}
+        >
+          <span className="truncate">{task.projects[0]!.name}</span>
+          {task.projects.length > 1 && <span className="pl-0.5">+{task.projects.length - 1}</span>}
         </span>
       )}
 
@@ -245,16 +257,22 @@ export const TaskListRow = memo(function TaskListRow({
       )}
 
       {/* Status */}
-      <span className="w-24 shrink-0 text-micro text-[var(--ink-muted)]">
+      <span
+        className={cn(
+          "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-micro font-medium",
+          "bg-[var(--tint-bg,var(--hover))] text-[var(--tint-ink,var(--ink-muted))]",
+          STATUS_TINT[task.status as Status]
+        )}
+      >
         {STATUS_LABELS[task.status as Status]}
       </span>
 
       {/* Due date: overdue reads as a 12%-alpha coral chip with a 6px dot;
-          on-track dates stay quiet mono metadata. */}
+          on-track dates are a quiet neutral chip. */}
       {task.dueDate &&
         (isOverdue ? (
           <span
-            className="inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-micro tabular-nums"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-mono text-micro tabular-nums"
             style={{
               color: "var(--ink-coral)",
               background: "color-mix(in oklch, var(--ink-coral) 12%, transparent)",
@@ -268,7 +286,7 @@ export const TaskListRow = memo(function TaskListRow({
             {formatDate(task.dueDate)}
           </span>
         ) : (
-          <span className="shrink-0 font-mono text-micro tabular-nums text-[var(--ink-muted)]">
+          <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--hover)] px-2 py-0.5 font-mono text-micro tabular-nums text-[var(--ink-muted)]">
             {formatDate(task.dueDate)}
           </span>
         ))}

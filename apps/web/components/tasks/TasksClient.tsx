@@ -928,8 +928,10 @@ export function TasksClient({
               <div className="flex flex-col gap-8">
                 {groups.map((group) => (
                   <section key={group.key} aria-label={group.label}>
-                    <div className="mb-2 flex items-baseline gap-2">
-                      <h2 className="min-w-0 truncate text-subtitle font-medium text-[var(--ink)]">
+                    {/* Craft-style disclosure label: small gray text-micro,
+                        never a heading-weight title (craft-ui-v2). */}
+                    <div className="mb-2 flex items-baseline gap-2 px-2">
+                      <h2 className="min-w-0 truncate text-micro font-medium text-[var(--ink-muted)]">
                         {group.label}
                       </h2>
                       <span className="text-micro tabular-nums text-[var(--ink-faint)]">
