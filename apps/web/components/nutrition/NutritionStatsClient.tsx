@@ -39,7 +39,7 @@ const PLATE =
   "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]";
 
 const SECTION_LABEL =
-  "font-mono text-[10.5px] tracking-[0.14em] uppercase text-[var(--sd-ink-faint)]";
+"text-micro text-[var(--sd-ink-faint)]";
 
 export function NutritionStatsClient({
   adherence,

@@ -70,20 +70,20 @@ export function DailyMacroSummary({ logs, targets }: Props) {
       {/* Focal: calorie readout + remaining/over counter */}
       <div className="mb-4 flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+          <span className="text-micro text-[var(--sd-ink-faint)]">
             Calories
           </span>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-[30px] font-black leading-none tabular-nums text-[var(--sd-ink)]">
+            <span className="text-display font-black leading-none tabular-nums text-[var(--sd-ink)]">
               {kcal}
             </span>
-            <span className="text-[14px] tabular-nums text-[var(--sd-ink-dull)]">
+            <span className="text-meta tabular-nums text-[var(--sd-ink-dull)]">
               / {targets.targetKcal} kcal
             </span>
           </div>
         </div>
         <span
-          className="font-mono text-[11px] tabular-nums"
+          className="font-mono text-micro tabular-nums"
           style={{ color: over ? "var(--ink-amber)" : "var(--sd-ink-faint)" }}
         >
           {over ? `${Math.abs(remaining)} over` : `${remaining} left`}

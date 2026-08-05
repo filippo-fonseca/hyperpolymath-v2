@@ -118,11 +118,11 @@ export function ServingPicker({ food, servingOptions, onConfirm, onCancel }: Pro
     >
       {/* Food name recap */}
       <div>
-        <p className="text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+        <p className="text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
           {food.name}
         </p>
         {food.brand && (
-          <p className="text-[13px] leading-tight text-[var(--sd-ink-dull)]">
+          <p className="text-meta leading-tight text-[var(--sd-ink-dull)]">
             {food.brand}
           </p>
         )}
@@ -163,7 +163,7 @@ export function ServingPicker({ food, servingOptions, onConfirm, onCancel }: Pro
       </div>
 
       {/* Live macro preview */}
-      <p className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-faint)]">
+      <p className="font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
         {`→ ${preview.kcal} kcal · P ${preview.proteinG}g · C ${preview.carbsG}g · F ${preview.fatG}g`}
       </p>
 
@@ -173,7 +173,7 @@ export function ServingPicker({ food, servingOptions, onConfirm, onCancel }: Pro
           type="button"
           size="sm"
           onClick={handleConfirm}
-          className="font-mono text-[11px] uppercase tracking-[0.06em]"
+          className="text-micro"
         >
           Log
         </Button>
@@ -182,7 +182,7 @@ export function ServingPicker({ food, servingOptions, onConfirm, onCancel }: Pro
           variant="ghost"
           size="sm"
           onClick={onCancel}
-          className="font-mono text-[11px] uppercase tracking-[0.06em]"
+          className="text-micro"
         >
           Cancel
         </Button>

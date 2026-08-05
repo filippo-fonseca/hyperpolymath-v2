@@ -144,7 +144,7 @@ export function BatchEditor({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+      <div className="px-1 pb-1 text-micro text-[var(--sd-ink-dull)]">
         Batches
       </div>
 
@@ -197,7 +197,7 @@ export function BatchEditor({
       >
         <span className="w-3.5 shrink-0" aria-hidden />
         <span className="flex-1 truncate italic">Ungrouped</span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+        <span className="text-micro text-[var(--sd-ink-dull)]">
           {ungroupedCount}
         </span>
       </button>
@@ -327,7 +327,7 @@ function BatchRow({
         )}
         <span
           className={cn(
-            "font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums",
+            "text-micro tabular-nums",
             selected ? "text-[var(--tint-ink)]" : "text-[var(--sd-ink-dull)]",
           )}
         >

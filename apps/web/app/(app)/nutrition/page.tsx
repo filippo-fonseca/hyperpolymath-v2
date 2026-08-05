@@ -47,13 +47,13 @@ export default async function NutritionPage() {
             <NutritionIcon size={30} />
           </span>
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+            <span className="text-micro text-[var(--sd-ink-faint)]">
               Fuel · Macros
             </span>
-            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+            <h1 className="text-display font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
               Nutrition<span className="text-[var(--sd-accent)]">.</span>
             </h1>
-            <p className="mt-0.5 text-[13px] leading-snug text-[var(--sd-ink-dull)]">
+            <p className="mt-0.5 text-meta leading-snug text-[var(--sd-ink-dull)]">
               Log what you eat, watch the macros land against your targets.{" "}
               <span className="text-[var(--sd-ink-faint)]">
                 Press <span className="font-mono">n</span> anywhere to add food.

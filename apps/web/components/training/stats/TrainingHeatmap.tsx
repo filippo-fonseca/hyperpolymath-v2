@@ -208,7 +208,7 @@ export function TrainingHeatmap({
           {monthLabels.map((m) => (
             <span
               key={`${m.col}-${m.text}`}
-              className="absolute top-0 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]"
+              className="absolute top-0 text-micro text-[var(--sd-ink-faint)]"
               style={{ left: m.col * (CELL + GAP) }}
             >
               {m.text}
@@ -229,7 +229,7 @@ export function TrainingHeatmap({
               <span
                 key={i}
                 style={{ height: CELL, lineHeight: `${CELL}px` }}
-                className="font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]"
+                className="text-micro text-[var(--sd-ink-faint)]"
               >
                 {label}
               </span>
@@ -333,7 +333,7 @@ const HeatmapCell = memo(function HeatmapCell({
             />
           </PopoverTrigger>
         </TooltipTrigger>
-        <TooltipContent side="top" className="font-mono text-[10px]">
+        <TooltipContent side="top" className="font-mono text-micro">
           {tooltip}
         </TooltipContent>
       </Tooltip>

@@ -41,7 +41,7 @@ export function HeatmapDayPopover({
     return (
       <div className="min-w-[220px] p-1">
         <div className="text-sm font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">{heading}</div>
-        <div className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+        <div className="mt-2 text-micro text-[var(--sd-ink-faint)]">
           No activities logged this day.
         </div>
       </div>
@@ -63,7 +63,7 @@ export function HeatmapDayPopover({
     <div className="min-w-[260px] max-w-[320px] p-1">
       <div className="flex items-baseline justify-between gap-3">
         <div className="text-sm font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">{heading}</div>
-        <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+        <div className="text-micro text-[var(--sd-ink-faint)]">
           {activities.length}{" "}
           {activities.length === 1 ? "activity" : "activities"}
         </div>
@@ -99,16 +99,16 @@ export function HeatmapDayPopover({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="truncate text-[13px] text-[var(--sd-ink)]">
+                  <span className="truncate text-meta text-[var(--sd-ink)]">
                     {a.title}
                   </span>
                   {a.status !== "done" && a.status !== "planned" && (
-                    <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+                    <span className="text-micro text-[var(--sd-ink-faint)]">
                       {a.status}
                     </span>
                   )}
                 </div>
-                <div className="mt-0.5 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+                <div className="mt-0.5 flex items-center gap-2 text-micro text-[var(--sd-ink-dull)]">
                   <span>{a.type.name}</span>
                   {dur != null && (
                     <>

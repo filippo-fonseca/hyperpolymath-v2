@@ -48,7 +48,7 @@ export function DayNavigator({
         <ChevronLeft size={14} />
       </Button>
       <span
-        className="min-w-[120px] px-1 text-center text-[15px] font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]"
+        className="min-w-[120px] px-1 text-center text-body font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]"
         aria-live="polite"
         aria-atomic="true"
       >
@@ -68,7 +68,7 @@ export function DayNavigator({
           variant="ghost"
           size="sm"
           onClick={onCopyYesterday}
-          className="ml-2 font-mono text-[11px] uppercase tracking-[0.06em]"
+          className="ml-2 text-micro"
         >
           <CopyPlus size={13} /> Copy yesterday
         </Button>

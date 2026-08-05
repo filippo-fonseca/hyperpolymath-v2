@@ -109,7 +109,7 @@ export function ManageTypesSheet({
             <div className="border-t border-[var(--edge)]" />
 
             <div className="flex flex-col gap-1">
-              <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+              <div className="px-1 pb-1 text-micro text-[var(--sd-ink-dull)]">
                 {scope === "__ungrouped__"
                   ? "Ungrouped types"
                   : `Types in ${batches.find((b) => b.id === scope)?.name ?? "batch"}`}

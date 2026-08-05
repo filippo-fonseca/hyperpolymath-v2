@@ -123,14 +123,14 @@ export function ManualEntryForm({ initialName, onCreated, onCancel }: Props) {
   }
 
   const labelClass =
-    "block font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] mb-1";
+  "block text-micro text-[var(--sd-ink-faint)] mb-1";
   const fieldClass = "flex flex-col gap-1";
-  const errorClass = "font-mono text-[10.5px] text-[var(--ink-coral)]";
+  const errorClass = "font-mono text-micro text-[var(--ink-coral)]";
 
   return (
     <div className="flex flex-col gap-4">
       {/* Heading */}
-      <h3 className="text-[18px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+      <h3 className="text-subtitle font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
         Add a food manually
       </h3>
 
@@ -232,7 +232,7 @@ export function ManualEntryForm({ initialName, onCreated, onCancel }: Props) {
                 {...register("baseUnit")}
                 className="accent-[var(--sd-accent)]"
               />
-              <span className="font-mono text-[10.5px] text-[var(--sd-ink)]">
+              <span className="font-mono text-micro text-[var(--sd-ink)]">
                 Grams (g)
               </span>
             </label>
@@ -243,7 +243,7 @@ export function ManualEntryForm({ initialName, onCreated, onCancel }: Props) {
                 {...register("baseUnit")}
                 className="accent-[var(--sd-accent)]"
               />
-              <span className="font-mono text-[10.5px] text-[var(--sd-ink)]">
+              <span className="font-mono text-micro text-[var(--sd-ink)]">
                 Millilitres (ml)
               </span>
             </label>
@@ -277,7 +277,7 @@ export function ManualEntryForm({ initialName, onCreated, onCancel }: Props) {
             type="submit"
             size="sm"
             disabled={isSubmitting}
-            className="font-mono text-[11px] uppercase tracking-[0.06em]"
+            className="text-micro"
           >
             {isSubmitting ? "Saving…" : "Save food"}
           </Button>
@@ -286,7 +286,7 @@ export function ManualEntryForm({ initialName, onCreated, onCancel }: Props) {
             variant="ghost"
             size="sm"
             onClick={onCancel}
-            className="font-mono text-[11px] uppercase tracking-[0.06em]"
+            className="text-micro"
           >
             Cancel
           </Button>

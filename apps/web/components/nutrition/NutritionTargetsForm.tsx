@@ -142,9 +142,9 @@ export function NutritionTargetsForm({ initialTargets }: Props) {
   }
 
   const labelClass =
-    "block font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] mb-1";
+  "block text-micro text-[var(--sd-ink-faint)] mb-1";
   const fieldClass = "flex flex-col gap-1";
-  const errorClass = "font-mono text-[10.5px] text-[var(--ink-coral)]";
+  const errorClass = "font-mono text-micro text-[var(--ink-coral)]";
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -186,7 +186,7 @@ export function NutritionTargetsForm({ initialTargets }: Props) {
               className="max-w-[120px]"
               aria-label="Protein percentage"
             />
-            <span className="font-mono text-[10.5px] tabular-nums text-[var(--sd-ink-faint)]">
+            <span className="font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
               = {gramPreview.proteinG}g
             </span>
           </div>
@@ -206,7 +206,7 @@ export function NutritionTargetsForm({ initialTargets }: Props) {
               className="max-w-[120px]"
               aria-label="Carbohydrates percentage"
             />
-            <span className="font-mono text-[10.5px] tabular-nums text-[var(--sd-ink-faint)]">
+            <span className="font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
               = {gramPreview.carbsG}g
             </span>
           </div>
@@ -226,14 +226,14 @@ export function NutritionTargetsForm({ initialTargets }: Props) {
               className="max-w-[120px]"
               aria-label="Fat percentage"
             />
-            <span className="font-mono text-[10.5px] tabular-nums text-[var(--sd-ink-faint)]">
+            <span className="font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
               = {gramPreview.fatG}g
             </span>
           </div>
         </div>
 
         {/* Sum indicator */}
-        <p className="font-mono text-[10.5px] tabular-nums text-[var(--sd-ink-faint)]">
+        <p className="font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
           Sum: {Math.round((macros.p + macros.c + macros.f) * 10) / 10}%
         </p>
       </div>
@@ -243,7 +243,7 @@ export function NutritionTargetsForm({ initialTargets }: Props) {
         type="submit"
         size="sm"
         disabled={isSubmitting}
-        className="self-start font-mono text-[11px] uppercase tracking-[0.06em]"
+        className="self-start text-micro"
       >
         {isSubmitting ? "Saving…" : "Save targets"}
       </Button>

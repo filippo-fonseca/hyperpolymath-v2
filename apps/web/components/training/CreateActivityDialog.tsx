@@ -262,7 +262,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+      <div className="text-micro text-[var(--sd-ink-dull)]">
         {label}
       </div>
       {children}

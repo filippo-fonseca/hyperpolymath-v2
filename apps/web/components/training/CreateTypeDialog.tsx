@@ -125,7 +125,7 @@ export function CreateTypeDialog({
 
           {/* Color picker */}
           <div className="flex flex-col gap-2">
-            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+            <div className="text-micro text-[var(--sd-ink-dull)]">
               Color
             </div>
             <ColorPicker value={color} onChange={setColor} />
@@ -133,7 +133,7 @@ export function CreateTypeDialog({
 
           {/* Icon picker */}
           <div className="flex flex-col gap-2">
-            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+            <div className="text-micro text-[var(--sd-ink-dull)]">
               Icon
             </div>
             <IconPicker value={icon} onChange={setIcon} />
@@ -141,7 +141,7 @@ export function CreateTypeDialog({
 
           {/* Batch select */}
           <div className="flex flex-col gap-2">
-            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+            <div className="text-micro text-[var(--sd-ink-dull)]">
               Batch
             </div>
             <div className="flex flex-wrap gap-1.5">

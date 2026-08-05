@@ -351,7 +351,7 @@ export function FoodSearch({
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5 px-1 mb-1">
                   <Clock className="h-3 w-3 text-[var(--sd-ink-faint)]" />
-                  <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+                  <span className="text-micro text-[var(--sd-ink-faint)]">
                     Recent
                   </span>
                 </div>
@@ -372,7 +372,7 @@ export function FoodSearch({
             {deferredQ.length >= 2 && (
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5 px-1 mb-1">
-                  <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+                  <span className="text-micro text-[var(--sd-ink-faint)]">
                     From Open Food Facts
                   </span>
                 </div>
@@ -396,13 +396,13 @@ export function FoodSearch({
                 ) : (
                   // No results — manual entry fallback
                   <div className="flex flex-col gap-3 px-1 py-3">
-                    <p className="text-[13px] leading-relaxed text-[var(--sd-ink-dull)]">
+                    <p className="text-meta leading-relaxed text-[var(--sd-ink-dull)]">
                       No matches found. Try a different name or add it manually.
                     </p>
                     <button
                       type="button"
                       onClick={() => setView({ kind: "manual" })}
-                      className="self-start font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-accent)] transition-opacity duration-[120ms] ease-out hover:opacity-80 focus:outline-none"
+                      className="self-start text-micro text-[var(--sd-accent)] transition-opacity duration-[120ms] ease-out hover:opacity-80 focus:outline-none"
                     >
                       Can't find it? Enter it manually.
                     </button>
@@ -417,7 +417,7 @@ export function FoodSearch({
                 <button
                   type="button"
                   onClick={() => setView({ kind: "manual" })}
-                  className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)] focus:outline-none"
+                  className="text-micro text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)] focus:outline-none"
                 >
                   Can't find it? Enter it manually.
                 </button>

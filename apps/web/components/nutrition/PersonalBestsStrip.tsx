@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 // PersonalBestsStrip — three-column mono-typographic stat strip (D-12)
 // Labels: LONGEST STREAK, HIGHEST SINGLE DAY, BEST ADHERENCE
-// Value: .font-mono-stats text-[20px] per UI-SPEC typography contract
+// Value: .font-mono-stats text-title per UI-SPEC typography contract
 // ---------------------------------------------------------------------------
 
 interface PersonalBests {
@@ -24,11 +24,11 @@ interface StatCellProps {
 function StatCell({ label, value }: StatCellProps) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+      <span className="text-micro text-[var(--sd-ink-faint)]">
         {label}
       </span>
       <span
-        className="font-mono-stats text-[20px] tabular-nums text-[var(--sd-ink)]"
+        className="font-mono-stats text-title tabular-nums text-[var(--sd-ink)]"
         style={{ lineHeight: 1.2 }}
       >
         {value}
