@@ -248,16 +248,15 @@ export function Sidebar({
         onMouseLeave={() => setHovered(false)}
         className={cn(
           "group/sidebar absolute inset-y-0 left-0 flex flex-col gap-2.5 overflow-hidden p-2.5 pb-2",
-          // jul-29 craft restyle: the column is a detached floating glass
-          // panel (rounded on every side), not a full-bleed bordered track.
-          "craft-glass rounded-panel",
+          // aug-04 craft-ui-v2: docked in the grid the column is quiet canvas
+          // chrome — no fill, no border, no shadow — so the canvas shows
+          // through and the sheet keeps all the elevation. Floating (desktop
+          // hover-peek or the below-md toggle sheet) it must stay legible over
+          // content, so it pops onto the frosted overlay surface and rises
+          // above the stage.
+          peeking ? "craft-glass-pop z-50" : "craft-canvas-chrome",
           animateWidth && "transition-[width] duration-[280ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
-          effectiveCollapsed ? "w-14" : "w-[230px]",
-          // Expanded-while-railed floats above the page as an overlay: desktop
-          // hover-peek and the below-md toggle sheet share this one path. The
-          // glass panel already carries border + float shadow; peeking only
-          // needs to rise above the stage.
-          peeking && "z-50"
+          effectiveCollapsed ? "w-14" : "w-[230px]"
         )}
       >
         <SidebarHeader
