@@ -79,6 +79,16 @@ Task-status tints: `STATUS_TINT` in `apps/web/components/tasks/status.ts`.
 6. Migrations: author idempotent SQL in `apps/web/drizzle/` AND mirror into
    `apps/web/supabase/migrations/` (the two dirs drift; see memory note).
    Never touch `drizzle/meta/_journal.json`.
+7. **`cn()` knows the ladder — keep it that way.** `lib/utils.ts` extends
+   tailwind-merge with the six `text-*` steps. Without that, tailwind-merge
+   classifies them as text-COLOUR, so `cn("text-micro", "text-[var(--ink)]")`
+   drops the size and the element inherits 16px. If you add a ladder step to
+   globals.css, add it there too. Symptom to recognise: text rendering at
+   16px with no size class in the DOM.
+8. Uppercase is sanctioned for `<kbd>` and for eyebrow labels only. The three
+   eyebrow primitives are the sidebar `SectionHeader` (carries
+   `data-eyebrow`), settings `SectionEyebrow`, and the dev console `Eyebrow`.
+   Everything else is sentence case.
 
 ## 5. Patterns that worked (copy these)
 
@@ -148,13 +158,25 @@ backdrop, quiet widgets), Tasks (chip filters, bare-row list, lifted board),
 Wiki (carded explorer, day tiles, sheet editor), glass menus/dialogs
 everywhere, neutral scrollbars, JARVIS queue + receipts.
 
-Remaining surfaces still on the July register (they inherit the shell and
-glass overlays but have had no dedicated pass): **Areas, Projects (incl.
-timeline), Calendar, Captures, Search, Habits, Training, Nutrition, Journal,
-People, Briefing, Insights, Settings, Graph, onboarding, landing.** Sweep them
-feature by feature, one unit per commit series, using the Tasks/Wiki passes as
-the model: local ladders retired in favor of the register, headers quieted,
-rows on the sheet, tints only for data.
+Swept aug-05 (the remaining feature surfaces): **Areas, Projects incl.
+timeline, Calendar, Captures, Search, Habits, People, Journal, Briefing,
+Insights, Settings, Training, Nutrition, Graph, onboarding**, plus the JARVIS
+routes, voice, and the leftover px in surfaces already passed. Segmented
+"raised plate on a recessed track" controls are gone app-wide in favour of
+`.craft-chip`; hand-rolled card recipes resolve to `.craft-card` /
+`.craft-card-hover`; search and composer fields are `.craft-pill`; the
+calendar grid header consumes `.craft-day-tile`.
+
+Two deliberate exemptions from the ladder:
+
+- **The landing page** keeps its own documented `{14, 18, 32, 56}` contract.
+  It is a marketing surface, not app chrome, and `/design` + `/branding` are
+  specimen pages that must be able to show off-register type.
+- **`PagePreviewThumb`** keeps 7/8px: it renders a scaled miniature of a page,
+  so its type is artwork, not chrome.
+
+`text-sm` / `text-xs` survive in a few leaf spots (`<kbd>` hints, mini-calendar
+day numbers). They are Tailwind scale steps, not the banned `text-[Npx]`.
 
 Known follow-ups: `LiteJarvisComposer` still carries `craft-glass-tile` under
 the QuickSend pill override; `page-block-editor.css` duplicates the
