@@ -101,7 +101,7 @@ export function DevelopmentTabPanel({
         <DevPanelHeader
           eyebrow="Auto-dev pipeline"
           right={
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+            <span className="text-micro tracking-[0.08em] text-[var(--sd-ink-faint)]">
               last {runs.length} {runs.length === 1 ? "run" : "runs"}
             </span>
           }
@@ -136,7 +136,7 @@ export function DevelopmentTabPanel({
         <DevPanelHeader
           eyebrow="Pipeline ledger"
           right={
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+            <span className="text-micro tracking-[0.08em] text-[var(--sd-ink-faint)]">
               captures → issues → prs
             </span>
           }
@@ -183,10 +183,10 @@ function RunGroup({ run }: { run: DevRun }) {
     <div className="overflow-hidden rounded-xl border border-[var(--edge)] bg-[var(--surface)]">
       {/* Run header row. */}
       <div className="flex items-baseline justify-between gap-4 px-3.5 py-2.5">
-        <span className="font-mono text-[13px] font-medium tabular-nums text-[var(--sd-ink)]">
+        <span className="font-mono text-meta font-medium tabular-nums text-[var(--sd-ink)]">
           {run.runDate}
         </span>
-        <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+        <div className="flex items-center gap-3 text-micro tracking-[0.08em] text-[var(--sd-ink-faint)]">
           <span>
             <span className="text-[var(--sd-accent)] tabular-nums">
               {run.issuesDone}
@@ -232,7 +232,7 @@ function LedgerRow({ item }: { item: DevRunItem }) {
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="min-w-0 flex-1 truncate text-[13px] text-[var(--sd-ink)] transition-colors duration-150 hover:text-[var(--sd-accent)]"
+            className="min-w-0 flex-1 truncate text-meta text-[var(--sd-ink)] transition-colors duration-150 hover:text-[var(--sd-accent)]"
           >
             <span className="font-mono tabular-nums text-[var(--sd-ink-dull)]">
               #{item.issueNumber}
@@ -240,7 +240,7 @@ function LedgerRow({ item }: { item: DevRunItem }) {
             {item.title}
           </a>
         ) : (
-          <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--sd-ink)]">
+          <span className="min-w-0 flex-1 truncate text-meta text-[var(--sd-ink)]">
             <span className="font-mono tabular-nums text-[var(--sd-ink-dull)]">
               #{item.issueNumber}
             </span>{" "}
@@ -252,14 +252,14 @@ function LedgerRow({ item }: { item: DevRunItem }) {
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] transition-colors duration-150 hover:text-[var(--sd-accent)]"
+            className="shrink-0 text-micro tracking-[0.08em] text-[var(--sd-ink-faint)] transition-colors duration-150 hover:text-[var(--sd-accent)]"
           >
             {isPr ? "view pr ↗" : (item.branch ?? "branch ↗")}
           </a>
         ) : null}
       </div>
       {item.summary ? (
-        <p className="whitespace-pre-line pl-2 text-[12px] leading-relaxed text-[var(--sd-ink-dull)]">
+        <p className="whitespace-pre-line pl-2 text-micro leading-relaxed text-[var(--sd-ink-dull)]">
           {item.summary}
         </p>
       ) : null}

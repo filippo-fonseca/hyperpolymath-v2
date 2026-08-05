@@ -88,8 +88,8 @@ function TriggerButton({
     <div className="flex flex-col gap-2">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-medium text-[var(--sd-ink)]">{label}</p>
-          <p className="text-[12px] leading-relaxed text-[var(--sd-ink-dull)]">
+          <p className="text-meta font-medium text-[var(--sd-ink)]">{label}</p>
+          <p className="text-micro leading-relaxed text-[var(--sd-ink-dull)]">
             {description}
           </p>
         </div>
@@ -98,11 +98,8 @@ function TriggerButton({
           onClick={fire}
           disabled={state === "pending"}
           className={cn(
-            "shrink-0 rounded-lg border bg-[var(--surface-raised)] px-3 py-1 font-mono text-[11px] uppercase tracking-[0.08em]",
-            "shadow-[var(--shadow-card)] transition-[border-color,color,box-shadow] duration-[160ms] ease-out",
-            state === "pending"
-              ? "cursor-default border-[var(--edge)] text-[var(--sd-ink-faint)] opacity-50"
-              : "cursor-pointer border-[var(--edge)] text-[var(--sd-ink-dull)] hover:border-[var(--edge-strong)] hover:text-[var(--sd-ink)] hover:shadow-[var(--shadow-card-hover)]",
+            "craft-chip shrink-0",
+            state === "pending" ? "cursor-default opacity-50" : "cursor-pointer-always",
           )}
         >
           {state === "pending" ? "Running…" : "Run now"}
@@ -113,7 +110,7 @@ function TriggerButton({
           <StatePill tone={state === "ok" ? "accent" : "coral"}>
             {state === "ok" ? "ok" : "err"}
           </StatePill>
-          <div className="min-w-0 flex-1 text-[12px] leading-relaxed text-[var(--sd-ink-dull)]">
+          <div className="min-w-0 flex-1 text-micro leading-relaxed text-[var(--sd-ink-dull)]">
             <span className="text-[var(--sd-ink)]">{result.message}</span>
             {result.detail ? (
               <span className="mt-1 block text-[var(--sd-ink-faint)]">

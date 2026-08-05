@@ -153,15 +153,7 @@ function TabButton({
       onClick={onClick}
       aria-pressed={active}
       role="tab"
-      // Craft segmented control: active reads as a raised plate lifted off the
-      // recessed track (shadow-card), not an inset ring.
-      className={cn(
-        "px-3 py-1 rounded-md font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-        "transition-[background-color,color,box-shadow] duration-[160ms] ease-out",
-        active
-          ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-      )}
+      className="craft-chip cursor-pointer-always"
     >
       {label}
     </button>

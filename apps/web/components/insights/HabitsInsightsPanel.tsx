@@ -202,7 +202,7 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
               placeholder="Filter by name…"
               className={cn(
                 "h-7 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-2",
-                "font-serif text-[13px] text-[var(--ink)] placeholder:text-[var(--ink-muted)]",
+                "font-serif text-meta text-[var(--ink)] placeholder:text-[var(--ink-muted)]",
                 "transition-[border-color,box-shadow] duration-[160ms] ease-out",
                 "focus:border-[var(--edge-strong)] focus:shadow-[var(--shadow-card)] focus:outline-none"
               )}
@@ -212,7 +212,7 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
               onChange={(e) => setSort(e.target.value as Sort)}
               className={cn(
                 "h-7 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-2",
-                "font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]",
+                "text-micro text-[var(--ink)]",
                 "transition-[border-color,box-shadow] duration-[160ms] ease-out",
                 "focus:border-[var(--edge-strong)] focus:shadow-[var(--shadow-card)] focus:outline-none"
               )}
@@ -248,7 +248,7 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
           <Stat label="Done" value={`${summary.done}`} />
           <Stat label="Scheduled" value={`${summary.scheduled}`} />
           <Stat label="Rate" value={summary.rate === null ? "—" : `${summary.rate}%`} />
-          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+          <span className="text-micro tracking-[0.06em] text-[var(--ink-muted)]">
             across {sortedRows.length} habit{sortedRows.length === 1 ? "" : "s"}
           </span>
         </div>
@@ -289,7 +289,7 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
             >
               <div className="flex items-baseline justify-between gap-3">
                 <div className="flex min-w-0 flex-col">
-                  <p className="flex items-center gap-2 truncate font-serif text-[15px] text-[var(--ink)]">
+                  <p className="flex items-center gap-2 truncate font-serif text-body text-[var(--ink)]">
                     <span
                       aria-hidden
                       className="size-2 shrink-0 rounded-full bg-[var(--tint-edge)]"
@@ -297,7 +297,7 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
                     <span className="truncate">{habit.name}</span>
                   </p>
                   {habit.areas.length > 0 ? (
-                    <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] mt-0.5 truncate">
+                    <p className="text-micro tracking-[0.06em] text-[var(--ink-muted)] mt-0.5 truncate">
                       {habit.areas.map((a) => `${a.emoji ?? ""} ${a.name}`.trim()).join(" · ")}
                     </p>
                   ) : null}
@@ -347,8 +347,8 @@ export function HabitsInsightsPanel({ habits, completions, today, earliestAvaila
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col items-end leading-tight">
-      <span className="font-mono text-[14px] tabular-nums text-[var(--ink)]">{value}</span>
-      <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+      <span className="font-mono text-meta tabular-nums text-[var(--ink)]">{value}</span>
+      <span className="text-micro text-[var(--ink-muted)]">
         {label}
       </span>
     </div>
@@ -369,15 +369,7 @@ function ChipButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      // Craft segmented control: active = raised plate on the shadow ladder.
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5",
-        "font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-        "transition-[background-color,color,box-shadow] duration-[160ms] ease-out",
-        active
-          ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-      )}
+      className="craft-chip cursor-pointer-always"
     >
       {children}
     </button>

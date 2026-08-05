@@ -53,7 +53,7 @@ export function FlowUploadButton() {
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={pending || armed}
-        className="cursor-pointer-always flex items-center gap-1 rounded p-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] disabled:opacity-40"
+        className="cursor-pointer-always flex items-center gap-1 rounded p-1 text-micro tracking-[0.06em] text-[var(--ink-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] disabled:opacity-40"
         title="Upload Flow CSV"
       >
         <Upload size={12} />

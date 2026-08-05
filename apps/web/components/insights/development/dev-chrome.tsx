@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 /**
  * DEV-tab console chrome (sesh-sd3, unit-devtab).
  *
- * The DEVELOPMENT tab is a developer console and runs the densest mono register
- * in the app (jarvis-adjacent): hairline sd plates, 11px uppercase mono
- * eyebrows, font-black tabular-nums stat readouts, and functional state pills.
+ * The DEVELOPMENT tab is a developer console and runs the densest register in
+ * the app (jarvis-adjacent): hairline sd plates, faint micro eyebrows,
+ * tabular-nums stat readouts, and functional state pills.
  * These primitives are LOCAL to the DEV tab so the console can diverge from the
  * softer LIFE/HABITS/JARVIS insights panels without editing the shared
  * `tile-style` plate. Everything resolves through `--sd-*` tokens in both
@@ -42,7 +42,7 @@ export function DevPanel({
 
 /* ------------------------------------------------------------------ eyebrow */
 
-/** 11px uppercase mono eyebrow — the console's section label register. */
+/** Faint micro eyebrow — the console's section label register. */
 export function Eyebrow({
   children,
   className,
@@ -53,7 +53,7 @@ export function Eyebrow({
   return (
     <span
       className={cn(
-        "font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]",
+        "text-micro text-[var(--sd-ink-faint)]",
         className,
       )}
     >
@@ -121,7 +121,7 @@ export function StatReadout({
       >
         {value}
         {unit ? (
-          <span className="ml-1 text-[13px] font-medium text-[var(--sd-ink-faint)]">
+          <span className="ml-1 text-meta font-medium text-[var(--sd-ink-faint)]">
             {unit}
           </span>
         ) : null}
@@ -157,7 +157,7 @@ export function StatePill({
   const color = pillColor[tone];
   return (
     <span
-      className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-full border px-2 font-mono text-[10px] uppercase leading-none tracking-[0.08em]"
+      className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-full border px-2 text-micro leading-none tracking-[0.08em]"
       style={
         tone === "idle"
           ? {
@@ -196,7 +196,7 @@ export function DevEmpty({
     <div className="flex flex-col gap-1.5 py-1">
       <Eyebrow>{heading}</Eyebrow>
       {body ? (
-        <p className="max-w-prose text-[13px] leading-relaxed text-[var(--sd-ink-faint)]">
+        <p className="max-w-prose text-meta leading-relaxed text-[var(--sd-ink-faint)]">
           {body}
         </p>
       ) : null}

@@ -114,7 +114,7 @@ export function StravaPanel({ result }: Props) {
             </p>
             <a
               href="/api/integrations/strava/connect"
-              className="inline-flex items-center gap-1.5 self-start rounded-lg bg-[var(--panel-accent,#FC4C02)] px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-white shadow-[var(--shadow-card)] transition-[opacity,box-shadow] duration-[160ms] ease-out hover:opacity-90 hover:shadow-[var(--shadow-card-hover)]"
+              className="inline-flex items-center gap-1.5 self-start rounded-lg bg-[var(--panel-accent,#FC4C02)] px-3 py-1.5 text-micro font-medium tracking-[0.06em] text-white shadow-[var(--shadow-card)] transition-[opacity,box-shadow] duration-[160ms] ease-out hover:opacity-90 hover:shadow-[var(--shadow-card-hover)]"
             >
               Connect Strava →
             </a>
@@ -148,15 +148,7 @@ export function StravaPanel({ result }: Props) {
               role="tab"
               aria-pressed={sport === s}
               onClick={() => setSport(s)}
-              // Craft segmented control: the active thumb is a raised plate on
-              // the recessed track, not a ring.
-              className={cn(
-                'rounded-md px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] cursor-pointer-always',
-                'transition-[background-color,color,box-shadow] duration-[160ms] ease-out',
-                sport === s
-                  ? 'bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]'
-                  : 'text-[var(--ink-muted)] hover:text-[var(--ink)]',
-              )}
+              className="craft-chip cursor-pointer-always"
             >
               {SPORT_LABELS[s]}
             </button>
@@ -209,7 +201,7 @@ function SportView({
     <>
       <div className="mb-2 flex items-baseline justify-end">
         {currentWeek ? (
-          <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+          <span className="text-micro tracking-[0.06em] text-[var(--ink-muted)]">
             {distanceMode ? (
               <>
                 <span className="text-[var(--ink)]">
@@ -291,7 +283,7 @@ function SportView({
                   {a.name}
                 </span>
               </span>
-              <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)] whitespace-nowrap">
+              <span className="font-mono text-micro tabular-nums text-[var(--ink-muted)] whitespace-nowrap">
                 {distanceMode ? (
                   <>
                     <span className="text-[var(--ink)]">

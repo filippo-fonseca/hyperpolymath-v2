@@ -112,7 +112,7 @@ export function FlowPanel({ result }: Props) {
           </h3>
           <FlowUploadButton />
         </div>
-        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <div className="flex items-center gap-2 text-micro tracking-[0.06em] text-[var(--ink-muted)]">
           <button
             type="button"
             onClick={() => setWeekStart((w) => addDays(w, -7))}
@@ -134,7 +134,7 @@ export function FlowPanel({ result }: Props) {
             <ChevronRight size={14} />
           </button>
         </div>
-        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <span className="text-micro tracking-[0.06em] text-[var(--ink-muted)]">
           Total: <span className="text-[var(--ink)]">{formatHm(totalMinutes)}</span>
         </span>
       </header>
