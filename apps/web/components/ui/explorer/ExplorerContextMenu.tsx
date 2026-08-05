@@ -81,7 +81,7 @@ export function ExplorerContextMenuShortcut({ className, ...props }: ComponentPr
   return (
     <kbd
       className={cn(
-        "ml-auto pl-6 font-mono text-micro uppercase tracking-[0.06em] text-[var(--ink-muted)]",
+ "ml-auto pl-6 text-micro text-[var(--ink-muted)]",
         className
       )}
       {...props}
