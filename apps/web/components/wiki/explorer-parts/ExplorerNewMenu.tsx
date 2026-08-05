@@ -35,7 +35,7 @@ export function ExplorerNewMenu({
         <DropdownMenuPrimitive.Content
           align="start"
           sideOffset={6}
-          className="z-50 min-w-[184px] rounded-xl border border-[var(--sd-menu-line)] bg-[var(--sd-menu)] p-1 font-sans text-meta text-[var(--sd-ink)] shadow-[0_4px_16px_rgb(0_0_0_/_0.06)] dark:shadow-[0_4px_16px_rgb(0_0_0_/_0.30)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1"
+          className="craft-glass-pop z-50 min-w-[184px] p-1 font-sans text-meta text-[var(--sd-ink)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1"
         >
           <NewMenuItem onSelect={onNewFolder}>
             <FolderPlus />

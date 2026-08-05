@@ -1016,6 +1016,11 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
       ) : null}
 
       <PageScaffold
+        // aug-04 craft-ui-v2: the document reads as a Craft sheet — a centered
+        // ~720px content column (784 minus the scaffold's px-8 gutters). The
+        // scaffold's contract is untouched; tailwind-merge lets the call site
+        // narrow the measure for this one route.
+        className="max-w-[784px]"
         eyebrow={breadcrumb}
         title={pageTitle}
         actions={headerActions}
@@ -1069,7 +1074,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             {linkedProjects.map((proj) => (
               <span
                 key={proj.id}
-                className="inline-flex items-center gap-1 rounded bg-[var(--hover)] px-2 py-0.5 text-micro text-[var(--ink-muted)]"
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--hover)] px-2.5 py-0.5 text-micro text-[var(--ink-muted)]"
               >
                 {proj.name}
                 <button
@@ -1087,7 +1092,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
               <span
                 key={`inherited-${link.projectId}`}
                 title={`Inherited from ${link.sourceFolderName}`}
-                className="inline-flex items-center gap-1 rounded border border-dashed border-[var(--edge)] px-2 py-0.5 text-micro text-[var(--ink-muted)] opacity-70"
+                className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--edge)] px-2.5 py-0.5 text-micro text-[var(--ink-muted)] opacity-70"
               >
                 <Lock size={10} strokeWidth={1.5} />
                 {projectNameById.get(link.projectId) ?? "Project"}

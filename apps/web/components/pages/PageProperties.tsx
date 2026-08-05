@@ -83,10 +83,14 @@ export function PageProperties({ pageId, fields, onChanged }: PagePropertiesProp
 
   return (
     <div className="flex flex-col gap-1">
+      {/* aug-04 craft-ui-v2: the properties toggle is a rest-state craft chip
+          (also retires the uppercase mono eyebrow — uppercase is banned outside
+          kbd + sidebar eyebrows). */}
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="group/pt flex items-center gap-1 w-fit px-1 py-0.5 rounded text-[11px] font-mono uppercase tracking-wide text-[var(--ink-muted)] opacity-60 hover:opacity-100 hover:text-[var(--ink)] transition-all duration-150 cursor-pointer"
+        aria-expanded={expanded}
+        className="craft-chip group/pt w-fit cursor-pointer"
       >
         <ChevronRight
           size={12}
@@ -94,11 +98,11 @@ export function PageProperties({ pageId, fields, onChanged }: PagePropertiesProp
           className={cn("transition-transform duration-200", expanded && "rotate-90")}
         />
         <span>Properties</span>
-        <span className="text-[10px] text-[var(--ink-muted)] opacity-80">{visible.length}</span>
+        <span className="text-micro text-[var(--ink-faint)]">{visible.length}</span>
       </button>
 
       {expanded && (
-        <div className="rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] px-2 py-1.5 flex flex-col gap-0.5">
+        <div className="rounded-xl bg-[var(--surface)] px-2 py-1.5 flex flex-col gap-0.5">
           {visible.map((field) => (
             <FieldRow
               key={field.id}
@@ -114,7 +118,7 @@ export function PageProperties({ pageId, fields, onChanged }: PagePropertiesProp
               <button
                 type="button"
                 onClick={() => setShowHidden((v) => !v)}
-                className="flex items-center gap-1 w-fit mt-0.5 px-1.5 py-1 rounded-md text-[11px] font-mono text-[var(--ink-muted)] opacity-70 hover:opacity-100 hover:text-[var(--ink)] transition-all duration-150 cursor-pointer"
+                className="flex items-center gap-1 w-fit mt-0.5 px-1.5 py-1 rounded-md text-micro text-[var(--ink-muted)] opacity-70 hover:opacity-100 hover:text-[var(--ink)] transition-all duration-150 cursor-pointer"
               >
                 <ChevronRight
                   size={11}

@@ -34,16 +34,12 @@ export function ExplorerTopBar({
     <Toolbar
       className={className}
       left={
-        <div className="flex items-center overflow-hidden rounded-lg bg-[var(--sd-box)]">
-          <ExplorerNavButton side="left" label="Back" disabled={!canGoBack} onClick={onBack}>
+        // aug-04 craft-ui-v2: quiet ghost nav — no boxed cluster; hover fill only.
+        <div className="flex items-center gap-0.5">
+          <ExplorerNavButton label="Back" disabled={!canGoBack} onClick={onBack}>
             <ChevronLeft size={16} strokeWidth={1.8} />
           </ExplorerNavButton>
-          <ExplorerNavButton
-            side="right"
-            label="Forward"
-            disabled={!canGoForward}
-            onClick={onForward}
-          >
+          <ExplorerNavButton label="Forward" disabled={!canGoForward} onClick={onForward}>
             <ChevronRight size={16} strokeWidth={1.8} />
           </ExplorerNavButton>
         </div>
@@ -66,13 +62,11 @@ function ExplorerNavButton({
   disabled,
   onClick,
   children,
-  side,
 }: {
   label: string;
   disabled?: boolean;
   onClick?: () => void;
   children: ReactNode;
-  side: "left" | "right";
 }) {
   return (
     <button
@@ -81,10 +75,9 @@ function ExplorerNavButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex size-7 items-center justify-center text-[var(--sd-ink-dull)]",
-        side === "left" && "border-r border-r-[var(--sd-line)]",
-        "transition-[background-color,border-color,color] duration-[160ms] ease-out",
-        "hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
+        "flex size-7 items-center justify-center rounded-lg text-[var(--sd-ink-dull)]",
+        "transition-[background-color,color] duration-[160ms] ease-out",
+        "hover:bg-[var(--hover)] hover:text-[var(--ink)]",
         "disabled:pointer-events-none disabled:opacity-35"
       )}
     >

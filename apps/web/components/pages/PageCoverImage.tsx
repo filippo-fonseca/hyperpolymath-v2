@@ -92,8 +92,10 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
   return (
     <>
       {/* Flush, edge to edge above the PageScaffold (SDC-1 §2.9) — the caller
-          renders this outside the page measure when a cover is set. */}
-      <div className="group relative h-44 w-full overflow-hidden border-b border-[var(--edge)] sm:h-52">
+          renders this outside the page measure when a cover is set. aug-04
+          craft-ui-v2: no hairline under the cover — it bleeds clean into the
+          sheet, and the stage sheet's rounded corners clip its top edges. */}
+      <div className="group relative h-44 w-full overflow-hidden sm:h-52">
         <Image
           src={coverUrl}
           alt={attribution ? `Cover photo — ${attribution}` : "Page cover"}

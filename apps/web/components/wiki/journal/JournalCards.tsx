@@ -4,7 +4,6 @@ import { PagePreviewThumb } from "@/components/wiki/preview/PagePreviewThumb";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import { dailyPageTitle } from "@/lib/pages/daily-page";
 import { extractPreviewModel } from "@/lib/pages/preview";
-import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { Loader2, Plus } from "lucide-react";
@@ -53,19 +52,17 @@ export function JournalTodayCard({ iso, page, exists, loading, onActivate }: Jou
       onClick={onActivate}
       disabled={loading}
       className={cn(
-        // jul-29 craft restyle: today's card is the butter plate of the rail.
-        "tint-butter group relative flex w-[300px] flex-shrink-0 snap-start cursor-pointer flex-col overflow-hidden rounded-xl border p-3 text-left",
-        "border-[color-mix(in_srgb,var(--tint-edge)_55%,transparent)] bg-[var(--tint-bg)] shadow-[var(--shadow-card)]",
-        "transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--tint-edge)] hover:shadow-[var(--shadow-card-hover)] disabled:cursor-progress"
+        // aug-04 craft-ui-v2: white craft card; today reads through the
+        // sky-tinted day tile ([data-today]), not an accent badge.
+        "craft-card craft-card-hover group relative flex w-[300px] flex-shrink-0 snap-start cursor-pointer flex-col overflow-hidden rounded-xl p-3 text-left",
+        "disabled:cursor-progress"
       )}
       aria-label={`${exists ? "Open" : "Create"} today's daily page`}
     >
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <span className="min-w-0 truncate font-sans text-subtitle font-medium text-[var(--sd-ink)]">
+      <div className="mb-2.5 flex items-center gap-2.5">
+        <JournalDayTile iso={iso} today />
+        <span className="min-w-0 truncate font-sans text-body font-medium text-[var(--ink)]">
           {format(parseISO(iso), "EEEE, MMMM d")}
-        </span>
-        <span className="rounded-full bg-[var(--sd-accent)] px-2 py-0.5 text-micro font-medium text-white">
-          Today
         </span>
       </div>
       {exists && page ? (
@@ -95,33 +92,44 @@ export function JournalTrailCard({ iso, page, exists, loading, onActivate }: Jou
       disabled={loading}
       title={dailyPageTitle(iso)}
       className={cn(
-        // jul-29 craft restyle: each past day keeps a stable pastel of its
-        // own (hash of the ISO date), Craft's mixed-card rail feel. Days with
-        // no entry stay quiet on the plain white plate.
-        "group relative flex w-[120px] flex-shrink-0 snap-start cursor-pointer flex-col rounded-xl border p-3 text-left",
-        "shadow-[var(--shadow-card)] transition-[border-color,box-shadow,background-color] duration-[160ms] ease-out",
-        "hover:shadow-[var(--shadow-card-hover)] disabled:cursor-progress",
-        exists
-          ? cn(
-              tintFor(iso),
-              "border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] hover:border-[var(--tint-edge)]"
-            )
-          : "border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--sd-ink-faint)] hover:border-[var(--edge-strong)]"
+        // aug-04 craft-ui-v2: white craft cards; the day marker is a
+        // .craft-day-tile (Craft's agenda grammar) and days without an entry
+        // just read quieter through their preview line.
+        "craft-card craft-card-hover group relative flex w-[132px] flex-shrink-0 snap-start cursor-pointer flex-col rounded-xl p-2.5 text-left",
+        "disabled:cursor-progress"
       )}
       aria-label={`${exists ? "Open" : "Create"} daily page for ${dailyPageTitle(iso)}`}
     >
-      <span className="font-sans text-subtitle font-medium leading-none text-[var(--sd-ink)]">
-        {format(parseISO(iso), "d MMM")}
+      <JournalDayTile iso={iso} />
+      <span
+        className={cn(
+          "mt-2 line-clamp-2 text-micro",
+          exists ? "text-[var(--sd-ink-dull)]" : "text-[var(--sd-ink-faint)]"
+        )}
+      >
+        {preview}
       </span>
-      <span className="mt-1 text-micro text-[var(--sd-ink-faint)]">
-        {format(parseISO(iso), "EEEE")}
-      </span>
-      <span className="mt-3 truncate text-micro text-[var(--sd-ink-dull)]">{preview}</span>
       <span className="mt-auto flex h-4 items-end justify-end pt-1 text-[var(--sd-ink-faint)]">
         {loading ? <Loader2 size={11} className="animate-spin motion-reduce:animate-none" /> : null}
         {!loading && !exists ? <Plus size={11} /> : null}
       </span>
     </button>
+  );
+}
+
+/**
+ * The agenda day marker (register v2 `.craft-day-tile`): date over weekday on a
+ * canvas-gray tile; today swaps to the sky pastel via `[data-today]`.
+ */
+function JournalDayTile({ iso, today }: { iso: string; today?: boolean }) {
+  const date = parseISO(iso);
+  return (
+    <span className="craft-day-tile shrink-0 self-start" data-today={today ? "true" : undefined}>
+      <span className="font-sans text-subtitle font-semibold leading-none tabular-nums">
+        {format(date, "d")}
+      </span>
+      <span className="font-sans text-micro leading-none">{format(date, "EEE")}</span>
+    </span>
   );
 }
 
@@ -136,7 +144,7 @@ function previewLine(page: JournalPage, exists: boolean): string {
 
 function EmptyToday({ loading }: { loading: boolean }) {
   return (
-    <div className="flex aspect-[16/10] w-full items-center justify-center rounded-lg border border-dashed border-[var(--sd-line)] bg-[var(--sd-darker-box)] text-[var(--sd-ink-faint)]">
+    <div className="flex aspect-[16/10] w-full items-center justify-center rounded-lg border border-dashed border-[var(--edge-strong)] bg-[var(--surface)] text-[var(--sd-ink-faint)]">
       {loading ? (
         <Loader2 size={16} className="animate-spin motion-reduce:animate-none" />
       ) : (

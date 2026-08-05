@@ -120,11 +120,8 @@ export function ExplorerInspectorPanel({
 }
 
 function InspectorCard({ children }: { children: ReactNode }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)]">
-      {children}
-    </div>
-  );
+  // aug-04 craft-ui-v2: the inspector's one card joins the register.
+  return <div className="craft-card overflow-hidden rounded-xl">{children}</div>;
 }
 
 function InspectorName({ name, kind }: { name: string; kind: string }) {

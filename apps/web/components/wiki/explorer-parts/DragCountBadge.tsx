@@ -23,7 +23,7 @@ export function DragCountBadge({
     <div
       className={cn(
         "pointer-events-none inline-flex h-9 w-fit max-w-[280px] items-center gap-2 rounded-full border border-[var(--edge-strong)] bg-[var(--sd-box)] px-3 font-sans text-meta text-[var(--ink)]",
-        "shadow-[0_4px_16px_rgb(0_0_0_/_0.06)] dark:shadow-[0_4px_16px_rgb(0_0_0_/_0.30)]",
+        "shadow-[var(--shadow-pop)]",
         "opacity-60",
         className
       )}

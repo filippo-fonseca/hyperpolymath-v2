@@ -123,22 +123,23 @@
   height: 15px;
 }
 
-/* ---- Slash, @, and [ suggestion menus: Spacedrive-clean floating chrome.
+/* ---- Slash, @, and [ suggestion menus: frosted craft chrome.
 
-   The panel mirrors `.sd-menu-surface` + DropdownMenuContent's 12px frame
-   (globals.css:1818, components/ui/dropdown-menu.tsx:46). It can't just wear the
-   class — BlockNote owns this element and takes no className for it — so the
-   declarations are duplicated here deliberately, tokens and all. Keep the two in
-   step if the menu surface grammar moves. ---- */
+   aug-04 craft-ui-v2: the panel mirrors `.craft-glass-pop` (globals.css craft
+   register v2) so BlockNote's menus frost like every other overlay. It can't
+   just wear the class — BlockNote owns this element and takes no className for
+   it — so the recipe is duplicated here deliberately, tokens and all (solid
+   fallback first, real glass under @supports). Keep the two in step if the
+   glass-pop grammar moves. ---- */
 .bn-suggestion-menu {
   /* Fixed, not min-width: the widest subtext used to stretch the panel to 331px
      and every menu came out a different size. Titles/subtexts ellipsize instead. */
   width: 288px;
   padding: 4px;
-  border: 1px solid var(--sd-line);
+  border: 1px solid var(--glass-panel-edge);
   border-radius: 12px;
-  background: var(--sd-box);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.06);
+  background: var(--glass-panel-solid);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), var(--shadow-pop);
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -150,10 +151,12 @@
   font-family: inherit;
   color: var(--ink);
 }
-/* The light theme was wearing a dark-theme drop shadow (a hardcoded
-   `hsl(235 15% 0% / 0.4)`), so the panel sat in a bruise on parchment. */
-.dark .bn-suggestion-menu {
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .bn-suggestion-menu {
+    background: var(--glass-panel-bg);
+    -webkit-backdrop-filter: saturate(160%) blur(20px);
+    backdrop-filter: saturate(160%) blur(20px);
+  }
 }
 .bn-suggestion-menu::-webkit-scrollbar {
   width: 5px;

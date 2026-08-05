@@ -36,7 +36,7 @@ export function ExplorerSfxToggle() {
             onClick={toggle}
             aria-pressed={!enabled}
             aria-label={label}
-            className="flex size-8 items-center justify-center rounded-lg bg-[var(--sd-box)] text-[var(--sd-ink-dull)] transition-colors duration-[160ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]"
+            className="flex size-8 items-center justify-center rounded-lg text-[var(--sd-ink-dull)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
           >
             {enabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
