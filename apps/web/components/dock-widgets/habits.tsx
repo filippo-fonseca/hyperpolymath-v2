@@ -1,6 +1,7 @@
 "use client";
 
 import { getHabitCompletionsInRange } from "@/app/actions/habits";
+import { DockStateNote } from "@/components/dock-widgets/dock-state";
 import { useHabitDay, useHabitMeta } from "@/components/habits/use-habit-data";
 import { useLocalToday } from "@/components/habits/use-local-today";
 import { useCurrentUserId } from "@/components/providers/CurrentUserProvider";
@@ -131,7 +132,7 @@ function StatsLine({ data }: { data: HabitsDockData }) {
   return (
     <p
       className={cn(
-        "flex items-center gap-1 px-2 text-micro tabular-nums",
+        "flex items-center gap-1 px-1.5 text-micro tabular-nums",
         data.allDone ? "text-[var(--ink)]" : "text-[var(--ink-faint)]"
       )}
     >
@@ -160,7 +161,7 @@ function HabitRow({
       onClick={onToggle}
       aria-pressed={row.done}
       className={cn(
-        "group/habit flex min-h-8 w-full cursor-pointer-always items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
+        "group/habit flex min-h-7 w-full cursor-pointer-always items-center gap-2 rounded-lg px-1.5 py-0.5 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
         // The habit's own pastel — same hue this habit wears on /habits.
         tintFor(row.id)
       )}
@@ -232,10 +233,10 @@ function HabitRow({
 
 function Compact({ data }: { data: HabitsDockData }) {
   if (data.loading) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Loading…</p>;
+    return <DockStateNote>Loading…</DockStateNote>;
   }
   if (data.rows.length === 0) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Nothing scheduled today.</p>;
+    return <DockStateNote>Nothing scheduled today.</DockStateNote>;
   }
   return (
     <div className="flex flex-col gap-1">
@@ -247,7 +248,7 @@ function Compact({ data }: { data: HabitsDockData }) {
         ))}
       </div>
       {data.allDone ? (
-        <p className="px-2 text-micro text-[var(--ink-faint)]">Done for today. See you tomorrow.</p>
+        <p className="px-1.5 text-micro text-[var(--ink-faint)]">Done for today. See you tomorrow.</p>
       ) : null}
     </div>
   );
@@ -279,10 +280,10 @@ function Expanded({ data }: { data: HabitsDockData }) {
   });
 
   if (data.loading) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Loading…</p>;
+    return <DockStateNote>Loading…</DockStateNote>;
   }
   if (data.rows.length === 0) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Nothing scheduled today.</p>;
+    return <DockStateNote>Nothing scheduled today.</DockStateNote>;
   }
 
   const doneByHabit = new Map<string, Set<string>>();
@@ -315,7 +316,7 @@ function Expanded({ data }: { data: HabitsDockData }) {
       </div>
       <Link
         href="/habits"
-        className="rounded-lg px-2 py-1 text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+        className="rounded-lg px-1.5 py-1 text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
       >
         Open habits
       </Link>

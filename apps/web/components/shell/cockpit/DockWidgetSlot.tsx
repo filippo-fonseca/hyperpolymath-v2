@@ -1,5 +1,6 @@
 "use client";
 
+import { DockStateNote } from "@/components/dock-widgets/dock-state";
 import type { DockWidgetDef } from "@/components/shell/cockpit/dock-registry";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
@@ -103,11 +104,9 @@ class WidgetErrorBoundary extends Component<
 
   render() {
     if (this.state.failed) {
-      return (
-        <p className="px-2 text-meta text-[var(--ink-faint)]">
-          {this.props.title} is unavailable right now.
-        </p>
-      );
+      // Same recipe as every widget's own quiet states, so a crash reads as
+      // "nothing here", not as broken chrome.
+      return <DockStateNote>{this.props.title} is unavailable right now.</DockStateNote>;
     }
     return this.props.children;
   }

@@ -2,6 +2,7 @@
 
 import { listCalendarsForUser } from "@/app/actions/gcal-calendars";
 import { listEventsForUser } from "@/app/actions/gcal-events";
+import { DockStateNote } from "@/components/dock-widgets/dock-state";
 import { defineDockWidget } from "@/components/shell/cockpit/dock-registry";
 import { formatEventCountdown } from "@/lib/gcal/event-countdown";
 import type { GcalEventDTO } from "@/lib/gcal/event-dto";
@@ -98,26 +99,29 @@ function Compact({ data }: { data: NextEventData }) {
   const now = useNow(COUNTDOWN_TICK_MS);
 
   if (data.state === "loading") {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Checking…</p>;
+    return <DockStateNote>Checking…</DockStateNote>;
   }
   if (data.state === "not-connected") {
     return (
-      <div className="flex items-center justify-between gap-2 px-1.5">
-        <p className="text-meta text-[var(--ink-faint)]">Not connected.</p>
-        <Link
-          href="/calendar"
-          className="rounded-full bg-[var(--tint-bg,var(--hover))] px-2 py-0.5 text-micro font-medium text-[var(--tint-ink,var(--ink-muted))] transition-[box-shadow] duration-[160ms] ease-out hover:shadow-[var(--shadow-card)]"
-        >
-          Connect
-        </Link>
-      </div>
+      <DockStateNote
+        action={
+          <Link
+            href="/calendar"
+            className="shrink-0 rounded-full bg-[var(--tint-bg,var(--hover))] px-2 py-0.5 text-micro font-medium text-[var(--tint-ink,var(--ink-muted))] transition-[box-shadow] duration-[160ms] ease-out hover:shadow-[var(--shadow-card)]"
+          >
+            Connect
+          </Link>
+        }
+      >
+        Not connected.
+      </DockStateNote>
     );
   }
   if (data.state === "error") {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Could not reach the calendar.</p>;
+    return <DockStateNote>Could not reach the calendar.</DockStateNote>;
   }
   if (!data.event) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Nothing in the next 24 hours.</p>;
+    return <DockStateNote>Nothing in the next 24 hours.</DockStateNote>;
   }
 
   const when = formatEventCountdown(data.event.start, data.event.allDay, now);

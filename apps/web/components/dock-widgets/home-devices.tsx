@@ -1,6 +1,7 @@
 "use client";
 
 import { setGoveeDevicePower } from "@/app/actions/govee-devices";
+import { DockStateNote } from "@/components/dock-widgets/dock-state";
 import { defineDockWidget } from "@/components/shell/cockpit/dock-registry";
 import {
   type HomeLightDeviceView,
@@ -224,10 +225,10 @@ function SettingsHint({ hint }: { hint: string | null }) {
 
 function Compact({ data }: { data: HomeDevicesData }) {
   if (data.state === "loading") {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Checking…</p>;
+    return <DockStateNote>Checking…</DockStateNote>;
   }
   if (data.state === "error") {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Home is unreachable.</p>;
+    return <DockStateNote>Home is unreachable.</DockStateNote>;
   }
 
   return (

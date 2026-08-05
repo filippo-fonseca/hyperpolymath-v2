@@ -1,9 +1,11 @@
 "use client";
 
 import { getTasksForCurrentUser } from "@/app/actions/tasks";
+import { DockStateNote } from "@/components/dock-widgets/dock-state";
 import { useCurrentUserId } from "@/components/providers/CurrentUserProvider";
 import { defineDockWidget } from "@/components/shell/cockpit/dock-registry";
 import { STATUS_DOT, type TaskStatus } from "@/components/tasks/status";
+import { entityHref } from "@/lib/entity-href";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery } from "@tanstack/react-query";
@@ -86,13 +88,13 @@ function StatChip({
 
 function Compact({ data }: { data: TodayCounts }) {
   if (data.loading) {
-    return <p className="px-1.5 text-meta text-[var(--ink-faint)]">Counting…</p>;
+    return <DockStateNote>Counting…</DockStateNote>;
   }
 
   if (data.overdue === 0 && data.today === 0) {
     return (
-      <div className="mx-0.5 rounded-lg bg-[var(--tint-sage-bg)] px-2.5 py-2 text-micro font-medium text-[var(--tint-sage-ink)]">
-        All clear — nothing due today.
+      <div className="mx-0.5 rounded-lg bg-[var(--tint-sage-bg)] px-2.5 py-1.5 text-micro font-medium text-[var(--tint-sage-ink)]">
+        All clear. Nothing due today.
       </div>
     );
   }
@@ -108,7 +110,8 @@ function Compact({ data }: { data: TodayCounts }) {
           {data.rows.map((task) => (
             <Link
               key={task.id}
-              href="/tasks"
+              // Straight to the task's detail panel (TasksClient nuqs ?task=).
+              href={entityHref({ kind: "task", id: task.id })}
               className="flex h-7 min-w-0 items-center gap-2 rounded-lg px-1.5 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
             >
               <span
