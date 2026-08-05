@@ -21,7 +21,23 @@ import { extendTailwindMerge } from "tailwind-merge";
 const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
-      "font-size": [{ text: ["display", "title", "subtitle", "body", "meta", "micro"] }],
+      "font-size": [
+        {
+          text: [
+            // App chrome ladder.
+            "display",
+            "title",
+            "subtitle",
+            "body",
+            "meta",
+            "micro",
+            // Landing-only editorial extension.
+            "hero",
+            "headline",
+            "lead",
+          ],
+        },
+      ],
     },
   },
 });

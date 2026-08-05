@@ -129,6 +129,24 @@
   --text-micro: 11.5px;
   --text-micro--line-height: 1.4;
 
+  /* Editorial extension — aug-05 craft v2, LANDING PAGE ONLY.
+     The marketing page is long-form reading, not chrome: it needs a larger
+     reading size than --text-body and a bigger top end than --text-display.
+     Its own docs claimed a closed {14, 18, 32, 56} scale, but it had drifted
+     to eighteen arbitrary px sizes. These three named steps close it again
+     without shrinking the page into app-chrome proportions.
+
+     Do NOT use these in the app. App chrome is the six steps above; if a
+     surface reaches for --text-hero it is a marketing surface or a mistake. */
+  --text-lead: 18px;
+  --text-lead--line-height: 1.6;
+  --text-headline: 32px;
+  --text-headline--line-height: 1.15;
+  --text-headline--letter-spacing: -0.01em;
+  --text-hero: 44px;
+  --text-hero--line-height: 1.05;
+  --text-hero--letter-spacing: -0.02em;
+
   /* Motion easing tokens */
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
