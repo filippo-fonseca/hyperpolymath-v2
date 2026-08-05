@@ -728,6 +728,147 @@ export default function DesignSystemPage() {
             </span>
           </Specimen>
         </Section>
+
+        <Section
+          eyebrow="§ 16 · CRAFT V2"
+          title="Canvas chrome, pills, chips, glass pops, day tiles"
+          caption="The Craft.do architecture: one flat, calm canvas carries all the chrome, and elevation lives exclusively in content. Chrome sits flat (.craft-canvas-chrome); the sheet, cards, and pops carry every shadow. Each recipe resolves both themes through the token ladder, so toggle the theme switch above and nothing breaks."
+        >
+          <div className="space-y-6">
+            <Specimen label=".craft-canvas-chrome · chrome sits flat on the canvas; elevation belongs to content">
+              <div className="flex w-full items-stretch gap-4">
+                <div className="craft-canvas-chrome flex w-44 shrink-0 flex-col gap-0.5 p-2">
+                  <div className={`${SB_ROW} ${SB_ROW_ACTIVE}`}>
+                    <span className="ml-2 flex-1 truncate">No box of its own</span>
+                  </div>
+                  <div className={`${SB_ROW} ${SB_ROW_IDLE}`}>
+                    <span className="ml-2 flex-1 truncate">No border</span>
+                  </div>
+                  <div className={`${SB_ROW} ${SB_ROW_IDLE}`}>
+                    <span className="ml-2 flex-1 truncate">No shadow</span>
+                  </div>
+                </div>
+                <div className="craft-card flex-1 rounded-[14px] p-4">
+                  <p className="text-[14px] font-medium text-[var(--sd-ink)]">The content sheet</p>
+                  <p className="mt-1 text-[12px] text-[var(--sd-ink-dull)]">
+                    Cards and sheets carry the elevation the chrome gave up.
+                  </p>
+                </div>
+              </div>
+            </Specimen>
+
+            <Specimen label=".craft-pill · top-bar search + floating chrome · hover lifts the shadow only">
+              <div className="craft-pill flex h-9 w-full max-w-[420px] items-center gap-2 px-4">
+                <Search
+                  size={14}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                  style={{ color: "var(--sd-ink-faint)" }}
+                />
+                <span className="flex-1 text-[13px]" style={{ color: "var(--sd-ink-dull)" }}>
+                  Open anything
+                </span>
+                <kbd
+                  className="rounded-[5px] border px-1.5 py-0.5 font-mono text-[10px]"
+                  style={{
+                    borderColor: "var(--sd-line)",
+                    color: "var(--sd-ink-faint)",
+                    background: "var(--sd-input)",
+                  }}
+                >
+                  ⌘K
+                </kbd>
+              </div>
+            </Specimen>
+
+            <Specimen label=".craft-chip · rest / active (aria-pressed or data-active) / tinted via .tint-<hue>">
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" className="craft-chip">
+                  Inbox
+                </button>
+                <button type="button" className="craft-chip" aria-pressed="true">
+                  Today
+                </button>
+                <button type="button" className="craft-chip tint-sky" aria-pressed="true">
+                  Upcoming
+                </button>
+                <button type="button" className="craft-chip tint-lavender" data-active="true">
+                  All tasks
+                </button>
+                <button type="button" className="craft-chip tint-peach" aria-pressed="true">
+                  Pinned
+                </button>
+              </div>
+            </Specimen>
+
+            <div className="flex flex-col gap-2">
+              <div
+                className="relative overflow-hidden rounded-[10px] border p-6"
+                style={{ background: "var(--sd-app)", borderColor: "var(--sd-line)" }}
+              >
+                {/* Tinted plates behind the pop, so the frost has content to grab. */}
+                <div className="absolute inset-x-6 top-6 grid grid-cols-2 gap-4" aria-hidden="true">
+                  <div className="craft-tinted tint-sky h-28 rounded-[14px]" />
+                  <div className="craft-tinted tint-peach h-28 rounded-[14px]" />
+                </div>
+                <div className="craft-glass-pop relative z-10 mx-auto mt-10 w-64 p-1.5">
+                  {[
+                    { label: "New task", kbd: "⌘N" },
+                    { label: "New capture", kbd: "⌘⇧C" },
+                    { label: "Open calendar", kbd: null },
+                  ].map((row) => (
+                    <div
+                      key={row.label}
+                      className="flex h-8 items-center justify-between rounded-[8px] px-2.5"
+                    >
+                      <span className="text-[13px] text-[var(--sd-ink)]">{row.label}</span>
+                      {row.kbd ? (
+                        <span className="font-mono text-[10px] text-[var(--sd-ink-faint)]">
+                          {row.kbd}
+                        </span>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+                .craft-glass-pop · every .sd-menu-surface / .sd-modal-surface inherits this recipe
+                via cascade upgrade
+              </span>
+            </div>
+
+            <Specimen label=".craft-day-tile · agenda rail · [data-today] = sky pastel + in-family ink">
+              <div className="flex items-center gap-2">
+                {[
+                  { date: "3", day: "Sun", today: false },
+                  { date: "4", day: "Mon", today: true },
+                  { date: "5", day: "Tue", today: false },
+                  { date: "6", day: "Wed", today: false },
+                ].map((tile) => (
+                  <span
+                    key={tile.date}
+                    className="craft-day-tile"
+                    data-today={tile.today ? "true" : undefined}
+                  >
+                    <span className="text-[15px] font-semibold leading-none tabular-nums">
+                      {tile.date}
+                    </span>
+                    <span className="font-mono text-[9px] leading-none">{tile.day}</span>
+                  </span>
+                ))}
+              </div>
+            </Specimen>
+
+            <Specimen label=".craft-card + .craft-card-hover · hover lifts shadow + border, never scale">
+              <div className="craft-card craft-card-hover w-full max-w-[280px] rounded-[14px] p-4">
+                <p className="text-[14px] font-medium text-[var(--sd-ink)]">Interactive card</p>
+                <p className="mt-1 text-[12px] text-[var(--sd-ink-dull)]">
+                  Every clickable craft-card takes the hover lift.
+                </p>
+              </div>
+            </Specimen>
+          </div>
+        </Section>
       </div>
     </main>
   );
