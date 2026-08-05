@@ -114,10 +114,7 @@ type StreakDisplay = { value: number; saturated: boolean };
 /** jul-29 craft restyle: habit rows are lifted white cards. Compose with a
  *  tintFor(habit.id) class so the row's check circle and hover rim pick up
  *  the habit's own pastel via var(--tint-…). */
-const ROW =
-  "flex items-center gap-3 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-4 py-3 " +
-  "shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out " +
-  "hover:border-[color-mix(in_srgb,var(--tint-edge,var(--edge-strong))_45%,var(--edge))] hover:shadow-[var(--shadow-card-hover)]";
+const ROW = "craft-card craft-card-hover flex items-center gap-3 px-4 py-3";
 
 /**
  * /habits — the daily loop on the stage.
@@ -505,7 +502,7 @@ function DaySection({
               <Button
                 variant="ghost"
                 size="sm"
-                className="rounded-lg px-2 text-subtitle font-medium"
+                className="rounded-lg px-2 text-meta font-medium"
               >
                 <CalendarIcon size={14} className="opacity-60" aria-hidden="true" />
                 {formatDateLabel(selectedDate, today)}
@@ -615,7 +612,7 @@ function DayHabitRow({
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "truncate text-subtitle",
+            "truncate text-meta font-semibold",
             completed ? "text-[var(--ink-faint)] line-through" : "text-[var(--ink)]"
           )}
         >
@@ -675,10 +672,10 @@ function ManageHabitRow({
         className="flex min-w-0 flex-1 flex-col text-left cursor-pointer-always"
       >
         <span className="flex items-center gap-2">
-          <span className="truncate text-subtitle text-[var(--ink)]">{habit.name}</span>
+          <span className="truncate text-meta font-semibold text-[var(--ink)]">{habit.name}</span>
           <StreakChip streak={streak} />
         </span>
-        <span className="mt-1 truncate text-meta text-[var(--ink-muted)]">
+        <span className="mt-1 truncate text-micro text-[var(--ink-faint)]">
           {metaParts.join(" · ")}
         </span>
       </button>
@@ -699,7 +696,7 @@ function ArchivedHabitRow({
   return (
     <div className={ROW}>
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="truncate text-subtitle text-[var(--ink-muted)]">{habit.name}</p>
+        <p className="truncate text-meta font-semibold text-[var(--ink-muted)]">{habit.name}</p>
         <p className="mt-1 truncate text-micro text-[var(--ink-faint)]">
           Created {prettyDate(habit.createdAt)}
           {habit.archivedAt ? ` · Archived ${prettyDate(habit.archivedAt)}` : ""}

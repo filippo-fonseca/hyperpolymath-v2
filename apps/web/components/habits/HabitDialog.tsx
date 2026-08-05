@@ -151,7 +151,7 @@ export function HabitDialog(props: Props) {
             <HabitFrequencySelector value={daysOfWeek} onChange={setDaysOfWeek} />
             <span
               className={cn(
-                "text-[12px]",
+                "text-micro",
                 noDaysSelected ? "text-[var(--ink-coral)]" : "text-[var(--sd-ink-dull)]"
               )}
             >
@@ -171,7 +171,7 @@ export function HabitDialog(props: Props) {
               Areas <span className="opacity-60">(zero or more)</span>
             </span>
             {areas.length === 0 ? (
-              <p className="text-[13px] text-[var(--sd-ink-dull)]">
+              <p className="text-meta text-[var(--sd-ink-dull)]">
                 No areas yet — create one from the sidebar first.
               </p>
             ) : (
