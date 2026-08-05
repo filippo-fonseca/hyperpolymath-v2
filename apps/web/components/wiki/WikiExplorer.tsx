@@ -298,10 +298,10 @@ export function WikiExplorer({
 
   const isEmptyWiki = pages.length === 0 && folders.length === 0;
 
-  // No `wiki-explorer` class on the wrapper: that scope pins the legacy
-  // always-dark Spacedrive palette (globals.css). Without it the --sd-*
-  // aliases track the SDC-1 theme, so the explorer reads as part of the page
-  // in both light and dark.
+  // No `wiki-explorer` class on the wrapper — and as of aug-04 craft-ui-v2 no
+  // such scope exists in globals.css at all. The --sd-* aliases resolve against
+  // the global register (app accent hue 225, base surfaces, base inks), so the
+  // explorer reads as part of the page in both light and dark.
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
       <DndContext

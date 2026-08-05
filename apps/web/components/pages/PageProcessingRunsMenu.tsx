@@ -54,7 +54,7 @@ export function PageProcessingRunsMenu({
         <button
           type="button"
           title="View past processing runs for this page"
-          className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink-muted)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer"
+          className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink-muted)] hover:text-[var(--accent)] transition-colors duration-150 cursor-pointer"
         >
           <History size={12} strokeWidth={1.75} />
           <span>History</span>
@@ -135,7 +135,7 @@ function RunRow({ run }: { run: ProcessingRun }) {
         type="button"
         onClick={() => router.push(`/today?messageId=${run.turnId}`)}
         title="View this run in the JARVIS conversation"
-        className="group/run w-full text-left px-3 py-2 flex flex-col gap-0.5 hover:bg-[var(--hud-cyan)]/5 transition-colors cursor-pointer"
+        className="group/run w-full text-left px-3 py-2 flex flex-col gap-0.5 hover:bg-[var(--accent)]/5 transition-colors cursor-pointer"
       >
         {body}
       </button>

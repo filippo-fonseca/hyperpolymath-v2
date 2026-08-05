@@ -186,7 +186,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
                     type="button"
                     onClick={() => handlePickPhoto(photo)}
                     title={`Photo by ${photo.authorName} on Unsplash`}
-                    className="group relative aspect-[3/2] overflow-hidden rounded-sm border border-[var(--edge)] transition-colors hover:border-[var(--hud-cyan)] focus:outline-none focus-visible:border-[var(--hud-cyan)] cursor-pointer"
+                    className="group relative aspect-[3/2] overflow-hidden rounded-sm border border-[var(--edge)] transition-colors hover:border-[var(--accent)] focus:outline-none focus-visible:border-[var(--accent)] cursor-pointer"
                   >
                     {/* Grid thumbnails use a plain img (not next/image) — they're
                         small, ephemeral, and avoid per-thumb optimizer round-trips. */}
@@ -237,7 +237,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
                 type="button"
                 onClick={handleSubmitUrl}
                 disabled={!urlInput.trim()}
-                className="rounded-sm border border-[var(--edge)] px-3 py-1.5 font-serif text-[13px] text-[var(--ink)] transition-colors hover:border-[var(--hud-cyan)] hover:text-[var(--hud-cyan)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                className="rounded-sm border border-[var(--edge)] px-3 py-1.5 font-serif text-[13px] text-[var(--ink)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
               >
                 Set cover
               </button>

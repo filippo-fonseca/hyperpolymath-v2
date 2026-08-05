@@ -694,11 +694,12 @@ html::-webkit-scrollbar-thumb:hover,
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .wiki-explorer * {
-    scroll-behavior: auto !important;
-  }
-}
+/* aug-04 craft-ui-v2: the `.wiki-explorer *` reduced-motion guard that lived
+   here is retired with the scope itself. No element carries the class anymore
+   (WikiExplorer renders unscoped so the --sd-* aliases resolve globally), and
+   no wiki surface declares smooth scrolling, so the rule matched nothing. The
+   drop-denied / folder-swallow keyframes above are still consumed by the
+   explorer views. */
 
 /* .glass-tile / .glass-button / .glass-pressed excised in sd3 (unit-closeout):
    zero consumers once the Pages surface + sonner toast moved to the sd register.
@@ -1552,9 +1553,10 @@ select:focus-visible,
    Design Constitution: sesh-1783963573841 (Kiwi, Conductor/Designer).
 
    ADD-ONLY block. Everything Wave 1+ (Life OS, sidebar, tasks) consumes
-   lands here so the restyle speaks one chrome dialect. The single
-   sanctioned edit to an EXISTING value lives further up in .wiki-explorer
-   (the D1b accent retint); everything below is net-new.
+   lands here so the restyle speaks one chrome dialect. (Historical: the
+   single sanctioned edit to an EXISTING value, the D1b accent retint,
+   lived in the since-retired .wiki-explorer scope; aug-04 craft-ui-v2
+   removed that scope entirely.) Everything below is net-new.
 
    No `transition`/`animation` is declared in this block: consumers own
    their motion and must guard it with `prefers-reduced-motion`. That
@@ -1573,8 +1575,10 @@ select:focus-visible,
    base palette in BOTH themes, so there is nothing theme-specific left to
    declare in .dark. The accent moves off the HUD cyan family (hue 210, high
    chroma) onto the calmed --accent (hue 225, chroma 0.09). The HUD cyan family
-   itself is untouched, so agent-mode surfaces keep their signature, and
-   .wiki-explorer redeclares --sd-accent locally so the wiki stays cyan. */
+   itself is untouched, so agent-mode surfaces keep their signature.
+   aug-04 craft-ui-v2: the .wiki-explorer local --sd-accent redeclaration (the
+   cyan holdout) is fully retired — the wiki resolves this same global accent
+   (hue 225) like every other surface. */
 :root {
   --sd-accent: var(--accent);
   --sd-accent-faint: color-mix(in oklch, var(--accent) 55%, var(--canvas));
@@ -1609,15 +1613,15 @@ select:focus-visible,
    mapping; accent + ink ladders were already promoted above.
 
    Light scope: the app's light theme is warm parchment, not the cool
-   hsl(235 ...) neutral the wiki ships. Remap the sd surfaces onto the
-   existing --canvas / --surface / --surface-raised / --edge parchment
-   family so entity cards sit in-register on /lifeos in light mode. The
-   .wiki-explorer block below redeclares the full ladder locally, so the
-   wiki keeps its cool dark palette untouched (D3).
+   hsl(235 ...) neutral the wiki used to ship. Remap the sd surfaces onto
+   the existing --canvas / --surface / --surface-raised / --edge parchment
+   family so entity cards sit in-register on /lifeos in light mode.
+   aug-04 craft-ui-v2: the .wiki-explorer block that redeclared the full
+   ladder locally is retired — the wiki resolves these same alias tables
+   in both themes; no local surface ladder remains anywhere.
 
-   Dark scope: the cool hsl(235 ...) sd ladder already reads correctly;
-   we only fill in the sidebar / state members the global .dark block was
-   missing so consumers resolve them outside .wiki-explorer.
+   Dark scope: the .dark alias table below mirrors this one so both themes
+   are declared explicitly at the same place in the cascade.
 
    jul-28 / U0 C1 — CASCADE FIX. This block was written as `:root`, which also
    matches `html.dark`. Both it and the `.dark` sd block above are specificity

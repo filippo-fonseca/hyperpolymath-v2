@@ -188,7 +188,7 @@ export function PropertiesManagerModal({
                   className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] font-mono transition-colors duration-150 cursor-pointer border",
                     newType === t
-                      ? "border-[color-mix(in_oklch,var(--hud-cyan)_45%,var(--edge))] text-[var(--ink)] bg-[color-mix(in_oklch,var(--hud-cyan)_10%,transparent)]"
+                      ? "border-[color-mix(in_oklch,var(--accent)_45%,var(--edge))] text-[var(--ink)] bg-[color-mix(in_oklch,var(--accent)_10%,transparent)]"
                       : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)]",
                   )}
                 >
@@ -355,7 +355,7 @@ function ManagerRow({
               type="checkbox"
               checked={item.allowMultiple}
               onChange={(e) => setAllowMultiple(e.target.checked)}
-              className="accent-[var(--hud-cyan)] cursor-pointer"
+              className="accent-[var(--accent)] cursor-pointer"
             />
             Allow multiple (tags)
           </label>
