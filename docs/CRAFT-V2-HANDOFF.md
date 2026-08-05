@@ -47,7 +47,8 @@ Task-status tints: `STATUS_TINT` in `apps/web/components/tasks/status.ts`.
 
 - Ladder only, six steps (globals.css ~117): `text-display` 30 / `text-title` 20 /
   `text-subtitle` 16 / `text-body` 14.5 / `text-meta` 13 / `text-micro` 11.5.
-  `text-[Npx]` is banned.
+  `text-[Npx]` is banned. Three further steps (`text-hero` 44 /
+  `text-headline` 32 / `text-lead` 18) exist for the LANDING PAGE ONLY; see §9.
 - **Craft scale for UI chrome and card internals: `text-meta` primary,
   `text-micro` secondary.** Titles inside cards: `text-meta font-semibold`.
   `text-body` is for document/editor prose, not widget chrome. `text-subtitle`+
@@ -167,13 +168,25 @@ routes, voice, and the leftover px in surfaces already passed. Segmented
 `.craft-card-hover`; search and composer fields are `.craft-pill`; the
 calendar grid header consumes `.craft-day-tile`.
 
-Two deliberate exemptions from the ladder:
+**The landing page** was swept too, on its own terms. Its docs claimed a closed
+`{14, 18, 32, 56}` scale but it had drifted to eighteen arbitrary px sizes.
+Forcing app chrome steps on it would shrink a long-form marketing page into
+UI proportions, so the theme gained three named editorial steps —
+`text-lead` 18 / `text-headline` 32 / `text-hero` 44 — and the landing page now
+uses those plus the app ladder. Nine names, no arbitrary px.
 
-- **The landing page** keeps its own documented `{14, 18, 32, 56}` contract.
-  It is a marketing surface, not app chrome, and `/design` + `/branding` are
-  specimen pages that must be able to show off-register type.
-- **`PagePreviewThumb`** keeps 7/8px: it renders a scaled miniature of a page,
-  so its type is artwork, not chrome.
+**Those three are landing-only.** App chrome is the six steps. A cockpit
+surface reaching for `text-hero` is a mistake.
+
+Remaining exemptions:
+
+- `/design` and `/branding` are specimen pages: they must be able to show
+  off-register type.
+- **`PagePreviewThumb`** keeps 7/8px and **`LifeosCanvasPreview`** keeps its
+  SVG label sizes: both render scaled miniatures of the app, so their type is
+  artwork, not chrome.
+- The landing hero's three `clamp()` sizes stay fluid — a responsive wordmark
+  is not a ladder step.
 
 `text-sm` / `text-xs` survive in a few leaf spots (`<kbd>` hints, mini-calendar
 day numbers). They are Tailwind scale steps, not the banned `text-[Npx]`.
