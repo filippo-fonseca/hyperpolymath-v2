@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { format } from "date-fns";
-import { FocalOrb } from "@/components/ui/ambient";
 import {
   AreaIcon,
   CaptureIcon,
@@ -82,8 +81,6 @@ const ICON_SIZE = 40;
  * and every text baseline stay put.
  */
 const DIAMOND_ICON_SIZE = 52;
-/** Presence orb diameter (UI-CONTRACT §4; §9 bans orbs > 40px). */
-const ORB_SIZE = 36;
 
 /**
  * LifeOsHero — the /lifeos header: a greeting row and a stat strip, both
@@ -93,9 +90,9 @@ const ORB_SIZE = 36;
  *
  * Greeting row: mono date line above a Space Grotesk 26px greeting whose only
  * colour is the terminal period in `--sd-accent` (R2 — no serif outside the
- * logotype, R4 — no glow). Right of it, a 36px presence orb reads as JARVIS's
- * presence lamp rather than a planet; it bobs gently at 6s and is static under
- * reduced motion.
+ * logotype, R4 — no glow). aug-04 craft-ui-v2: the presence orb is gone; the
+ * accent budget allows at most two accent moments per viewport, and the hero
+ * spends exactly one, that terminal period. Title + date, nothing competing.
  *
  * Stat strip: six stats, each an icon-left row of dimensional icon + text
  * stack (label / value / caption), no card chrome. Values are `font-black
@@ -220,29 +217,17 @@ export function LifeOsHero({
   return (
     <section>
       {/* Greeting row — canvas only, no plate (§4). */}
-      <motion.div
-        className="mb-4 flex items-center justify-between gap-6"
-        {...headerAnim}
-      >
-        <div className="flex flex-col gap-2">
-          {/* Mono survives here because this is a date (SDC-1 §2.4); the
-              uppercase transform does not. */}
-          <span className="font-mono text-micro font-medium text-[var(--ink-faint)]">
-            {format(now, "EEEE · MMMM d, yyyy")}
-          </span>
-          <h1 className="text-display font-semibold text-[var(--ink)]">
-            {greeting(now.getHours())}
-            {firstName ? `, ${firstName}` : ""}
-            <span className="text-[var(--sd-accent)]">.</span>
-          </h1>
-        </div>
-
-        {/* Presence lamp: JARVIS is here. Not a planet (R1). Soft intensity
-            keeps the chrome bob quiet while the landing hero runs bold. */}
-        <div className="lifeos-presence flex shrink-0 flex-col items-center gap-2">
-          <FocalOrb size={ORB_SIZE} intensity="soft" />
-          <span className="text-micro font-medium text-[var(--ink-faint)]">Jarvis</span>
-        </div>
+      <motion.div className="mb-4 flex flex-col gap-2" {...headerAnim}>
+        {/* Mono survives here because this is a date (SDC-1 §2.4); the
+            uppercase transform does not. */}
+        <span className="font-mono text-micro font-medium text-[var(--ink-faint)]">
+          {format(now, "EEEE · MMMM d, yyyy")}
+        </span>
+        <h1 className="text-display font-semibold text-[var(--ink)]">
+          {greeting(now.getHours())}
+          {firstName ? `, ${firstName}` : ""}
+          <span className="text-[var(--sd-accent)]">.</span>
+        </h1>
       </motion.div>
 
       {/* Stat strip — icon-left anatomy, no chrome (§5). */}
