@@ -30,7 +30,7 @@ export function DockStateNote({
   return (
     <div
       className={cn(
-        "mx-0.5 flex items-center justify-between gap-2 rounded-lg bg-[color-mix(in_srgb,var(--tint-bg,var(--hover))_60%,transparent)] px-2.5 py-1.5",
+        "mx-0.5 flex items-center justify-between gap-2 rounded-lg bg-[color-mix(in_srgb,var(--tint-bg,var(--hover))_60%,transparent)] px-2.5 py-1",
         className
       )}
     >

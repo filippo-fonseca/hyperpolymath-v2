@@ -62,7 +62,10 @@ function useTodayCounts(): TodayCounts {
   };
 }
 
-/** Pastel stat chip — butter for due-today, rose once anything is overdue. */
+/**
+ * Stat count — bare colored TEXT, no pill (aug-05 quiet pass). Butter for
+ * due-today, rose once anything is overdue; hover only firms the opacity.
+ */
 function StatChip({
   value,
   label,
@@ -75,10 +78,8 @@ function StatChip({
   return (
     <Link
       href="/tasks"
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-micro font-medium tabular-nums transition-[box-shadow] duration-[160ms] ease-out hover:shadow-[var(--shadow-card)] ${
-        hue === "butter"
-          ? "border-[color-mix(in_srgb,var(--tint-butter-edge)_45%,transparent)] bg-[var(--tint-butter-bg)] text-[var(--tint-butter-ink)]"
-          : "border-[color-mix(in_srgb,var(--tint-rose-edge)_45%,transparent)] bg-[var(--tint-rose-bg)] text-[var(--tint-rose-ink)]"
+      className={`inline-flex items-center gap-1 text-micro font-medium tabular-nums opacity-90 transition-opacity duration-[160ms] ease-out hover:opacity-100 ${
+        hue === "butter" ? "text-[var(--tint-butter-ink)]" : "text-[var(--tint-rose-ink)]"
       }`}
     >
       {value} {label}
@@ -92,16 +93,14 @@ function Compact({ data }: { data: TodayCounts }) {
   }
 
   if (data.overdue === 0 && data.today === 0) {
-    return (
-      <div className="mx-0.5 rounded-lg bg-[var(--tint-sage-bg)] px-2.5 py-1.5 text-micro font-medium text-[var(--tint-sage-ink)]">
-        All clear. Nothing due today.
-      </div>
-    );
+    // Same quiet-state recipe as every other widget (aug-05: the saturated
+    // sage plate read louder than the information deserved).
+    return <DockStateNote>All clear. Nothing due today.</DockStateNote>;
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex flex-wrap items-center gap-1.5 px-0.5">
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 px-1.5">
         {data.today > 0 ? <StatChip value={data.today} label="due today" hue="butter" /> : null}
         {data.overdue > 0 ? <StatChip value={data.overdue} label="overdue" hue="rose" /> : null}
       </div>

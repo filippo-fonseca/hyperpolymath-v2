@@ -38,7 +38,9 @@ export function DockWidgetSlot({ def }: { def: DockWidgetDef<unknown> }) {
         def.tint
       )}
     >
-      <header className="flex h-7 items-center justify-between gap-2 px-1">
+      {/* aug-05 quiet pass: h-6 header, dull ink title — Craft keeps card
+          chrome one register quieter than the rows it introduces. */}
+      <header className="flex h-6 items-center justify-between gap-2 px-1">
         <div className="flex min-w-0 items-center gap-1.5">
           {Icon ? (
             <span
@@ -48,7 +50,7 @@ export function DockWidgetSlot({ def }: { def: DockWidgetDef<unknown> }) {
               <Icon size={11} strokeWidth={2} />
             </span>
           ) : null}
-          <h3 className="truncate text-micro font-medium text-[var(--ink-muted)]">{def.title}</h3>
+          <h3 className="truncate text-micro font-medium text-[var(--sd-ink-dull)]">{def.title}</h3>
         </div>
         {canExpand ? (
           <button

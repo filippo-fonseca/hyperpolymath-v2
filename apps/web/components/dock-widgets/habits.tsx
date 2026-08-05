@@ -161,7 +161,10 @@ function HabitRow({
       onClick={onToggle}
       aria-pressed={row.done}
       className={cn(
-        "group/habit flex min-h-7 w-full cursor-pointer-always items-center gap-2 rounded-lg px-1.5 py-0.5 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
+        // aug-05 quiet pass: h-7 exact for the single-line row; the expanded
+        // trail adds a second line, so only that variant keeps min-h.
+        "group/habit flex w-full cursor-pointer-always items-center gap-2 rounded-lg px-1.5 py-0.5 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
+        trail ? "min-h-7" : "h-7",
         // The habit's own pastel — same hue this habit wears on /habits.
         tintFor(row.id)
       )}

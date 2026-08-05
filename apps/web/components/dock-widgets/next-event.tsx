@@ -134,19 +134,17 @@ function Compact({ data }: { data: NextEventData }) {
       });
 
   return (
-    // The event renders as a miniature of the calendar page's pastel plate:
-    // tinted fill, saturated left edge, in-family ink.
+    // aug-05 quiet pass: the saturated left edge stays as the card's one
+    // colored element, but the pastel fill drops to barely-there and the ink
+    // goes neutral — a hairline card, not a tinted plate.
     <Link
       href="/calendar"
-      className="mx-0.5 flex flex-col gap-0.5 rounded-lg border border-[color-mix(in_srgb,var(--tint-edge)_40%,transparent)] border-l-[3px] border-l-[var(--tint-edge)] bg-[var(--tint-bg)] px-2.5 py-2 transition-[box-shadow] duration-[160ms] ease-out hover:shadow-[var(--shadow-card)]"
+      className="mx-0.5 flex flex-col gap-0.5 rounded-lg border border-[var(--edge)] border-l-[3px] border-l-[var(--tint-edge)] bg-[color-mix(in_srgb,var(--tint-bg)_35%,transparent)] px-2.5 py-1.5 transition-[box-shadow] duration-[160ms] ease-out hover:shadow-[var(--shadow-card)]"
     >
-      <span className="truncate text-meta font-medium text-[var(--tint-ink)]">
+      <span className="truncate text-meta font-normal text-[var(--ink)]">
         {data.event.title || "Untitled event"}
       </span>
-      <span
-        className="text-micro tabular-nums text-[color-mix(in_srgb,var(--tint-ink)_75%,transparent)]"
-        title={absolute}
-      >
+      <span className="text-micro tabular-nums text-[var(--ink-faint)]" title={absolute}>
         {when}
       </span>
     </Link>
