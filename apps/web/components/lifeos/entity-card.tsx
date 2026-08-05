@@ -95,7 +95,10 @@ export function EntityCardHeader({
         </div>
       </div>
       {(pill != null || action != null) && (
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        // In a narrow /widget tile the trailing column gives way so the title
+        // never truncates to a couple of characters; outside a /widget
+        // container (e.g. /design) the query can't match and it stays visible.
+        <div className="flex shrink-0 flex-col items-end gap-1 @max-[15rem]/widget:hidden">
           {pill}
           {action}
         </div>

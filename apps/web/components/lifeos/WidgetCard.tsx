@@ -49,7 +49,9 @@ export function WidgetCard({ href, ariaLabel, children, className }: Props) {
         // this card is never over plain canvas outside the /design demo.
         // aug-04 craft-ui-v2: every WidgetCard navigates (the full-bleed link
         // below), so it earns .craft-card-hover, shadow + border lift only.
-        "group/card relative flex h-full flex-col overflow-hidden rounded-[14px]",
+        // Named container so header trim (EntityCardHeader) can respond to the
+        // tile's own width instead of crushing the title into "Ha…".
+        "group/card @container/widget relative flex h-full flex-col overflow-hidden rounded-[14px]",
         "craft-glass-tile craft-card-hover",
         className,
       )}
