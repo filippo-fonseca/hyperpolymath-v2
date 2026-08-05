@@ -55,9 +55,9 @@ interface Palette {
 }
 
 /** Max distance (CSS px) at which two nodes draw an edge. */
-const LINK_DIST = 140;
+const LINK_DIST = 150;
 /** Peak edge alpha (at zero distance) before cursor brightening. */
-const EDGE_ALPHA = 0.15;
+const EDGE_ALPHA = 0.28;
 /** Radius of the cursor's gravitational neighborhood. */
 const ATTRACT_DIST = 180;
 /** Acceleration toward the cursor at full pull, px/s². */
@@ -66,10 +66,10 @@ const ATTRACT_ACCEL = 42;
 const MAX_SPEED = 26;
 /** Soft-wrap margin: nodes slide this far off-edge before re-entering. */
 const WRAP_MARGIN = 24;
-/** ~1 node per this many px², clamped — ≈48 nodes on a laptop viewport. */
-const AREA_PER_NODE = 27_000;
-const MIN_NODES = 18;
-const MAX_NODES = 56;
+/** ~1 node per this many px², clamped — ≈62 nodes on a laptop viewport. */
+const AREA_PER_NODE = 21_000;
+const MIN_NODES = 22;
+const MAX_NODES = 72;
 /** Cursor smoothing rate (1/s). Lower = dreamier lag. */
 const CURSOR_EASE = 3.5;
 
@@ -125,9 +125,9 @@ export function LifeOsNodeField() {
         y: Math.random() * height,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        r: tinted ? 1.7 + Math.random() * 0.9 : 1.1 + Math.random() * 0.9,
+        r: tinted ? 2.2 + Math.random() * 1.1 : 1.5 + Math.random() * 1.0,
         tint: tinted ? Math.floor(Math.random() * 3) : -1,
-        alpha: (tinted ? 0.55 : 0.4) + Math.random() * 0.2,
+        alpha: (tinted ? 0.68 : 0.52) + Math.random() * 0.22,
       };
     };
 
@@ -171,7 +171,7 @@ export function LifeOsNodeField() {
               alpha *= 1 + 0.6 * cursor.presence * (1 - md / ATTRACT_DIST);
             }
           }
-          ctx.globalAlpha = Math.min(alpha, 0.3);
+          ctx.globalAlpha = Math.min(alpha, 0.42);
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
@@ -312,8 +312,8 @@ export function LifeOsNodeField() {
         ref={canvasRef}
         className="h-full w-full"
         style={{
-          maskImage: "linear-gradient(to bottom, rgb(0 0 0 / 0.45), rgb(0 0 0) 42%)",
-          WebkitMaskImage: "linear-gradient(to bottom, rgb(0 0 0 / 0.45), rgb(0 0 0) 42%)",
+          maskImage: "linear-gradient(to bottom, rgb(0 0 0 / 0.55), rgb(0 0 0) 38%)",
+          WebkitMaskImage: "linear-gradient(to bottom, rgb(0 0 0 / 0.55), rgb(0 0 0) 38%)",
         }}
       />
     </div>
