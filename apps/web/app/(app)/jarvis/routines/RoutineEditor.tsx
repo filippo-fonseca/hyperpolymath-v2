@@ -37,7 +37,7 @@ interface Props {
 }
 
 const inputClass =
-  "w-full rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 text-[14px] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]";
+ "w-full rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 text-meta text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]";
 
 export function RoutineEditor({ userId, draft, onClose }: Props) {
   const [name, setName] = useState(draft.name);
@@ -122,7 +122,7 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
+ className="inline-flex items-center gap-1.5 text-micro text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
         >
           <ArrowLeft size={14} /> All routines
         </button>
@@ -130,7 +130,7 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
           type="button"
           onClick={save}
           disabled={pending}
-          className="sd-btn-solid rounded-[8px] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] disabled:opacity-40 transition-opacity duration-100"
+ className="sd-btn-solid rounded-[8px] px-4 py-2 text-micro disabled:opacity-40 transition-opacity duration-100"
         >
           {pending ? "Saving…" : isEdit ? "Save routine" : "Create routine"}
         </button>
@@ -138,7 +138,7 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
 
       <div className="space-y-4 rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
         <div>
-          <label className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <label className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
             Name
           </label>
           <input
@@ -152,7 +152,7 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
           />
         </div>
         <div>
-          <label className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <label className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
             Description
             <span className="ml-1 lowercase tracking-normal text-[var(--sd-ink-faint)]">
               (optional)
@@ -171,7 +171,7 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
 
       <div className="rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
         <div>
-          <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <label className="flex items-center gap-2 text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
             <input
               type="checkbox"
               checked={openerChatterEnabled}
@@ -188,9 +188,9 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
                 placeholder="what jarvis says the moment the routine fires — e.g. 'greet sir and let him know you're assembling his morning brief'"
                 rows={2}
                 maxLength={2000}
-                className="mt-2 w-full resize-y rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 text-[14px] leading-[1.5] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]"
+ className="mt-2 w-full resize-y rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 text-meta leading-[1.5] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]"
               />
-              <p className="mt-1.5 text-[12px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-1.5 text-micro leading-[1.5] text-[var(--sd-ink-dull)]">
                 Instructions, not a script. JARVIS interprets these into a fresh
                 spoken opener every run — played once up front, before any block
                 result. Replaces the default opener when set.

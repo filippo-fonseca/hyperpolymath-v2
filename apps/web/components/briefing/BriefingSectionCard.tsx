@@ -79,7 +79,7 @@ function MetaChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2 py-[2px] text-micro font-medium uppercase tracking-[0.06em]",
+        "inline-flex items-center rounded-full border px-2 py-[2px] text-micro font-medium",
         variant !== "default" &&
           "border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] text-[var(--tint-ink)]",
         variant === "amber" && "tint-butter",
@@ -229,7 +229,7 @@ export function BriefingSectionCard({ section, items }: Props) {
         >
           <Icon size={16} strokeWidth={1.75} />
         </span>
-        <h2 className="font-serif text-xl font-semibold tracking-tight text-[var(--ink)]">
+ <h2 className="font-serif text-title font-semibold tracking-tight text-[var(--ink)]">
           {label}
         </h2>
         <span className="text-micro tabular-nums text-[var(--ink-faint)]">

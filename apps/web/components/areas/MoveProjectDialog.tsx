@@ -82,7 +82,7 @@ export function MoveProjectDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5 py-2">
-          <Label htmlFor="move-target-area" className="font-sans text-[13px]">
+ <Label htmlFor="move-target-area" className="font-sans text-meta">
             Destination area
           </Label>
           <Select value={targetAreaId} onValueChange={setTargetAreaId}>

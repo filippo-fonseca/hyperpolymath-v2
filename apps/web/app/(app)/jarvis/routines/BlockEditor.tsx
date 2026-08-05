@@ -234,14 +234,14 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
             <Icon className="h-4 w-4" />
           </span>
           <div>
-            <p className="text-[15px] font-semibold text-[var(--sd-ink)]">{selected.label}</p>
-            <p className="text-[13px] text-[var(--sd-ink-dull)]">{selected.description}</p>
+ <p className="text-body font-semibold text-[var(--sd-ink)]">{selected.label}</p>
+ <p className="text-meta text-[var(--sd-ink-dull)]">{selected.description}</p>
           </div>
         </div>
 
         {isWorkspace ? (
           <div>
-            <label className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <label className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
               Items to open
             </label>
             <div className="mt-2 space-y-2">
@@ -263,7 +263,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
                               ? { background: "color-mix(in oklch, var(--sd-accent) 16%, transparent)" }
                               : undefined
                           }
-                          className={`font-mono text-[11px] uppercase tracking-[0.06em] px-2 py-1 transition-colors duration-[140ms] ${
+                          className={`text-micro px-2 py-1 transition-colors duration-[140ms] ${
                             active
                               ? "text-[var(--sd-accent)]"
                               : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
@@ -279,16 +279,16 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
                     onChange={(e) => updateRow(idx, { value: e.target.value })}
                     placeholder={row.type === "app" ? "Arc" : "https://mail.google.com"}
                     style={FIELD_STYLE}
-                    className="min-w-[10rem] flex-1 rounded-[7px] border border-[var(--sd-line)] px-2 py-1 text-[14px] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]"
+ className="min-w-[10rem] flex-1 rounded-[7px] border border-[var(--sd-line)] px-2 py-1 text-meta text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]"
                   />
                   <input
                     value={row.label}
                     onChange={(e) => updateRow(idx, { label: e.target.value })}
                     placeholder="label (optional)"
                     style={FIELD_STYLE}
-                    className="w-[10rem] rounded-[7px] border border-[var(--sd-line)] px-2 py-1 text-[13px] text-[var(--sd-ink-dull)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] focus:text-[var(--sd-ink)] transition-colors duration-[140ms]"
+ className="w-[10rem] rounded-[7px] border border-[var(--sd-line)] px-2 py-1 text-meta text-[var(--sd-ink-dull)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] focus:text-[var(--sd-ink)] transition-colors duration-[140ms]"
                   />
-                  <label className="inline-flex cursor-pointer items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+ <label className="inline-flex cursor-pointer items-center gap-1.5 text-micro text-[var(--sd-ink-dull)]">
                     <input
                       type="checkbox"
                       checked={row.fullscreen}
@@ -311,13 +311,13 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
               <button
                 type="button"
                 onClick={addRow}
-                className="inline-flex items-center gap-1.5 rounded-[8px] border border-dashed border-[var(--sd-line)] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
+ className="inline-flex items-center gap-1.5 rounded-[8px] border border-dashed border-[var(--sd-line)] px-3 py-1.5 text-micro text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
               >
                 <Plus size={12} />
                 Add item
               </button>
             </div>
-            <p className="mt-2 text-[12px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-2 text-micro leading-[1.5] text-[var(--sd-ink-dull)]">
               Each item opens when this routine runs. Apps use the /Applications
               name (Arc, WhatsApp, Warp, Spark). Fullscreen is best-effort.
             </p>
@@ -325,7 +325,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
         ) : isLights ? (
           <div className="space-y-4">
             <div>
-              <label className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <label className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
                 Power
               </label>
               <div className="mt-2 inline-flex overflow-hidden rounded-[8px] border border-[var(--sd-line)]">
@@ -346,7 +346,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
                           ? { background: "color-mix(in oklch, var(--sd-accent) 16%, transparent)" }
                           : undefined
                       }
-                      className={`font-mono text-[11px] uppercase tracking-[0.06em] px-3 py-1.5 transition-colors duration-[140ms] ${
+                      className={`text-micro px-3 py-1.5 transition-colors duration-[140ms] ${
                         active
                           ? "text-[var(--sd-accent)]"
                           : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
@@ -360,11 +360,11 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
             </div>
 
             <div>
-              <label className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <label className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
                 Which lights
               </label>
               <div className="mt-2 space-y-2">
-                <label className="flex cursor-pointer items-center gap-2 rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2 text-[14px] text-[var(--sd-ink)]">
+ <label className="flex cursor-pointer items-center gap-2 rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2 text-meta text-[var(--sd-ink)]">
                   <input
                     type="checkbox"
                     checked={lightsParams.allDevices}
@@ -384,13 +384,13 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
                 {!lightsParams.allDevices ? (
                   <div className="space-y-1.5 rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-2">
                     {goveeDevices === null ? (
-                      <p className="px-1 py-1 text-[13px] text-[var(--sd-ink-dull)]">Loading…</p>
+ <p className="px-1 py-1 text-meta text-[var(--sd-ink-dull)]">Loading…</p>
                     ) : goveeLoadError ? (
-                      <p className="px-1 py-1 text-[13px] text-[var(--sd-ink-dull)]">
+ <p className="px-1 py-1 text-meta text-[var(--sd-ink-dull)]">
                         {goveeLoadError}
                       </p>
                     ) : goveeDevices.length === 0 ? (
-                      <p className="px-1 py-1 text-[13px] text-[var(--sd-ink-dull)]">
+ <p className="px-1 py-1 text-meta text-[var(--sd-ink-dull)]">
                         No lights yet.{" "}
                         <Link
                           href="/settings#govee-lights"
@@ -408,7 +408,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
                         return (
                           <label
                             key={d.id}
-                            className="flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-1.5 text-[14px] text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]"
+ className="flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-1.5 text-meta text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]"
                           >
                             <input
                               type="checkbox"
@@ -418,7 +418,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
                             />
                             <span className="min-w-0 flex-1 truncate">{d.name}</span>
                             {d.isDefault ? (
-                              <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+ <span className="text-micro text-[var(--sd-ink-faint)]">
                                 default
                               </span>
                             ) : null}
@@ -429,7 +429,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
                   </div>
                 ) : null}
               </div>
-              <p className="mt-2 text-[12px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-2 text-micro leading-[1.5] text-[var(--sd-ink-dull)]">
                 Runs when the routine fires — e.g. Daddy&apos;s Home can brief
                 you and flip the bedroom on in the same sequence.
               </p>
@@ -437,7 +437,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
           </div>
         ) : (
           <div>
-            <label className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <label className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
               Tell JARVIS what to do with this
             </label>
             <textarea
@@ -448,9 +448,9 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
               maxLength={2000}
               autoFocus
               style={FIELD_STYLE}
-              className="mt-2 w-full resize-y rounded-[9px] border border-[var(--sd-line)] px-3 py-2 text-[14px] leading-[1.5] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]"
+ className="mt-2 w-full resize-y rounded-[9px] border border-[var(--sd-line)] px-3 py-2 text-meta leading-[1.5] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]"
             />
-            <p className="mt-1.5 text-[12px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-1.5 text-micro leading-[1.5] text-[var(--sd-ink-dull)]">
               Plain English. This is what makes the block yours — be specific about
               what to include, filter, and hand back.
             </p>
@@ -459,7 +459,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
 
         {!isParamsBlock ? (
           <div>
-            <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <label className="flex items-center gap-2 text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
               <input
                 type="checkbox"
                 checked={chatterEnabled}
@@ -477,9 +477,9 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
                   rows={2}
                   maxLength={2000}
                   style={FIELD_STYLE}
-                  className="mt-2 w-full resize-y rounded-[9px] border border-[var(--sd-line)] px-3 py-2 text-[14px] leading-[1.5] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]"
+ className="mt-2 w-full resize-y rounded-[9px] border border-[var(--sd-line)] px-3 py-2 text-meta leading-[1.5] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]"
                 />
-                <p className="mt-1.5 text-[12px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-1.5 text-micro leading-[1.5] text-[var(--sd-ink-dull)]">
                   Instructions, not a script. JARVIS interprets these into a fresh
                   spoken line every run so it never sounds canned.
                 </p>
@@ -492,7 +492,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
           <button
             type="button"
             onClick={onCancel}
-            className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
+ className="text-micro text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
           >
             Cancel
           </button>
@@ -500,7 +500,7 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
             type="button"
             onClick={confirm}
             disabled={confirmDisabled}
-            className="sd-btn-solid inline-flex items-center gap-1.5 rounded-[8px] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity duration-100"
+ className="sd-btn-solid inline-flex items-center gap-1.5 rounded-[8px] px-4 py-2 text-micro disabled:opacity-40 disabled:cursor-not-allowed transition-opacity duration-100"
           >
             <Check size={14} />
             {initial ? "Save block" : "Add block"}
@@ -517,13 +517,13 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
       className="space-y-3 rounded-[12px] border border-[var(--sd-line)] p-5"
     >
       <div className="flex items-baseline justify-between">
-        <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <p className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
           Pick a capability
         </p>
         <button
           type="button"
           onClick={onCancel}
-          className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
+ className="text-micro text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
         >
           Cancel
         </button>
@@ -539,10 +539,10 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
               className="group flex flex-col items-start gap-1.5 rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-3 text-left transition-colors duration-[140ms] hover:bg-[var(--sd-hover)]"
             >
               <Icon className="h-4 w-4 text-[var(--sd-ink-dull)] transition-colors duration-[140ms] group-hover:text-[var(--sd-accent)]" />
-              <span className="text-[14px] font-medium text-[var(--sd-ink)]">
+ <span className="text-meta font-medium text-[var(--sd-ink)]">
                 {entry.label}
               </span>
-              <span className="text-[12px] leading-[1.4] text-[var(--sd-ink-dull)]">
+ <span className="text-micro leading-[1.4] text-[var(--sd-ink-dull)]">
                 {entry.description}
               </span>
             </button>

@@ -188,7 +188,7 @@ export function BatchEditor({
         // The ungrouped bucket has no identity of its own, so it stays neutral:
         // a plain raised plate when selected, no tint.
         className={cn(
-          "group flex items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-sm",
+          "group flex items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-meta",
           "transition-[background-color,border-color,color,box-shadow] duration-[160ms] ease-out",
           selectedBatchId === "__ungrouped__"
             ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--sd-ink)] shadow-[var(--shadow-card)]"
@@ -293,7 +293,7 @@ function BatchRow({
         // Selected reads as the batch's own pastel plate with a saturated rim;
         // unselected stays neutral so only one row is coloured at a time.
         className={cn(
-          "flex flex-1 items-center gap-2 rounded-lg border px-1.5 py-1 text-left text-sm",
+          "flex flex-1 items-center gap-2 rounded-lg border px-1.5 py-1 text-left text-meta",
           "transition-[background-color,border-color,color,box-shadow] duration-[160ms] ease-out",
           selected
             ? "border-[var(--tint-edge)] bg-[var(--tint-bg)] font-medium text-[var(--tint-ink)] shadow-[var(--shadow-card)]"

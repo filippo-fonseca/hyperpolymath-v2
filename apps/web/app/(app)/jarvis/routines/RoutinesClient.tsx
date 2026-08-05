@@ -44,7 +44,7 @@ function NewRoutineButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="sd-btn-solid inline-flex items-center gap-1.5 rounded-[8px] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] transition-opacity duration-100 cursor-pointer-always"
+ className="sd-btn-solid inline-flex items-center gap-1.5 rounded-[8px] px-4 py-2 text-micro transition-opacity duration-100 cursor-pointer-always"
     >
       <Plus size={14} /> New routine
     </button>
@@ -87,7 +87,7 @@ export function RoutinesClient({ userId, initialRoutines }: Props) {
       <div className="space-y-8">
         <div className="rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-8 text-center shadow-[var(--shadow-card)] dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
           <p className="text-xl font-semibold text-[var(--sd-ink)]">No routines yet.</p>
-          <p className="mx-auto mt-2 max-w-[440px] text-[14px] leading-[1.55] text-[var(--sd-ink-dull)]">
+ <p className="mx-auto mt-2 max-w-[440px] text-meta leading-[1.55] text-[var(--sd-ink-dull)]">
             A routine lets JARVIS do a sequence of smart things on a trigger.
             Start from a template below, or build one from scratch.
           </p>
@@ -97,7 +97,7 @@ export function RoutinesClient({ userId, initialRoutines }: Props) {
         </div>
 
         <div>
-          <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <p className="mb-3 text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
             Start from a template
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -116,10 +116,10 @@ export function RoutinesClient({ userId, initialRoutines }: Props) {
                   >
                     <Icon className="h-4 w-4" />
                   </span>
-                  <span className="text-[15px] font-semibold text-[var(--sd-ink)]">
+ <span className="text-body font-semibold text-[var(--sd-ink)]">
                     {tpl.name}
                   </span>
-                  <span className="text-[13px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <span className="text-meta leading-[1.5] text-[var(--sd-ink-dull)]">
                     {tpl.tagline}
                   </span>
                 </button>
@@ -135,7 +135,7 @@ export function RoutinesClient({ userId, initialRoutines }: Props) {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <p className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
           {routines.length} routine{routines.length === 1 ? "" : "s"}
         </p>
         <NewRoutineButton onClick={newBlank} />
@@ -180,15 +180,15 @@ function RoutineRow({
     <div className="flex flex-col gap-3 rounded-2xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-5 shadow-[var(--shadow-card)] sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset,var(--shadow-card)]">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <p className="text-[16px] font-semibold text-[var(--sd-ink)]">{routine.name}</p>
+ <p className="text-subtitle font-semibold text-[var(--sd-ink)]">{routine.name}</p>
           {!routine.enabled ? (
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+ <span className="text-micro text-[var(--sd-ink-faint)]">
               off
             </span>
           ) : null}
         </div>
         {routine.description ? (
-          <p className="mt-0.5 text-[13px] text-[var(--sd-ink-dull)]">{routine.description}</p>
+ <p className="mt-0.5 text-meta text-[var(--sd-ink-dull)]">{routine.description}</p>
         ) : null}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {routine.spec.triggers.map((t, i) => {
@@ -201,13 +201,13 @@ function RoutineRow({
                 className="inline-flex items-center gap-1 rounded-[7px] border border-[var(--sd-line)] px-2 py-0.5"
               >
                 <Icon className="h-3 w-3 text-[var(--sd-accent)]" />
-                <span className="font-mono text-[10.5px] tracking-[0.04em] text-[var(--sd-ink)]">
+ <span className="font-mono text-micro tracking-[0.04em] text-[var(--sd-ink)]">
                   {triggerValue(t)}
                 </span>
               </span>
             );
           })}
-          <span className="font-mono text-[10.5px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+ <span className="text-micro text-[var(--sd-ink-faint)]">
             · {blockCount} block{blockCount === 1 ? "" : "s"}
           </span>
         </div>
@@ -236,7 +236,7 @@ function RoutineRow({
           type="button"
           onClick={() => runMut.mutate(routine.id)}
           disabled={runMut.isPending}
-          className="inline-flex items-center gap-1 rounded-[8px] border border-[var(--sd-line)] px-2 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] disabled:opacity-40 transition-colors duration-[140ms]"
+ className="inline-flex items-center gap-1 rounded-[8px] border border-[var(--sd-line)] px-2 py-1.5 text-micro text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] disabled:opacity-40 transition-colors duration-[140ms]"
           aria-label="Run now"
         >
           {runMut.isPending ? (

@@ -166,7 +166,7 @@ export function TrainingMonthView({
               className="rounded-[6px] px-2 py-1 text-base font-semibold tracking-[-0.01em] text-[var(--sd-ink)] transition-colors duration-150 hover:bg-[var(--sd-hover)]"
             >
               <span className="mr-2">{monthLabel}</span>
-              <span className="font-mono text-sm tracking-[0.04em] text-[var(--sd-ink-dull)]">
+              <span className="font-mono text-meta tracking-[0.04em] text-[var(--sd-ink-dull)]">
                 {yearLabel}
               </span>
             </button>

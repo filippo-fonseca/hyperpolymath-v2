@@ -135,7 +135,7 @@ export function LiteJarvisComposer({
       attributes: {
         class: cn(
           "lite-jarvis-content block w-full outline-none overflow-y-auto",
-          "text-[15px] leading-[1.5] text-[var(--sd-ink)]",
+ "text-body leading-[1.5] text-[var(--sd-ink)]",
           MAX_HEIGHT_CLASS,
         ),
         "data-placeholder": placeholder,
@@ -202,7 +202,7 @@ export function LiteJarvisComposer({
       <EditorContent editor={editor} />
       <div className="mt-2 flex items-center justify-end">
         {/* kbd hint: the glyphs keep mono inside real <kbd> elements; the
-            words stay sentence case (SDC-1 §2.4 bans the uppercase transform
+            words stay sentence case (SDC-1 §2.4 bans the transform
             outside kbd, and this span used to carry it). */}
         <span className="text-micro text-[var(--ink-faint)]">
           <kbd className="font-mono">⌘⏎</kbd> to send · <kbd className="font-mono">⎋</kbd> to

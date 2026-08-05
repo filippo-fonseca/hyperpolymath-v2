@@ -39,7 +39,7 @@ export default async function MemoryPage() {
       <main className="relative z-10 max-w-2xl mx-auto space-y-6">
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-2 flex-1">
-            <h1 className="text-4xl font-semibold tracking-[-0.01em] text-[var(--ink)]">
+            <h1 className="text-display font-semibold text-[var(--ink)]">
               Memory
             </h1>
             <p className="text-base text-[var(--ink-muted)]">

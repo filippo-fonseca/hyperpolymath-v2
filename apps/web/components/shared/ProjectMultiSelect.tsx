@@ -84,7 +84,7 @@ export function ProjectMultiSelect({
           {selectedProjects.map((p) => (
             <span
               key={p.id}
-              className="inline-flex items-center gap-1 font-sans text-[13px] bg-secondary text-foreground rounded-[4px] px-2 py-0.5"
+ className="inline-flex items-center gap-1 font-sans text-meta bg-secondary text-foreground rounded-[4px] px-2 py-0.5"
             >
               {displayName(p)}
               <button
@@ -111,7 +111,7 @@ export function ProjectMultiSelect({
             type="button"
             variant="ghost"
             size="sm"
-            className="font-sans text-[13px] text-muted-foreground hover:text-foreground justify-start gap-1 px-1 h-auto py-1"
+ className="font-sans text-meta text-muted-foreground hover:text-foreground justify-start gap-1 px-1 h-auto py-1"
           >
             <Plus size={13} />
             {selectedProjects.length === 0
@@ -137,13 +137,13 @@ export function ProjectMultiSelect({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search projects…"
-                  className="h-8 font-sans text-[13px]"
+ className="h-8 font-sans text-meta"
                   autoFocus
                 />
               </div>
               <div className="max-h-[240px] overflow-auto py-1">
                 {filtered.length === 0 ? (
-                  <div className="px-3 py-2 font-sans text-[13px] text-muted-foreground italic">
+ <div className="px-3 py-2 font-sans text-meta text-muted-foreground italic">
                     No projects found.
                   </div>
                 ) : (
@@ -153,7 +153,7 @@ export function ProjectMultiSelect({
                       <label
                         key={p.id}
                         className={cn(
-                          "flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-secondary font-sans text-[13px]",
+ "flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-secondary font-sans text-meta",
                           checked && "bg-secondary/50",
                         )}
                       >
@@ -173,7 +173,7 @@ export function ProjectMultiSelect({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start gap-2 font-sans text-[13px] h-8"
+ className="w-full justify-start gap-2 font-sans text-meta h-8"
                     onClick={() => setCreating(true)}
                   >
                     <Plus size={13} className="text-muted-foreground" />

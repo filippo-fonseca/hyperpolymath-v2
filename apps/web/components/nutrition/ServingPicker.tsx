@@ -134,7 +134,7 @@ export function ServingPicker({ food, servingOptions, onConfirm, onCancel }: Pro
           value={selectedId}
           onValueChange={setSelectedId}
         >
-          <SelectTrigger className="flex-1 h-9 text-sm">
+          <SelectTrigger className="flex-1 h-9 text-meta">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -156,7 +156,7 @@ export function ServingPicker({ food, servingOptions, onConfirm, onCancel }: Pro
             min="0"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="h-9 text-sm tabular-nums"
+            className="h-9 text-meta tabular-nums"
             aria-label="Quantity"
           />
         </div>

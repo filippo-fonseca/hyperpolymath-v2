@@ -172,7 +172,7 @@ function BatchSection({
           className={
             muted
               ?"text-micro text-[var(--sd-ink-faint)]"
-              : "text-sm font-semibold tracking-[-0.01em] text-[var(--sd-ink)]"
+              : "text-meta font-semibold tracking-[-0.01em] text-[var(--sd-ink)]"
           }
         >
           {title}

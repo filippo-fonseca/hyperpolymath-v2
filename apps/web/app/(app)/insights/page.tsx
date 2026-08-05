@@ -115,7 +115,7 @@ export default async function InsightsPage({
       <main className="relative z-10 max-w-6xl mx-auto space-y-8">
         <header className="space-y-1.5">
           <div className="flex items-baseline gap-3">
-            <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
+            <h1 className="font-serif text-display font-semibold tracking-tight text-[var(--ink)]">
               Analytics
             </h1>
             {totalEvents > 0 ? (

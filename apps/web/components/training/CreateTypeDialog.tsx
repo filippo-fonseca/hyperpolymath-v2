@@ -171,7 +171,7 @@ export function CreateTypeDialog({
               className="h-3.5 w-3.5 accent-[var(--sd-ink)]"
             />
             <span className="flex flex-1 flex-col">
-              <span className="text-sm">Track distance</span>
+              <span className="text-meta">Track distance</span>
               <span className="text-xs text-[var(--sd-ink-dull)]">
                 Logs distance per completion (km / mi).
               </span>

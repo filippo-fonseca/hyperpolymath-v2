@@ -30,14 +30,14 @@ export function ProjectPill({
             ? `Inherited from ${sourceFolderName}`
             : "Inherited from a parent folder"
         }
-        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[11px] font-mono italic text-[var(--ink-muted)] border border-dashed border-[var(--edge)] opacity-70"
+ className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-micro font-mono italic text-[var(--ink-muted)] border border-dashed border-[var(--edge)] opacity-70"
       >
         {name}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-[11px] font-mono text-[var(--ink-muted)] bg-[var(--surface)] border border-[var(--edge)]">
+ <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-micro font-mono text-[var(--ink-muted)] bg-[var(--surface)] border border-[var(--edge)]">
       {name}
     </span>
   );

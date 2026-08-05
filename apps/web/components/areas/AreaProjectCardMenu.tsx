@@ -232,7 +232,7 @@ export function AreaProjectCardMenu({
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-proj-desc" className="font-sans text-[13px]">
+ <Label htmlFor="edit-proj-desc" className="font-sans text-meta">
                 Description
               </Label>
               <Textarea
@@ -245,7 +245,7 @@ export function AreaProjectCardMenu({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-proj-icon" className="font-sans text-[13px]">
+ <Label htmlFor="edit-proj-icon" className="font-sans text-meta">
                 Icon (lucide icon name)
               </Label>
               <Input

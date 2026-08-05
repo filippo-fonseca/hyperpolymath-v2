@@ -158,10 +158,10 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
             {configured === false ? (
               <div className="flex flex-col items-center gap-2 py-10 text-center">
                 <ImageIcon size={22} strokeWidth={1.25} className="text-[var(--ink-muted)]" />
-                <p className="font-serif text-[13px] text-[var(--ink)]">
+ <p className="font-serif text-meta text-[var(--ink)]">
                   Unsplash search isn&rsquo;t set up.
                 </p>
-                <p className="max-w-xs font-mono text-[11px] leading-relaxed text-[var(--ink-muted)]">
+ <p className="max-w-xs font-mono text-micro leading-relaxed text-[var(--ink-muted)]">
                   Set <span className="text-[var(--ink)]">UNSPLASH_ACCESS_KEY</span> on the
                   server to search photos. You can still paste a direct image URL from the
                   &ldquo;Image URL&rdquo; tab.
@@ -174,7 +174,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
             ) : results.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-10 text-center">
                 <ImageIcon size={22} strokeWidth={1.25} className="text-[var(--ink-muted)]" />
-                <p className="font-mono text-[11px] text-[var(--ink-muted)]">
+ <p className="font-mono text-micro text-[var(--ink-muted)]">
                   {query.trim() ? "No photos found." : "Search for a cover photo."}
                 </p>
               </div>
@@ -197,7 +197,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
                       loading="lazy"
                       className="h-full w-full object-cover"
                     />
-                    <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1 pt-3 text-left text-[9px] font-mono text-white/90 opacity-0 transition-opacity group-hover:opacity-100">
+ <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1 pt-3 text-left text-micro font-mono text-white/90 opacity-0 transition-opacity group-hover:opacity-100">
                       {photo.authorName}
                     </span>
                   </button>
@@ -205,7 +205,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
               </div>
             )}
 
-            <p className="font-mono text-[10px] text-[var(--ink-muted)]">
+ <p className="font-mono text-micro text-[var(--ink-muted)]">
               Photos from Unsplash. Selecting one credits the photographer.
             </p>
           </TabsContent>
@@ -214,7 +214,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
           <TabsContent value="url" className="mt-3 flex flex-col gap-3">
             <label
               htmlFor="cover-url-input"
-              className="font-mono text-[11px] uppercase tracking-wide text-[var(--ink-muted)]"
+ className="text-micro tracking-wide text-[var(--ink-muted)]"
             >
               Image URL
             </label>
@@ -237,7 +237,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
                 type="button"
                 onClick={handleSubmitUrl}
                 disabled={!urlInput.trim()}
-                className="rounded-sm border border-[var(--edge)] px-3 py-1.5 font-serif text-[13px] text-[var(--ink)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+ className="rounded-sm border border-[var(--edge)] px-3 py-1.5 font-serif text-meta text-[var(--ink)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
               >
                 Set cover
               </button>

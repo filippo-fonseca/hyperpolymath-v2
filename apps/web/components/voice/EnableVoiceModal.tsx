@@ -324,7 +324,7 @@ export function EnableVoiceModal({
                     <span className="mx-2 text-[var(--ink-muted)]">—</span>
                     <span>{v.desc}</span>
                     {isPlaying && (
-                      <span className="ml-2 font-mono text-xs text-[var(--hud-cyan)] uppercase tracking-wider">
+ <span className="ml-2 text-xs text-[var(--hud-cyan)] tracking-wider">
                         playing…
                       </span>
                     )}
@@ -338,7 +338,7 @@ export function EnableVoiceModal({
                 type="button"
                 onClick={() => void handleEnableClick()}
                 disabled={enabling}
-                className="font-mono text-xs uppercase tracking-wider"
+ className="text-xs tracking-wider"
               >
                 {enabling ? "Enabling…" : "Enable"}
               </Button>
@@ -359,14 +359,14 @@ export function EnableVoiceModal({
                 type="button"
                 variant="outline"
                 onClick={onCancel}
-                className="font-mono text-xs uppercase tracking-wider"
+ className="text-xs tracking-wider"
               >
                 Cancel
               </Button>
               <Button
                 type="button"
                 onClick={() => setStage("intro")}
-                className="font-mono text-xs uppercase tracking-wider"
+ className="text-xs tracking-wider"
               >
                 Try again
               </Button>
@@ -379,7 +379,7 @@ export function EnableVoiceModal({
           <div className="space-y-3 pt-2">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-[var(--hud-cyan)] animate-pulse" />
-              <span className="font-mono text-xs text-[var(--ink-muted)] uppercase tracking-wider">
+ <span className="text-xs text-[var(--ink-muted)] tracking-wider">
                 {requestingPermission
                   ? "Requesting…"
                   : autoRequestFailed
@@ -392,7 +392,7 @@ export function EnableVoiceModal({
                 type="button"
                 variant="outline"
                 onClick={onCancel}
-                className="font-mono text-xs uppercase tracking-wider"
+ className="text-xs tracking-wider"
               >
                 Cancel
               </Button>
@@ -404,7 +404,7 @@ export function EnableVoiceModal({
                   type="button"
                   onClick={() => void requestMicPermission()}
                   disabled={requestingPermission}
-                  className="font-mono text-xs uppercase tracking-wider"
+ className="text-xs tracking-wider"
                 >
                   {requestingPermission ? "Requesting…" : "Grant access"}
                 </Button>

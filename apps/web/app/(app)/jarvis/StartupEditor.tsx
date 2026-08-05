@@ -120,7 +120,7 @@ export function StartupEditor({ initial }: Props) {
         <div className="flex items-start justify-between gap-6">
           <div className="min-w-0">
             <SectionLabel>Spoken briefing</SectionLabel>
-            <p className="mt-1 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-1 text-meta leading-[1.5] text-[var(--sd-ink-dull)]">
               When enabled, JARVIS delivers a short spoken briefing the first
               time you wake it each session.
             </p>
@@ -136,7 +136,7 @@ export function StartupEditor({ initial }: Props) {
       {/* Open on start */}
       <SectionCard>
         <SectionLabel>Open on start</SectionLabel>
-        <p className="mt-1 mb-4 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-1 mb-4 text-meta leading-[1.5] text-[var(--sd-ink-dull)]">
           URLs and apps JARVIS opens the moment it launches. Add as many as you
           like.
         </p>
@@ -153,7 +153,7 @@ export function StartupEditor({ initial }: Props) {
                 style={{ background: "var(--sd-input)" }}
                 className={cn(
                   "h-9 shrink-0 rounded-[9px] border border-[var(--sd-line)] px-2.5",
-                  "font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink)]",
+ "text-micro text-[var(--sd-ink)]",
                   "focus:outline-none focus:border-[var(--sd-accent)]",
                   "transition-colors duration-[140ms] ease-out cursor-pointer-always",
                 )}
@@ -171,7 +171,7 @@ export function StartupEditor({ initial }: Props) {
                 style={{ background: "var(--sd-input)" }}
                 className={cn(
                   "h-9 min-w-0 flex-1 rounded-[9px] border border-[var(--sd-line)] px-3",
-                  "text-[14px] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)]",
+ "text-meta text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)]",
                   "focus:outline-none focus:border-[var(--sd-accent)]",
                   "transition-colors duration-[140ms] ease-out",
                 )}
@@ -183,7 +183,7 @@ export function StartupEditor({ initial }: Props) {
             </div>
           ))}
           {config.openOnStart.length === 0 && (
-            <p className="text-[13px] italic text-[var(--sd-ink-faint)]">
+ <p className="text-meta italic text-[var(--sd-ink-faint)]">
               Nothing opens on start yet.
             </p>
           )}
@@ -195,7 +195,7 @@ export function StartupEditor({ initial }: Props) {
       {/* Startup shortcuts */}
       <SectionCard>
         <SectionLabel>Startup shortcuts</SectionLabel>
-        <p className="mt-1 mb-4 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-1 mb-4 text-meta leading-[1.5] text-[var(--sd-ink-dull)]">
           Freeform shortcut phrases JARVIS primes at launch. One per row.
         </p>
 
@@ -212,7 +212,7 @@ export function StartupEditor({ initial }: Props) {
                 style={{ background: "var(--sd-input)" }}
                 className={cn(
                   "h-9 min-w-0 flex-1 rounded-[9px] border border-[var(--sd-line)] px-3",
-                  "text-[14px] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)]",
+ "text-meta text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)]",
                   "focus:outline-none focus:border-[var(--sd-accent)]",
                   "transition-colors duration-[140ms] ease-out",
                 )}
@@ -224,7 +224,7 @@ export function StartupEditor({ initial }: Props) {
             </div>
           ))}
           {config.startupShortcuts.length === 0 && (
-            <p className="text-[13px] italic text-[var(--sd-ink-faint)]">
+ <p className="text-meta italic text-[var(--sd-ink-faint)]">
               No startup shortcuts yet.
             </p>
           )}
@@ -241,7 +241,7 @@ export function StartupEditor({ initial }: Props) {
           disabled={pending || !dirty}
           className={cn(
             "sd-btn-solid inline-flex items-center gap-2 rounded-[8px] px-4 py-2",
-            "font-mono text-[12px] uppercase tracking-[0.06em]",
+            "text-micro",
             "transition-opacity duration-100 cursor-pointer-always",
             "disabled:opacity-40 disabled:cursor-not-allowed",
           )}
@@ -255,12 +255,12 @@ export function StartupEditor({ initial }: Props) {
           )}
         </button>
         {justSaved && !dirty && (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-accent)]">
+ <span className="inline-flex items-center gap-1.5 text-micro text-[var(--sd-accent)]">
             <Check size={13} /> Saved
           </span>
         )}
         {error && (
-          <span className="font-mono text-[11px] text-[var(--ink-coral)]">{error}</span>
+ <span className="font-mono text-micro text-[var(--ink-coral)]">{error}</span>
         )}
       </div>
     </div>
@@ -277,7 +277,7 @@ function SectionCard({ children }: { children: React.ReactNode }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+ <p className="text-micro text-[var(--sd-ink-faint)]">
       {children}
     </p>
   );
@@ -290,7 +290,7 @@ function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
       onClick={onClick}
       className={cn(
         "sd-btn-outline mt-3 inline-flex items-center gap-1.5 rounded-[8px] px-3 h-8",
-        "font-mono text-[11px] uppercase tracking-[0.06em]",
+        "text-micro",
         "transition-colors duration-[140ms] cursor-pointer-always",
       )}
     >

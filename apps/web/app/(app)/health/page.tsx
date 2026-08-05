@@ -66,7 +66,7 @@ function StatusRow({ serviceKey, status, value }: StatusRowProps) {
         style={{ color: dotColor }}
       >
         <span aria-hidden="true">{dotGlyph}</span>
-        <span className="uppercase tracking-[0.06em]">{status}</span>
+        <span className="">{status}</span>
       </span>
       <span className="text-[var(--sd-ink)]">{value}</span>
     </div>
@@ -143,7 +143,7 @@ export default async function HealthPage() {
         </div>
 
         {/* Bottom rail — refresh hint per UI-SPEC §5c. */}
-        <div className="mt-12 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)] opacity-60">
+ <div className="mt-12 flex items-center gap-2 text-micro text-[var(--sd-ink-dull)] opacity-60">
           <span aria-hidden="true">╶──</span>
           <span>refresh ⌘R · serves at /api/health</span>
           <span aria-hidden="true">──╴</span>

@@ -392,7 +392,7 @@ export function GraphExplorer({
                 {typeLabel(selected.type)}
               </span>
             </div>
-            <h2 className="mt-2 text-lg font-medium leading-snug text-[var(--ink)]">
+ <h2 className="mt-2 text-subtitle font-medium leading-snug text-[var(--ink)]">
               {selected.name}
             </h2>
 

@@ -133,7 +133,7 @@ export function PlannerHeader({
               <ChevronRight size={14} strokeWidth={1.5} />
             </Button>
           </div>
-          <span className="text-sm font-medium tabular-nums text-[var(--sd-ink)]">
+          <span className="text-meta font-medium tabular-nums text-[var(--sd-ink)]">
             {startLabel} – {endLabel}
           </span>
         </div>

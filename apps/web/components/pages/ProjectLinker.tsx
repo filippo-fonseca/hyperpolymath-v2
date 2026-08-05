@@ -84,7 +84,7 @@ export function ProjectLinker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-[12px] font-mono text-[var(--ink-muted)] border border-dashed border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
+ className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-micro font-mono text-[var(--ink-muted)] border border-dashed border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
         >
           <Plus size={10} strokeWidth={2} />
           {triggerLabel}
@@ -105,20 +105,20 @@ export function ProjectLinker({
           <>
         {inheritedLinks.length > 0 && (
           <div className="flex flex-col gap-1 border-b border-[var(--edge)] p-2">
-            <p className="px-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+ <p className="px-1 text-micro text-[var(--ink-muted)]">
               Inherited
             </p>
             {inheritedLinks.map((link) => (
               <div
                 key={link.projectId}
                 title={`Inherited from ${link.sourceFolderName}`}
-                className="flex items-center gap-2 px-1 py-1 rounded-sm text-[12px] font-mono text-[var(--ink-muted)] opacity-70"
+ className="flex items-center gap-2 px-1 py-1 rounded-sm text-micro font-mono text-[var(--ink-muted)] opacity-70"
               >
                 <Lock size={11} strokeWidth={1.5} className="flex-shrink-0" />
                 <span className="truncate">
                   {projectName.get(link.projectId) ?? "Project"}
                 </span>
-                <span className="ml-auto flex-shrink-0 text-[10px] italic">
+ <span className="ml-auto flex-shrink-0 text-micro italic">
                   from {link.sourceFolderName}
                 </span>
               </div>
@@ -166,7 +166,7 @@ export function ProjectLinker({
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-[12px] font-mono text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer"
+ className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-micro font-mono text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer"
             >
               <Plus size={11} strokeWidth={2} className="flex-shrink-0" />
               Create new project

@@ -70,7 +70,7 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
         <GripVertical size={16} />
       </button>
 
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--sd-line)] font-mono text-[11px] text-[var(--sd-ink-dull)]">
+ <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--sd-line)] font-mono text-micro text-[var(--sd-ink-dull)]">
         {index + 1}
       </span>
 
@@ -83,12 +83,12 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="text-[14px] font-medium text-[var(--sd-ink)]">
+ <p className="text-meta font-medium text-[var(--sd-ink)]">
             {entry?.label ?? block.tool}
           </p>
           {block.loadingInstruction?.trim() ? (
             <span
-              className="inline-flex items-center gap-1 rounded-full border border-[var(--sd-line)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
+ className="inline-flex items-center gap-1 rounded-full border border-[var(--sd-line)] px-1.5 py-0.5 text-micro text-[var(--sd-ink-dull)]"
               title="Speaks while loading"
             >
               <MessageSquare size={10} />
@@ -96,7 +96,7 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
             </span>
           ) : null}
         </div>
-        <p className="truncate text-[13px] text-[var(--sd-ink-dull)]">
+ <p className="truncate text-meta text-[var(--sd-ink-dull)]">
           {blockPreview(block)}
         </p>
       </div>

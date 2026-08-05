@@ -86,7 +86,7 @@ export function ManageTypesSheet({
 
         {isEmpty ? (
           <div className="flex flex-1 flex-col gap-3 p-4">
-            <p className="text-sm text-[var(--sd-ink-dull)]">
+            <p className="text-meta text-[var(--sd-ink-dull)]">
               Create your first activity type to start planning. Types are the
               templates ("Run", "Yoga", "Lift") you reuse across days. Batches
               are optional groupings ("Cardio", "Strength").

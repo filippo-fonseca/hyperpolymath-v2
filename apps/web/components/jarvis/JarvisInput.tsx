@@ -207,7 +207,7 @@ export function JarvisInput({
     editorProps: {
       attributes: {
         class:
-          "jarvis-input-content focus:outline-none min-h-[44px] max-h-[200px] overflow-y-auto px-4 py-3 font-sans text-[15px] leading-relaxed text-[var(--sd-ink)]",
+ "jarvis-input-content focus:outline-none min-h-[44px] max-h-[200px] overflow-y-auto px-4 py-3 font-sans text-body leading-relaxed text-[var(--sd-ink)]",
         // Placeholder reads as JARVIS's prompt — soft serif italic per CSS.
         "data-placeholder": "Tell JARVIS what's on your mind…",
       },
@@ -470,7 +470,7 @@ export function JarvisInput({
         }
       >
         {pinnedSlashCommand ? (
-          <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-border/50 font-mono text-[12px]">
+ <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-border/50 font-mono text-micro">
             <span
               className="inline-flex items-center gap-1.5 rounded bg-secondary px-2 py-0.5 text-foreground"
               aria-label={`Pinned command: /${pinnedSlashCommand}`}
@@ -540,16 +540,16 @@ export function JarvisInput({
         </AnimatePresence>
 
         <div className="flex items-center justify-between px-4 pb-2.5 pt-2 border-t border-[var(--sd-line)]">
-          <span className="font-sans text-[12px] text-[var(--sd-ink-dull)]">
-            Enter to send · <span className="font-mono text-[11px]">/</span> commands ·{" "}
-            <span className="font-mono text-[11px]">$</span> projects ·{" "}
-            <span className="font-mono text-[11px]">#</span> tags ·{" "}
-            <span className="font-mono text-[11px]">@</span> people
+ <span className="font-sans text-micro text-[var(--sd-ink-dull)]">
+ Enter to send · <span className="font-mono text-micro">/</span> commands ·{""}
+ <span className="font-mono text-micro">$</span> projects ·{""}
+ <span className="font-mono text-micro">#</span> tags ·{""}
+ <span className="font-mono text-micro">@</span> people
           </span>
           {/* ⌘K hint chip — cleaner pill, sentence-case-style label tucked
               behind the kbd glyph. Hidden below md per UI-SPEC §10c. */}
           <kbd
-            className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-mono text-[var(--sd-ink-dull)] select-none"
+ className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-micro font-mono text-[var(--sd-ink-dull)] select-none"
             style={{
               border: "1px solid var(--sd-line)",
               backgroundColor: "var(--sd-box)",
@@ -599,12 +599,12 @@ export function JarvisInput({
               <span className="text-foreground">/help</span> — show this list
             </li>
           </ul>
-          <div className="mt-2 text-[11px] text-muted-foreground">
+ <div className="mt-2 text-micro text-muted-foreground">
             Press Esc or click anywhere to dismiss.
           </div>
           <button
             type="button"
-            className="mt-2 underline text-[11px] text-muted-foreground hover:text-foreground"
+ className="mt-2 underline text-micro text-muted-foreground hover:text-foreground"
             onClick={() => setShowHelp(false)}
           >
             dismiss

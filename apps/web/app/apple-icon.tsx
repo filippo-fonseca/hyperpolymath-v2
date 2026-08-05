@@ -47,7 +47,7 @@ export default async function AppleIcon() {
             fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
             fontSize: 11,
             letterSpacing: "0.14em",
-            textTransform: "uppercase",
+            textTransform: "",
             color: "#7a766f",
           }}
         >

@@ -109,7 +109,7 @@ export function HudStatusPill({
       role="status"
       aria-live="polite"
       aria-label={`JARVIS status: ${state}`}
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.08em] transition-colors duration-200 ease-out ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-micro transition-colors duration-200 ease-out ${className}`}
       style={{
         color: cfg.text,
         backgroundColor: cfg.bg,

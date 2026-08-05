@@ -331,7 +331,7 @@ export function CalendarGrid({
             >
               {/* The register's agenda day tile (globals.css §9): canvas-gray
                   at rest, sky pastel for today. One colored element per
-                  header cell, and no uppercase. */}
+                  header cell, and no . */}
               <div className="craft-day-tile" data-today={isToday || undefined}>
                 <span className="text-micro">{format(d, "EEE")}</span>
                 <span className="text-meta font-semibold tabular-nums leading-none">

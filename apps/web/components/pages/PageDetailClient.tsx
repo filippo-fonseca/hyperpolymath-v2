@@ -920,7 +920,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex size-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-[20px] leading-none transition-colors duration-[160ms] hover:bg-[var(--surface)]"
+ className="flex size-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-title leading-none transition-colors duration-[160ms] hover:bg-[var(--surface)]"
             title="Set emoji"
           >
             {emoji ? (
@@ -1096,7 +1096,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
               >
                 <Lock size={10} strokeWidth={1.5} />
                 {projectNameById.get(link.projectId) ?? "Project"}
-                <span className="text-[10px]">from {link.sourceFolderName}</span>
+ <span className="text-micro">from {link.sourceFolderName}</span>
               </span>
             ))}
             <ProjectLinker

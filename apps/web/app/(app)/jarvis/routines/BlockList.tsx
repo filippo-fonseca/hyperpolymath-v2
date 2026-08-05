@@ -68,16 +68,16 @@ export function BlockList({ blocks, onChange }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <p className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
           Blocks
         </p>
-        <p className="text-[12px] text-[var(--sd-ink-dull)]">
+ <p className="text-micro text-[var(--sd-ink-dull)]">
           Run top to bottom. Drag to reorder.
         </p>
       </div>
 
       {blocks.length === 0 && editor.mode === "closed" ? (
-        <p className="text-[14px] text-[var(--sd-ink-dull)]">
+ <p className="text-meta text-[var(--sd-ink-dull)]">
           No blocks yet. Add one so the routine actually does something.
         </p>
       ) : null}
@@ -123,7 +123,7 @@ export function BlockList({ blocks, onChange }: Props) {
         <button
           type="button"
           onClick={() => setEditor({ mode: "add" })}
-          className="inline-flex items-center gap-1.5 rounded-[8px] border border-dashed border-[var(--sd-line)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
+ className="inline-flex items-center gap-1.5 rounded-[8px] border border-dashed border-[var(--sd-line)] px-3 py-2 text-micro text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
         >
           <Plus size={14} /> Add block
         </button>

@@ -58,7 +58,7 @@ export function SlashCommandPopover({ query, selectedIndex, onSelect }: Props) {
         aria-label="Slash commands"
       >
         {/* 'commands' header — mono cyan readout marking JARVIS chrome. */}
-        <div className="relative px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] border-b border-[var(--sd-line)]">
+ <div className="relative px-3 py-2 text-micro text-[var(--sd-ink-faint)] border-b border-[var(--sd-line)]">
           commands
         </div>
 
@@ -92,7 +92,7 @@ export function SlashCommandPopover({ query, selectedIndex, onSelect }: Props) {
                 aria-selected={isHighlighted}
               >
                 <span>{cmd.label}</span>
-                <span className="text-[11px] text-[var(--sd-ink-faint)]">
+ <span className="text-micro text-[var(--sd-ink-faint)]">
                   {cmd.description}
                 </span>
               </button>

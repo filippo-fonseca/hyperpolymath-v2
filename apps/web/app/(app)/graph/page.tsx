@@ -68,7 +68,7 @@ export default async function GraphPage() {
           <span className="tint-lavender mx-auto flex size-14 items-center justify-center rounded-full bg-[var(--tint-bg)] text-[var(--tint-ink)]">
             <Waypoints className="size-6" />
           </span>
-          <h1 className="mt-4 text-3xl font-semibold tracking-[-0.01em]">Knowledge graph</h1>
+ <h1 className="mt-4 text-display font-semibold tracking-[-0.01em]">Knowledge graph</h1>
           <p className="mt-3 text-body leading-[1.55] text-[var(--ink-muted)]">
             No snapshot has been built yet. The nightly job assembles your graph
             at 00:00 ET. You can also build one now from settings, then come back.

@@ -129,7 +129,7 @@ export function JarvisClient({
 
           <div className="my-2 hidden h-px bg-[var(--sd-line)] md:block" />
 
-          <p className="hidden px-2.5 pb-1.5 pt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] md:block">
+ <p className="hidden px-2.5 pb-1.5 pt-1 text-micro text-[var(--sd-ink-faint)] md:block">
             Agent surfaces
           </p>
 
@@ -147,7 +147,7 @@ export function JarvisClient({
           <h2 className="text-2xl font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">
             {activeMeta.title}
           </h2>
-          <p className="mt-1.5 max-w-[620px] text-[14px] leading-[1.55] text-[var(--sd-ink-dull)]">
+ <p className="mt-1.5 max-w-[620px] text-meta leading-[1.55] text-[var(--sd-ink-dull)]">
             {activeMeta.description}
           </p>
         </div>
@@ -220,7 +220,7 @@ function RailItem({
       </span>
       <span
         className={cn(
-          "min-w-0 flex-1 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors duration-[140ms]",
+ "min-w-0 flex-1 text-micro transition-colors duration-[140ms]",
           active ? "text-[var(--sd-accent)]" : "text-[var(--sd-ink-dull)] group-hover:text-[var(--sd-ink)]",
         )}
       >
@@ -247,7 +247,7 @@ function SurfaceItem({ link }: { link: SurfaceLink }) {
       >
         <Icon size={16} strokeWidth={1.6} aria-hidden="true" />
       </span>
-      <span className="min-w-0 flex-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)] transition-colors duration-[140ms] group-hover:text-[var(--sd-ink)]">
+ <span className="min-w-0 flex-1 text-micro text-[var(--sd-ink-dull)] transition-colors duration-[140ms] group-hover:text-[var(--sd-ink)]">
         {link.label}
       </span>
       <ArrowUpRight

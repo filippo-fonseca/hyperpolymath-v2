@@ -40,7 +40,7 @@ export function HeatmapDayPopover({
   if (activities.length === 0) {
     return (
       <div className="min-w-[220px] p-1">
-        <div className="text-sm font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">{heading}</div>
+        <div className="text-meta font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">{heading}</div>
         <div className="mt-2 text-micro text-[var(--sd-ink-faint)]">
           No activities logged this day.
         </div>
@@ -62,7 +62,7 @@ export function HeatmapDayPopover({
   return (
     <div className="min-w-[260px] max-w-[320px] p-1">
       <div className="flex items-baseline justify-between gap-3">
-        <div className="text-sm font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">{heading}</div>
+        <div className="text-meta font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">{heading}</div>
         <div className="text-micro text-[var(--sd-ink-faint)]">
           {activities.length}{" "}
           {activities.length === 1 ? "activity" : "activities"}

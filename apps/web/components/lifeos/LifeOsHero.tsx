@@ -220,7 +220,7 @@ export function LifeOsHero({
       {/* Greeting row — canvas only, no plate (§4). */}
       <motion.div className="mb-4 flex flex-col gap-2" {...headerAnim}>
         {/* Mono survives here because this is a date (SDC-1 §2.4); the
-            uppercase transform does not. */}
+            transform does not. */}
         <span className="font-mono text-micro font-medium text-[var(--ink-faint)]">
           {format(now, "EEEE · MMMM d, yyyy")}
         </span>

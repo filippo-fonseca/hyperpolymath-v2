@@ -39,7 +39,7 @@ interface Props {
 
 /**
  * Compact activity card. Smaller density than TaskCard per D-01:
- *   - text-xs across the board (TaskCard uses text-sm)
+ *   - text-xs across the board (TaskCard uses text-meta)
  *   - single-line subline mashing type/duration/distance
  *   - kebab menu (mark cancelled / skipped / delete)
  *

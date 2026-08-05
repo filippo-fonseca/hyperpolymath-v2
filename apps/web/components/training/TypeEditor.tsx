@@ -323,7 +323,7 @@ function TypeRow({
             className="h-6 text-xs"
           />
         ) : (
-          <span className="flex-1 truncate text-sm">{type.name}</span>
+          <span className="flex-1 truncate text-meta">{type.name}</span>
         )}
       </div>
 

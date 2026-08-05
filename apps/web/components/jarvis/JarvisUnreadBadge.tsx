@@ -30,7 +30,7 @@ export function JarvisUnreadBadge() {
     <span
       role="status"
       aria-label={`${count} unread JARVIS ${count === 1 ? "message" : "messages"}`}
-      className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[9px] font-medium leading-none tracking-[0.02em] tabular-nums"
+ className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-micro font-medium leading-none tracking-[0.02em] tabular-nums"
       style={{
         color: "hsl(235 45% 9%)",
         backgroundColor: "var(--sd-accent)",

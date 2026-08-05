@@ -84,7 +84,7 @@ export function PageProperties({ pageId, fields, onChanged }: PagePropertiesProp
   return (
     <div className="flex flex-col gap-1">
       {/* aug-04 craft-ui-v2: the properties toggle is a rest-state craft chip
-          (also retires the uppercase mono eyebrow — uppercase is banned outside
+          (also retires the mono eyebrow — is banned outside
           kbd + sidebar eyebrows). */}
       <button
         type="button"
@@ -168,7 +168,7 @@ function FieldRow({
       )}
     >
       <div
-        className="flex items-center gap-1.5 shrink-0 self-center w-[128px] px-1.5 py-1 text-[12px] font-mono text-[var(--ink-muted)]"
+ className="flex items-center gap-1.5 shrink-0 self-center w-[128px] px-1.5 py-1 text-micro font-mono text-[var(--ink-muted)]"
         title={field.name}
       >
         <Icon size={12} strokeWidth={1.5} className="shrink-0" />
@@ -260,7 +260,7 @@ function TextEditor({
         }
       }}
       placeholder="Empty"
-      className="w-full bg-transparent px-2 py-1 text-[13px] font-sans text-[var(--ink)] placeholder:text-[var(--ink-muted)] rounded-md outline-none transition-all duration-150 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] focus:shadow-[inset_1px_1px_3px_var(--glass-lo),inset_-1px_-1px_2px_var(--glass-hi)]"
+ className="w-full bg-transparent px-2 py-1 text-meta font-sans text-[var(--ink)] placeholder:text-[var(--ink-muted)] rounded-md outline-none transition-all duration-150 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] focus:shadow-[inset_1px_1px_3px_var(--glass-lo),inset_-1px_-1px_2px_var(--glass-hi)]"
     />
   );
 }
@@ -278,7 +278,7 @@ function DateEditor({
       type="date"
       value={value}
       onChange={(e) => void onSave(e.target.value === "" ? null : e.target.value)}
-      className="bg-transparent px-2 py-1 text-[13px] font-mono text-[var(--ink)] rounded-md outline-none transition-all duration-150 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] focus:shadow-[inset_1px_1px_3px_var(--glass-lo),inset_-1px_-1px_2px_var(--glass-hi)] [color-scheme:light_dark]"
+ className="bg-transparent px-2 py-1 text-meta font-mono text-[var(--ink)] rounded-md outline-none transition-all duration-150 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] focus:shadow-[inset_1px_1px_3px_var(--glass-lo),inset_-1px_-1px_2px_var(--glass-hi)] [color-scheme:light_dark]"
     />
   );
 }
@@ -366,7 +366,7 @@ function SelectEditor({
           className="flex flex-wrap items-center gap-1 w-full min-h-[28px] px-2 py-1 text-left rounded-md transition-colors duration-150 cursor-pointer hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)]"
         >
           {selectedOptions.length === 0 ? (
-            <span className="text-[13px] font-sans text-[var(--ink-muted)]">Empty</span>
+ <span className="text-meta font-sans text-[var(--ink-muted)]">Empty</span>
           ) : (
             selectedOptions.map((o) => <TagChip key={o.id} option={o} />)
           )}
@@ -417,7 +417,7 @@ function TagChip({ option }: { option: PageFieldSelectOption }) {
   const c = tagColorStyle(option.color);
   return (
     <span
-      className="inline-flex items-center max-w-full px-1.5 py-0.5 rounded-sm text-[12px] font-sans truncate border"
+ className="inline-flex items-center max-w-full px-1.5 py-0.5 rounded-sm text-micro font-sans truncate border"
       style={{ backgroundColor: c.bg, color: c.fg, borderColor: c.border }}
     >
       {option.label}

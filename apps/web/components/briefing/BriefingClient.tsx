@@ -120,7 +120,7 @@ export function BriefingClient({ userId, initial }: Props) {
       <header className="space-y-4">
         <div className="flex items-start justify-between gap-6">
           <div className="space-y-1">
-            <h1 className="font-serif text-5xl font-semibold leading-none tracking-tight text-[var(--ink)]">
+ <h1 className="font-serif text-display font-semibold leading-none tracking-tight text-[var(--ink)]">
               Briefing
             </h1>
             {edition && (
@@ -163,7 +163,7 @@ export function BriefingClient({ userId, initial }: Props) {
             style={{ borderLeft: "3px solid var(--tint-edge)" }}
           >
             {edition.headline && (
-              <h2 className="font-serif text-2xl font-medium leading-snug text-[var(--ink)]">
+ <h2 className="font-serif text-title font-medium leading-snug text-[var(--ink)]">
                 {edition.headline}
               </h2>
             )}

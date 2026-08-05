@@ -18,7 +18,7 @@ interface Props {
 }
 
 const fieldClass =
-  "w-full rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 text-[14px] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]";
+ "w-full rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 text-meta text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] outline-none focus:border-[var(--sd-accent)] transition-colors duration-[140ms]";
 
 function emptyTrigger(type: RoutineTriggerType): RoutineTrigger {
   switch (type) {
@@ -51,18 +51,18 @@ export function TriggerBuilder({ triggers, onChange }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <p className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
           Triggers
         </p>
         {triggers.length > 1 ? (
-          <p className="text-[12px] text-[var(--sd-ink-dull)]">
+ <p className="text-micro text-[var(--sd-ink-dull)]">
             Any of these fires the routine.
           </p>
         ) : null}
       </div>
 
       {triggers.length === 0 && !adding ? (
-        <p className="text-[14px] text-[var(--sd-ink-dull)]">
+ <p className="text-meta text-[var(--sd-ink-dull)]">
           No triggers yet. Add at least one so JARVIS knows when to run this.
         </p>
       ) : null}
@@ -84,7 +84,7 @@ export function TriggerBuilder({ triggers, onChange }: Props) {
                 <Icon className="h-3.5 w-3.5" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <p className="text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
                   {meta.label}
                 </p>
                 <div className="mt-1.5">
@@ -93,7 +93,7 @@ export function TriggerBuilder({ triggers, onChange }: Props) {
                     onChange={(next) => updateAt(i, next)}
                   />
                 </div>
-                <p className="mt-1.5 text-[12px] text-[var(--sd-ink-dull)]">
+ <p className="mt-1.5 text-micro text-[var(--sd-ink-dull)]">
                   {meta.hint}
                 </p>
               </div>
@@ -115,7 +115,7 @@ export function TriggerBuilder({ triggers, onChange }: Props) {
           style={{ background: "var(--sd-darker-box)" }}
           className="rounded-[10px] border border-[var(--sd-line)] p-3"
         >
-          <p className="mb-2 font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+ <p className="mb-2 text-micro tracking-[0.1em] text-[var(--sd-ink-faint)]">
             Pick a trigger type
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -132,7 +132,7 @@ export function TriggerBuilder({ triggers, onChange }: Props) {
                   className="group flex flex-col items-center gap-1.5 rounded-[9px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-3 text-center transition-colors duration-[140ms] hover:bg-[var(--sd-hover)]"
                 >
                   <Icon className="h-4 w-4 text-[var(--sd-ink-dull)] transition-colors duration-[140ms] group-hover:text-[var(--sd-accent)]" />
-                  <span className="font-mono text-[10.5px] uppercase tracking-[0.06em] text-[var(--sd-ink)]">
+ <span className="text-micro text-[var(--sd-ink)]">
                     {meta.label}
                   </span>
                 </button>
@@ -142,7 +142,7 @@ export function TriggerBuilder({ triggers, onChange }: Props) {
           <button
             type="button"
             onClick={() => setAdding(false)}
-            className="mt-2 font-mono text-[10.5px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
+ className="mt-2 text-micro text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
           >
             Cancel
           </button>
@@ -151,7 +151,7 @@ export function TriggerBuilder({ triggers, onChange }: Props) {
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="inline-flex items-center gap-1.5 rounded-[8px] border border-dashed border-[var(--sd-line)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
+ className="inline-flex items-center gap-1.5 rounded-[8px] border border-dashed border-[var(--sd-line)] px-3 py-2 text-micro text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)] transition-colors duration-[140ms]"
         >
           <Plus size={14} /> Add trigger
         </button>
@@ -254,7 +254,7 @@ function HotkeyCapture({
       onKeyDown={onKeyDown}
       onBlur={() => setCapturing(false)}
       style={{ background: "var(--sd-input)" }}
-      className={`inline-flex min-w-[140px] items-center justify-center rounded-[9px] border px-3 py-2 font-mono text-[13px] tracking-[0.08em] text-[var(--sd-ink)] outline-none transition-colors duration-[140ms] ${
+      className={`inline-flex min-w-[140px] items-center justify-center rounded-[9px] border px-3 py-2 font-mono text-meta tracking-[0.08em] text-[var(--sd-ink)] outline-none transition-colors duration-[140ms] ${
         capturing ? "border-[var(--sd-accent)]" : "border-[var(--sd-line)]"
       }`}
     >
