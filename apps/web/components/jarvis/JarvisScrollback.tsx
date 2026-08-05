@@ -470,6 +470,16 @@ export function JarvisScrollback({
                             : undefined,
                       }}
                     >
+                      {/* Queued placeholder — this send is waiting its turn in
+                          the FIFO queue behind the run currently streaming. A
+                          quiet mono caption, no ring: the thinking ring is
+                          reserved for the turn actually in flight. */}
+                      {turn.status === "queued" ? (
+                        <span className="font-mono text-xs text-[var(--sd-ink-faint)] uppercase tracking-[0.08em] select-none">
+                          queued…
+                        </span>
+                      ) : null}
+
                       {/* Phase 6.1 Plan 02 (UI-SPEC §6b state 5): thinking ring
                           while status='streaming' and no textDelta has arrived. */}
                       {turn.status === "streaming" &&

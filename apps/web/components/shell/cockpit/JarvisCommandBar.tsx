@@ -53,6 +53,16 @@ import { toast } from "sonner";
  * prose pipeline `JarvisScrollback` uses. Earlier turns from this bar session
  * stay stacked above the latest one, faded, inside the scrollable strip.
  *
+ * Sends QUEUE — nothing aborts, nothing is swallowed. The input is never
+ * disabled: submitting while a run is in flight enqueues FIFO (user turn
+ * persisted at enqueue time, a quiet "queued" row in the strip) and a single
+ * sequential runner streams jobs in order. Clarification-chip replies go
+ * through the same queue, so they can't race the open stream. Unmounting the
+ * bar — including expand() → /today — does NOT abort the in-flight run: the
+ * closures finish, persistTurn lands the assistant row, and the console's
+ * realtime merge picks it up mid-stream. Only the explicit Stop button
+ * aborts (and it also clears the queue).
+ *
  * What it deliberately does NOT do:
  *  - It does not autofocus, ever, on mount or on navigation. Stealing focus
  *    from an editor is the fastest way to make furniture feel hostile.
@@ -141,6 +151,12 @@ export function JarvisCommandBar() {
   const inputRef = useRef<HTMLInputElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // FIFO send queue — the queued BarTurn accumulators themselves, in order.
+  const queueRef = useRef<BarTurn[]>([]);
+  const runningRef = useRef(false);
+  // In-flight runs SURVIVE unmount (expand() → /today must not kill the
+  // turn), so every setState from stream callbacks checks this first.
+  const mountedRef = useRef(true);
 
   const [draft, setDraft] = useState("");
   const [turns, setTurns] = useState<BarTurn[]>([]);
@@ -153,13 +169,7 @@ export function JarvisCommandBar() {
     pathname.startsWith(`${JARVIS_SETTINGS_PATH}/`) ||
     pathname.startsWith("/onboarding");
 
-  const streamingTurn = turns.find((t) => t.status === "streaming");
   const busy = turns.some((t) => t.status === "streaming" || t.status === "queued");
-  const thinking =
-    !!streamingTurn &&
-    !streamingTurn.textDelta &&
-    streamingTurn.actions.length === 0 &&
-    !streamingTurn.clarification;
   const hasStrip = turns.length > 0;
   // aug-04 craft-ui-v2: the bar rests as Craft's centered floating pill and
   // expands to the wide panel on engagement — focus, a draft in hand, or any
@@ -178,44 +188,32 @@ export function JarvisCommandBar() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [turns]);
 
-  /** Patch one bar turn immutably by assistant-turn id. */
+  /** Patch one bar turn immutably by assistant-turn id. No-ops once the bar
+   *  has unmounted — the run itself keeps going, only the UI mirror stops. */
   const patchTurn = useCallback((id: string, patch: Partial<BarTurn>) => {
+    if (!mountedRef.current) return;
     setTurns((prev) => (prev.some((t) => t.id === id) ? prev.map((t) => (t.id === id ? { ...t, ...patch } : t)) : prev));
   }, []);
 
-  const send = useCallback(
-    (text: string) => {
-      const input = text.trim();
-      if (!input) return;
-
+  /**
+   * Stream one queued turn. Called ONLY by the sequential runner, so at most
+   * one stream is open and the module-level `history` stays in true
+   * user/assistant order.
+   */
+  const runTurn = useCallback(
+    async (assistant: BarTurn) => {
       const controller = new AbortController();
       abortRef.current = controller;
-      rememberTurn("user", input);
 
-      // Persist into the shared jarvis_turns stream so /today (and the split
-      // console) merge this turn over Realtime — same contract as voice/Cmd+K.
-      const userTurnId = crypto.randomUUID();
-      const assistantTurnId = crypto.randomUUID();
-      persistTurn({
-        kind: "user",
-        id: userTurnId,
-        text: input,
-        createdAt: new Date(),
-      });
+      // Snapshot the request history BEFORE remembering the new user turn —
+      // explicit, instead of the old positional history.slice(0, -1).
+      const priorHistory = history;
+      rememberTurn("user", assistant.prompt);
 
-      // Accumulator mirrored into the strip's BarTurn on every SSE event. It
-      // stays the persistence source of truth so persistTurn never races a
-      // batched React update.
-      const assistant: BarTurn = {
-        id: assistantTurnId,
-        prompt: input,
-        status: "streaming",
-        textDelta: "",
-        actions: [],
-        clarification: null,
-        errorMessage: null,
-        createdAt: new Date(),
-      };
+      // `assistant` is the accumulator, mirrored into the strip's state on
+      // every SSE event. It stays the persistence source of truth so
+      // persistTurn never races a batched React update.
+      assistant.status = "streaming";
       const sync = () => {
         patchTurn(assistant.id, {
           status: assistant.status,
@@ -225,20 +223,10 @@ export function JarvisCommandBar() {
           errorMessage: assistant.errorMessage,
         });
       };
+      sync();
 
-      // A new send answers any clarification still open in the strip — same
-      // last-question-wins rule as JarvisConsole.handleSubmit.
-      setTurns((prev) => [
-        ...prev.map((t) =>
-          t.clarification && !t.clarification.answered
-            ? { ...t, clarification: { ...t.clarification, answered: true } }
-            : t
-        ),
-        { ...assistant },
-      ]);
-
-      void streamJarvis(
-        { input, history: history.slice(0, -1) },
+      await streamJarvis(
+        { input: assistant.prompt, history: priorHistory },
         {
           onText: (delta) => {
             assistant.textDelta += delta;
@@ -288,30 +276,93 @@ export function JarvisCommandBar() {
             // Console isn't mounted on these routes, so a completed reply here
             // is unread until the user opens /today (or the split panel).
             bumpUnread();
-            abortRef.current = null;
           },
           onError: (message) => {
             assistant.status = "error";
             assistant.errorMessage = message;
             persistTurn(toAssistantTurn(assistant));
             sync();
-            abortRef.current = null;
           },
         },
         controller.signal
       );
+      abortRef.current = null;
     },
     [patchTurn, queryClient, userId]
   );
 
+  /** Sequential runner — drains the FIFO queue one stream at a time. Keeps
+   *  running after unmount so in-flight and queued turns still land. */
+  const runQueue = useCallback(async () => {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    try {
+      while (queueRef.current.length > 0) {
+        const job = queueRef.current.shift();
+        if (!job) break;
+        await runTurn(job);
+      }
+    } finally {
+      runningRef.current = false;
+    }
+  }, [runTurn]);
+
+  /** Enqueue a send. The user turn persists immediately; the strip shows the
+   *  prompt in a quiet "queued" state until the runner reaches it. */
+  const enqueueSend = useCallback(
+    (text: string) => {
+      const input = text.trim();
+      if (!input) return;
+
+      // Persist into the shared jarvis_turns stream so /today (and the split
+      // console) merge this turn over Realtime — same contract as voice/Cmd+K.
+      persistTurn({
+        kind: "user",
+        id: crypto.randomUUID(),
+        text: input,
+        createdAt: new Date(),
+      });
+
+      const assistant: BarTurn = {
+        id: crypto.randomUUID(),
+        prompt: input,
+        status: "queued",
+        textDelta: "",
+        actions: [],
+        clarification: null,
+        errorMessage: null,
+        createdAt: new Date(),
+      };
+
+      // A new send answers any clarification still open in the strip — same
+      // last-question-wins rule as JarvisConsole.handleSubmit.
+      setTurns((prev) => [
+        ...prev.map((t) =>
+          t.clarification && !t.clarification.answered
+            ? { ...t, clarification: { ...t.clarification, answered: true } }
+            : t
+        ),
+        { ...assistant },
+      ]);
+
+      queueRef.current.push(assistant);
+      void runQueue();
+    },
+    [runQueue]
+  );
+
   function submit() {
-    if (busy) return;
     const text = draft;
     setDraft("");
-    send(text);
+    enqueueSend(text);
   }
 
   function stop() {
+    // The explicit Stop is the ONE real abort: kill the current run and drop
+    // everything queued behind it. Queued user turns were persisted at
+    // enqueue, so the DB thread stays faithful; only their runs are dropped.
+    queueRef.current = [];
+    setTurns((prev) => prev.filter((t) => t.status !== "queued"));
     abortRef.current?.abort();
     abortRef.current = null;
   }
@@ -391,8 +442,17 @@ export function JarvisCommandBar() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [suppressed, expand]);
 
-  // Abort any in-flight turn if the bar goes away mid-stream.
-  useEffect(() => () => abortRef.current?.abort(), []);
+  // Deliberately NO abort-on-unmount: navigating away (including expand() →
+  // /today) must not kill an in-flight turn. The runner's closures finish,
+  // persistTurn lands the assistant row, and the console's realtime merge
+  // shows it — expand-mid-stream is seamless. The mounted ref only gates the
+  // UI mirror (patchTurn) so nothing setStates on an unmounted component.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   if (suppressed) return null;
 
@@ -471,7 +531,7 @@ export function JarvisCommandBar() {
                   {t.clarification ? (
                     <JarvisClarification
                       clarification={t.clarification}
-                      onReply={(reply) => send(`[CLARIFICATION REPLY] ${reply}`)}
+                      onReply={(reply) => enqueueSend(`[CLARIFICATION REPLY] ${reply}`)}
                     />
                   ) : null}
 
@@ -510,8 +570,8 @@ export function JarvisCommandBar() {
             ref={inputRef}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            disabled={busy}
-            placeholder={busy ? (thinking ? "thinking…" : "streaming…") : "hi jarv"}
+            // NEVER disabled — a send while a run is in flight enqueues.
+            placeholder={busy ? "queue another…" : "hi jarv"}
             aria-label="Ask Jarvis"
             aria-busy={busy}
             onFocus={() => setFocused(true)}

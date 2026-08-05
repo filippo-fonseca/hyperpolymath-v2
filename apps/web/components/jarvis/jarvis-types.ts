@@ -50,7 +50,13 @@ export interface ScrollbackAssistantTurn {
   textDelta: string; // accumulated preamble text from SSE `event: text`
   actions: ScrollbackAction[];
   createdAt: Date;
-  status: "streaming" | "done" | "error";
+  /**
+   * "queued" is a client-only placeholder state: sends now enqueue FIFO
+   * instead of aborting the in-flight run, and a queued turn waits its turn
+   * in the scrollback. It is never persisted — the assistant row is only
+   * written on done/error, and loaders normalise anything else to "done".
+   */
+  status: "queued" | "streaming" | "done" | "error";
   errorMessage?: string;
   /** Phase 5.1 D-A2 / JARVIS-19: inline clarification question, if this turn asked one. */
   clarification?: ScrollbackClarification;
