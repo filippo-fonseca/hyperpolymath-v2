@@ -2505,6 +2505,14 @@ select:focus-visible,
 .craft-pill:hover {
   box-shadow: var(--shadow-card-hover);
 }
+/* In-register focus for pill inputs: strong hairline + lifted shadow, so
+   consumers don't need bespoke rings (utility box-shadows lose to this
+   unlayered recipe anyway). */
+.craft-pill:focus-within,
+.craft-pill:focus-visible {
+  border-color: var(--edge-strong);
+  box-shadow: var(--shadow-card-hover);
+}
 @media (prefers-reduced-motion: reduce) {
   .craft-pill {
     transition: none;
