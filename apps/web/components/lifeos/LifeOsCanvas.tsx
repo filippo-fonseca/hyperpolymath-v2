@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { AreaIcon, WidgetIcon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
 import { resetWidgetSpans, useHasCustomSpans } from "./useWidgetSpans";
 
 type View = "widgets" | "areas";
@@ -21,7 +20,7 @@ interface Props {
 /**
  * LifeOsCanvas — the one-screen command deck (UI-CONTRACT-SD3 §2).
  *
- * Hero + quick-send always sit at the top. Below them a two-segment sd pill
+ * Hero + quick-send always sit at the top. Below them a two-segment craft-chip
  * toggle swaps EITHER the widget deck OR the areas tree into a single fixed
  * region — nothing stacks past one viewport. The whole column is `h-full`
  * against the AppShell scroll container (height = viewport − TopTabBar) and
@@ -87,7 +86,7 @@ export function LifeOsCanvas({ hero, quickSend, widgets, areas }: Props) {
           shortcut only makes sense against the tree, so it rides the toggle
           contextually. */}
       <div className="mt-4 mb-4 flex shrink-0 items-center justify-between gap-4">
-        <ViewToggle view={view} onSelect={select} reduced={!!reduced} />
+        <ViewToggle view={view} onSelect={select} />
         {view === "areas" ? (
           <Link
             href="/areas"
@@ -141,57 +140,36 @@ function ResetLayoutVerb() {
 }
 
 /**
- * Two-segment sd pill (UI-CONTRACT-SD3 §0 pill grammar). A single sliding
- * indicator (`layoutId`) glides between segments — transform-only, guarded by
- * reduced motion. Dimensional icons at 16px name each view; the active label
- * lifts to `--sd-ink`, the resting one sits faint.
+ * Two-segment view switch, restyled as `.craft-chip` pills (aug-04
+ * craft-ui-v2). Each segment is a toggle button carrying `aria-pressed`,
+ * which is also the register's active-state hook: the pressed chip fills
+ * with the neutral `--selected` (untinted, so the row spends no accent
+ * budget) via CSS color/background transitions only, no sliding indicator.
+ * Dimensional icons at 16px still name each view.
  */
 function ViewToggle({
   view,
   onSelect,
-  reduced,
 }: {
   view: View;
   onSelect: (v: View) => void;
-  reduced: boolean;
 }) {
   return (
-    <div
-      role="tablist"
-      aria-label="LifeOS view"
-      className="inline-flex items-center gap-1 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5"
-    >
+    <div aria-label="LifeOS view" className="inline-flex items-center gap-1.5">
       {SEGMENTS.map((seg) => {
         const active = view === seg.id;
         return (
           <button
             key={seg.id}
             type="button"
-            role="tab"
-            aria-selected={active}
+            aria-pressed={active}
             onClick={() => onSelect(seg.id)}
-            className={cn(
-              "relative inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-meta font-medium",
-              "cursor-pointer-always transition-colors duration-[160ms]",
-              active
-                ? "text-[var(--sd-ink)]"
-                : "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]",
-            )}
+            className="craft-chip cursor-pointer-always"
           >
-            {active && (
-              <motion.span
-                layoutId="lifeos-view-pill"
-                aria-hidden
-                className="absolute inset-0 rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)]"
-                transition={
-                  reduced ? { duration: 0 } : { duration: 0.16, ease: [0.25, 1, 0.5, 1] }
-                }
-              />
-            )}
-            <span aria-hidden className="relative z-10 inline-flex">
+            <span aria-hidden className="inline-flex">
               {seg.icon}
             </span>
-            <span className="relative z-10">{seg.label}</span>
+            <span>{seg.label}</span>
           </button>
         );
       })}
