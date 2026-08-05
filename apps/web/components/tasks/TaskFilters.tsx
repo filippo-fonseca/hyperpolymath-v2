@@ -11,8 +11,10 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import { ListFilter, X } from "lucide-react";
+import { STATUS_TINT, type TaskStatus } from "./status";
 
 const PRIORITIES = ["P∞", "P1", "P2", "P3"] as const;
 const STATUSES = [
@@ -78,16 +80,9 @@ export function TaskFilters({ projects, filters, onChange }: Props) {
       {/* Filter menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 cursor-pointer-always",
-              "text-meta text-[var(--ink-muted)]",
-              "transition-colors duration-[160ms] ease-out",
-              "hover:bg-[var(--hover)] hover:text-[var(--ink)]",
-              "data-[state=open]:bg-[var(--selected)] data-[state=open]:text-[var(--ink)]"
-            )}
-          >
+          {/* Rest-state craft chip: the menu opener joins the segmented pill
+              row's grammar rather than reading as a ghost button. */}
+          <button type="button" className="craft-chip shrink-0 cursor-pointer-always">
             <ListFilter size={14} strokeWidth={1.75} />
             Filter
           </button>
@@ -179,6 +174,7 @@ export function TaskFilters({ projects, filters, onChange }: Props) {
         <ChipPill
           key={`sta-${s}`}
           label={`Status: ${s}`}
+          tint={STATUS_TINT[s as TaskStatus] ?? null}
           onRemove={() => removeFrom("status", s)}
         />
       ))}
@@ -189,6 +185,7 @@ export function TaskFilters({ projects, filters, onChange }: Props) {
         <ChipPill
           key={`prj-${pid}`}
           label={projectName(pid)}
+          tint={tintFor(pid)}
           onRemove={() => removeFrom("project", pid)}
         />
       ))}
@@ -211,17 +208,33 @@ export function TaskFilters({ projects, filters, onChange }: Props) {
   );
 }
 
-function ChipPill({ label, onRemove }: { label: string; onRemove: () => void }) {
-  // An active filter reads as a quiet selected chip: --selected fill, no
-  // border (the chip sits directly on the canvas), sentence case text-micro.
+function ChipPill({
+  label,
+  tint = null,
+  onRemove,
+}: {
+  label: string;
+  /** Optional .tint-<hue> class where the dimension is semantically colored
+   * (status via STATUS_TINT, project via tintFor). Null = neutral --selected. */
+  tint?: string | null;
+  onRemove: () => void;
+}) {
+  // An applied filter is an ACTIVE craft chip: tinted fill where the filter's
+  // dimension carries a semantic hue, the neutral --selected fallback
+  // otherwise. Inline padding trims the trailing edge for the remove button
+  // (utilities lose to the unlayered .craft-chip padding).
   return (
-    <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-sm bg-[var(--selected)] py-0.5 pl-2 pr-1 text-micro font-medium text-[var(--ink)]">
+    <span
+      className={cn("craft-chip shrink-0", tint)}
+      data-active="true"
+      style={{ paddingRight: 6 }}
+    >
       {label}
       <button
         type="button"
         onClick={onRemove}
         aria-label={`Remove filter ${label}`}
-        className="rounded-sm p-0.5 text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+        className="rounded-full p-0.5 opacity-60 transition-opacity duration-[160ms] ease-out hover:opacity-100 cursor-pointer-always"
       >
         <X size={12} strokeWidth={2} />
       </button>

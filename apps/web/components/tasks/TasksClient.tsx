@@ -1070,9 +1070,10 @@ export function TasksClient({
 }
 
 /**
- * Quiet segmented control: a `--surface` well with a raised active segment.
- * Fill over borders (SDC-1 §2.6), sentence case, ladder radii (8px well,
- * 4px segments).
+ * Craft segmented chip row (craft-ui-v2): the view switcher is a row of
+ * `.craft-chip` pills, the active one filled with the neutral `--selected`
+ * fallback (views carry no semantic tint — color is data, not decoration).
+ * `data-active` is set only while active, never a stringified false.
  */
 function SegmentedControl<T extends string>({
   value,
@@ -1089,7 +1090,7 @@ function SegmentedControl<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="flex h-8 shrink-0 items-center gap-0.5 rounded-lg bg-[var(--surface)] p-0.5"
+      className="flex shrink-0 items-center gap-1.5"
     >
       {options.map((opt) => {
         const active = opt.value === value;
@@ -1099,14 +1100,9 @@ function SegmentedControl<T extends string>({
             type="button"
             role="radio"
             aria-checked={active}
+            data-active={active ? "true" : undefined}
             onClick={() => onChange(opt.value)}
-            className={cn(
-              "h-7 rounded-sm px-3 text-meta cursor-pointer-always",
-              "transition-colors duration-[160ms] ease-out",
-              active
-                ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
-                : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-            )}
+            className="craft-chip cursor-pointer-always"
           >
             {opt.label}
           </button>
@@ -1134,16 +1130,12 @@ function GroupMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
+        {/* Chip grammar matches the view segments: rest chip when no grouping,
+            neutral --selected fill (via data-active) while one is applied. */}
         <button
           type="button"
-          className={cn(
-            "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 cursor-pointer-always",
-            "text-meta transition-colors duration-[160ms] ease-out",
-            activeLabel
-              ? "bg-[var(--selected)] text-[var(--ink)]"
-              : "text-[var(--ink-muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]",
-            "data-[state=open]:bg-[var(--selected)] data-[state=open]:text-[var(--ink)]"
-          )}
+          data-active={activeLabel ? "true" : undefined}
+          className="craft-chip shrink-0 cursor-pointer-always"
         >
           {activeLabel ? `Group: ${activeLabel}` : "Group"}
           <ChevronDown size={13} strokeWidth={1.75} />
