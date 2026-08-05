@@ -18,9 +18,6 @@
 import { addDays, format } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-
 export type CalendarView = "day" | "3day" | "week";
 
 interface Props {
@@ -44,19 +41,13 @@ export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
   const step = view === "day" ? 1 : view === "3day" ? 3 : 7;
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-8 shrink-0 items-center gap-0.5 rounded-lg bg-[var(--surface)] p-0.5">
+      <div className="flex shrink-0 items-center gap-1.5">
         {SEGMENTS.map((seg) => (
           <button
             key={seg.value}
             type="button"
             onClick={() => onChange(seg.value)}
-            className={cn(
-              "h-7 rounded-sm px-3 text-meta cursor-pointer-always",
-              "transition-colors duration-[160ms] ease-out",
-              view === seg.value
-                ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
-                : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-            )}
+            className="craft-chip cursor-pointer-always"
             aria-pressed={view === seg.value}
           >
             {seg.label}
@@ -64,41 +55,37 @@ export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
         ))}
       </div>
 
-      <div className="flex items-center gap-1">
-        <Button
+      <div className="flex items-center gap-1.5">
+        <button
           type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2"
+          className="craft-chip cursor-pointer-always px-2"
           onClick={() => onDateChange(addDays(date, -step))}
-          aria-label={view === "day" ? "Previous day" : view === "3day" ? "Previous 3 days" : "Previous week"}
+          aria-label={
+            view === "day" ? "Previous day" : view === "3day" ? "Previous 3 days" : "Previous week"
+          }
         >
           <ChevronLeft size={14} strokeWidth={1.5} />
-        </Button>
-        <Button
+        </button>
+        <button
           type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-meta"
+          className="craft-chip cursor-pointer-always"
           onClick={() => onDateChange(new Date())}
         >
           Today
-        </Button>
-        <Button
+        </button>
+        <button
           type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2"
+          className="craft-chip cursor-pointer-always px-2"
           onClick={() => onDateChange(addDays(date, step))}
           aria-label={view === "day" ? "Next day" : view === "3day" ? "Next 3 days" : "Next week"}
         >
           <ChevronRight size={14} strokeWidth={1.5} />
-        </Button>
+        </button>
       </div>
 
       {/* Date label — editorial metadata; tabular figures so the width
           doesn't jitter as the user pages through weeks. */}
-      <span className="ml-1 text-meta tabular-nums text-[var(--ink-muted)]">
+      <span className="ml-1 text-micro tabular-nums text-[var(--ink-faint)]">
         {view === "day"
           ? format(date, "EEEE, MMMM d, yyyy")
           : view === "3day"

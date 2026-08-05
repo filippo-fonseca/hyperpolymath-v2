@@ -323,34 +323,21 @@ export function CalendarGrid({
           return (
             <div
               key={d.toISOString()}
-              className="flex items-baseline gap-2 border-l border-[var(--edge)] px-3 py-3"
+              className="flex items-center border-l border-[var(--edge)] px-3 py-2"
               style={{
                 borderLeftWidth: i === 0 ? 0 : 1,
                 background: isToday ? TODAY_WASH : undefined,
               }}
             >
-              <span
-                className={cn(
-                  "text-[10px] font-semibold uppercase tracking-[0.12em]",
-                  isToday
-                    ? "text-[var(--tint-butter-ink)]"
-                    : "text-[var(--ink-faint)]",
-                )}
-              >
-                {format(d, "EEE")}
-              </span>
-              {/* Today's number sits on a small butter plate — the only
-                  saturated thing in the header row. */}
-              <span
-                className={cn(
-                  "text-xl tabular-nums leading-none tracking-[-0.01em]",
-                  isToday
-                    ? "rounded-lg bg-[var(--tint-butter-bg)] px-1.5 py-0.5 font-bold text-[var(--tint-butter-ink)]"
-                    : "font-semibold text-[var(--ink)]",
-                )}
-              >
-                {format(d, "d")}
-              </span>
+              {/* The register's agenda day tile (globals.css §9): canvas-gray
+                  at rest, sky pastel for today. One colored element per
+                  header cell, and no uppercase. */}
+              <div className="craft-day-tile" data-today={isToday || undefined}>
+                <span className="text-micro">{format(d, "EEE")}</span>
+                <span className="text-meta font-semibold tabular-nums leading-none">
+                  {format(d, "d")}
+                </span>
+              </div>
             </div>
           );
         })}
@@ -362,8 +349,8 @@ export function CalendarGrid({
           className="grid border-b border-[var(--edge)]"
           style={{ gridTemplateColumns: dayColTemplate, minHeight: 30 }}
         >
-          <div className="flex items-center justify-end pr-3 text-[10px] uppercase tracking-[0.12em] text-[var(--ink-faint)]">
-            all-day
+          <div className="flex items-center justify-end pr-3 text-micro text-[var(--ink-faint)]">
+            All-day
           </div>
           {eventsByDay.map((d, i) => (
             <div
@@ -382,7 +369,7 @@ export function CalendarGrid({
                 />
               ))}
               {d.allDay.length > 2 && (
-                <span className="self-center px-1 text-[10px] tabular-nums text-[var(--ink-muted)]">
+                <span className="self-center px-1 text-micro tabular-nums text-[var(--ink-faint)]">
                   +{d.allDay.length - 2}
                 </span>
               )}
@@ -410,7 +397,7 @@ export function CalendarGrid({
             {HOURS.map((h) => (
               <div
                 key={h}
-                className="absolute right-3 -translate-y-1/2 text-[10px] tabular-nums text-[var(--ink-faint)]"
+                className="absolute right-3 -translate-y-1/2 text-micro tabular-nums text-[var(--ink-faint)]"
                 style={{ top: h * HOUR_PX }}
               >
                 {h === 0 ? "" : format(new Date(0, 0, 0, h), "h a")}
@@ -528,7 +515,7 @@ export function CalendarGrid({
                       }}
                     >
                       <span
-                        className="block truncate px-2 py-0.5 text-[10px] font-medium tabular-nums text-[var(--tint-ink)]"
+                        className="block truncate px-2 py-0.5 text-micro font-medium tabular-nums text-[var(--tint-ink)]"
                         style={{ opacity: isClickOnly ? 0.7 : 1 }}
                       >
                         {formatMinutes(startSnap)}–{formatMinutes(endSnap)}
@@ -558,7 +545,7 @@ export function CalendarGrid({
                     />
                     {dayIdx === 0 && (
                       <span
-                        className="absolute -translate-y-1/2 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+                        className="absolute -translate-y-1/2 rounded-md border px-1.5 py-0.5 text-micro font-semibold tabular-nums"
                         style={{
                           background: "var(--tint-bg)",
                           borderColor: "var(--tint-edge)",
@@ -666,7 +653,7 @@ function EventChip({
         />
       )}
       <div className="flex min-w-0 items-center">
-        <span className="truncate text-[12px] font-medium leading-tight text-[var(--tint-ink)]">
+        <span className="truncate text-micro font-medium leading-tight text-[var(--tint-ink)]">
           {event.title || "Untitled"}
           {event.recurringEventId && (
             <span className="ml-1 opacity-60" title="Recurring event">
@@ -676,7 +663,7 @@ function EventChip({
         </span>
       </div>
       {!isCompact && (
-        <div className="mt-0.5 truncate text-[10px] leading-tight tabular-nums text-[var(--tint-ink)] opacity-70">
+        <div className="mt-0.5 truncate text-micro leading-tight tabular-nums text-[var(--tint-ink)] opacity-70">
           {format(event.start, "HH:mm")}–{format(event.end, "HH:mm")}
         </div>
       )}
@@ -698,7 +685,7 @@ function AllDayChip({ event, onClick }: AllDayChipProps) {
       className={cn(
         tint,
         "inline-flex max-w-[140px] cursor-pointer items-center truncate rounded-lg border px-2 py-1",
-        "text-[12px] font-medium leading-none shadow-[var(--shadow-card)]",
+        "text-micro font-medium leading-none shadow-[var(--shadow-card)]",
         "transition-[border-color,box-shadow] duration-[160ms] ease-out hover:shadow-[var(--shadow-card-hover)]",
       )}
       style={{

@@ -54,12 +54,12 @@ export function DisconnectBanner({ variant }: Props) {
         className="shrink-0 text-[var(--tint-ink)]"
         aria-hidden="true"
       />
-      <span className="flex-1 text-body text-[var(--tint-ink)]">{copy}</span>
+      <span className="flex-1 text-meta text-[var(--tint-ink)]">{copy}</span>
       {/* UI-SPEC §12f — "Connect Google Calendar" CTA, on a raised white
           plate so the action reads as a control, not part of the wash. */}
       <a
         href="/api/gcal/auth"
-        className="cursor-pointer-always rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-1.5 text-meta font-medium text-[var(--ink)] shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]"
+        className="craft-chip shrink-0 cursor-pointer-always"
       >
         Connect Google Calendar
       </a>
