@@ -22,16 +22,10 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
   return (
     <div
       className={cn(
-        // Craft register: a raised white field, not a recessed well. Card
-        // shadow at rest, the card-hover shadow on hover, and on focus the
-        // app-wide --ring-focus stacked over the lift so the field keeps its
-        // paper depth while the ring reads.
-        "flex items-center gap-3 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-4",
-        "shadow-[var(--shadow-card)]",
-        "transition-[border-color,box-shadow] duration-[160ms] ease-out",
-        "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]",
-        "focus-within:border-[var(--edge-strong)]",
-        "focus-within:shadow-[var(--ring-focus),var(--shadow-card-hover)]",
+        // The register's field chrome: .craft-pill carries the raised fill,
+        // the hairline, the card shadow and the :focus-within recipe, so this
+        // component only owns geometry.
+        "craft-pill flex items-center gap-3 px-4",
         className
       )}
     >
@@ -48,7 +42,7 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
         autoComplete="off"
         className={cn(
           "h-12 w-full bg-transparent outline-none",
-          "font-serif text-[16px] text-[var(--ink)]",
+          "font-serif text-subtitle text-[var(--ink)]",
           "placeholder:text-[var(--ink-muted)] placeholder:italic"
         )}
       />

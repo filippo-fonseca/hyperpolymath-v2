@@ -44,10 +44,7 @@ function Breadcrumb({
   return (
     <nav
       aria-label="Ancestry"
-      className={cn(
-        "flex min-w-0 items-center text-[var(--ink-muted)]",
-        compact ? "text-[11px]" : "text-[12px]"
-      )}
+      className="flex min-w-0 items-center text-micro text-[var(--ink-faint)]"
     >
       {crumbs.map((c, i) => (
         <span key={`${c.label}-${i}`} className="flex min-w-0 items-center">
@@ -179,7 +176,7 @@ export function SearchResultItem({
         )}
       >
         {/* Meta row: badge + type-specific meta. */}
-        <div className={cn("flex items-center gap-2", compact ? "text-[10px]" : "text-[11px]")}>
+        <div className="flex items-center gap-2 text-micro">
           <TypeBadge type={entry.type} compact={compact} />
           {isCapture ? (
             <div className="flex min-w-0 flex-1 items-center gap-1.5 font-mono">
@@ -197,10 +194,7 @@ export function SearchResultItem({
 
         {/* Primary line. */}
         <div
-          className={cn(
-            "mt-1 truncate font-medium text-[var(--ink)]",
-            compact ? "text-[13px]" : "text-[15px]"
-          )}
+          className="mt-1 truncate text-meta font-semibold text-[var(--ink)]"
         >
           <PrimaryLine text={primary} query={query} />
         </div>

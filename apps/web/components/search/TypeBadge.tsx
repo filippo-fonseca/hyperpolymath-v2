@@ -50,10 +50,12 @@ export function TypeBadge({ type, compact = false, className }: Props) {
     <span
       className={cn(
         TYPE_TINT[type],
-        "inline-flex items-center rounded-md border font-mono uppercase tracking-[0.1em]",
+        // Entity identity, so it keeps its tinted plate — but sentence case at
+        // micro, not a mono uppercase HUD tag.
+        "inline-flex items-center rounded-md border text-micro",
         "border-[color-mix(in_srgb,var(--tint-edge)_50%,transparent)]",
         "bg-[var(--tint-bg)] text-[var(--tint-ink)]",
-        compact ? "px-1.5 py-[1px] text-[10px]" : "px-2 py-[2px] text-[10px]",
+        compact ? "px-1.5 py-[1px]" : "px-2 py-[2px]",
         className
       )}
     >

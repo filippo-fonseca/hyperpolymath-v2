@@ -105,11 +105,11 @@ export function SearchDropdown({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
       className={
-        // Craft register: a full hairline (not a hairline-and-a-half) and the
-        // pop shadow every other floating surface uses.
+        // The register's floating surface: .craft-glass-pop, the same frosted
+        // pane every menu, popover and dialog rides.
         inline
-          ? "overflow-hidden rounded-2xl border border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-pop)]"
-          : "absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-pop)]"
+          ? "craft-glass-pop overflow-hidden"
+          : "craft-glass-pop absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden"
       }
     >
       <div className="max-h-[340px] overflow-y-auto p-2">
@@ -124,7 +124,7 @@ export function SearchDropdown({
           indexOffset={indexOffset}
         />
       </div>
-      <div className="flex items-center gap-1.5 border-t border-[var(--edge)] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+      <div className="flex items-center gap-1.5 border-t border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] px-3 py-2 text-micro text-[var(--ink-faint)]">
         <CornerDownLeft size={12} strokeWidth={1.5} />
         <span>Enter to open · ⌘⏎ to send to JARVIS</span>
       </div>

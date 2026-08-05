@@ -39,14 +39,10 @@ export function flattenResults(results: Results, filter: SearchType | "all"): Se
 
 function SectionHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div className="flex items-center gap-2 border-b border-[var(--edge)] px-1 pb-1.5">
-      <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-        {label}
-      </span>
-      {/* Count sits on its own quiet plate rather than floating as loose type. */}
-      <span className="inline-flex min-w-5 items-center justify-center rounded-md bg-[var(--hover)] px-1.5 py-[1px] font-mono text-[10px] text-[var(--ink-muted)]">
-        {count}
-      </span>
+    <div className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] px-1 pb-1.5">
+      <span className="text-micro font-medium text-[var(--ink-faint)]">{label}</span>
+      {/* Counts are bare tabular text in the register, never a filled plate. */}
+      <span className="text-micro tabular-nums text-[var(--ink-faint)]">{count}</span>
     </div>
   );
 }
