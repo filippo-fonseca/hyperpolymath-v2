@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Check, ChevronRight, Plus } from "lucide-react";
 import { format, differenceInCalendarDays } from "date-fns";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -69,6 +69,10 @@ const dueText: Record<Urgency, { color: string; label: string | null }> = {
  * AnimatePresence handles the slide-out. aug-05 quiet pass: rows are
  * monochrome except the due-date stamp (coral overdue, warm today) and the
  * tiny P1 dot — Craft's one-colored-element-per-card discipline.
+ *
+ * Done tasks don't vanish: they sink into a strikethrough cluster at the
+ * bottom (two visible, tail behind "+N more", the whole thing foldable with
+ * the fold remembered in localStorage). Its checkboxes un-complete.
  */
 export function UpcomingTasksWidget({
   userId,
@@ -90,6 +94,12 @@ export function UpcomingTasksWidget({
   const [checkedOff, setCheckedOff] = useState<Set<string>>(new Set());
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
+  // The completed cluster folds away and remembers it; "+N more" is per-visit.
+  const [completedHidden, setCompletedHidden] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("lifeos-tasks-completed-hidden") === "1";
+  });
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
 
   const todayISO = (() => {
     const d = new Date();
@@ -114,6 +124,29 @@ export function UpcomingTasksWidget({
         new Date(b.dueDate as string).getTime(),
     )
     .slice(0, limit);
+
+  // Done tasks sink to the bottom cluster. Optimistically-checked rows (still
+  // pre-invalidate in the cache) lead; the rest order by most recently
+  // completed.
+  const completed = tasksData
+    .filter((t) => t.status === "lesno" || checkedOff.has(t.id))
+    .sort((a, b) => {
+      const stamp = (t: TaskWithProjects) =>
+        checkedOff.has(t.id)
+          ? Number.POSITIVE_INFINITY
+          : t.completedAt
+            ? new Date(t.completedAt).getTime()
+            : 0;
+      return stamp(b) - stamp(a);
+    });
+  const visibleCompleted = showAllCompleted ? completed : completed.slice(0, 2);
+
+  function toggleCompletedHidden() {
+    setCompletedHidden((prev) => {
+      window.localStorage.setItem("lifeos-tasks-completed-hidden", prev ? "0" : "1");
+      return !prev;
+    });
+  }
 
   async function handleCreate() {
     const title = newTitle.trim();
@@ -163,6 +196,21 @@ export function UpcomingTasksWidget({
           });
         });
     }, 250);
+  }
+
+  async function handleUncheck(task: TaskWithProjects) {
+    const r = await updateTaskStatus({ id: task.id, newStatus: "not started" });
+    if (!r.success) {
+      toast.error(r.error);
+      return;
+    }
+    setCheckedOff((prev) => {
+      if (!prev.has(task.id)) return prev;
+      const next = new Set(prev);
+      next.delete(task.id);
+      return next;
+    });
+    await queryClient.invalidateQueries({ queryKey: tableKey("tasks", userId) });
   }
 
   const transition = reducedMotion
@@ -225,12 +273,15 @@ export function UpcomingTasksWidget({
           </kbd>
         </div>
 
+        {/* One scroll container owns the open list AND the completed cluster —
+            never two nested scrollbars. */}
+        <div className="sd-scroll-hover -mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto pr-2">
         {upcoming.length === 0 ? (
-          <div className="flex min-h-0 flex-1 flex-col justify-center">
+          <div className="flex min-h-20 flex-1 flex-col justify-center">
             <EmptyState size="inline" title="Nothing due. Breathe." />
           </div>
         ) : (
-          <ul className="sd-scroll-hover -mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto pr-2">
+          <ul className="flex flex-col">
           <AnimatePresence mode="popLayout" initial={false}>
             {upcoming.map((t) => {
               const u = urgencyOf(t.dueDate as string, todayISO);
@@ -287,6 +338,63 @@ export function UpcomingTasksWidget({
             </AnimatePresence>
           </ul>
         )}
+
+        {/* Completed cluster — done tasks sink here, struck through. The
+            disclosure folds it away (remembered); "+N more" unfolds the tail. */}
+        {completed.length > 0 && (
+          <div className="mt-2 shrink-0 border-t border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] pt-1">
+            <button
+              type="button"
+              onClick={toggleCompletedHidden}
+              aria-expanded={!completedHidden}
+              className="flex h-6 w-full cursor-pointer-always items-center gap-1 text-micro text-[var(--sd-ink-faint)] transition-colors duration-[160ms] hover:text-[var(--sd-ink-dull)]"
+            >
+              <ChevronRight
+                size={12}
+                strokeWidth={1.75}
+                aria-hidden
+                className={`transition-transform duration-[160ms] ${completedHidden ? "" : "rotate-90"}`}
+              />
+              <span className="tabular-nums">Completed · {completed.length}</span>
+            </button>
+            {!completedHidden && (
+              <>
+                <ul className="flex flex-col">
+                  {visibleCompleted.map((t) => (
+                    <li key={t.id} className="group/done flex h-6 items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleUncheck(t)}
+                        aria-label={`Mark "${t.title}" as not done`}
+                        className="flex size-3.5 shrink-0 cursor-pointer-always items-center justify-center rounded border border-transparent bg-[var(--sd-ink-faint)] transition-colors duration-[160ms] hover:bg-[var(--sd-ink-dull)]"
+                      >
+                        <Check size={9} strokeWidth={2.5} className="text-[var(--sd-box)]" aria-hidden />
+                      </button>
+                      <span className="min-w-0 flex-1 truncate text-meta font-normal text-[var(--sd-ink-faint)] line-through">
+                        {t.title}
+                      </span>
+                      {t.completedAt && (
+                        <span className="shrink-0 text-micro tabular-nums text-[var(--sd-ink-faint)]">
+                          {format(new Date(t.completedAt), "MMM d")}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {completed.length > 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllCompleted((v) => !v)}
+                    className="mt-0.5 cursor-pointer-always pl-[22px] text-micro text-[var(--sd-ink-faint)] transition-colors duration-[160ms] hover:text-[var(--sd-ink-dull)]"
+                  >
+                    {showAllCompleted ? "Less" : `+${completed.length - 2} more`}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+        </div>
       </WidgetBody>
 
       {/* Footer — one quiet line; only the due-today count keeps its warmth.
