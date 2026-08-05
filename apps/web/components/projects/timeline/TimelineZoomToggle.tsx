@@ -14,9 +14,7 @@
  * Keyboard support: native <button>s; Tab + Enter work.
  */
 
-import { Button } from "@/components/ui/button";
 import type { TimelineZoom } from "@/lib/projects/timeline";
-import { cn } from "@/lib/utils";
 
 const SEGMENTS: { value: TimelineZoom; label: string }[] = [
   { value: "weeks", label: "Weeks" },
@@ -35,20 +33,14 @@ interface Props {
 export function TimelineZoomToggle({ zoom, onZoomChange, onToday, todayDisabled = false }: Props) {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5">
+      {/* Zoom segments join the craft chip row. */}
+      <div className="flex items-center gap-1.5">
         {SEGMENTS.map((seg) => (
           <button
             key={seg.value}
             type="button"
             onClick={() => onZoomChange(seg.value)}
-            className={cn(
-              "cursor-pointer-always rounded-sm px-2 py-0.5 font-sans text-micro font-medium",
-              "transition-colors duration-[160ms] ease-out",
-
-              zoom === seg.value
-                ? "bg-[var(--sd-selected)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]"
-                : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
-            )}
+            className="craft-chip cursor-pointer-always"
             aria-pressed={zoom === seg.value}
           >
             {seg.label}
@@ -56,17 +48,15 @@ export function TimelineZoomToggle({ zoom, onZoomChange, onToday, todayDisabled 
         ))}
       </div>
 
-      <Button
+      <button
         type="button"
-        variant="ghost"
-        size="sm"
-        className="h-7 px-2 font-sans text-micro font-medium"
+        className="craft-chip cursor-pointer-always disabled:cursor-not-allowed disabled:opacity-40"
         onClick={onToday}
         disabled={todayDisabled}
         title={todayDisabled ? "Today is outside the current range" : undefined}
       >
         Today
-      </Button>
+      </button>
     </div>
   );
 }

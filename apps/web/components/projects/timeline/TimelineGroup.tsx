@@ -97,7 +97,7 @@ export function TimelineGroup({
                 {group.area.emoji}
               </span>
             ) : null}
-            <span className="font-medium text-body text-[var(--sd-ink)] leading-none">
+            <span className="text-meta font-semibold text-[var(--sd-ink)] leading-none">
               {group.area.name}
             </span>
             <span className="font-medium text-micro text-[var(--ink-faint)] tabular-nums leading-none">

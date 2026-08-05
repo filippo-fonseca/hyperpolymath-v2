@@ -116,7 +116,7 @@ export function ProjectBarPopover({
         <div className="space-y-1">
           <Link
             href={`/projects/${project.id}`}
-            className="block truncate font-medium text-body text-[var(--sd-ink)] hover:underline"
+            className="block truncate text-meta font-semibold text-[var(--sd-ink)] hover:underline"
           >
             {project.icon ? <span className="mr-1.5">{project.icon}</span> : null}
             {project.name}

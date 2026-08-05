@@ -408,17 +408,15 @@ function ProjectGridTile({
           }
         }}
         className={cn(
-          "group flex h-full min-h-[176px] cursor-pointer flex-col items-center justify-between gap-2 rounded-xl border p-4 text-center",
-          "border-[var(--edge)] bg-[var(--surface-raised)]",
-          "transition-colors duration-[160ms] ease-out",
-          // Card hover is a border shift only (§2.6): no fill change, no lift.
-          "hover:border-[var(--edge-strong)]",
+          "craft-card craft-card-hover group flex h-full min-h-[176px] cursor-pointer flex-col items-center justify-between gap-2 p-4 text-center",
           selected && "border-[var(--edge-strong)] bg-[var(--selected)]"
         )}
       >
         <FolderIcon size={72} variant="closed" />
         <div className="min-w-0 space-y-1">
-          <div className="truncate text-body font-medium text-[var(--ink)]">{item.folder.name}</div>
+          <div className="truncate text-meta font-semibold text-[var(--ink)]">
+            {item.folder.name}
+          </div>
           <div className="text-micro text-[var(--ink-faint)] tabular-nums">
             {item.itemCount === 0
               ? "Empty"
@@ -471,11 +469,7 @@ function ChromeButton({
       disabled={disabled}
       aria-busy={busy || undefined}
       title={title}
-      className={cn(
-        "flex h-8 items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-2.5 text-meta text-[var(--ink)] cursor-pointer",
-        "transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
-        "disabled:cursor-not-allowed disabled:opacity-40"
-      )}
+      className="craft-chip shrink-0 cursor-pointer-always disabled:cursor-not-allowed disabled:opacity-40"
     >
       {icon}
       <span>{label}</span>

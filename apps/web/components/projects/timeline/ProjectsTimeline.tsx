@@ -390,7 +390,7 @@ export function ProjectsTimeline({ areas, projects, showArchived, scope, toolbar
 function TimelineEmpty({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="sd-panel flex flex-col items-center justify-center gap-1.5 px-6 py-14 text-center">
-      <p className="font-medium text-body text-[var(--sd-ink)]">{title}</p>
+      <p className="text-meta font-semibold text-[var(--sd-ink)]">{title}</p>
       <p className="max-w-[42ch] text-meta text-[var(--sd-ink-dull)] leading-snug">{hint}</p>
     </div>
   );
