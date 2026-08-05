@@ -96,7 +96,7 @@ function ApiKeyRow({
     <div className="space-y-2.5 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-box)] p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-lg font-semibold text-[var(--sd-ink)]">
+          <span className="text-subtitle font-semibold text-[var(--sd-ink)]">
             {meta.label}
           </span>
           {meta.required ? (
@@ -122,11 +122,11 @@ function ApiKeyRow({
         </a>
       </div>
 
-      <p className="text-sm text-[var(--sd-ink-dull)]">{meta.powers}</p>
+      <p className="text-meta text-[var(--sd-ink-dull)]">{meta.powers}</p>
 
       {configured ? (
         <div className="flex items-center justify-between gap-3 pt-1">
-          <span className="font-mono text-sm tabular-nums text-[var(--sd-ink)]">
+          <span className="font-mono text-meta tabular-nums text-[var(--sd-ink)]">
             •••• {last4 ?? "••••"}
           </span>
           <Button
@@ -159,7 +159,7 @@ function ApiKeyRow({
             autoCapitalize="off"
             autoCorrect="off"
             autoComplete="off"
-            className="font-mono text-sm"
+            className="font-mono text-meta"
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSave();
             }}

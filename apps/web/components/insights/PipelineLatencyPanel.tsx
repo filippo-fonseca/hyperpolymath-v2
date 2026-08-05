@@ -65,7 +65,7 @@ export function PipelineLatencyPanel({ stats }: Props) {
     return (
       <section className={`${NEUMORPHIC_TILE} mb-8 p-6`}>
         <header className="mb-4">
-          <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
+ <h2 className="font-serif text-subtitle font-semibold tracking-tight text-[var(--ink)]">
             Pipeline Latency
           </h2>
         </header>
@@ -113,7 +113,7 @@ export function PipelineLatencyPanel({ stats }: Props) {
     <section className={`${NEUMORPHIC_TILE} mb-8 p-6`}>
       <header className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
+ <h2 className="font-serif text-subtitle font-semibold tracking-tight text-[var(--ink)]">
             Pipeline Latency
           </h2>
           <p className="text-micro tracking-[0.06em] text-[var(--ink-muted)] mt-1">
@@ -236,7 +236,7 @@ function StageSparkline({
           />
           <span className="truncate">{stage.label}</span>
         </span>
-        <span className="font-mono text-sm font-semibold tabular-nums text-[var(--ink)]">
+        <span className="font-mono text-meta font-semibold tabular-nums text-[var(--ink)]">
           {currentMs > 0 ? `${currentMs}` : "—"}
           {currentMs > 0 ? (
             <span className="text-micro text-[var(--ink-muted)] ml-0.5">ms</span>

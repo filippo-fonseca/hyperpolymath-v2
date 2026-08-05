@@ -44,7 +44,7 @@ export function GithubHeatmapPanel({ username }: Props) {
       style={{ ['--panel-accent']: ACCENT } as React.CSSProperties}
     >
       <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="flex items-center gap-2 font-serif text-lg text-[var(--ink)]">
+ <h3 className="flex items-center gap-2 font-serif text-subtitle text-[var(--ink)]">
           <span
             aria-hidden
             className="size-2 shrink-0 rounded-full"

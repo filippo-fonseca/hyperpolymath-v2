@@ -47,7 +47,7 @@ export function ShortcutsCheatSheet() {
             </DialogTitle>
             {/* The sheet's own shortcut key, so it renders as a literal kbd
                 hint (the sanctioned slot) rather than a styled span. */}
-            <kbd className="font-mono text-[11px] text-[var(--ink-muted)]">?</kbd>
+ <kbd className="font-mono text-micro text-[var(--ink-muted)]">?</kbd>
           </div>
           <DialogDescription className="sr-only">
             All available keyboard shortcuts, grouped by context.
@@ -76,7 +76,7 @@ export function ShortcutsCheatSheet() {
                         {s.keys.map((k, i) => (
                           <kbd
                             key={`${s.id}-${i}`}
-                            className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-[var(--edge)] bg-[var(--surface)] text-[var(--ink)] min-w-[20px] text-center"
+ className="font-mono text-micro px-1.5 py-0.5 rounded border border-[var(--edge)] bg-[var(--surface)] text-[var(--ink)] min-w-[20px] text-center"
                           >
                             {k}
                           </kbd>

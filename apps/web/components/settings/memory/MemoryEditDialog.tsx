@@ -75,7 +75,7 @@ export function MemoryEditDialog({ fact, onClose }: Props) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             rows={4}
-            className="text-sm"
+            className="text-meta"
             placeholder="Enter the fact value..."
           />
         </div>

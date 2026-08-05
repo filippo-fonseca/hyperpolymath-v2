@@ -49,7 +49,7 @@ export function GoveeDevicesSection({ initialDevices, hasApiKey }: Props) {
   if (!hasApiKey) {
     return (
       <div className="rounded-lg border border-dashed border-[var(--sd-line)] bg-[var(--sd-hover)]/40 p-5">
-        <p className="text-sm text-[var(--sd-ink-dull)]">
+        <p className="text-meta text-[var(--sd-ink-dull)]">
           Add a Govee API key under{" "}
           <span className="text-micro tracking-[0.06em] text-[var(--sd-ink)]">
             API keys
@@ -67,7 +67,7 @@ export function GoveeDevicesSection({ initialDevices, hasApiKey }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-[var(--sd-ink-dull)]">
+        <p className="text-meta text-[var(--sd-ink-dull)]">
           Discover lights from your Govee account, rename them for JARVIS, and
           pick a default when you don&rsquo;t specify which light to control.
         </p>
@@ -90,7 +90,7 @@ export function GoveeDevicesSection({ initialDevices, hasApiKey }: Props) {
 
       {devices.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--sd-line)] bg-[var(--sd-hover)]/40 p-5">
-          <p className="text-sm text-[var(--sd-ink-dull)]">
+          <p className="text-meta text-[var(--sd-ink-dull)]">
             No lights registered yet. Hit{" "}
             <span className="text-micro tracking-[0.06em] text-[var(--sd-ink)]">
               Sync
@@ -206,7 +206,7 @@ function GoveeDeviceRow({
             if (error) setError(null);
           }}
           disabled={pending}
-          className="font-mono text-sm"
+          className="font-mono text-meta"
           onKeyDown={(e) => {
             if (e.key === "Enter" && dirty) handleRename();
           }}

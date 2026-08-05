@@ -333,7 +333,7 @@ export function SidebarTree({
           <div
             className={cn(
               "flex items-center gap-2.5 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1.5 select-none cursor-grabbing shadow-lg",
-              "text-[13px] tracking-tight font-medium text-[var(--sd-ink)]",
+ "text-meta tracking-tight font-medium text-[var(--sd-ink)]",
             )}
             style={{ width: collapsed ? 48 : 244 }}
           >
@@ -348,7 +348,7 @@ export function SidebarTree({
           <div
             className={cn(
               "flex items-center gap-2 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1 select-none cursor-grabbing shadow-lg",
-              "text-[13px] tracking-tight text-[var(--sd-ink)]",
+ "text-meta tracking-tight text-[var(--sd-ink)]",
             )}
             style={{ width: collapsed ? 48 : 220 }}
           >
@@ -375,7 +375,7 @@ export function SidebarTree({
 function AreaGlyph({ emoji }: { emoji: string | null }) {
   if (emoji) {
     return (
-      <span className="flex h-[18px] w-[18px] items-center justify-center rounded-[4px] bg-[var(--sd-hover)] text-[11px] leading-none shrink-0">
+ <span className="flex h-[18px] w-[18px] items-center justify-center rounded-[4px] bg-[var(--sd-hover)] text-micro leading-none shrink-0">
         {emoji}
       </span>
     );
@@ -471,7 +471,7 @@ function SortableAreaRow({
         }}
         className={cn(
           "group/area flex items-center gap-2.5 rounded-lg px-2 py-1.5 select-none",
-          "text-[13px] tracking-tight",
+ "text-meta tracking-tight",
           "transition-colors duration-[120ms] ease-out",
           "cursor-grab active:cursor-grabbing",
           isActive
@@ -646,7 +646,7 @@ function SortableProjectRow({
         className={cn(
           "group/project flex items-center gap-2 rounded-lg px-2 py-1 select-none",
           // Serif sub-row register (UI-SPEC §5e — project sub-rows in serif)
-          "text-[13px] tracking-tight",
+ "text-meta tracking-tight",
           "transition-colors duration-[120ms] ease-out",
           "cursor-grab active:cursor-grabbing",
           // Two-tier active: neutral sidebar-selected backplate + ink text.

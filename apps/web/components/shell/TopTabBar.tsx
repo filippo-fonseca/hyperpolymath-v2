@@ -181,7 +181,7 @@ export function TopTabBar({ userId }: { userId: string }) {
           Open anything…
         </span>
         <kbd
-          className="pointer-events-none hidden shrink-0 font-mono text-micro uppercase tracking-[0.06em] text-[var(--ink-faint)] md:inline"
+ className="pointer-events-none hidden shrink-0 text-micro text-[var(--ink-faint)] md:inline"
           aria-hidden
         >
           ⌘⇧K

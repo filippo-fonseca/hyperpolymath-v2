@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  * DEV-tab console chrome (sesh-sd3, unit-devtab).
  *
  * The DEVELOPMENT tab is a developer console and runs the densest register in
- * the app (jarvis-adjacent): hairline sd plates, faint micro eyebrows,
+ * the app (jarvis-adjacent): hairline sd plates, micro caps eyebrows,
  * tabular-nums stat readouts, and functional state pills.
  * These primitives are LOCAL to the DEV tab so the console can diverge from the
  * softer LIFE/HABITS/JARVIS insights panels without editing the shared
@@ -42,7 +42,7 @@ export function DevPanel({
 
 /* ------------------------------------------------------------------ eyebrow */
 
-/** Faint micro eyebrow — the console's section label register. */
+/** Sanctioned eyebrow (SDC-1 §2.4) — the console's section label register. */
 export function Eyebrow({
   children,
   className,
@@ -53,7 +53,7 @@ export function Eyebrow({
   return (
     <span
       className={cn(
-        "text-micro text-[var(--sd-ink-faint)]",
+ "text-micro uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]",
         className,
       )}
     >

@@ -112,7 +112,7 @@ export function GcalConnectionRow({ status }: Props) {
   return (
     <div className="flex items-center justify-between gap-4 py-4 border-b border-border last:border-b-0">
       <div className="flex flex-col gap-1">
-        <div className="text-sm font-medium">Google account</div>
+        <div className="text-meta font-medium">Google account</div>
         <div className="text-xs text-muted-foreground">
           Powers Calendar sync and Wiki backup to Drive.
         </div>

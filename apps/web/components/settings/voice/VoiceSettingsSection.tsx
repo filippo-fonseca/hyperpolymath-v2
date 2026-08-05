@@ -122,7 +122,7 @@ export function VoiceSettingsSection() {
       <Card className="p-6 space-y-6 hover:border-[var(--sd-accent)] transition-colors duration-150 ease-out">
         {/* Section header */}
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--sd-ink)]">
+ <h2 className="text-title font-semibold text-[var(--sd-ink)]">
             Voice
           </h2>
           <p className="text-base text-[var(--sd-ink-dull)] mt-1">
@@ -136,7 +136,7 @@ export function VoiceSettingsSection() {
             <p className="text-base text-[var(--sd-ink)]">
               Enable voice
             </p>
-            <p className="text-sm text-[var(--sd-ink-dull)]">
+            <p className="text-meta text-[var(--sd-ink-dull)]">
               Enables wake-word detection and spoken receipts.
             </p>
           </div>
@@ -184,7 +184,7 @@ export function VoiceSettingsSection() {
             placeholder="Hey Jarvis"
             className={cn(
  "w-full rounded-md border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2",
- "text-sm text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-dull)]",
+ "text-meta text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-dull)]",
  "focus:outline-none focus:border-[var(--sd-accent)]",
  "transition-colors duration-150 ease-out",
  "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -211,7 +211,7 @@ export function VoiceSettingsSection() {
             <p className="text-base text-[var(--sd-ink)]">
               Clap activation
             </p>
-            <p className="text-sm text-[var(--sd-ink-dull)]">
+            <p className="text-meta text-[var(--sd-ink-dull)]">
               Clap twice in quick succession to activate JARVIS.
             </p>
           </div>
@@ -267,7 +267,7 @@ export function VoiceSettingsSection() {
             disabled={voiceDisabled}
             className={cn(
  "w-full rounded-md border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2",
- "text-sm text-[var(--sd-ink)]",
+ "text-meta text-[var(--sd-ink)]",
  "focus:outline-none focus:border-[var(--sd-accent)]",
  "transition-colors duration-150 ease-out",
  "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -282,7 +282,7 @@ export function VoiceSettingsSection() {
         {/* 5. Voice ID picker */}
         <div className="space-y-2">
           <p className="text-base text-[var(--sd-ink)]">Voice</p>
-          <p className="text-sm text-[var(--sd-ink-dull)]">
+          <p className="text-meta text-[var(--sd-ink-dull)]">
             Choose a British voice for spoken receipts. Click Play to audition.
           </p>
           <VoiceIdPicker
@@ -298,7 +298,7 @@ export function VoiceSettingsSection() {
             <p className="text-base text-[var(--sd-ink)]">
               Discreet mode
             </p>
-            <p className="text-sm text-[var(--sd-ink-dull)]">
+            <p className="text-meta text-[var(--sd-ink-dull)]">
               Silences voice output and disables wake-word. Text Console still
               works.{" "}
               <kbd className="font-mono text-xs bg-[var(--sd-hover)] border border-[var(--sd-line)] px-1 py-0.5 rounded">
@@ -343,7 +343,7 @@ export function VoiceSettingsSection() {
           <label className="block text-base text-[var(--sd-ink)]">
             Microphone
           </label>
-          <p className="text-sm text-[var(--sd-ink-dull)]">
+          <p className="text-meta text-[var(--sd-ink-dull)]">
             Choose the input device for wake-word detection and voice commands.
           </p>
           <MicDevicePicker
@@ -368,7 +368,7 @@ export function VoiceSettingsSection() {
             >
               Physical Extension Mode
             </label>
-            <p className="text-sm text-[var(--sd-ink-dull)]">
+            <p className="text-meta text-[var(--sd-ink-dull)]">
               Use an external hardware wake-word device (Arduino + DF2301Q) as
               the trigger. When on, the browser stops ambient listening — the
               mic only acquires when the physical device fires.{" "}

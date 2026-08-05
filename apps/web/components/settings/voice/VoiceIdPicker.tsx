@@ -93,10 +93,10 @@ export function VoiceIdPicker({ value, onChange, disabled }: Props) {
                 aria-hidden="true"
               />
               <span className="min-w-0">
-                <span className="font-semibold text-sm text-[var(--sd-ink)]">
+                <span className="font-semibold text-meta text-[var(--sd-ink)]">
                   {v.name}
                 </span>
-                <span className="text-sm text-[var(--sd-ink-dull)] ml-2">
+                <span className="text-meta text-[var(--sd-ink-dull)] ml-2">
                   {v.desc}
                 </span>
               </span>

@@ -512,7 +512,7 @@ export function JarvisCommandBar() {
                     </span>
                     <span className="truncate text-meta text-[var(--ink-muted)]">{t.prompt}</span>
                     {t.status === "queued" ? (
-                      <span className="shrink-0 font-mono text-micro uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+ <span className="shrink-0 text-micro text-[var(--ink-faint)]">
                         queued
                       </span>
                     ) : null}
@@ -524,7 +524,7 @@ export function JarvisCommandBar() {
                   !t.clarification ? (
                     <div className="flex items-center gap-3" role="status" aria-live="polite">
                       <HudThinkingRing size={22} />
-                      <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+ <span className="text-xs text-[var(--sd-ink-dull)]">
                         Thinking
                       </span>
                     </div>

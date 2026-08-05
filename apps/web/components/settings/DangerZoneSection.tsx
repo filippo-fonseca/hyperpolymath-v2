@@ -87,7 +87,7 @@ export function DangerZoneSection({ email }: { email: string }) {
             />
           </div>
 
-          {error ? <p className="text-sm text-[var(--ink-coral)]">{error}</p> : null}
+          {error ? <p className="text-meta text-[var(--ink-coral)]">{error}</p> : null}
 
           <div className="flex items-center gap-2">
             <Button

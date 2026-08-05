@@ -84,7 +84,7 @@ export function MessagingSection({
       {/* The channel switch */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <div className="text-sm font-medium text-[var(--sd-ink)]">Reply to text messages</div>
+          <div className="text-meta font-medium text-[var(--sd-ink)]">Reply to text messages</div>
           <div className="text-xs text-[var(--sd-ink-dull)]">
             When this is on, a text to your Kiwi number runs the same assistant you get on the web,
             and the reply comes back as a text. Turning it off stops the turn before it starts, so
@@ -118,7 +118,7 @@ export function MessagingSection({
 
       {/* Last-reply status */}
       <div className="flex flex-col gap-1 border-t border-border pt-4">
-        <div className="text-sm font-medium text-[var(--sd-ink)]">Last reply</div>
+        <div className="text-meta font-medium text-[var(--sd-ink)]">Last reply</div>
         {meta && lastReplyLabel ? (
           <div className="flex items-center gap-2 text-xs text-[var(--sd-ink-dull)]">
             <span className={`h-2 w-2 rounded-full ${meta.dotClass}`} aria-hidden />
@@ -138,7 +138,7 @@ export function MessagingSection({
 
       {/* Who may drive it, and where replies come from */}
       <div className="flex flex-col gap-2 border-t border-border pt-4">
-        <div className="text-sm font-medium text-[var(--sd-ink)]">Allowed senders</div>
+        <div className="text-meta font-medium text-[var(--sd-ink)]">Allowed senders</div>
         {allowedSenders.length > 0 ? (
           <ul className="flex flex-wrap gap-2">
             {allowedSenders.map((number) => (

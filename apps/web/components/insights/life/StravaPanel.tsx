@@ -102,14 +102,14 @@ export function StravaPanel({ result }: Props) {
     return (
       <PanelChrome>
         <header className="mb-2 flex items-baseline justify-between">
-          <h3 className="flex items-center gap-2 font-serif text-lg text-[var(--ink)]">
+ <h3 className="flex items-center gap-2 font-serif text-subtitle text-[var(--ink)]">
             <AccentDot />
             Strava
           </h3>
         </header>
         {isDisconnected ? (
           <div className="flex flex-col gap-3">
-            <p className="font-serif text-sm text-[var(--ink-muted)]">
+            <p className="font-serif text-meta text-[var(--ink-muted)]">
               Strava not connected.
             </p>
             <a
@@ -133,7 +133,7 @@ export function StravaPanel({ result }: Props) {
     <PanelChrome>
       <header className="mb-3 flex items-center justify-between gap-4">
         <div className="flex items-baseline gap-3">
-          <h3 className="font-serif text-lg text-[var(--ink)]">Strava</h3>
+ <h3 className="font-serif text-subtitle text-[var(--ink)]">Strava</h3>
           <StravaDisconnectButton />
         </div>
         <div
@@ -276,7 +276,7 @@ function SportView({
           {recent.map((a) => (
             <li
               key={a.id}
-              className="flex items-baseline justify-between gap-3 text-sm"
+              className="flex items-baseline justify-between gap-3 text-meta"
             >
               <span className="flex items-baseline gap-2 truncate">
                 <span className="font-serif text-[var(--ink)] truncate">

@@ -78,7 +78,7 @@ export function FlowPanel({ result }: Props) {
     return (
       <PanelChrome>
         <header className="mb-2 flex items-baseline justify-between">
-          <h3 className="flex items-center gap-2 font-serif text-lg text-[var(--ink)]">
+ <h3 className="flex items-center gap-2 font-serif text-subtitle text-[var(--ink)]">
             <AccentDot />
             Flow
           </h3>
@@ -106,7 +106,7 @@ export function FlowPanel({ result }: Props) {
     <PanelChrome>
       <header className="mb-4 flex items-baseline justify-between gap-4">
         <div className="flex items-baseline gap-3">
-          <h3 className="flex items-center gap-2 font-serif text-lg text-[var(--ink)]">
+ <h3 className="flex items-center gap-2 font-serif text-subtitle text-[var(--ink)]">
             <AccentDot />
             Flow
           </h3>
@@ -140,7 +140,7 @@ export function FlowPanel({ result }: Props) {
       </header>
 
       {totalMinutes === 0 ? (
-        <p className="font-serif text-sm text-[var(--ink-muted)]">
+        <p className="font-serif text-meta text-[var(--ink-muted)]">
           No focused sessions this week.
         </p>
       ) : null}

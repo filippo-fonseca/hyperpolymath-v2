@@ -11,7 +11,7 @@ interface Props {
  */
 export function Wordmark({ collapsed }: Props) {
   return (
-    <div className="text-[15px] leading-none overflow-hidden">
+ <div className="text-body leading-none overflow-hidden">
       <Logotype collapsed={collapsed} />
     </div>
   );
