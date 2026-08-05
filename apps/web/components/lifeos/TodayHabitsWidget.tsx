@@ -121,7 +121,7 @@ export function TodayHabitsWidget({
     <>
       <WidgetBody>
         <EntityCardHeader
-          icon={<HabitIcon size={36} />}
+          icon={<HabitIcon size={28} />}
           title="Habits"
           subtitle="Today"
           pill={pill}
@@ -137,14 +137,14 @@ export function TodayHabitsWidget({
           </div>
         ) : (
           <>
-            <div className="mt-4">
+            <div className="mt-3">
               <ProgressRow
                 label="Completed"
                 value={`${doneCount}/${total}`}
                 ratio={doneCount / total}
               />
             </div>
-            <ul className="sd-scroll-hover -mr-2 mt-4 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-2">
+            <ul className="sd-scroll-hover -mr-2 mt-3 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pr-2">
               {habits.slice(0, 6).map((h) => {
                 const done = isDone(h.id);
                 return (
@@ -164,20 +164,20 @@ export function TodayHabitsWidget({
                       >
                         {done ? (
                           <Check
-                            size={14}
+                            size={13}
                             strokeWidth={2}
                             className="text-[var(--sd-accent)]"
                           />
                         ) : (
                           <Circle
-                            size={14}
+                            size={13}
                             strokeWidth={1.5}
                             className="text-[var(--sd-ink-faint)] transition-colors duration-[160ms] group-hover/habit:text-[var(--sd-ink)]"
                           />
                         )}
                       </motion.span>
                       <span
-                        className={`truncate text-body ${
+                        className={`truncate text-meta ${
                           done
                             ? "text-[var(--sd-ink-faint)] line-through"
                             : "text-[var(--sd-ink)]"

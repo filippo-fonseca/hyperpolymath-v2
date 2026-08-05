@@ -192,7 +192,7 @@ export function UpcomingTasksWidget({
     <>
       <WidgetBody>
         <EntityCardHeader
-          icon={<TaskIcon size={36} />}
+          icon={<TaskIcon size={28} />}
           title="Tasks"
           subtitle={subtitle}
           pill={
@@ -215,7 +215,7 @@ export function UpcomingTasksWidget({
         />
 
         {/* Inline composer — Enter to create with today's due date. */}
-        <div className="mb-1 mt-4 flex items-center gap-2 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 transition-colors duration-[160ms] focus-within:border-[color-mix(in_srgb,var(--sd-accent)_40%,var(--sd-line))]">
+        <div className="mb-1 mt-3 flex items-center gap-2 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 py-1.5 transition-colors duration-[160ms] focus-within:border-[color-mix(in_srgb,var(--sd-accent)_40%,var(--sd-line))]">
           <Plus
             size={13}
             strokeWidth={1.75}
@@ -234,7 +234,7 @@ export function UpcomingTasksWidget({
             }}
             placeholder="New task, Enter to add"
             disabled={creating}
-            className="min-w-0 flex-1 bg-transparent text-body text-[var(--sd-ink)] outline-none placeholder:text-[var(--sd-ink-faint)]"
+            className="min-w-0 flex-1 bg-transparent text-meta text-[var(--sd-ink)] outline-none placeholder:text-[var(--sd-ink-faint)]"
           />
           {newTitle.trim() && (
             <kbd className="font-mono text-micro text-[var(--ink-faint)]">⏎</kbd>
@@ -260,13 +260,13 @@ export function UpcomingTasksWidget({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={transition}
-                  className="group/task flex items-center gap-3 border-b border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] py-2.5 last:border-b-0"
+                  className="group/task flex items-center gap-2.5 border-b border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] py-2 last:border-b-0"
                 >
                   <button
                     type="button"
                     onClick={() => handleCheck(t)}
                     aria-label={`Mark "${t.title}" as done`}
-                    className="relative flex size-4 shrink-0 cursor-pointer-always items-center justify-center rounded border transition-colors duration-[160ms]"
+                    className="relative flex size-3.5 shrink-0 cursor-pointer-always items-center justify-center rounded border transition-colors duration-[160ms]"
                     style={{
                       borderColor:
                         u === "overdue" || u === "today" ? tone.dot : "var(--sd-line)",
@@ -278,7 +278,7 @@ export function UpcomingTasksWidget({
                       style={{ backgroundColor: tone.dot }}
                     />
                   </button>
-                  <span className="min-w-0 flex-1 truncate text-body text-[var(--sd-ink)]">
+                  <span className="min-w-0 flex-1 truncate text-meta text-[var(--sd-ink)]">
                     {t.title}
                   </span>
                   <div className="flex shrink-0 items-center gap-2">

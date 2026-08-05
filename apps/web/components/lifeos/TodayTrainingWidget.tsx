@@ -95,7 +95,7 @@ export function TodayTrainingWidget({
     <>
       <WidgetBody>
         <EntityCardHeader
-          icon={<TrainingIcon size={36} />}
+          icon={<TrainingIcon size={28} />}
           title="Training"
           subtitle="Today"
           pill={pill}
@@ -107,7 +107,7 @@ export function TodayTrainingWidget({
         />
 
         {visible.length > 0 && (
-          <div className="mt-4">
+          <div className="mt-3">
             <ProgressRow
               label="Completed"
               value={`${doneCount}/${visible.length}`}
@@ -122,7 +122,7 @@ export function TodayTrainingWidget({
             <EmptyState size="inline" title="Rest day. Recover well; tomorrow earns more." />
           </div>
         ) : (
-          <ul className="sd-scroll-hover -mr-2 mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-2">
+          <ul className="sd-scroll-hover -mr-2 mt-3 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-2">
             {visible.map((a) => {
               const done = a.status === "done";
               const plannedMin = a.plannedDurationMin;
@@ -134,12 +134,12 @@ export function TodayTrainingWidget({
                     className="group/training flex w-full cursor-pointer-always items-center gap-2 text-left"
                   >
                     <span
-                      className="inline-block size-2.5 shrink-0 rounded-full"
+                      className="inline-block size-2 shrink-0 rounded-full"
                       style={{ backgroundColor: a.type.color }}
                       aria-hidden
                     />
                     <span
-                      className={`min-w-0 flex-1 truncate text-body ${
+                      className={`min-w-0 flex-1 truncate text-meta ${
                         done
                           ? "text-[var(--sd-ink-faint)] line-through"
                           : "text-[var(--sd-ink)]"

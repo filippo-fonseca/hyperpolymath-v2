@@ -77,7 +77,7 @@ export function WidgetCard({ href, ariaLabel, children, className }: Props) {
   );
 }
 
-/** The padded region of a card (§6: 20px). Grows to fill the tile. */
+/** The padded region of a card (aug-05 craft density: 16px). Grows to fill the tile. */
 export function WidgetBody({
   children,
   className,
@@ -85,13 +85,13 @@ export function WidgetBody({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("flex min-h-0 flex-1 flex-col p-5", className)}>{children}</div>;
+  return <div className={cn("flex min-h-0 flex-1 flex-col p-4", className)}>{children}</div>;
 }
 
 /**
- * §11 footer chip strip, verbatim geometry:
- * `flex h-10 flex-row items-center gap-1.5 border-t border-app-line px-2`.
- * Chips belong here, hairline-separated, not scattered through the body.
+ * §11 footer chip strip — hairline-separated, chips never scatter through the
+ * body. aug-05 craft density: h-9 (was the §11 h-10) so the strip sits at the
+ * same rhythm as the downshifted rows above it.
  */
 export function WidgetFooter({
   children,
@@ -103,7 +103,7 @@ export function WidgetFooter({
   return (
     <div
       className={cn(
-        "flex h-10 shrink-0 flex-row items-center gap-2 overflow-hidden border-t border-[var(--sd-line)] px-2",
+        "flex h-9 shrink-0 flex-row items-center gap-2 overflow-hidden border-t border-[var(--sd-line)] px-2",
         className,
       )}
     >

@@ -40,7 +40,7 @@ const toneDot: Record<StatusTone, string> = {
  */
 export function StatusPill({ tone, label }: { tone: StatusTone; label: string }) {
   return (
-    <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 text-micro font-medium text-[var(--sd-ink-dull)]">
+    <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-2 text-micro font-medium text-[var(--sd-ink-dull)]">
       <span
         aria-hidden
         className="size-1.5 shrink-0 rounded-full"
@@ -71,7 +71,7 @@ export function EntityCardHeader({
   pill,
   action,
 }: {
-  /** Dimensional icon (36px per §6) — the register's mascots (R3). */
+  /** Dimensional icon (28px, craft scale) — the register's mascots (R3). */
   icon: ReactNode;
   title: string;
   subtitle?: ReactNode;
@@ -81,10 +81,12 @@ export function EntityCardHeader({
 }) {
   return (
     <header className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2.5">
         <span className="inline-flex shrink-0 items-center justify-center">{icon}</span>
-        <div className="flex min-w-0 flex-col gap-1">
-          <h3 className="truncate text-subtitle font-medium leading-tight text-[var(--sd-ink)]">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          {/* aug-05 craft density: widget titles ride text-body (Craft's UI
+              scale tops out around 13px primary), not text-subtitle. */}
+          <h3 className="truncate text-body font-medium leading-tight text-[var(--sd-ink)]">
             {title}
           </h3>
           {subtitle != null && (

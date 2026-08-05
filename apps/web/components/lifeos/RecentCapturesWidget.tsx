@@ -77,7 +77,7 @@ export function RecentCapturesWidget({
     <>
       <WidgetBody>
         <EntityCardHeader
-          icon={<CaptureIcon size={36} />}
+          icon={<CaptureIcon size={28} />}
           title="Captures"
           subtitle="Recent thoughts"
           pill={
@@ -104,7 +104,7 @@ export function RecentCapturesWidget({
           // Flat sub-cards on --sd-input: no border-in-border double nesting (§6).
           // Compact cell (SD3 §2): a single-column stream that scrolls inside
           // the tile rather than a page-widening grid.
-          <ul className="sd-scroll-hover -mr-2 mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-2">
+          <ul className="sd-scroll-hover -mr-2 mt-3 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-2">
             {recent.map((c, i) => {
               const isJarvis = c.createdVia === "jarvis";
               const SourceIcon = isJarvis ? Sparkles : PenLine;
@@ -118,7 +118,7 @@ export function RecentCapturesWidget({
                     duration: 0.22,
                     ease: [0.25, 1, 0.5, 1],
                   }}
-                  className="group relative flex flex-col gap-2 rounded-[8px] bg-[var(--sd-input)] p-3"
+                  className="group relative flex flex-col gap-1.5 rounded-[8px] bg-[var(--sd-input)] p-2.5"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 text-[var(--sd-ink-faint)]">
@@ -138,7 +138,7 @@ export function RecentCapturesWidget({
                       })}
                     </span>
                   </div>
-                  <p className="line-clamp-3 text-body text-[var(--sd-ink)]">
+                  <p className="line-clamp-3 text-meta text-[var(--sd-ink)]">
                     <CaptureLine capture={c} />
                   </p>
                   {(c.hashtags.length > 0 || c.projects.length > 0) && (

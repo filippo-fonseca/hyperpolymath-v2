@@ -32,7 +32,7 @@ export function LifeOsInsightsWidget({
     <>
       <WidgetBody>
         <EntityCardHeader
-          icon={<InsightIcon size={36} />}
+          icon={<InsightIcon size={28} />}
           title="Insights"
           subtitle="This week"
           pill={
@@ -49,19 +49,19 @@ export function LifeOsInsightsWidget({
             <span className="text-display font-black leading-none tabular-nums text-[var(--sd-ink)]">
               {jarvisTurns}
             </span>
-            <span className="text-meta font-medium text-[var(--sd-ink-dull)]">
+            <span className="text-micro font-medium text-[var(--sd-ink-dull)]">
               JARVIS turns · 7d
             </span>
           </div>
           <p className="mt-2 flex items-center gap-2 text-meta text-[var(--sd-ink-dull)]">
-            <HabitIcon size={16} aria-hidden />
+            <HabitIcon size={14} aria-hidden />
             <span className="tabular-nums">
               {habitsDone}/{habitsTotal} habits
             </span>
             <span aria-hidden className="text-[var(--sd-ink-faint)]">
               ·
             </span>
-            <TrainingIcon size={16} aria-hidden />
+            <TrainingIcon size={14} aria-hidden />
             <span className="tabular-nums">
               {trainingDone}/{trainingPlanned} training
             </span>
