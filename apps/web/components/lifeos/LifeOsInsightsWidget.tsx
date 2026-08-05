@@ -1,8 +1,8 @@
 "use client";
 
 import { HabitIcon, InsightIcon, TrainingIcon } from "@/components/ui/icons";
-import { ActionLink, Chip, EntityCardHeader, StatusPill } from "./entity-card";
-import { WidgetBody, WidgetFooter } from "./WidgetCard";
+import { ActionLink, EntityCardHeader } from "./entity-card";
+import { WidgetBody } from "./WidgetCard";
 
 interface Props {
   jarvisTurns: number;
@@ -18,8 +18,8 @@ interface Props {
  *
  * As a compact 3-col cell it can't afford the old three-stat strip, so it leads
  * with a single headline metric (JARVIS turns, the register's pulse) plus a
- * one-line week summary; the habits/training splits live in the §11 footer chip
- * strip. Headline metrics + chip strip, one screen.
+ * one-line micro summary of the habits/training splits. No pill, no footer —
+ * everything the cell knows fits in those two lines (aug-05 quiet pass).
  */
 export function LifeOsInsightsWidget({
   jarvisTurns,
@@ -32,35 +32,28 @@ export function LifeOsInsightsWidget({
     <>
       <WidgetBody>
         <EntityCardHeader
-          icon={<InsightIcon size={28} />}
+          icon={<InsightIcon size={20} />}
           title="Insights"
           subtitle="This week"
-          pill={
-            jarvisTurns > 0 ? (
-              <StatusPill tone="progress" label="7d" />
-            ) : (
-              <StatusPill tone="idle" label="quiet" />
-            )
-          }
+          // aug-05 quiet pass: no pill, no footer — the headline metric and
+          // the mini-stat line below already say everything this cell knows.
           action={<ActionLink>Open →</ActionLink>}
         />
         <div className="mt-3 flex min-h-0 flex-1 flex-col justify-center">
           <div className="flex items-baseline gap-2">
-            <span className="text-display font-black leading-none tabular-nums text-[var(--sd-ink)]">
+            <span className="text-title font-semibold leading-none tabular-nums text-[var(--sd-ink)]">
               {jarvisTurns}
             </span>
-            <span className="text-micro font-medium text-[var(--sd-ink-dull)]">
+            <span className="text-micro font-normal text-[var(--sd-ink-faint)]">
               JARVIS turns · 7d
             </span>
           </div>
-          <p className="mt-2 flex items-center gap-2 text-meta text-[var(--sd-ink-dull)]">
+          <p className="mt-2 flex items-center gap-1.5 text-micro text-[var(--sd-ink-faint)]">
             <HabitIcon size={14} aria-hidden />
             <span className="tabular-nums">
               {habitsDone}/{habitsTotal} habits
             </span>
-            <span aria-hidden className="text-[var(--sd-ink-faint)]">
-              ·
-            </span>
+            <span aria-hidden>·</span>
             <TrainingIcon size={14} aria-hidden />
             <span className="tabular-nums">
               {trainingDone}/{trainingPlanned} training
@@ -68,21 +61,6 @@ export function LifeOsInsightsWidget({
           </p>
         </div>
       </WidgetBody>
-
-      <WidgetFooter>
-        <Chip>Trailing 7 days</Chip>
-        {jarvisTurns > 0 && <Chip>{jarvisTurns} turns</Chip>}
-        {habitsTotal > 0 && (
-          <Chip>
-            {habitsDone}/{habitsTotal} habits
-          </Chip>
-        )}
-        {trainingPlanned > 0 && (
-          <Chip>
-            {trainingDone}/{trainingPlanned} sessions
-          </Chip>
-        )}
-      </WidgetFooter>
     </>
   );
 }

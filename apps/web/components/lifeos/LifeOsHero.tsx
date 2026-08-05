@@ -70,17 +70,17 @@ function dotColor(tone: DotTone): string | undefined {
   }
 }
 
-/** Dimensional icon slot in the stat strip (UI-CONTRACT §5). */
-const ICON_SIZE = 40;
+/** Dimensional icon slot in the stat strip (aug-05 quiet pass: 20px chrome). */
+const ICON_SIZE = 20;
 /**
  * Optical size for AreaIcon. Every sibling draws a 54/80 rounded square that
  * fills its box, but AreaIcon's diamond spans 50/80 with only half the fill
- * area of a square that wide, so at a nominal 40 it reads about a third
+ * area of a square that wide, so at the nominal size it reads about a third
  * smaller than the rest of the strip. Rendering it 1.3x brings its mass level;
- * the glyph still lands at 32.5px, inside the 40px slot, so the icon column
- * and every text baseline stay put.
+ * the glyph still lands inside the icon slot, so the icon column and every
+ * text baseline stay put.
  */
-const DIAMOND_ICON_SIZE = 52;
+const DIAMOND_ICON_SIZE = 26;
 
 /**
  * LifeOsHero — the /lifeos header: a greeting row and a stat strip, both
@@ -95,10 +95,11 @@ const DIAMOND_ICON_SIZE = 52;
  * spends exactly one, that terminal period. Title + date, nothing competing.
  *
  * Stat strip: six stats, each an icon-left row of dimensional icon + text
- * stack (label / value / caption), no card chrome. Values are `font-black
- * tabular-nums` with a muted unit on the same baseline (§11); the caption
- * carries the one functional dot. Every stat links into the surface it
- * summarises. All numbers derive from props the server already fetched.
+ * stack (label / value / caption), no card chrome. aug-05 quiet pass: 20px
+ * icons and `text-subtitle font-semibold tabular-nums` values with a faint
+ * unit on the same baseline — weight over size; the caption carries the one
+ * functional dot. Every stat links into the surface it summarises. All
+ * numbers derive from props the server already fetched.
  *
  * Motion is the campaign signature (D4): opacity 0→1, y 4→0 at 160ms easeOut,
  * 10ms stagger per stat, `useReducedMotion` guard. Transform/opacity only and
@@ -250,21 +251,23 @@ export function LifeOsHero({
             <motion.div key={s.key} {...cellAnim}>
               <Link
                 href={s.href}
-                className="group/stat flex items-center gap-3 rounded-[8px] -mx-2 px-2 py-1.5 outline-none transition-colors duration-[160ms] ease-out hover:bg-[var(--sd-hover)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+                className="group/stat flex items-center gap-2.5 rounded-[8px] -mx-2 px-2 py-1.5 outline-none transition-colors duration-[160ms] ease-out hover:bg-[var(--sd-hover)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
               >
-                <span className="inline-flex size-10 shrink-0 items-center justify-center">
+                <span className="inline-flex size-5 shrink-0 items-center justify-center">
                   {s.icon}
                 </span>
-                <span className="flex min-w-0 flex-col gap-1">
+                <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-micro font-medium text-[var(--ink-faint)]">
                     {s.label}
                   </span>
+                  {/* aug-05 quiet pass: numerals step down to text-subtitle
+                      semibold — weight over size, Craft-style. */}
                   <span className="flex items-baseline leading-none">
-                    <span className="text-2xl font-black tabular-nums tracking-[-0.01em] text-[var(--sd-ink)]">
+                    <span className="text-subtitle font-semibold tabular-nums text-[var(--sd-ink)]">
                       {s.value}
                     </span>
                     {s.unit ? (
-                      <span className="ml-1 text-subtitle font-medium tabular-nums text-[var(--sd-ink-faint)]">
+                      <span className="ml-1 text-meta font-normal tabular-nums text-[var(--sd-ink-faint)]">
                         {s.unit}
                       </span>
                     ) : null}

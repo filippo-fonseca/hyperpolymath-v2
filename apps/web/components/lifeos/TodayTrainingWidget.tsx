@@ -9,13 +9,7 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { formatDistance, type DistanceUnit } from "@/lib/training/distance";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TrainingIcon } from "@/components/ui/icons";
-import {
-  ActionLink,
-  Chip,
-  EntityCardHeader,
-  ProgressRow,
-  StatusPill,
-} from "./entity-card";
+import { ActionLink, EntityCardHeader, ProgressRow } from "./entity-card";
 import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
 interface Props {
@@ -73,17 +67,6 @@ export function TodayTrainingWidget({
   );
   const doneCount = visible.filter((a) => a.status === "done").length;
 
-  const pill =
-    visible.length === 0 ? (
-      <StatusPill tone="idle" label="rest day" />
-    ) : doneCount === visible.length ? (
-      <StatusPill tone="active" label="done" />
-    ) : doneCount > 0 ? (
-      <StatusPill tone="progress" label={`${doneCount}/${visible.length}`} />
-    ) : (
-      <StatusPill tone="progress" label={`${visible.length} planned`} />
-    );
-
   const plannedMinutes = visible.reduce((sum, a) => sum + (a.plannedDurationMin ?? 0), 0);
   const plannedKmTotal = visible.reduce(
     (sum, a) =>
@@ -95,10 +78,12 @@ export function TodayTrainingWidget({
     <>
       <WidgetBody>
         <EntityCardHeader
-          icon={<TrainingIcon size={28} />}
+          icon={<TrainingIcon size={20} />}
           title="Training"
           subtitle="Today"
-          pill={pill}
+          // aug-05 quiet pass: no pill — the ProgressRow narrates completion
+          // and the rest-day empty state narrates rest; a status pill would
+          // only repeat one of them.
           action={
             <Link href="/training" className="group/action cursor-pointer-always">
               <ActionLink>Plan →</ActionLink>
@@ -164,21 +149,17 @@ export function TodayTrainingWidget({
         )}
       </WidgetBody>
 
-      <WidgetFooter>
-        {visible.length === 0 ? (
-          <Chip>Rest day</Chip>
-        ) : (
-          <>
-            <Chip>
-              {visible.length === 1 ? "1 session" : `${visible.length} sessions`}
-            </Chip>
-            {plannedMinutes > 0 && <Chip>{plannedMinutes}m planned</Chip>}
-            {plannedKmTotal > 0 && (
-              <Chip>{formatDistance(plannedKmTotal, distanceUnit)}</Chip>
-            )}
-          </>
-        )}
-      </WidgetFooter>
+      {/* Footer — one faint line of totals. On a rest day the empty state
+          already says so, and a footer repeating it would be noise. */}
+      {visible.length > 0 && (
+        <WidgetFooter>
+          <span className="truncate text-micro tabular-nums text-[var(--sd-ink-faint)]">
+            {visible.length === 1 ? "1 session" : `${visible.length} sessions`}
+            {plannedMinutes > 0 && ` · ${plannedMinutes}m planned`}
+            {plannedKmTotal > 0 && ` · ${formatDistance(plannedKmTotal, distanceUnit)}`}
+          </span>
+        </WidgetFooter>
+      )}
     </>
   );
 }

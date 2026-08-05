@@ -89,9 +89,11 @@ export function WidgetBody({
 }
 
 /**
- * §11 footer chip strip — hairline-separated, chips never scatter through the
- * body. aug-05 craft density: h-9 (was the §11 h-10) so the strip sits at the
- * same rhythm as the downshifted rows above it.
+ * Footer strip — hairline-separated, one quiet line. aug-05 quiet pass: the
+ * §11 chip row is gone; the footer is a single text-micro ink-faint sentence
+ * (" · "-separated counts), h-8, padded flush with the body's p-4 so it reads
+ * as the card's last line instead of a boxed tray. Optional per widget — a
+ * footer that only repeats the header should not render at all.
  */
 export function WidgetFooter({
   children,
@@ -103,7 +105,7 @@ export function WidgetFooter({
   return (
     <div
       className={cn(
-        "flex h-9 shrink-0 flex-row items-center gap-2 overflow-hidden border-t border-[var(--sd-line)] px-2",
+        "flex h-8 shrink-0 flex-row items-center gap-2 overflow-hidden border-t border-[var(--sd-line)] px-4",
         className,
       )}
     >

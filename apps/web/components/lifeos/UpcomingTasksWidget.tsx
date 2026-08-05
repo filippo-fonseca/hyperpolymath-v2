@@ -17,20 +17,14 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { TaskIcon } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/EmptyState";
-import {
-  ActionLink,
-  Chip,
-  EntityCardHeader,
-  OverflowChip,
-  StatusPill,
-} from "./entity-card";
+import { ActionLink, EntityCardHeader } from "./entity-card";
 import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
 /**
- * Only P1 earns a tint (coral = danger, §6). P2 and below fall back to the
- * neutral Pill grammar: §9 permits exactly one accent hue, so amber is out.
+ * Only P1 earns color (coral = danger, §6), and only as a tiny dot before the
+ * title — never a filled plate. P2 and below stay monochrome.
  */
-const priorityTone: Partial<Record<TaskWithProjects["priority"], string>> = {
+const priorityDot: Partial<Record<TaskWithProjects["priority"], string>> = {
   P1: "var(--ink-coral)",
 };
 
@@ -55,27 +49,16 @@ function urgencyOf(dueDateISO: string, todayISO: string): Urgency {
   return "later";
 }
 
-const urgencyToken: Record<Urgency, { dot: string; text: string; label: string }> = {
-  overdue: {
-    dot: "var(--ink-coral)",
-    text: "var(--ink-coral)",
-    label: "Overdue",
-  },
-  today: {
-    dot: "var(--hud-cyan)",
-    text: "var(--hud-cyan)",
-    label: "Today",
-  },
-  soon: {
-    dot: "var(--hud-cyan)",
-    text: "var(--hud-cyan)",
-    label: "",
-  },
-  later: {
-    dot: "var(--ink-muted)",
-    text: "var(--ink-muted)",
-    label: "",
-  },
+/**
+ * Craft's date grammar: the due date is bare colored TEXT, never a chip.
+ * Overdue = coral, due today = the warm butter ink (reads like Craft's small
+ * orange date stamp), everything else = faint gray.
+ */
+const dueText: Record<Urgency, { color: string; label: string | null }> = {
+  overdue: { color: "var(--ink-coral)", label: "Overdue" },
+  today: { color: "var(--tint-butter-ink)", label: "Today" },
+  soon: { color: "var(--sd-ink-faint)", label: null },
+  later: { color: "var(--sd-ink-faint)", label: null },
 };
 
 /**
@@ -83,9 +66,9 @@ const urgencyToken: Record<Urgency, { dot: string; text: string; label: string }
  *
  * Reuses tableKey("tasks", userId) verbatim from TasksClient so Realtime
  * invalidation drives both surfaces. Optimistic check-off via local Set;
- * AnimatePresence handles the slide-out. Per-row urgency tint surfaces what
- * matters at a glance — coral for overdue, cyan for today and the coming week,
- * muted for later. One accent hue only (§9).
+ * AnimatePresence handles the slide-out. aug-05 quiet pass: rows are
+ * monochrome except the due-date stamp (coral overdue, warm today) and the
+ * tiny P1 dot — Craft's one-colored-element-per-card discipline.
  */
 export function UpcomingTasksWidget({
   userId,
@@ -186,23 +169,21 @@ export function UpcomingTasksWidget({
     ? { duration: 0 }
     : { duration: 0.22, ease: [0.25, 1, 0.5, 1] as const };
 
-  const subtitle = `${open.length} scheduled`;
-
   return (
     <>
       <WidgetBody>
         <EntityCardHeader
-          icon={<TaskIcon size={28} />}
+          icon={<TaskIcon size={20} />}
           title="Tasks"
-          subtitle={subtitle}
+          subtitle={`${open.length} scheduled`}
           pill={
+            // Bare colored text, never a pill: overdue is the one thing this
+            // header is allowed to say in color. Everything else is silence.
             overdueCount > 0 ? (
-              <StatusPill tone="danger" label={`${overdueCount} overdue`} />
-            ) : upcoming.length > 0 ? (
-              <StatusPill tone="progress" label={`${upcoming.length} due`} />
-            ) : (
-              <StatusPill tone="idle" label="clear" />
-            )
+              <span className="text-micro tabular-nums text-[var(--ink-coral)]">
+                {overdueCount} overdue
+              </span>
+            ) : null
           }
           action={
             <Link
@@ -214,8 +195,11 @@ export function UpcomingTasksWidget({
           }
         />
 
-        {/* Inline composer — Enter to create with today's due date. */}
-        <div className="mb-1 mt-3 flex items-center gap-2 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 py-1.5 transition-colors duration-[160ms] focus-within:border-[color-mix(in_srgb,var(--sd-accent)_40%,var(--sd-line))]">
+        {/* Inline composer — Enter to create with today's due date. aug-05
+            quiet pass: a borderless h-7 hover row (Craft's ghost affordance);
+            the hairline border appears only while focused, no ring, and the
+            kbd hint only shows while the field is focused. */}
+        <div className="group/composer mb-1 mt-2 flex h-7 items-center gap-2 rounded-[8px] border border-transparent px-1.5 transition-colors duration-[160ms] hover:bg-[var(--hover)] focus-within:border-[var(--sd-line)] focus-within:bg-transparent">
           <Plus
             size={13}
             strokeWidth={1.75}
@@ -234,11 +218,11 @@ export function UpcomingTasksWidget({
             }}
             placeholder="New task, Enter to add"
             disabled={creating}
-            className="min-w-0 flex-1 bg-transparent text-meta text-[var(--sd-ink)] outline-none placeholder:text-[var(--sd-ink-faint)]"
+            className="min-w-0 flex-1 bg-transparent text-meta text-[var(--sd-ink)] outline-none placeholder:text-micro placeholder:text-[var(--sd-ink-faint)]"
           />
-          {newTitle.trim() && (
-            <kbd className="font-mono text-micro text-[var(--ink-faint)]">⏎</kbd>
-          )}
+          <kbd className="hidden font-mono text-micro text-[var(--ink-faint)] group-focus-within/composer:inline">
+            ⏎
+          </kbd>
         </div>
 
         {upcoming.length === 0 ? (
@@ -250,7 +234,7 @@ export function UpcomingTasksWidget({
           <AnimatePresence mode="popLayout" initial={false}>
             {upcoming.map((t) => {
               const u = urgencyOf(t.dueDate as string, todayISO);
-              const tone = urgencyToken[u];
+              const due = dueText[u];
               const project = t.projects?.[0];
               return (
                 <motion.li
@@ -260,43 +244,42 @@ export function UpcomingTasksWidget({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={transition}
-                  className="group/task flex items-center gap-2.5 border-b border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] py-2 last:border-b-0"
+                  className="group/task flex items-center gap-2.5 border-b border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] py-1.5 last:border-b-0"
                 >
                   <button
                     type="button"
                     onClick={() => handleCheck(t)}
                     aria-label={`Mark "${t.title}" as done`}
-                    className="relative flex size-3.5 shrink-0 cursor-pointer-always items-center justify-center rounded border transition-colors duration-[160ms]"
-                    style={{
-                      borderColor:
-                        u === "overdue" || u === "today" ? tone.dot : "var(--sd-line)",
-                    }}
+                    className="relative flex size-3.5 shrink-0 cursor-pointer-always items-center justify-center rounded border border-[var(--sd-line)] transition-colors duration-[160ms] hover:border-[var(--sd-ink-faint)]"
                   >
                     <span
                       aria-hidden
-                      className="absolute -left-2 top-1/2 h-[14px] w-[2px] -translate-y-1/2 rounded-sm opacity-0 transition-opacity duration-[160ms] group-hover/task:opacity-100"
-                      style={{ backgroundColor: tone.dot }}
+                      className="absolute -left-2 top-1/2 h-[14px] w-[2px] -translate-y-1/2 rounded-sm bg-[var(--sd-ink-faint)] opacity-0 transition-opacity duration-[160ms] group-hover/task:opacity-100"
                     />
                   </button>
-                  <span className="min-w-0 flex-1 truncate text-meta text-[var(--sd-ink)]">
+                  {priorityDot[t.priority] && (
+                    <span
+                      aria-hidden
+                      title={t.priority}
+                      className="size-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: priorityDot[t.priority] }}
+                    />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-meta font-normal text-[var(--sd-ink)]">
                     {t.title}
                   </span>
                   <div className="flex shrink-0 items-center gap-2">
-                    {priorityTone[t.priority] && (
-                      <Chip tone={priorityTone[t.priority]}>{t.priority}</Chip>
-                    )}
                     {project && (
                       <span className="max-w-[110px] truncate text-micro text-[var(--sd-ink-faint)]">
                         {project.name}
                       </span>
                     )}
-                    {u === "overdue" || u === "today" ? (
-                      <Chip tone={tone.text}>{tone.label}</Chip>
-                    ) : (
-                      <span className="text-micro tabular-nums text-[var(--sd-ink-faint)]">
-                        {format(new Date(t.dueDate as string), "MMM d")}
-                      </span>
-                    )}
+                    <span
+                      className="text-micro tabular-nums"
+                      style={{ color: due.color }}
+                    >
+                      {due.label ?? format(new Date(t.dueDate as string), "MMM d")}
+                    </span>
                   </div>
                 </motion.li>
               );
@@ -306,17 +289,20 @@ export function UpcomingTasksWidget({
         )}
       </WidgetBody>
 
-      {/* §11 footer chip strip — the card's counts live here, hairline-separated. */}
-      <WidgetFooter>
-        <Chip>{open.length} scheduled</Chip>
-        {overdueCount > 0 && (
-          <Chip tone="var(--ink-coral)">{overdueCount} overdue</Chip>
-        )}
-        {todayCount > 0 && <Chip tone="var(--hud-cyan)">{todayCount} today</Chip>}
-        {open.length > upcoming.length && (
-          <OverflowChip count={open.length - upcoming.length} />
-        )}
-      </WidgetFooter>
+      {/* Footer — one quiet line; only the due-today count keeps its warmth.
+          The header subtitle already says "N scheduled", so the footer only
+          renders when it adds something, and drops itself otherwise. */}
+      {(todayCount > 0 || open.length > upcoming.length) && (
+        <WidgetFooter>
+          <span className="truncate text-micro tabular-nums text-[var(--sd-ink-faint)]">
+            {todayCount > 0 && (
+              <span className="text-[var(--tint-butter-ink)]">{todayCount} today</span>
+            )}
+            {todayCount > 0 && open.length > upcoming.length && " · "}
+            {open.length > upcoming.length && `+${open.length - upcoming.length} more`}
+          </span>
+        </WidgetFooter>
+      )}
     </>
   );
 }

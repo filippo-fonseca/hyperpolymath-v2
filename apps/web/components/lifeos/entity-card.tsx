@@ -71,7 +71,7 @@ export function EntityCardHeader({
   pill,
   action,
 }: {
-  /** Dimensional icon (28px, craft scale) — the register's mascots (R3). */
+  /** Dimensional icon (20px, craft scale) — the register's mascots (R3). */
   icon: ReactNode;
   title: string;
   subtitle?: ReactNode;
@@ -81,16 +81,16 @@ export function EntityCardHeader({
 }) {
   return (
     <header className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex min-w-0 items-center gap-2">
         <span className="inline-flex shrink-0 items-center justify-center">{icon}</span>
         <div className="flex min-w-0 flex-col gap-0.5">
-          {/* aug-05 craft density: widget titles ride text-body (Craft's UI
-              scale tops out around 13px primary), not text-subtitle. */}
-          <h3 className="truncate text-body font-medium leading-tight text-[var(--sd-ink)]">
+          {/* aug-05 quiet pass: Craft card titles are ~13px SEMIBOLD ink with
+              faint metadata under them — weight carries hierarchy, not size. */}
+          <h3 className="truncate text-meta font-semibold leading-tight text-[var(--sd-ink)]">
             {title}
           </h3>
           {subtitle != null && (
-            <div className="truncate text-micro font-normal text-[var(--sd-ink-dull)]">
+            <div className="truncate text-micro font-normal text-[var(--sd-ink-faint)]">
               {subtitle}
             </div>
           )}
@@ -137,8 +137,10 @@ export function CardDivider({ className }: { className?: string }) {
 /* ----------------------------------------------------------- progress row */
 
 /**
- * §6: h-6px track (`--sd-input`), accent fill, and a 45° hatched projected
- * segment. The fill animates on transform:scaleX only — never width (zero jank).
+ * Quiet progress (aug-05 craft pass): a 3px track (`--sd-input`), accent fill,
+ * and a 45° hatched projected segment. The label/value line rides micro faint —
+ * progress is ambient information, not a headline. The fill animates on
+ * transform:scaleX only — never width (zero jank).
  */
 export function ProgressRow({
   label,
@@ -153,12 +155,12 @@ export function ProgressRow({
   const clamped = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-meta text-[var(--sd-ink-dull)]">{label}</span>
-        <span className="text-meta tabular-nums text-[var(--sd-ink)]">{value}</span>
+        <span className="text-micro text-[var(--sd-ink-faint)]">{label}</span>
+        <span className="text-micro tabular-nums text-[var(--sd-ink-dull)]">{value}</span>
       </div>
-      <div className="relative h-1.5 overflow-hidden rounded-full bg-[var(--sd-input)]">
+      <div className="relative h-[3px] overflow-hidden rounded-full bg-[var(--sd-input)]">
         {/* Projected / remaining — hatched accent beneath the solid fill. */}
         <div aria-hidden className="sd-progress-hatched absolute inset-0" />
         <motion.div

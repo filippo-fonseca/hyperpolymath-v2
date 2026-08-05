@@ -19,14 +19,7 @@ import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CaptureIcon } from "@/components/ui/icons";
-import {
-  ActionLink,
-  Chip,
-  ChipRow,
-  EntityCardHeader,
-  OverflowChip,
-  StatusPill,
-} from "./entity-card";
+import { ActionLink, EntityCardHeader } from "./entity-card";
 import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
 interface Props {
@@ -63,30 +56,16 @@ export function RecentCapturesWidget({
   );
 
   const jarvisCount = capturesData.filter((c) => c.createdVia === "jarvis").length;
-  const topHashtags = (() => {
-    const counts = new Map<string, number>();
-    for (const c of capturesData) {
-      for (const h of c.hashtags) {
-        counts.set(h.displayName, (counts.get(h.displayName) ?? 0) + 1);
-      }
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
-  })();
 
   return (
     <>
       <WidgetBody>
         <EntityCardHeader
-          icon={<CaptureIcon size={28} />}
+          icon={<CaptureIcon size={20} />}
           title="Captures"
           subtitle="Recent thoughts"
-          pill={
-            capturesData.length > 0 ? (
-              <StatusPill tone="progress" label={`${capturesData.length} total`} />
-            ) : (
-              <StatusPill tone="idle" label="empty" />
-            )
-          }
+          // aug-05 quiet pass: no pill — the total lives in the footer as
+          // plain faint text.
           action={
             <Link href="/captures" className="group/action cursor-pointer-always">
               <ActionLink>All →</ActionLink>
@@ -118,7 +97,7 @@ export function RecentCapturesWidget({
                     duration: 0.22,
                     ease: [0.25, 1, 0.5, 1],
                   }}
-                  className="group relative flex flex-col gap-1.5 rounded-[8px] bg-[var(--sd-input)] p-2.5"
+                  className="group relative flex flex-col gap-1 rounded-[8px] bg-[var(--sd-input)] p-2"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 text-[var(--sd-ink-faint)]">
@@ -141,22 +120,22 @@ export function RecentCapturesWidget({
                   <p className="line-clamp-3 text-meta text-[var(--sd-ink)]">
                     <CaptureLine capture={c} />
                   </p>
+                  {/* aug-05 quiet pass: tags/projects are plain faint text,
+                      not chips — one quiet plate per capture is the maximum. */}
                   {(c.hashtags.length > 0 || c.projects.length > 0) && (
-                    <ChipRow>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-micro text-[var(--sd-ink-faint)]">
                       {c.hashtags.slice(0, 2).map((h) => (
-                        <Chip
-                          key={h.id}
-                          icon={<Hash size={9} strokeWidth={2} className="shrink-0" />}
-                        >
+                        <span key={h.id} className="inline-flex items-center gap-0.5 truncate">
+                          <Hash size={9} strokeWidth={2} className="shrink-0" aria-hidden />
                           {h.displayName}
-                        </Chip>
+                        </span>
                       ))}
                       {c.projects.slice(0, 1).map((p) => (
-                        <Chip key={p.id} className="max-w-[130px]">
+                        <span key={p.id} className="max-w-[130px] truncate">
                           {p.name}
-                        </Chip>
+                        </span>
                       ))}
-                    </ChipRow>
+                    </div>
                   )}
                   {isJarvis && (
                     <button
@@ -174,17 +153,15 @@ export function RecentCapturesWidget({
         )}
       </WidgetBody>
 
+      {/* Footer — one faint line of counts; the hashtag chips are gone (they
+          were decoration, and the stream above already shows tags in place). */}
       <WidgetFooter>
-        <Chip>{capturesData.length} total</Chip>
-        {jarvisCount > 0 && <Chip>{jarvisCount} via JARVIS</Chip>}
-        {topHashtags.map(([name, count]) => (
-          <Chip key={name} icon={<Hash size={9} strokeWidth={2} className="shrink-0" />}>
-            {name} {count}
-          </Chip>
-        ))}
-        {capturesData.length > recent.length && (
-          <OverflowChip count={capturesData.length - recent.length} />
-        )}
+        <span className="truncate text-micro tabular-nums text-[var(--sd-ink-faint)]">
+          {capturesData.length} total
+          {jarvisCount > 0 && ` · ${jarvisCount} via JARVIS`}
+          {capturesData.length > recent.length &&
+            ` · +${capturesData.length - recent.length} more`}
+        </span>
       </WidgetFooter>
 
       {convertTarget && (

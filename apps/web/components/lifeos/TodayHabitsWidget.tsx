@@ -16,14 +16,7 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HabitIcon } from "@/components/ui/icons";
-import {
-  ActionLink,
-  Chip,
-  EntityCardHeader,
-  OverflowChip,
-  ProgressRow,
-  StatusPill,
-} from "./entity-card";
+import { ActionLink, EntityCardHeader, ProgressRow } from "./entity-card";
 import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
 interface Props {
@@ -106,25 +99,15 @@ export function TodayHabitsWidget({
   const doneCount = habits.filter((h) => isDone(h.id)).length;
   const total = habits.length;
 
-  const pill =
-    total === 0 ? (
-      <StatusPill tone="idle" label="empty" />
-    ) : doneCount === total ? (
-      <StatusPill tone="active" label="all done" />
-    ) : doneCount > 0 ? (
-      <StatusPill tone="progress" label={`${doneCount} done`} />
-    ) : (
-      <StatusPill tone="idle" label="none yet" />
-    );
-
   return (
     <>
       <WidgetBody>
         <EntityCardHeader
-          icon={<HabitIcon size={28} />}
+          icon={<HabitIcon size={20} />}
           title="Habits"
           subtitle="Today"
-          pill={pill}
+          // aug-05 quiet pass: no pill — the ProgressRow right below already
+          // says "Completed 2/3"; repeating it in the header is noise.
           action={
             <Link href="/habits" className="group/action cursor-pointer-always">
               <ActionLink>All →</ActionLink>
@@ -194,12 +177,16 @@ export function TodayHabitsWidget({
         )}
       </WidgetBody>
 
-      <WidgetFooter>
-        <Chip>{total === 1 ? "1 habit" : `${total} habits`}</Chip>
-        {/* cyan, not sage: §9 allows exactly one accent hue on this surface. */}
-        {doneCount > 0 && <Chip tone="var(--hud-cyan)">{doneCount} done</Chip>}
-        {total > 6 && <OverflowChip count={total - 6} />}
-      </WidgetFooter>
+      {/* Footer — one faint line. The done count lives in the ProgressRow, so
+          this only carries the roster size (and overflow when rows clip). */}
+      {total > 0 && (
+        <WidgetFooter>
+          <span className="truncate text-micro tabular-nums text-[var(--sd-ink-faint)]">
+            {total === 1 ? "1 habit" : `${total} habits`}
+            {total > 6 && ` · +${total - 6} more`}
+          </span>
+        </WidgetFooter>
+      )}
     </>
   );
 }
