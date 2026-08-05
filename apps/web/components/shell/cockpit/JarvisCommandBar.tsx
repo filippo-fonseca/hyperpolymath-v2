@@ -116,6 +116,7 @@ export function JarvisCommandBar() {
   const [clarification, setClarification] = useState<JarvisClarificationEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   const suppressed =
     pathname === CONSOLE_PATH ||
@@ -126,6 +127,12 @@ export function JarvisCommandBar() {
 
   const thinking = busy && !answer && actions.length === 0 && !clarification && !error;
   const hasStrip = Boolean(answer || actions.length > 0 || clarification || error || busy);
+  // aug-04 craft-ui-v2: the bar rests as Craft's centered floating pill and
+  // expands to the wide panel on engagement — focus, a draft in hand, or any
+  // response activity (hasStrip covers streaming and busy). The change is a
+  // class swap that snaps via layout: no width animation beyond the sanctioned
+  // grid transition, per the register's motion rules.
+  const engaged = focused || draft.length > 0 || hasStrip;
 
   const collapseStrip = useCallback(() => {
     setAnswer("");
@@ -296,11 +303,18 @@ export function JarvisCommandBar() {
   if (suppressed) return null;
 
   return (
-    // jul-29 craft restyle: Kiwi is a floating glass pill resting inside the
-    // stage sheet, not a full-width bordered strip. Still a flex sibling of
-    // the scroll box — the floating look is padding + chrome, not an overlay.
+    // aug-04 craft-ui-v2: Kiwi is Craft's floating Assistant pill, promoted to
+    // the core input. Idle it is a centered glass pill with transparent
+    // gutters around it; engaged it widens to the full glass panel with the
+    // response strip. Still a flex sibling of the scroll box — the floating
+    // look is padding + chrome, not an overlay — and it never autofocuses.
     <div className="shrink-0 px-3 pt-1.5 pb-3">
-      <div className="craft-glass overflow-hidden rounded-2xl">
+      <div
+        className={cn(
+          "craft-glass overflow-hidden",
+          engaged ? "rounded-2xl" : "mx-auto w-full max-w-[640px] rounded-full"
+        )}
+      >
         {hasStrip ? (
           <div className="sd-scroll-hover max-h-[40vh] overflow-y-auto border-b border-[var(--edge)] px-4 py-3">
             {thinking ? (
@@ -376,6 +390,8 @@ export function JarvisCommandBar() {
             placeholder={busy ? (thinking ? "thinking…" : "streaming…") : "hi jarv"}
             aria-label="Ask Jarvis"
             aria-busy={busy}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             className={cn(
               "min-w-0 flex-1 bg-transparent text-body text-[var(--ink)] outline-none",
               "placeholder:text-[var(--ink-faint)] disabled:opacity-60"
