@@ -24,7 +24,7 @@ import { forceCollide } from "d3-force";
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
   loading: () => (
-    <div className="grid h-full w-full place-items-center font-mono text-[11px] uppercase tracking-[0.12em] text-white/50">
+    <div className="grid h-full w-full place-items-center text-micro text-white/50">
       loading graph…
     </div>
   ),
@@ -272,13 +272,13 @@ export function GraphExplorer({
             <Waypoints className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-[-0.01em]">Knowledge graph</h1>
-            <p className="mt-0.5 font-mono text-[11px] text-[var(--ink-faint)]">
+            <h1 className="text-title font-semibold">Knowledge graph</h1>
+            <p className="mt-0.5 font-mono text-micro text-[var(--ink-faint)]">
               {meta.totalNodes} nodes · {meta.totalEdges} edges · snapshot {snapshotDate} · schema v{schemaVersion}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 font-mono text-[11px]">
+        <div className="flex items-center gap-2 font-mono text-micro">
           <span className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-2.5 py-1 text-[var(--ink-muted)]">
             {/* Status stays saturated: it is a dot, and dots are where
                 saturation is allowed to live. */}
@@ -303,7 +303,7 @@ export function GraphExplorer({
       <div
         className={`${tile} flex flex-wrap items-center gap-1.5 px-4 py-2`}
       >
-        <span className="mr-1 pl-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-faint)]">
+        <span className="mr-1 pl-1 text-micro text-[var(--ink-faint)]">
           show
         </span>
         {presentTypes.map((t) => {
@@ -316,14 +316,10 @@ export function GraphExplorer({
               onClick={() => toggleType(t)}
               aria-pressed={on}
               // Legend chips are toggles, so they follow the segmented-control
-              // grammar: the "on" state is a lifted white plate, the "off"
-              // state recedes to flat muted type. The colour dot is the one
-              // saturated element and it never dims to nothing.
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[11px] transition-[color,border-color,background-color,box-shadow,opacity] duration-[160ms] ease-out ${
-                on
-                  ? "border-[var(--edge)] bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
-                  : "border-transparent text-[var(--ink-faint)] opacity-60 hover:opacity-100"
-              }`}
+              // The colour dot is the one saturated element and it never dims
+              // to nothing; the chip itself is the register's craft chip.
+              data-active={on || undefined}
+              className={`craft-chip cursor-pointer-always ${on ? "" : "opacity-60 hover:opacity-100"}`}
             >
               <span
                 className="inline-block h-2.5 w-2.5 rounded-full"
@@ -379,7 +375,7 @@ export function GraphExplorer({
           )}
 
           {/* hint pill */}
-          <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-white/[0.12] bg-black/55 px-2.5 py-1 font-mono text-[10px] text-white/65">
+          <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-white/[0.12] bg-black/55 px-2.5 py-1 font-mono text-micro text-white/65">
             scroll to zoom · drag to pan · click a node to inspect
           </div>
         </div>
@@ -392,7 +388,7 @@ export function GraphExplorer({
                 className="inline-block h-3 w-3 rounded-full"
                 style={{ background: selected.color }}
               />
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-faint)]">
+              <span className="text-micro text-[var(--ink-faint)]">
                 {typeLabel(selected.type)}
               </span>
             </div>
@@ -402,7 +398,7 @@ export function GraphExplorer({
 
             {/* Field list sits on its own quiet inset card so the panel reads
                 as chrome + content rather than one undifferentiated column. */}
-            <dl className="mt-4 space-y-1.5 rounded-xl border border-[var(--edge)] bg-[var(--surface)] px-3 py-2.5 font-mono text-[11px]">
+            <dl className="mt-4 space-y-1.5 rounded-xl border border-[var(--edge)] bg-[var(--surface)] px-3 py-2.5 font-mono text-micro">
               {Object.entries(selected.raw)
                 .filter(([k]) => !["id", "type", "name", "title", "text"].includes(k))
                 .map(([k, v]) => (
@@ -416,7 +412,7 @@ export function GraphExplorer({
             </dl>
 
             <div className="mt-5">
-              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-faint)]">
+              <p className="text-micro text-[var(--ink-faint)]">
                 connected · {neighbors.length}
               </p>
               <ul className="mt-2 space-y-1">
@@ -431,14 +427,14 @@ export function GraphExplorer({
                         className="inline-block h-2 w-2 shrink-0 rounded-full"
                         style={{ background: n.color }}
                       />
-                      <span className="truncate text-[13px] text-[var(--ink)]">
+                      <span className="truncate text-meta text-[var(--ink)]">
                         {n.name}
                       </span>
                     </button>
                   </li>
                 ))}
                 {neighbors.length === 0 && (
-                  <li className="px-2 text-[13px] text-[var(--ink-faint)]">
+                  <li className="px-2 text-meta text-[var(--ink-faint)]">
                     No connections in the current view.
                   </li>
                 )}
