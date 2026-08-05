@@ -51,7 +51,10 @@ export function CaptureSearch({ activeHashtagId, onResults, onQueryChange }: Pro
   }, [query, activeHashtagId, onResults]);
 
   return (
-    <div className="relative">
+    // The register's search field is a .craft-pill: raised fill, hairline,
+    // card shadow, and the built-in :focus-within recipe. The Input inside
+    // gives up its own chrome so the pill is the only box.
+    <div className="craft-pill relative">
       <Search
         size={14}
         className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--sd-ink-faint)] pointer-events-none"
@@ -60,7 +63,7 @@ export function CaptureSearch({ activeHashtagId, onResults, onQueryChange }: Pro
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search captures…"
-        className="pl-9 pr-9 font-sans text-[13px]"
+        className="rounded-full border-0 bg-transparent pl-9 pr-9 font-sans text-meta"
       />
       {query && (
         <button

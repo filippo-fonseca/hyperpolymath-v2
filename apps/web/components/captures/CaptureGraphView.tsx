@@ -45,7 +45,7 @@ import {
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
   loading: () => (
-    <div className="grid h-full w-full place-items-center font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+    <div className="grid h-full w-full place-items-center text-micro text-[var(--sd-ink-faint)]">
       drawing the web…
     </div>
   ),
@@ -320,7 +320,7 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
     <div className="flex h-full min-h-0 flex-col gap-3">
       {/* Layers + search */}
       <div className={`${tile} flex flex-wrap items-center gap-2 bg-[var(--sd-box)] px-4 py-2.5`}>
-        <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+        <span className="mr-1 text-micro text-[var(--sd-ink-faint)]">
           layers
         </span>
         {EDGE_KIND_ORDER.map((kind) => {
@@ -333,7 +333,7 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
               onClick={() => toggleKind(kind)}
               title={meta.description}
               aria-pressed={on}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] transition-opacity ${
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-micro transition-opacity ${
                 on
                   ? "border-[var(--sd-line)] text-[var(--sd-ink)]"
                   : "border-transparent text-[var(--sd-ink-faint)] opacity-50"
@@ -348,7 +348,7 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
         <div className="ml-auto flex items-center gap-2">
           {droppedTotal > 0 && (
             <span
-              className="font-mono text-[10px] text-[var(--sd-ink-faint)]"
+              className="font-mono text-micro text-[var(--sd-ink-faint)]"
               title="The densest layers are capped so the canvas stays readable. Heaviest links are kept."
             >
               {droppedTotal} link{droppedTotal === 1 ? "" : "s"} hidden
@@ -359,7 +359,7 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Find a capture…"
             aria-label="Find a capture in the graph"
-            className="h-7 w-[200px] text-[13px]"
+            className="h-7 w-[200px] text-meta"
           />
         </div>
       </div>
@@ -425,7 +425,7 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
           )}
 
           {!isEmpty && (
-            <div className="pointer-events-none absolute bottom-3 left-3 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)]/85 px-2.5 py-1 font-mono text-[10px] text-[var(--sd-ink-faint)]">
+            <div className="pointer-events-none absolute bottom-3 left-3 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)]/85 px-2.5 py-1 font-mono text-micro text-[var(--sd-ink-faint)]">
               scroll to zoom · drag to pan · click a capture to focus
             </div>
           )}
@@ -436,12 +436,12 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
           <aside
             className={`absolute right-3 top-3 w-[288px] ${tile} bg-[var(--sd-box)] p-4 shadow-sm`}
           >
-            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+            <p className="text-micro text-[var(--sd-ink-faint)]">
               focused · {adjacency.get(focused.id)?.size ?? 0} connected
             </p>
-            <p className="mt-2 text-[14px] leading-snug text-[var(--sd-ink)]">{focused.label}</p>
+            <p className="mt-2 text-meta leading-snug text-[var(--sd-ink)]">{focused.label}</p>
             {focused.hashtags.length > 0 && (
-              <p className="mt-2 font-mono text-[11px] text-[var(--sd-ink-faint)]">
+              <p className="mt-2 font-mono text-micro text-[var(--sd-ink-faint)]">
                 {focused.hashtags.map((h) => `#${h}`).join(" ")}
               </p>
             )}
@@ -449,21 +449,21 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
               <button
                 type="button"
                 onClick={() => onSelectCapture(focused.id)}
-                className="rounded-[8px] border border-[var(--sd-line)] px-2.5 py-1 font-mono text-[11px] text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]"
+                className="rounded-[8px] border border-[var(--sd-line)] px-2.5 py-1 font-mono text-micro text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]"
               >
                 open capture
               </button>
               <button
                 type="button"
                 onClick={() => setFocusedId(null)}
-                className="rounded-[8px] px-2.5 py-1 font-mono text-[11px] text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
+                className="rounded-[8px] px-2.5 py-1 font-mono text-micro text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
               >
                 clear focus
               </button>
             </div>
             {(adjacency.get(focused.id)?.size ?? 0) > 0 && (
               <div className="mt-3 border-t border-[var(--sd-line)] pt-2">
-                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+                <p className="text-micro text-[var(--sd-ink-faint)]">
                   expand from here
                 </p>
                 <ul className="mt-1.5 max-h-[168px] space-y-0.5 overflow-y-auto">
@@ -475,7 +475,7 @@ export function CaptureGraphView({ userId, onSelectCapture }: Props) {
                         <button
                           type="button"
                           onClick={() => focusOn(id)}
-                          className="w-full truncate rounded px-1.5 py-1 text-left text-[12px] text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
+                          className="w-full truncate rounded px-1.5 py-1 text-left text-micro text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
                         >
                           {n.label}
                         </button>

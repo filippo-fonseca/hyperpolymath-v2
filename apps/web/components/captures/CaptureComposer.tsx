@@ -202,7 +202,7 @@ export function CaptureComposer({
     editorProps: {
       attributes: {
         class:
-          "capture-composer-content focus:outline-none min-h-[48px] max-h-[160px] overflow-y-auto p-3 text-[15px]",
+          "capture-composer-content focus:outline-none min-h-[48px] max-h-[160px] overflow-y-auto p-3 text-body",
         "data-placeholder": "What's on your mind? Use #tags to organize.",
       },
       // Cmd/Ctrl+K opens the inline `#`-token dropdown at the caret (#145).
@@ -492,7 +492,7 @@ export function CaptureComposer({
     // sd writing surface — recessed --sd-input field, 1px --sd-line hairline,
     // no glow ring. focus-within brings the border to the single cyan accent so
     // the composer reads "live" while typing, matching every sd input.
-    <div className="rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out focus-within:border-[var(--accent)] focus-within:shadow-[var(--shadow-card-hover)]">
+    <div className="craft-card craft-card-hover focus-within:border-[var(--edge-strong)]">
       <EditorContent editor={editor} />
       {/* Blocker 4: project multi-select below the editor (CAPT-07 UI path) */}
       <div className="px-3 pb-2">
@@ -507,7 +507,7 @@ export function CaptureComposer({
           tag to the note; the small x dismisses it. Nothing applies on its own. */}
       {suggestions.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2">
-          <span className="font-mono text-[11px] text-[var(--sd-ink-faint)] mr-0.5">Suggested:</span>
+          <span className="font-mono text-micro text-[var(--sd-ink-faint)] mr-0.5">Suggested:</span>
           {suggestions.map((tag) => (
             <span key={tag.name} className="inline-flex items-center gap-0.5">
               <HashtagChip

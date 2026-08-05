@@ -52,10 +52,10 @@ export function ResurfacingSection({ captures, onSelect, onDismiss }: Props) {
           )}
         />
         <CalendarClock size={15} className="text-[var(--sd-accent)]" />
-        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--sd-ink)]">
+        <span className="text-micro font-medium text-[var(--sd-ink)]">
           Resurfacing today
         </span>
-        <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-faint)]">
+        <span className="font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
           {captures.length}
         </span>
       </CollapsibleTrigger>
@@ -73,13 +73,13 @@ export function ResurfacingSection({ captures, onSelect, onDismiss }: Props) {
                     className="flex-1 min-w-0 text-left"
                     title="Open capture"
                   >
-                    <p className="text-[14px] text-[var(--sd-ink)] line-clamp-2">
+                    <p className="text-meta text-[var(--sd-ink)] line-clamp-2">
                       {c.content}
                     </p>
                     {due && (
                       <p
                         className={cn(
-                          "mt-0.5 text-[12px]",
+                          "mt-0.5 text-micro",
                           overdue ? "text-[var(--ink-coral)]" : "text-[var(--sd-ink-faint)]",
                         )}
                       >
