@@ -202,15 +202,14 @@ export function PersonDetailPanel({ person, open, onClose, onEdit, onDeleted }: 
                           </span>
                         </>
                       );
-                      const baseCls =
-                        "flex items-start gap-2 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-2.5 py-2 shadow-[var(--shadow-card)]";
+                      const baseCls = "craft-card flex items-start gap-2 px-2.5 py-2";
                       return (
                         <li key={`${item.fromType}:${item.fromId}`}>
                           {href ? (
                             <Link
                               href={href}
                               onClick={onClose}
-                              className={`${baseCls} transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)] cursor-pointer-always`}
+                              className={`${baseCls} craft-card-hover cursor-pointer-always`}
                             >
                               {inner}
                             </Link>

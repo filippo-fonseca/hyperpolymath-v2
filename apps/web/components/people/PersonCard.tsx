@@ -28,18 +28,16 @@ export function PersonCard({ person, onOpen }: Props) {
         // The person's deterministic hue rides on the card so both the avatar
         // plate and the hover border resolve from the same triple.
         tintFor(person.id),
-        "group flex h-full w-full flex-col gap-3 rounded-xl border p-4 text-left",
-        "border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-card)]",
-        "transition-[border-color,box-shadow] duration-[160ms] ease-out cursor-pointer-always",
-        "hover:border-[color-mix(in_srgb,var(--tint-edge)_45%,var(--edge))] hover:shadow-[var(--shadow-card-hover)]"
+        "craft-card craft-card-hover group flex h-full w-full flex-col gap-3 p-4 text-left",
+        "cursor-pointer-always"
       )}
     >
       <div className="flex items-start gap-3">
         <PersonAvatar name={person.name} avatarUrl={person.avatarUrl} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-subtitle font-medium text-[var(--ink)]">{person.name}</p>
+          <p className="truncate text-meta font-semibold text-[var(--ink)]">{person.name}</p>
           {person.email ? (
-            <p className="mt-0.5 truncate text-meta text-[var(--ink-muted)]">{person.email}</p>
+            <p className="mt-0.5 truncate text-micro text-[var(--ink-faint)]">{person.email}</p>
           ) : null}
         </div>
       </div>
