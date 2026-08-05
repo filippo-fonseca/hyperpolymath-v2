@@ -4,8 +4,8 @@ import { LifeOsBentoGrid } from "@/components/lifeos/LifeOsBentoGrid";
 import { LifeOsCanvas } from "@/components/lifeos/LifeOsCanvas";
 import { LifeOsHero } from "@/components/lifeos/LifeOsHero";
 import { LifeOsInsightsWidget } from "@/components/lifeos/LifeOsInsightsWidget";
+import { LifeOsNodeField } from "@/components/lifeos/LifeOsNodeField";
 import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
-import { LifeOsSpaceBackdrop } from "@/components/lifeos/LifeOsSpaceBackdrop";
 import { RecentCapturesWidget } from "@/components/lifeos/RecentCapturesWidget";
 import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
 import { TodayTrainingWidget } from "@/components/lifeos/TodayTrainingWidget";
@@ -93,7 +93,7 @@ export default async function LifeOsPage() {
   ).length;
   const projectsActive = availableProjects.length;
 
-  // `isolate` on <main> is load-bearing: the space backdrop is `absolute
+  // `isolate` on <main> is load-bearing: the node-field backdrop is `absolute
   // -z-10`, and without a stacking context here it escapes to the cockpit
   // root and paints BEHIND the stage sheet's opaque fill (which is exactly
   // what happened when .craft-sheet landed). Isolation pins it above this
@@ -105,10 +105,11 @@ export default async function LifeOsPage() {
           into a single fixed region. The page never scrolls — the canvas is
           h-full against the AppShell scroll container and clips.
 
-          The opaque --sd-app fill is gone: the space backdrop (video + scrim)
-          owns the background, and `relative` scopes its absolute -z layer to
-          this route region (D5 — the video belongs to /lifeos only). */}
-      <LifeOsSpaceBackdrop />
+          The opaque --sd-app fill is gone: the ambient node field owns the
+          background over the stage sheet's fill, and `relative` scopes its
+          absolute -z layer to this route region (the field belongs to /lifeos
+          only — aug-05, it retired the D5 space-loop video). */}
+      <LifeOsNodeField />
       <LifeOsCanvas
         hero={
           <LifeOsHero
