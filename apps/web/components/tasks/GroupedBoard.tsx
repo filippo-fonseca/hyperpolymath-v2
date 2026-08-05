@@ -31,8 +31,10 @@ export function GroupedBoard({ groups, onTaskClick }: Props) {
           aria-label={group.label}
           className="flex w-[280px] shrink-0 flex-col rounded-xl bg-[var(--surface)]"
         >
+          {/* Quiet Craft section label (craft-ui-v2): text-micro gray with
+              the count beside it, matching the kanban column headers. */}
           <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-            <h3 className="min-w-0 truncate text-meta font-medium text-[var(--ink)]">
+            <h3 className="min-w-0 truncate text-micro font-medium text-[var(--ink-muted)]">
               {group.label}
             </h3>
             <span className="shrink-0 text-micro tabular-nums text-[var(--ink-faint)]">
