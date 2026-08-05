@@ -214,7 +214,7 @@ export function ProfileSection({
           <p className="text-base text-[var(--sd-ink)]">
             {initialDisplayName?.trim() || "Add a display name below"}
           </p>
-          <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+          <p className="text-micro tracking-[0.06em] text-[var(--sd-ink-dull)]">
             {avatarUrl
               ? "Avatar uploaded"
               : oauthAvatarUrl
@@ -236,7 +236,7 @@ export function ProfileSection({
 
       {/* Display name */}
       <label className="block space-y-2">
-        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+        <span className="text-micro tracking-[0.08em] text-[var(--sd-ink-dull)]">
           Display name
         </span>
         <Input
@@ -251,12 +251,12 @@ export function ProfileSection({
       {/* Bio */}
       <label className="block space-y-2">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+          <span className="text-micro tracking-[0.08em] text-[var(--sd-ink-dull)]">
             Bio
           </span>
           <span
             className={cn(
- "font-mono text-[10px] tabular-nums",
+ "font-mono text-micro tabular-nums",
               bio.length > BIO_LIMIT - 20
                 ? "text-[var(--ink-coral)]"
                 : "text-[var(--sd-ink-dull)]",
@@ -277,13 +277,13 @@ export function ProfileSection({
 
       {/* GitHub username */}
       <label className="block space-y-2">
-        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+        <span className="text-micro tracking-[0.08em] text-[var(--sd-ink-dull)]">
           GitHub username
         </span>
         <div className="flex items-stretch rounded-md border border-[var(--sd-line)] bg-[var(--sd-box)] focus-within:border-[var(--sd-accent)] transition-colors">
           <span className="flex items-center gap-1.5 pl-3 pr-2 border-r border-[var(--sd-line)] text-[var(--sd-ink-dull)]">
             <Github className="h-3.5 w-3.5" />
-            <span className="font-mono text-[12px]">@</span>
+            <span className="font-mono text-micro">@</span>
           </span>
           <input
             type="text"

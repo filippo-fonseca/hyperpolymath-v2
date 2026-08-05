@@ -368,6 +368,7 @@ function SegmentedControl<T extends string>({
           type="button"
           role="radio"
           aria-checked={value === v}
+          data-active={value === v || undefined}
           onClick={() => onChange(v)}
           className="craft-chip cursor-pointer-always"
         >

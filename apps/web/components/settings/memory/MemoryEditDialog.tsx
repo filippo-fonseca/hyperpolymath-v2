@@ -68,7 +68,7 @@ export function MemoryEditDialog({ fact, onClose }: Props) {
           <DialogTitle className="">{fact.key}</DialogTitle>
         </DialogHeader>
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground font-mono uppercase tracking-wide">
+          <p className="text-xs text-muted-foreground tracking-wide">
             {fact.type}
           </p>
           <Textarea

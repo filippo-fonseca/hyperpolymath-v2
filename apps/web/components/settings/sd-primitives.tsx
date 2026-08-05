@@ -13,7 +13,9 @@ import { tintFor } from "@/lib/tint";
  * page tints its delete plate coral, for one). Utilities go through
  * tailwind-merge, so the last class named still wins.
  *
- * Eyebrows and body copy keep the mono/uppercase settings voice.
+ * Eyebrows and body copy sit on the craft ladder (aug-05 craft v2): faint
+ * micro section labels in sentence case, meta card titles, micro descriptions.
+ * The mono/uppercase settings voice is retired.
  */
 
 export function SettingsCard({
@@ -37,7 +39,7 @@ export function SettingsCard({
   );
 }
 
-/** 11px uppercase mono eyebrow that labels a settings section on the canvas. */
+/** Faint micro label for a settings section, sitting on the canvas. */
 export function SectionEyebrow({
   children,
   className,
@@ -48,7 +50,7 @@ export function SectionEyebrow({
   return (
     <h2
       className={cn(
-        "pl-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-faint)]",
+        "pl-1 text-micro text-[var(--ink-faint)]",
         className,
       )}
     >
@@ -77,7 +79,7 @@ export function CardTitle({
   const title = (
     <h3
       className={cn(
-        "text-[15px] font-semibold tracking-[-0.01em] text-[var(--ink)]",
+        "text-meta font-semibold text-[var(--ink)]",
         className,
       )}
     >
@@ -107,7 +109,7 @@ export function CardDescription({
   return (
     <p
       className={cn(
-        "text-[13px] leading-[1.5] text-[var(--ink-muted)]",
+        "text-micro leading-[1.5] text-[var(--ink-faint)]",
         className,
       )}
     >

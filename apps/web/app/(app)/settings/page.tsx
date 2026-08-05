@@ -132,16 +132,16 @@ export default async function SettingsPage() {
   // "Manage →" links read as quiet pills on the card rather than bare text, so
   // they sit in the same grammar as the segmented rail above them.
   const manageLink =
-    "inline-flex w-fit items-center rounded-lg border border-[var(--edge)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] transition-[color,background-color,border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)] cursor-pointer-always";
+    "craft-chip w-fit cursor-pointer-always";
 
   return (
     <main className="min-h-screen bg-[var(--canvas)] px-6 py-10">
       <div className="mx-auto max-w-2xl">
         <header className="mb-6">
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--ink-faint)]">
+          <p className="text-micro text-[var(--ink-faint)]">
             Preferences
           </p>
-          <h1 className="mt-1 text-[26px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
+          <h1 className="mt-1 text-display font-semibold tracking-[-0.01em] text-[var(--ink)]">
             Settings
           </h1>
         </header>

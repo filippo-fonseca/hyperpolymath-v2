@@ -138,13 +138,10 @@ export function PagesBackupSection({ settings, gcalConnected }: Props) {
                 type="button"
                 role="radio"
                 aria-checked={selected}
+                data-active={selected || undefined}
                 disabled={togglePending && !selected}
                 onClick={() => handleToggle(opt.value)}
-                className={`font-mono text-xs uppercase tracking-[0.08em] px-3 py-1.5 rounded-sm transition-colors duration-100 cursor-pointer-always disabled:opacity-50 ${
-                  selected
-                    ? "bg-[var(--sd-box)] text-[var(--sd-ink)] border border-[var(--sd-accent)]"
-                    : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
-                }`}
+                className="craft-chip cursor-pointer-always disabled:opacity-50"
               >
                 {opt.label}
               </button>

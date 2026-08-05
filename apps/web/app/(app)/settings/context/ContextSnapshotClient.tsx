@@ -85,7 +85,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
               Latest snapshot
             </h2>
             {latest ? (
-              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+              <p className="mt-1 text-micro tracking-[0.06em] text-[var(--sd-ink-dull)]">
                 {latest.snapshotDate}
                 <span aria-hidden="true" className="mx-2">
                   ·
@@ -101,7 +101,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
                 ) : null}
               </p>
             ) : (
-              <p className="mt-1 text-[14px] text-[var(--sd-ink-dull)]">
+              <p className="mt-1 text-meta text-[var(--sd-ink-dull)]">
                 No snapshot yet. The nightly cron runs at 00:00 ET, or you can
                 build one now.
               </p>
@@ -111,7 +111,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
             type="button"
             onClick={onRebuild}
             disabled={pending}
-            className="inline-flex shrink-0 items-center gap-2 rounded-md bg-[var(--sd-ink)] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--sd-app)] hover:opacity-90 disabled:opacity-40 transition-opacity duration-100 ease-out"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md bg-[var(--sd-ink)] px-4 py-2 text-micro tracking-[0.06em] text-[var(--sd-app)] hover:opacity-90 disabled:opacity-40 transition-opacity duration-100 ease-out"
           >
             <RefreshCw
               size={14}
@@ -125,7 +125,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
           <>
             <dl className="mt-5 grid grid-cols-3 gap-4">
               <div>
-                <dt className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+                <dt className="text-micro tracking-[0.06em] text-[var(--sd-ink-dull)]">
                   Total nodes
                 </dt>
                 <dd className="mt-1 text-2xl text-[var(--sd-ink)]">
@@ -133,7 +133,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
                 </dd>
               </div>
               <div>
-                <dt className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+                <dt className="text-micro tracking-[0.06em] text-[var(--sd-ink-dull)]">
                   Total edges
                 </dt>
                 <dd className="mt-1 text-2xl text-[var(--sd-ink)]">
@@ -141,7 +141,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
                 </dd>
               </div>
               <div>
-                <dt className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
+                <dt className="text-micro tracking-[0.06em] text-[var(--sd-ink-dull)]">
                   Hidden (no-export)
                 </dt>
                 <dd className="mt-1 text-2xl text-[var(--sd-ink)]">
@@ -151,7 +151,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
             </dl>
 
             {Object.keys(latest.nodeCounts).length > 0 ? (
-              <p className="mt-4 font-mono text-[11px] text-[var(--sd-ink-dull)]">
+              <p className="mt-4 font-mono text-micro text-[var(--sd-ink-dull)]">
                 {nodeCountSummary(latest.nodeCounts)}
               </p>
             ) : null}
@@ -159,7 +159,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
             <button
               type="button"
               onClick={() => setPayloadOpen((v) => !v)}
-              className="mt-5 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-100 ease-out"
+              className="mt-5 inline-flex items-center gap-1 text-micro tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-100 ease-out"
               aria-expanded={payloadOpen}
             >
               {payloadOpen ? (
@@ -171,7 +171,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
             </button>
 
             {payloadOpen ? (
-              <pre className="mt-3 max-h-[600px] overflow-auto rounded-md border border-[var(--sd-line)] bg-[var(--sd-hover)] px-3 py-2 font-mono text-[12px] leading-[1.5] text-[var(--sd-ink)] whitespace-pre">
+              <pre className="mt-3 max-h-[600px] overflow-auto rounded-md border border-[var(--sd-line)] bg-[var(--sd-hover)] px-3 py-2 font-mono text-micro leading-[1.5] text-[var(--sd-ink)] whitespace-pre">
                 {latest.prettyPayload}
               </pre>
             ) : null}
@@ -185,7 +185,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
           Recent snapshots
         </h2>
         {history.length === 0 ? (
-          <p className="mt-3 text-[14px] text-[var(--sd-ink-dull)]">
+          <p className="mt-3 text-meta text-[var(--sd-ink-dull)]">
             None yet.
           </p>
         ) : (
@@ -196,10 +196,10 @@ export function ContextSnapshotClient({ latest, history }: Props) {
                 className="flex items-center justify-between gap-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="font-mono text-[12px] text-[var(--sd-ink)]">
+                  <p className="font-mono text-micro text-[var(--sd-ink)]">
                     {h.snapshotDate}
                   </p>
-                  <p className="font-mono text-[11px] text-[var(--sd-ink-dull)] truncate">
+                  <p className="font-mono text-micro text-[var(--sd-ink-dull)] truncate">
                     {h.totalNodes} nodes · {h.totalEdges} edges
                     {h.excludedNoExportCount > 0
                       ? ` · ${h.excludedNoExportCount} hidden`

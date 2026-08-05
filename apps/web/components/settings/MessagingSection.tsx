@@ -104,13 +104,10 @@ export function MessagingSection({
                 type="button"
                 role="radio"
                 aria-checked={selected}
+                data-active={selected || undefined}
                 disabled={pending && !selected}
                 onClick={() => handleToggle(opt.value)}
-                className={`cursor-pointer-always rounded-sm px-3 py-1.5 font-mono text-xs uppercase tracking-[0.08em] transition-colors duration-100 disabled:opacity-50 ${
-                  selected
-                    ? "bg-[var(--sd-selected)] text-[var(--sd-ink)]"
-                    : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
-                }`}
+                className="craft-chip cursor-pointer-always disabled:opacity-50"
               >
                 {opt.label}
               </button>

@@ -96,7 +96,7 @@ export function SettingsSectionNav() {
                 />
               )}
               <span
-                className={`block px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.14em] transition-colors duration-[160ms] ease-out ${
+                className={`block px-3 py-1.5 text-micro transition-colors duration-[160ms] ease-out ${
                   isActive
                     ? "font-medium text-[var(--ink)]"
                     : "text-[var(--ink-faint)] hover:text-[var(--ink)]"

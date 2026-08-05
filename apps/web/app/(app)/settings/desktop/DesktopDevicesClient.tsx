@@ -71,7 +71,7 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
       {/* Mint form */}
       <section className="rounded-2xl border border-[var(--edge)] bg-[var(--surface-raised)] p-6 shadow-[var(--shadow-card)]">
         <h2 className="text-lg text-[var(--ink)]">New device</h2>
-        <p className="mt-1 text-[14px] text-[var(--ink-muted)]">
+        <p className="mt-1 text-meta text-[var(--ink-muted)]">
           Give the device a name you&rsquo;ll recognize (e.g. &ldquo;MacBook
           Pro&rdquo;).
         </p>
@@ -81,14 +81,14 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="MacBook Pro"
-            className="flex-1 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 text-[15px] text-[var(--ink)] shadow-[var(--shadow-card)] outline-none transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] focus:border-[var(--edge-strong)]"
+            className="flex-1 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 text-body text-[var(--ink)] shadow-[var(--shadow-card)] outline-none transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] focus:border-[var(--edge-strong)]"
             disabled={pending}
           />
           <button
             type="button"
             onClick={onMint}
             disabled={pending}
-            className="rounded-lg bg-[var(--ink)] px-4 py-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--canvas)] shadow-[var(--shadow-card)] transition-[opacity,box-shadow] duration-[160ms] ease-out hover:opacity-90 hover:shadow-[var(--shadow-card-hover)] disabled:opacity-40"
+            className="rounded-lg bg-[var(--ink)] px-4 py-2 text-micro tracking-[0.06em] text-[var(--canvas)] shadow-[var(--shadow-card)] transition-[opacity,box-shadow] duration-[160ms] ease-out hover:opacity-90 hover:shadow-[var(--shadow-card-hover)] disabled:opacity-40"
           >
             {pending ? "Minting…" : "Mint token"}
           </button>
@@ -98,11 +98,11 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
             moment inside the form, not another field. */}
         {freshToken ? (
           <div className="tint-mint mt-5 rounded-xl border border-[color-mix(in_srgb,var(--tint-edge)_55%,transparent)] bg-[var(--tint-bg)] p-4">
-            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--tint-ink)]">
+            <p className="text-micro tracking-[0.08em] text-[var(--tint-ink)]">
               Copy this token — you won&rsquo;t see it again
             </p>
             <div className="mt-2 flex items-start gap-2">
-              <code className="flex-1 break-all rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 font-mono text-[13px] text-[var(--ink)]">
+              <code className="flex-1 break-all rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 font-mono text-meta text-[var(--ink)]">
                 {freshToken.token}
               </code>
               <button
@@ -118,7 +118,7 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
                 )}
               </button>
             </div>
-            <p className="mt-3 text-[13px] text-[var(--ink-muted)]">
+            <p className="mt-3 text-meta text-[var(--ink-muted)]">
               Open the desktop app → Settings → paste this token. The server
               stores only the hash; the plaintext above never lands on disk
               again.
@@ -133,7 +133,7 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
           Authorized devices
         </h2>
         {devices.length === 0 ? (
-          <p className="mt-3 text-[14px] text-[var(--ink-muted)]">
+          <p className="mt-3 text-meta text-[var(--ink-muted)]">
             None yet. Mint one above to get started.
           </p>
         ) : (
@@ -144,10 +144,10 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
                 className="flex items-center justify-between gap-4 px-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="text-[15px] text-[var(--ink)] truncate">
+                  <p className="text-body text-[var(--ink)] truncate">
                     {d.name}
                   </p>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--ink-muted)]">
+                  <p className="text-micro tracking-[0.04em] text-[var(--ink-muted)]">
                     Created {formatDistanceToNow(d.createdAt, { addSuffix: true })}
                     {" · "}
                     {d.lastUsedAt
@@ -159,7 +159,7 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
                   type="button"
                   onClick={() => onRevoke(d.id)}
                   disabled={pending}
-                  className="inline-flex items-center gap-1 rounded-lg border border-[var(--edge)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,box-shadow] duration-[160ms] ease-out hover:border-[color-mix(in_oklch,var(--ink-coral)_35%,var(--edge))] hover:text-[var(--ink-coral)] hover:shadow-[var(--shadow-card)]"
+                  className="inline-flex items-center gap-1 rounded-lg border border-[var(--edge)] px-2.5 py-1 text-micro tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,box-shadow] duration-[160ms] ease-out hover:border-[color-mix(in_oklch,var(--ink-coral)_35%,var(--edge))] hover:text-[var(--ink-coral)] hover:shadow-[var(--shadow-card)]"
                   aria-label={`Revoke ${d.name}`}
                 >
                   <Trash2 size={12} />

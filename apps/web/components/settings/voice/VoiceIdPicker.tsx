@@ -106,8 +106,7 @@ export function VoiceIdPicker({ value, onChange, disabled }: Props) {
               onClick={() => void handlePlay(v.id)}
               disabled={disabled || auditioning !== null}
               className={cn(
- "flex-shrink-0 font-mono text-xs uppercase tracking-wider px-3 py-1 rounded border transition-colors duration-150",
- "border-[var(--sd-line)] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)]",
+ "craft-chip shrink-0 cursor-pointer-always",
  "disabled:opacity-40 disabled:cursor-not-allowed",
               )}
             >

@@ -51,11 +51,11 @@ export function GoveeDevicesSection({ initialDevices, hasApiKey }: Props) {
       <div className="rounded-lg border border-dashed border-[var(--sd-line)] bg-[var(--sd-hover)]/40 p-5">
         <p className="text-sm text-[var(--sd-ink-dull)]">
           Add a Govee API key under{" "}
-          <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink)]">
+          <span className="text-micro tracking-[0.06em] text-[var(--sd-ink)]">
             API keys
           </span>{" "}
           above, then sync to discover your lights. You can also set{" "}
-          <code className="rounded bg-[var(--sd-box)] px-1 py-0.5 font-mono text-[12px]">
+          <code className="rounded bg-[var(--sd-box)] px-1 py-0.5 font-mono text-micro">
             GOVEE_API_KEY
           </code>{" "}
           on the server as a fallback.
@@ -92,7 +92,7 @@ export function GoveeDevicesSection({ initialDevices, hasApiKey }: Props) {
         <div className="rounded-lg border border-dashed border-[var(--sd-line)] bg-[var(--sd-hover)]/40 p-5">
           <p className="text-sm text-[var(--sd-ink-dull)]">
             No lights registered yet. Hit{" "}
-            <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink)]">
+            <span className="text-micro tracking-[0.06em] text-[var(--sd-ink)]">
               Sync
             </span>{" "}
             to pull devices from Govee.
@@ -185,15 +185,15 @@ function GoveeDeviceRow({
     <li className="space-y-2.5 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-box)] p-4">
       <div className="flex flex-wrap items-center gap-2">
         {device.isDefault ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--sd-line)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-amber)]">
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--sd-line)] px-2 py-0.5 text-micro text-[var(--ink-amber)]">
             <Star className="h-3 w-3 fill-current" />
             Default
           </span>
         ) : null}
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+        <span className="text-micro tracking-[0.08em] text-[var(--sd-ink-dull)]">
           {device.sku}
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+        <span className="text-micro tracking-[0.08em] text-[var(--sd-ink-faint)]">
           · Unknown online
         </span>
       </div>

@@ -197,6 +197,7 @@ function ToggleSwitch({
           type="button"
           role="radio"
           aria-checked={view === v}
+          data-active={view === v || undefined}
           onClick={() => setView(v)}
           className="craft-chip cursor-pointer-always"
         >

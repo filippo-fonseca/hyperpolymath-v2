@@ -94,7 +94,7 @@ export function DefaultCalendarPicker({ calendars, currentDefault }: Props) {
                 />
                 {c.summary}
                 {c.primary && (
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-micro text-muted-foreground">
                     (primary)
                   </span>
                 )}
