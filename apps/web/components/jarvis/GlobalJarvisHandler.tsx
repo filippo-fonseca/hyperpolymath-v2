@@ -367,12 +367,27 @@ export function GlobalJarvisHandler({ userId }: { userId: string }) {
             bumpUnread();
           },
           onError: (message) => {
-            if (message !== "aborted") {
-              toast.error(`JARVIS: ${message}`);
-            }
+            // The abort sentinel no longer reaches here — onAborted below
+            // owns user-initiated stops. Everything else (incl. "Request
+            // timed out") is a real error and persists as one.
+            toast.error(`JARVIS: ${message}`);
             assistant.status = "error";
             assistant.errorMessage = message;
             persistTurn(assistant);
+          },
+          onAborted: () => {
+            // User-initiated stop — not an error, no red receipt in the
+            // conversation record. Persist the partial reply as done if
+            // anything streamed; otherwise persist nothing (the user turn
+            // already landed at enqueue).
+            const hasContent =
+              assistant.textDelta.length > 0 ||
+              assistant.actions.length > 0 ||
+              !!assistant.clarification;
+            if (hasContent) {
+              assistant.status = "done";
+              persistTurn(assistant);
+            }
           },
         },
         abort.signal,

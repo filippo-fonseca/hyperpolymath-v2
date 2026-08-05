@@ -818,6 +818,36 @@ export function JarvisConsole({
             // until the queue drains.
             abortRef.current = null;
           },
+          onAborted: () => {
+            // User-initiated stop (jarvis-cancel / explicit stop) — never a
+            // red bubble, never a persisted error turn. If the turn already
+            // streamed partial text/actions, seal it as done with what it
+            // has; if nothing arrived, drop the placeholder entirely. The
+            // user turn stays — it was really sent and is already persisted.
+            let finalized: ScrollbackTurn | undefined;
+            flushSync(() => {
+              setTurns((prev) => {
+                const current = prev.find(
+                  (t) => t.id === assistantId && t.kind === "assistant"
+                );
+                const hasContent =
+                  current?.kind === "assistant" &&
+                  (current.textDelta.length > 0 ||
+                    current.actions.length > 0 ||
+                    !!current.clarification);
+                if (!hasContent) return prev.filter((t) => t.id !== assistantId);
+                const next = prev.map((t) =>
+                  t.id === assistantId && t.kind === "assistant"
+                    ? { ...t, status: "done" as const }
+                    : t
+                );
+                finalized = next.find((t) => t.id === assistantId);
+                return next;
+              });
+            });
+            if (finalized) persistTurn(finalized);
+            abortRef.current = null;
+          },
         },
         ac.signal,
         voiceActive,

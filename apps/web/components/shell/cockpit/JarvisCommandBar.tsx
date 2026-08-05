@@ -283,6 +283,23 @@ export function JarvisCommandBar() {
             persistTurn(toAssistantTurn(assistant));
             sync();
           },
+          onAborted: () => {
+            // User-initiated stop — never a red bubble, never an error row in
+            // the DB thread. Keep what streamed (finalized as done) or drop
+            // the placeholder entirely if nothing arrived.
+            const hasContent =
+              assistant.textDelta.length > 0 ||
+              assistant.actions.length > 0 ||
+              !!assistant.clarification;
+            if (hasContent) {
+              rememberTurn("assistant", assistant.textDelta);
+              assistant.status = "done";
+              persistTurn(toAssistantTurn(assistant));
+              sync();
+            } else if (mountedRef.current) {
+              setTurns((prev) => prev.filter((t) => t.id !== assistant.id));
+            }
+          },
         },
         controller.signal
       );
