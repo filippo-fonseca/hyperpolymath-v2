@@ -88,7 +88,11 @@ function CockpitGrid({ userId, activeAreas, allAreas, graduationYear, profile, c
 
   return (
     <div
-      className="craft-backdrop isolate grid h-screen w-screen gap-2.5 overflow-hidden p-2.5 text-[var(--ink)]"
+      // aug-04 craft-ui-v2: with the rail and dock now chromeless, the outer
+      // padding reads as canvas margin around the one floating sheet, so it
+      // gets the half-step up to p-3. Grid mechanics, gap and the sanctioned
+      // grid-template-columns transition are untouched.
+      className="craft-backdrop isolate grid h-screen w-screen gap-2.5 overflow-hidden p-3 text-[var(--ink)]"
       style={{
         gridTemplateColumns: `auto minmax(0,1fr) ${rightWidth}`,
         gridTemplateRows: "minmax(0,1fr)",
