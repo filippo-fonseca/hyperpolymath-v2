@@ -138,6 +138,55 @@ export default function ChangelogPage() {
       </header>
 
       <Release
+        date="2026-08-04"
+        title="Craft v2: the canvas learned its place."
+        summary="The July release made everything glass; this one teaches the shell restraint. One flat, calm canvas now carries all the chrome — a quiet borderless sidebar, a minimal top bar with a centered command pill, dock widgets that float as plain white cards — and elevation belongs to content alone: the stage sheet, the cards, and frosted glass popovers everywhere. LifeOS, Tasks, and Wiki all speak the new register."
+      >
+        <Group label="Removed · Breaking" tone="break">
+          <Entry lead="The top tab strip is gone.">
+            Navigation lives in the sidebar; the top bar now holds nav arrows,
+            the route title, and a centered &ldquo;Open anything&rdquo; pill
+            that summons the command menu.
+          </Entry>
+          <Entry lead="The cyan scrollbar retired from civilian life.">
+            Scroll thumbs are quiet neutral ink app-wide; JARVIS keeps its
+            cyan instrumentation inside agent surfaces only.
+          </Entry>
+        </Group>
+
+        <Group label="The shell">
+          <Entry lead="Canvas-vs-sheet architecture.">
+            The sidebar and dock shed their glass boxes and sit directly on
+            the canvas; the stage sheet is the one floating surface, and dock
+            widgets carry their own elevation as lifted white cards.
+          </Entry>
+          <Entry lead="JARVIS idles as a centered pill">
+            and expands into the full glass panel the moment you engage it.
+          </Entry>
+          <Entry lead="Every menu, popover, and dialog frosts.">
+            One glass recipe upgrades the entire overlay layer, with a solid
+            fallback where backdrop blur is unsupported.
+          </Entry>
+        </Group>
+
+        <Group label="Feature passes">
+          <Entry lead="Tasks reads like a hub:">
+            segmented chip filters, bare rows on the sheet with tinted meta
+            chips, borderless pastel kanban wells with hover-lifted cards.
+          </Entry>
+          <Entry lead="Wiki joined the register for real.">
+            Doc and folder tiles are white cards with pastel icon plates and
+            live page previews; journal days are proper day tiles; the editor
+            column narrowed to a calm 720px.
+          </Entry>
+          <Entry lead="LifeOS calmed down:">
+            a one-accent hero, a pill quick-send, chip view toggles, and bento
+            tiles that finally let their titles breathe on small spans.
+          </Entry>
+        </Group>
+      </Release>
+
+      <Release
         date="2026-07-29"
         title="The craft release: the whole app got color."
         summary="A ground-up visual rebuild in the Craft.do spirit: floating glass chrome, a cream canvas, soft depth everywhere, and a pastel tint system that gives every entity in the app a color of its own. Every feature surface was repainted in one campaign, and a few long-broken details got fixed on the way through."
