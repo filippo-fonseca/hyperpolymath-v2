@@ -153,7 +153,7 @@ export function HeroJarvisLine() {
             hero advertises both input modalities. */}
         <div className="flex items-center justify-between w-full pb-1 mb-1 border-b border-[var(--sd-line)] opacity-80">
           <div
-            className="inline-flex items-center gap-1.5 font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
+            className="inline-flex items-center gap-1.5 font-mono text-body font-medium uppercase tracking-[0.14em]"
             style={{ color: "var(--sd-accent)" }}
           >
             {example.mode === "voice" ? (
@@ -169,7 +169,7 @@ export function HeroJarvisLine() {
             )}
           </div>
           <span
-            className="font-mono text-[14px] tracking-[0.14em] opacity-60"
+            className="font-mono text-body tracking-[0.14em] opacity-60"
             style={{ color: "var(--sd-ink-faint)" }}
           >
             JARVIS
@@ -177,7 +177,7 @@ export function HeroJarvisLine() {
         </div>
 
         {/* Input line — prefix flips between $ and a mic glyph */}
-        <div className="font-mono font-mono-stats text-[14px] leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words text-left w-full">
+        <div className="font-mono font-mono-stats text-body leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words text-left w-full">
           <span style={{ color: "var(--sd-accent)" }}>
             {example.mode === "voice" ? "🎙  " : "$ "}
           </span>
@@ -202,7 +202,7 @@ export function HeroJarvisLine() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: reducedMotion ? 0 : 0.32, ease: EASE_OUT_QUART }}
-              className="font-mono font-mono-stats text-[14px] leading-[1.55] text-left w-full"
+              className="font-mono font-mono-stats text-body leading-[1.55] text-left w-full"
             >
               <span style={{ color: "var(--sd-accent)" }}>⚜ </span>
               <span

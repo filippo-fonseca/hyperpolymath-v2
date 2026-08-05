@@ -40,14 +40,14 @@ export function MCPSection() {
     <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 06.5 · THE MCP SERVER" />
 
-      <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+      <h2 className="mt-2 font-semibold text-headline leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
         Your life, available to any LLM.
       </h2>
 
-      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+      <p className="mt-4 text-lead leading-[1.6] text-[var(--sd-ink)]">
         Hyperpolymath ships a{" "}
         <span
-          className="font-mono text-[15px] px-1.5 py-0.5 rounded"
+          className="font-mono text-subtitle px-1.5 py-0.5 rounded"
           style={{
             background: "var(--sd-input)",
             border: "1px solid var(--sd-line)",
@@ -62,7 +62,7 @@ export function MCPSection() {
         knows about your life from a single source.
       </p>
 
-      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+      <p className="mt-4 text-lead leading-[1.6] text-[var(--sd-ink)]">
         No exporting. No copy-paste. No bespoke integration per tool.
         The MCP server <em>is</em> the integration.
       </p>
@@ -83,14 +83,14 @@ export function MCPSection() {
                 >
                   <Icon size={13} strokeWidth={1.8} />
                 </span>
-                <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+                <p className="font-mono text-micro font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
                   Exposed
                 </p>
               </div>
-              <p className="text-[15px] leading-[1.45] text-[var(--sd-ink)]">
+              <p className="text-subtitle leading-[1.45] text-[var(--sd-ink)]">
                 {row.label}
               </p>
-              <p className="mt-1 text-[13px] leading-[1.45] text-[var(--sd-ink-faint)]">
+              <p className="mt-1 text-meta leading-[1.45] text-[var(--sd-ink-faint)]">
                 {row.hint}
               </p>
             </div>
@@ -116,20 +116,20 @@ export function MCPSection() {
           }}
         >
           <span
-            className="font-mono text-[11px] tracking-[0.14em] uppercase"
+            className="font-mono text-micro tracking-[0.14em] uppercase"
             style={{ color: "var(--sd-accent)" }}
           >
             ~/.config/claude_desktop_config.json
           </span>
           <span
-            className="font-mono text-[10px] tracking-[0.14em] uppercase opacity-60"
+            className="font-mono text-micro tracking-[0.14em] uppercase opacity-60"
             style={{ color: "var(--sd-ink-faint)" }}
           >
             Example
           </span>
         </div>
         <pre
-          className="px-5 py-4 m-0 font-mono text-[13px] leading-[1.6] overflow-x-auto custom-scrollbar"
+          className="px-5 py-4 m-0 font-mono text-meta leading-[1.6] overflow-x-auto custom-scrollbar"
           style={{ background: "var(--sd-dark-box)", color: "var(--sd-ink)" }}
         >
 {`{
@@ -145,7 +145,7 @@ export function MCPSection() {
         </pre>
       </div>
 
-      <p className="mt-6 font-mono text-[14px] text-[var(--sd-ink-faint)]">
+      <p className="mt-6 font-mono text-body text-[var(--sd-ink-faint)]">
         One token. One endpoint. Any model that speaks MCP can now
         reason about everything in your life.
       </p>

@@ -77,11 +77,11 @@ export function LandingFooter() {
               size={48}
               className="text-[var(--sd-ink)]"
             />
-            <span className="min-w-0 text-[clamp(1.75rem,8vw,2.75rem)] leading-none text-[var(--sd-ink)] md:text-[44px]">
+            <span className="min-w-0 text-[clamp(1.75rem,8vw,2.75rem)] leading-none text-[var(--sd-ink)] md:text-hero">
               <Logotype />.
             </span>
           </div>
-          <p className="italic text-[16px] md:text-[18px] leading-[1.5] text-[var(--sd-ink-faint)] max-w-[320px] md:text-right">
+          <p className="italic text-subtitle md:text-lead leading-[1.5] text-[var(--sd-ink-faint)] max-w-[320px] md:text-right">
             A personal life-OS for people who refuse to specialize.
           </p>
         </div>
@@ -111,16 +111,16 @@ export function LandingFooter() {
                   <Icon size={15} strokeWidth={1.8} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-mono text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink)]">
+                  <p className="font-mono text-micro font-medium uppercase tracking-[0.14em] text-[var(--sd-ink)]">
                     {link.label}
                   </p>
-                  <p className="mt-0.5 text-[13px] leading-[1.4] text-[var(--sd-ink-faint)] truncate">
+                  <p className="mt-0.5 text-meta leading-[1.4] text-[var(--sd-ink-faint)] truncate">
                     {link.hint}
                   </p>
                 </div>
                 {link.external && (
                   <span
-                    className="font-mono text-[11px] text-[var(--sd-ink-faint)] opacity-0 group-hover:opacity-100 transition-opacity self-center"
+                    className="font-mono text-micro text-[var(--sd-ink-faint)] opacity-0 group-hover:opacity-100 transition-opacity self-center"
                     aria-hidden="true"
                   >
                     ↗
@@ -142,7 +142,7 @@ export function LandingFooter() {
         </div>
 
         {/* ── Quiet system links: the campaign design system ── */}
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono text-micro uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
           <Link
             href="/changelog"
             className="transition-colors hover:text-[var(--sd-accent)]"
@@ -174,10 +174,10 @@ export function LandingFooter() {
 
         {/* ── Sign-off + signature ── */}
         <div className="space-y-2 text-center">
-          <p className="italic text-[14px] text-[var(--sd-ink-faint)]">
+          <p className="italic text-body text-[var(--sd-ink-faint)]">
             how you do one thing is how you do everything. love what you do.
           </p>
-          <p className="text-[14px] text-[var(--sd-ink-faint)]">
+          <p className="text-body text-[var(--sd-ink-faint)]">
             Made with{" "}
             <span
               aria-label="love"

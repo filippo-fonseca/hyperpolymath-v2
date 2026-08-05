@@ -91,11 +91,11 @@ export function PrimitivesTable() {
     <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 05 · THE PRIMITIVES" />
 
-      <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+      <h2 className="mt-2 font-semibold text-headline leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
         A small hierarchy. One agent.
       </h2>
 
-      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+      <p className="mt-4 text-lead leading-[1.6] text-[var(--sd-ink)]">
         Most productivity apps give you ten kinds of object and call that
         flexibility. To me it&rsquo;s closer to a furniture store. What I
         actually wanted was the opposite: the smallest set of primitives that
@@ -103,7 +103,7 @@ export function PrimitivesTable() {
         me to specialize.
       </p>
 
-      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+      <p className="mt-4 text-lead leading-[1.6] text-[var(--sd-ink)]">
         Hyperpolymath is structured as a small hierarchy. Areas at the top,
         your life domains. Projects inside Areas, the bounded efforts (your
         classes live here too). Inside Projects sit the Building Blocks:
@@ -137,13 +137,13 @@ export function PrimitivesTable() {
         {/* Column header row */}
         <div className="grid grid-cols-[44px_140px_1fr_40px] items-center gap-x-3 border-b border-[var(--sd-line)] pb-3">
           <span aria-hidden="true" />
-          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+          <span className="font-mono text-micro font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
             PRIMITIVE
           </span>
-          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+          <span className="font-mono text-micro font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
             ROLE
           </span>
-          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] text-right hidden md:inline">
+          <span className="font-mono text-micro font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] text-right hidden md:inline">
             SPEC
           </span>
         </div>
@@ -160,10 +160,10 @@ export function PrimitivesTable() {
             >
               {p.icon(30)}
             </span>
-            <span className="font-mono text-[14px] font-medium tracking-[0.02em] text-[var(--sd-ink)]">
+            <span className="font-mono text-body font-medium tracking-[0.02em] text-[var(--sd-ink)]">
               {p.name}
             </span>
-            <span className="text-[16px] leading-[1.4] text-[var(--sd-ink-dull)]">
+            <span className="text-subtitle leading-[1.4] text-[var(--sd-ink-dull)]">
               {p.role}
             </span>
             {p.anchor ? (
@@ -197,7 +197,7 @@ export function PrimitivesTable() {
 function PrimitiveTree() {
   return (
     <div
-      className="text-[18px] leading-[1.4] text-[var(--sd-ink)] relative p-6 md:p-7 rounded-[14px] bg-[var(--sd-box)]"
+      className="text-lead leading-[1.4] text-[var(--sd-ink)] relative p-6 md:p-7 rounded-[14px] bg-[var(--sd-box)]"
       style={{
         // The one accent surface in this section: a cyan-tinted edge, no glow.
         border:
@@ -208,7 +208,7 @@ function PrimitiveTree() {
           by the agent" */}
       <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3 pb-5 mb-5 border-b border-[var(--sd-line)]">
         <span
-          className="inline-flex items-center whitespace-nowrap font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
+          className="inline-flex items-center whitespace-nowrap font-mono text-body font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
           style={{
             color: "var(--sd-accent)",
             border: "1px solid var(--sd-line)",
@@ -219,7 +219,7 @@ function PrimitiveTree() {
           <span className="mr-1.5">⚜</span>
           JARVIS
         </span>
-        <span className="italic text-[18px] leading-[1.5] text-[var(--sd-ink-faint)] sm:translate-y-[1px]">
+        <span className="italic text-lead leading-[1.5] text-[var(--sd-ink-faint)] sm:translate-y-[1px]">
           A friendly, all-knowing orchestrator across every primitive below,
           with one eye on your Google Calendar.
         </span>
@@ -278,7 +278,7 @@ function PrimitiveTree() {
       <div className="mt-6 pt-5 border-t border-[var(--sd-line)] space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
           <span
-            className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
+            className="inline-flex items-center font-mono text-body font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
             style={{
               color: "var(--sd-ink-faint)",
               border: "1px solid var(--sd-line)",
@@ -287,13 +287,13 @@ function PrimitiveTree() {
           >
             Calendar
             <span
-              className="ml-2 text-[12px] uppercase tracking-[0.08em]"
+              className="ml-2 text-micro uppercase tracking-[0.08em]"
               style={{ color: "var(--sd-ink-faint)" }}
             >
               external
             </span>
           </span>
-          <span className="italic text-[18px] leading-[1.5] text-[var(--sd-ink-faint)] sm:translate-y-[1px]">
+          <span className="italic text-lead leading-[1.5] text-[var(--sd-ink-faint)] sm:translate-y-[1px]">
             Google Calendar lives outside the hierarchy. JARVIS reads it
             for time context; events are never duplicated here.
           </span>
@@ -303,7 +303,7 @@ function PrimitiveTree() {
             Blocks. Same dashed-cyan pill so the visual reads as "open seam". */}
         <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
           <span
-            className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
+            className="inline-flex items-center font-mono text-body font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
             style={{
               color: "var(--sd-accent)",
               border: "1px dashed var(--sd-line)",
@@ -313,13 +313,13 @@ function PrimitiveTree() {
           >
             +&nbsp; more
             <span
-              className="ml-2 text-[12px] uppercase tracking-[0.08em]"
+              className="ml-2 text-micro uppercase tracking-[0.08em]"
               style={{ color: "var(--sd-accent)" }}
             >
               external
             </span>
           </span>
-          <span className="italic text-[18px] leading-[1.5] text-[var(--sd-ink-faint)] sm:translate-y-[1px]">
+          <span className="italic text-lead leading-[1.5] text-[var(--sd-ink-faint)] sm:translate-y-[1px]">
             Gmail, Drive, Strava, Notion. Anything JARVIS can read.
             External systems plug in the same way Calendar does.
           </span>
@@ -364,7 +364,7 @@ function PrimitiveTree() {
 
 function RootPill({ label }: { label: string }) {
   return (
-    <div className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] text-[var(--sd-ink)] px-3 py-1 border border-[var(--sd-line)] bg-[var(--sd-box)] rounded">
+    <div className="inline-flex items-center font-mono text-body font-medium tracking-[0.04em] text-[var(--sd-ink)] px-3 py-1 border border-[var(--sd-line)] bg-[var(--sd-box)] rounded">
       {label}
     </div>
   );
@@ -397,7 +397,7 @@ function Branch({
     >
       <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
         <span
-          className="inline-flex items-center whitespace-nowrap font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
+          className="inline-flex items-center whitespace-nowrap font-mono text-body font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
           style={
             cyan
               ? {
@@ -427,7 +427,7 @@ function Branch({
         </span>
         <span
           className={cn(
-            "text-[18px] leading-[1.5] sm:translate-y-[1px]",
+            "text-lead leading-[1.5] sm:translate-y-[1px]",
             slot ? "italic text-[var(--sd-ink-faint)]" : "text-[var(--sd-ink-faint)]",
           )}
         >

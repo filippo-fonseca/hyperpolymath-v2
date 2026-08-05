@@ -166,7 +166,7 @@ export function LandingSideNav() {
               transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
             />
             <motion.span
-              className="font-mono text-[10px] tracking-[0.22em] uppercase"
+              className="font-mono text-micro tracking-[0.22em] uppercase"
               initial={false}
               animate={{
                 opacity: hovered || isActive ? 1 : 0,

@@ -40,10 +40,10 @@ export async function BuildLog() {
   return (
     <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 09 · BUILD LOG" />
-      <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+      <h2 className="mt-2 font-semibold text-headline leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
         Live from main.
       </h2>
-      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+      <p className="mt-4 text-lead leading-[1.6] text-[var(--sd-ink)]">
         I&rsquo;m building Hyperpolymath in public, in named phases, one wave
         at a time. There&rsquo;s no private roadmap and no fake demos. The
         page below this line is the source of truth.
@@ -54,15 +54,15 @@ export async function BuildLog() {
         <SectionEyebrow label="CURRENTLY SHIPPING" />
         <div className="mt-2 border-t border-[var(--sd-line)] pt-3">
           {currentPhase ? (
-            <p className="text-[18px] text-[var(--sd-ink)]">
+            <p className="text-lead text-[var(--sd-ink)]">
               <span aria-hidden="true">▶ </span>
               Phase {currentPhase.number} · {currentPhase.name}
-              <span className="ml-2 font-mono text-[14px] text-[var(--sd-ink-faint)]">
+              <span className="ml-2 font-mono text-body text-[var(--sd-ink-faint)]">
                 · In Progress ({currentPhase.plansComplete} plans)
               </span>
             </p>
           ) : (
-            <p className="font-mono text-[14px] text-[var(--sd-ink-faint)]">
+            <p className="font-mono text-body text-[var(--sd-ink-faint)]">
               → Phase data unavailable.
             </p>
           )}
@@ -90,7 +90,7 @@ function LastCommits({ commits }: { commits: ReadonlyArray<Commit> }) {
         {commits.map((c) => (
           <div
             key={c.sha}
-            className="grid grid-cols-[28px_80px_110px_1fr] gap-3 items-center font-mono font-mono-stats text-[14px] leading-[1.5]"
+            className="grid grid-cols-[28px_80px_110px_1fr] gap-3 items-center font-mono font-mono-stats text-body leading-[1.5]"
           >
             <CommitAvatar author={c.author} />
             <a
@@ -119,7 +119,7 @@ function CommitAvatar({ author }: { author: Commit["author"] }) {
   if (!author.avatarUrl || !author.login) {
     return (
       <span
-        className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full bg-[var(--sd-input)] border border-[var(--sd-line)] text-[10px] text-[var(--sd-ink-faint)]"
+        className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full bg-[var(--sd-input)] border border-[var(--sd-line)] text-micro text-[var(--sd-ink-faint)]"
         aria-hidden="true"
       >
         ?
@@ -167,11 +167,11 @@ function ShippedThisWeekBlock({ summary }: { summary: WeeklySummary }) {
     <div className="mt-8">
       <SectionEyebrow label="SHIPPED THIS WEEK" />
       <div className="mt-2 border-t border-[var(--sd-line)] pt-3 flex flex-col md:flex-row md:items-baseline md:justify-between gap-1">
-        <p className="text-[18px] text-[var(--sd-ink)]">
+        <p className="text-lead text-[var(--sd-ink)]">
           {parts.length > 0 ? parts.join(" · ") : "Quiet week."}
         </p>
         {ago && (
-          <p className="font-mono font-mono-stats text-[14px] text-[var(--sd-ink-faint)]">
+          <p className="font-mono font-mono-stats text-body text-[var(--sd-ink-faint)]">
             (latest: {ago})
           </p>
         )}
@@ -183,7 +183,7 @@ function ShippedThisWeekBlock({ summary }: { summary: WeeklySummary }) {
 function DegradedFeed() {
   return (
     <div className="mt-8">
-      <p className="font-mono text-[14px] text-[var(--sd-ink-faint)]">
+      <p className="font-mono text-body text-[var(--sd-ink-faint)]">
         →{" "}
         <a
           href={REPO_URL}

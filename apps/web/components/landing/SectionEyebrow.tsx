@@ -6,7 +6,7 @@
  */
 export function SectionEyebrow({ label }: { label: string }) {
   return (
-    <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--sd-ink-faint)]">
+    <p className="font-mono text-micro font-medium uppercase tracking-[0.16em] text-[var(--sd-ink-faint)]">
       {label}
     </p>
   );

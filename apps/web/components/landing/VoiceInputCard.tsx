@@ -82,14 +82,14 @@ export function VoiceInputCard() {
       {/* Mode badge */}
       <div className="flex items-center justify-between w-full pb-1 mb-1 border-b border-[var(--sd-line)] opacity-80">
         <div
-          className="inline-flex items-center gap-1.5 font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
+          className="inline-flex items-center gap-1.5 font-mono text-body font-medium uppercase tracking-[0.14em]"
           style={{ color: "var(--sd-accent)" }}
         >
           <Mic size={12} aria-hidden="true" strokeWidth={2} />
           <span>Spoken</span>
         </div>
         <span
-          className="font-mono text-[14px] tracking-[0.14em] opacity-60"
+          className="font-mono text-body tracking-[0.14em] opacity-60"
           style={{ color: "var(--sd-ink-faint)" }}
         >
           JARVIS
@@ -97,7 +97,7 @@ export function VoiceInputCard() {
       </div>
 
       {/* Utterance line */}
-      <div className="font-mono font-mono-stats text-[14px] leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words text-left w-full flex items-start gap-2">
+      <div className="font-mono font-mono-stats text-body leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words text-left w-full flex items-start gap-2">
         <span
           aria-hidden="true"
           className="inline-flex items-end gap-[2px] mt-[3px]"
@@ -133,7 +133,7 @@ export function VoiceInputCard() {
       </div>
 
       {/* Receipt */}
-      <div className="font-mono font-mono-stats text-[14px] leading-[1.55] text-left w-full">
+      <div className="font-mono font-mono-stats text-body leading-[1.55] text-left w-full">
         <span style={{ color: "var(--sd-accent)" }}>❦ </span>
         <span className="font-medium" style={{ color: "var(--sd-accent)" }}>
           {example.verb}
@@ -153,7 +153,7 @@ export function VoiceInputCard() {
           <Volume2 size={11} strokeWidth={2} />
         </span>
         <p
-          className="italic text-[13.5px] leading-[1.5]"
+          className="italic text-meta leading-[1.5]"
           style={{ color: "var(--sd-ink-faint)" }}
         >
           &ldquo;{example.reply}&rdquo;

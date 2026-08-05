@@ -24,16 +24,16 @@ export function EngineSection() {
   return (
     <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 06 · THE ENGINE" />
-      <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+      <h2 className="mt-2 font-semibold text-headline leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
         An LLM of choice, with a contract.
       </h2>
-      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+      <p className="mt-4 text-lead leading-[1.6] text-[var(--sd-ink)]">
         Most agents are just an LLM with a prompt taped on top. They drift,
         they hallucinate fields, they cheerfully invent tools that
         don&rsquo;t exist. That&rsquo;s tolerable for a demo. It isn&rsquo;t
         tolerable for the thing that organizes the rest of your life.
       </p>
-      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+      <p className="mt-4 text-lead leading-[1.6] text-[var(--sd-ink)]">
         So I built JARVIS the other way around. The schema is the source of
         truth, and the model is constrained to it. Whatever LLM the backend
         is wired to, Strict Tool Use means it literally cannot emit a
@@ -48,10 +48,10 @@ export function EngineSection() {
       <div className="mt-6 flex flex-col md:flex-row md:items-stretch md:gap-6">
         {/* Left card — INPUT */}
         <div className="md:max-w-[280px] flex-shrink-0 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6">
-          <p className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+          <p className="font-mono text-body font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
             INPUT
           </p>
-          <p className="mt-3 italic text-[18px] leading-[1.5] text-[var(--sd-ink)]">
+          <p className="mt-3 italic text-lead leading-[1.5] text-[var(--sd-ink)]">
             {STRICT_TOOL_USE_FIXTURE.input}
           </p>
         </div>
@@ -71,19 +71,19 @@ export function EngineSection() {
           }}
         >
           <p
-            className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
+            className="font-mono text-body font-medium uppercase tracking-[0.14em]"
             style={{ color: "var(--sd-accent)" }}
           >
             STRICT-TOOL-USE JSON
           </p>
-          <pre className="mt-3 font-mono font-mono-stats text-[14px] leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
+          <pre className="mt-3 font-mono font-mono-stats text-body leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
             <JsonFormatted value={STRICT_TOOL_USE_FIXTURE.output} />
           </pre>
         </div>
       </div>
 
       {/* Source-of-truth note */}
-      <p className="mt-4 font-mono text-[14px] text-[var(--sd-ink-faint)]">
+      <p className="mt-4 font-mono text-body text-[var(--sd-ink-faint)]">
         {"Plucked verbatim from packages/jarvis-core/tests/strict-tool-use.fixture.ts. No edits."}
       </p>
     </Reveal>

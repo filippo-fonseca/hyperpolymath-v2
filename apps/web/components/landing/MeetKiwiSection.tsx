@@ -25,7 +25,7 @@ export function MeetKiwiSection() {
     <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <Reveal>
         <SectionEyebrow label="§ 03 · MEET KIWI" />
-        <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+        <h2 className="mt-2 font-semibold text-headline leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
           And here&rsquo;s the bird.
         </h2>
       </Reveal>
@@ -43,16 +43,16 @@ export function MeetKiwiSection() {
         </div>
 
         <div className="mt-6 md:mt-0 flex-1 text-center md:text-left">
-          <p className="text-[28px] font-semibold leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+          <p className="text-display font-semibold leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
             Kiwi
-            <span className="ml-3 align-middle font-mono text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--sd-accent)]">
+            <span className="ml-3 align-middle font-mono text-micro font-medium uppercase tracking-[0.14em] text-[var(--sd-accent)]">
               a.k.a. JARVIS
             </span>
           </p>
-          <p className="mt-2 italic text-[18px] leading-[1.5] text-[var(--sd-ink-dull)]">
+          <p className="mt-2 italic text-lead leading-[1.5] text-[var(--sd-ink-dull)]">
             A friendly, all-knowing orchestrator native to your life-OS.
           </p>
-          <p className="mt-2 font-mono text-[12px] text-[var(--sd-ink-faint)] tracking-[0.06em]">
+          <p className="mt-2 font-mono text-micro text-[var(--sd-ink-faint)] tracking-[0.06em]">
             Role: orchestrator · Native to: Hyperpolymath
           </p>
           <div className="mt-4">
@@ -64,7 +64,7 @@ export function MeetKiwiSection() {
       {/* Prose flows below the identity card at a 720px measure. First
           person, in JARVIS's voice — the section IS the agent speaking. */}
       <Reveal i={2} as="div" className="mt-10 max-w-[720px] mx-auto md:mx-0 space-y-4">
-        <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+        <p className="text-lead leading-[1.6] text-[var(--sd-ink)]">
           I am the agent at the heart of Hyperpolymath. Friendly,
           patient, and disarmingly literal. I am also (technically){" "}
           <a
@@ -79,7 +79,7 @@ export function MeetKiwiSection() {
           Same bird, fancier name. (Yes, the Tony Stark one.)
         </p>
 
-        <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+        <p className="text-lead leading-[1.6] text-[var(--sd-ink)]">
           My one and only job is to be an{" "}
           <span className="font-semibold">orchestrator</span>. You type at
           the prompt, or hold ⌘+J and speak. Either modality is
@@ -90,7 +90,7 @@ export function MeetKiwiSection() {
           improvisation, no opinions about your goals.
         </p>
 
-        <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+        <p className="text-lead leading-[1.6] text-[var(--sd-ink)]">
           &ldquo;All-knowing&rdquo; is literal, but bounded. I know
           everything inside your Hyperpolymath: which areas you have,
           what projects sit under them, what&rsquo;s in your calendar,
@@ -100,7 +100,7 @@ export function MeetKiwiSection() {
           than guess.
         </p>
 
-        <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+        <p className="text-lead leading-[1.6] text-[var(--sd-ink)]">
           Under the hood I am powered by the LLM of choice in the backend,
           wrapped in a strict Zod schema with Strict Tool Use. The schema
           is my contract. The model is constrained to it at generation

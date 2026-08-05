@@ -28,7 +28,7 @@ export function DiagramBannerSection({
       id={id}
       className="py-12 max-w-[1080px] mx-auto px-6 md:px-10"
     >
-      <p className="font-mono text-[11px] tracking-[0.16em] uppercase text-[var(--sd-ink-faint)] mb-5 text-center">
+      <p className="font-mono text-micro tracking-[0.16em] uppercase text-[var(--sd-ink-faint)] mb-5 text-center">
         {eyebrow}
       </p>
       <div className="rounded-[14px] overflow-hidden border border-[var(--sd-line)]">

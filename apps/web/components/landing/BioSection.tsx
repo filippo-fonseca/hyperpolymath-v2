@@ -11,7 +11,8 @@ import { Reveal } from "./Reveal";
  * methodology they're being asked to use or fork.
  *
  * Voice + visual discipline (Phase 8 Plan 08-06 gap closure):
- *   - 4 canonical sizes {14, 18, 32, 56}; no exceptions
+ *   - Named steps only (aug-05): text-hero / text-headline / text-lead
+ *     plus the app ladder. No arbitrary px.
  *   - 800px container (matches the widened landing-wide unify)
  *   - Photo uses rounded-2xl, not rounded-full — softer-square reads more
  *     "frontispiece portrait" than "social-app avatar"
@@ -53,7 +54,7 @@ export function BioSection() {
     >
       <Reveal>
         <SectionEyebrow label="§ 02 · WHO" />
-        <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+        <h2 className="mt-2 font-semibold text-headline leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
           Why I built this.
         </h2>
       </Reveal>
@@ -73,19 +74,19 @@ export function BioSection() {
         </div>
 
         <div className="mt-6 md:mt-0 flex-1 text-center md:text-left">
-          <p className="text-[28px] font-semibold leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+          <p className="text-display font-semibold leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
             Filippo Fonseca
           </p>
-          <p className="mt-2 text-[14px] leading-[1.55] text-[var(--sd-ink-dull)]">
+          <p className="mt-2 text-body leading-[1.55] text-[var(--sd-ink-dull)]">
             Yale MechE (ABET) + EECS &rsquo;28 · Engineer @ Mass General /
             Harvard Med · President @ Yale Robotics · Entrepreneur ·
             Biomechatronics · Polyglot · Stoic
           </p>
-          <p className="mt-2 italic text-[14px] leading-[1.5] text-[var(--sd-ink-dull)]">
+          <p className="mt-2 italic text-body leading-[1.5] text-[var(--sd-ink-dull)]">
             I build humanist physical intelligence w/ robotics &amp;
             materials. 🫀🦴
           </p>
-          <p className="mt-2 font-mono text-[12px] text-[var(--sd-ink-faint)] tracking-[0.06em]">
+          <p className="mt-2 font-mono text-micro text-[var(--sd-ink-faint)] tracking-[0.06em]">
             New Haven, Connecticut
           </p>
 
@@ -112,7 +113,7 @@ export function BioSection() {
       {/* Prose flows below the identity card at full container width.
           Inner max-w cap keeps the measure readable. */}
       <Reveal i={2} as="div" className="mt-10 max-w-[720px] mx-auto md:mx-0 space-y-4">
-          <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+          <p className="text-lead leading-[1.6] text-[var(--sd-ink)]">
             I&rsquo;m a student, a runner, a long-time builder, and someone who
             has spent most of the last decade collecting skills that don&rsquo;t
             really belong on the same résumé. Distance running, classical
@@ -124,7 +125,7 @@ export function BioSection() {
             just needs a system around them that stops asking them to choose.
           </p>
 
-          <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+          <p className="text-lead leading-[1.6] text-[var(--sd-ink)]">
             I tried to build that system once before. Six years ago I started{" "}
             <a
               href="https://zyndicate.app"
@@ -149,7 +150,7 @@ export function BioSection() {
             did then.
           </p>
 
-          <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+          <p className="text-lead leading-[1.6] text-[var(--sd-ink)]">
             Hyperpolymath is what I want to use, every day. Five primitives
             instead of ten. One agent instead of a dozen integrations. A schema
             you can fork rather than a walled garden you have to live inside.
@@ -158,7 +159,7 @@ export function BioSection() {
             things, learn, build, and yes, get out of the house and run.
           </p>
 
-          <p className="text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+          <p className="text-lead leading-[1.6] text-[var(--sd-ink)]">
             I wrote extensive docs, so if you don&rsquo;t like my UI or my
             approach, or you fancy a cool build, you can follow my framework
             and make it your own.
