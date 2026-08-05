@@ -191,13 +191,7 @@ export function AreaProjectList({
               type="button"
               onClick={() => setHideClasses((v) => !v)}
               aria-pressed={hideClasses}
-              className={cn(
-                "h-8 rounded-lg px-3 text-meta cursor-pointer-always",
-                "transition-colors duration-[160ms] ease-out",
-                hideClasses
-                  ? "bg-[var(--selected)] text-[var(--ink)]"
-                  : "text-[var(--ink-muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
-              )}
+              className="craft-chip shrink-0 cursor-pointer-always"
             >
               {hideClasses ? "Show classes" : "Hide classes"}
             </button>
@@ -237,26 +231,24 @@ export function AreaProjectList({
                 <Link
                   href={`/projects/${p.id}`}
                   className={cn(
-                    "flex items-center gap-4 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-5 py-4",
-                    "shadow-[var(--shadow-card)]",
-                    "transition-[border-color,box-shadow] duration-[160ms] ease-out cursor-pointer-always",
-                    "hover:border-[color-mix(in_srgb,var(--tint-edge)_45%,var(--edge))] hover:shadow-[var(--shadow-card-hover)]",
+                    "craft-card craft-card-hover flex items-center gap-4 px-4 py-3",
+                    "cursor-pointer-always",
                     isPast(p) && "opacity-70"
                   )}
                 >
                   {/* Icon on the project's deterministic pastel plate. */}
                   <span
                     aria-hidden
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--tint-bg)] text-[var(--tint-ink)]"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--tint-bg)] text-[var(--tint-ink)]"
                   >
                     <DynamicIcon name={p.icon} size={18} strokeWidth={1.5} className="shrink-0" />
                   </span>
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="truncate text-subtitle font-medium leading-snug text-[var(--ink)]">
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="truncate text-meta font-semibold leading-snug text-[var(--ink)]">
                       {p.name}
                     </span>
                     {meta.length > 0 ? (
-                      <span className="truncate text-meta text-[var(--ink-muted)]">
+                      <span className="truncate text-micro text-[var(--ink-faint)]">
                         {meta.map((m, i) => (
                           // Positional meta fragments; the index is the identity.
                           // biome-ignore lint/suspicious/noArrayIndexKey: positional by design
@@ -325,15 +317,10 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "h-8 rounded-lg px-3 text-meta cursor-pointer-always",
-        "transition-colors duration-[160ms] ease-out",
-        active
-          ? "bg-[var(--selected)] font-medium text-[var(--ink)]"
-          : "text-[var(--ink-muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
-      )}
+      aria-pressed={active}
+      className="craft-chip shrink-0 cursor-pointer-always"
     >
-      {label} <span className="tabular-nums text-[var(--ink-muted)]">({count})</span>
+      {label} <span className="tabular-nums opacity-70">{count}</span>
     </button>
   );
 }
@@ -344,9 +331,9 @@ const VIEW_SEGMENTS: { value: "grid" | "timeline"; label: string }[] = [
 ];
 
 /**
- * Grid | Timeline segmented control. Same grammar as the /areas index
- * Tree | Timeline toggle (AreasPageClient) so the two surfaces read as one
- * system: 8px shell, 4px segments, sentence case, ladder radii only.
+ * Grid | Timeline segmented control. Same craft chip grammar as the /areas
+ * index Tree | Timeline toggle (AreasPageClient) so the two surfaces read as
+ * one system.
  */
 function ViewToggle({
   view,
@@ -356,23 +343,14 @@ function ViewToggle({
   onChange: (next: "grid" | "timeline") => void;
 }) {
   return (
-    <div
-      data-testid="area-detail-view-toggle"
-      className="flex items-center gap-1 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-1"
-    >
+    <div data-testid="area-detail-view-toggle" className="flex items-center gap-1.5">
       {VIEW_SEGMENTS.map((seg) => (
         <button
           key={seg.value}
           type="button"
           onClick={() => onChange(seg.value)}
           aria-pressed={view === seg.value}
-          className={cn(
-            "cursor-pointer-always rounded px-2 py-1 text-meta",
-            "transition-colors duration-[160ms] ease-out",
-            view === seg.value
-              ? "bg-[var(--selected)] font-medium text-[var(--ink)]"
-              : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-          )}
+          className="craft-chip cursor-pointer-always"
         >
           {seg.label}
         </button>

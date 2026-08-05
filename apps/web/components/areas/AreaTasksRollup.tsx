@@ -126,11 +126,15 @@ export function AreaTasksRollup({ userId, areaProjectIds, initialTasks }: Props)
 
   return (
     <div className="flex flex-col">
-      <ul className="flex flex-col divide-y divide-[var(--edge)]">
+      {/* Craft row grammar: 28px rows on the sheet, faint hairlines, hover fill. */}
+      <ul className="flex flex-col divide-y divide-[color-mix(in_srgb,var(--sd-line)_60%,transparent)]">
         {visible.map((t) => {
           const done = isDone(t);
           return (
-            <li key={t.id} className="flex min-h-9 items-center gap-3 py-2">
+            <li
+              key={t.id}
+              className="flex min-h-9 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--hover)]"
+            >
               <button
                 type="button"
                 role="checkbox"
@@ -149,20 +153,20 @@ export function AreaTasksRollup({ userId, areaProjectIds, initialTasks }: Props)
               </button>
               <span
                 className={cn(
-                  "min-w-0 flex-1 truncate text-body text-[var(--ink)]",
+                  "min-w-0 flex-1 truncate text-meta text-[var(--ink)]",
                   done && "text-[var(--ink-faint)] line-through"
                 )}
               >
                 {t.title}
               </span>
-              <span className="flex shrink-0 items-center text-meta text-[var(--ink-muted)]">
+              <span className="flex shrink-0 items-center text-micro text-[var(--ink-faint)]">
                 {t.projects[0]?.name}
                 {t.dueDate ? (
                   <>
                     <span aria-hidden className="mx-2 text-[var(--ink-faint)]">
                       ·
                     </span>
-                    <span className="font-mono text-micro tabular-nums">
+                    <span className="text-micro tabular-nums">
                       {format(parseISO(t.dueDate), "MMM d")}
                     </span>
                   </>
@@ -173,7 +177,7 @@ export function AreaTasksRollup({ userId, areaProjectIds, initialTasks }: Props)
         })}
       </ul>
       {remaining > 0 ? (
-        <p className="pt-3 text-meta text-[var(--ink-faint)]">
+        <p className="px-2 pt-3 text-micro text-[var(--ink-faint)]">
           {remaining} more with later or no due dates.
         </p>
       ) : null}

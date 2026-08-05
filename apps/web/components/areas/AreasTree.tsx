@@ -5,7 +5,9 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ChevronDown, Archive } from "lucide-react";
 import { AreaIcon } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
+import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 
@@ -242,10 +244,10 @@ export function AreasTree({
 
   return (
     <div ref={containerRef} className="relative w-full">
-      {/* Controls strip — chip grammar (§7). Mono "VIEW" eyebrow grounds the
-          band as chrome; the toggles read as the same chips the cards use. */}
-      <div className="mb-4 flex items-center justify-between gap-4 border-b border-[var(--sd-line)] px-2 pb-3">
-        <span className="text-micro text-[var(--sd-ink-faint)]">View</span>
+      {/* Controls strip — craft chip row on a hairline. The eyebrow grounds the
+          band as chrome; the toggles read as the same chips the app uses. */}
+      <div className="mb-4 flex items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] px-2 pb-3">
+        <span className="text-micro text-[var(--ink-faint)]">View</span>
         <div className="flex items-center gap-2">
           <ChipButton
             active={!hideAllProjects}
@@ -316,18 +318,14 @@ export function AreasTree({
         ))}
       </svg>
 
-      {/* Root — the avatar, 56px, hairline + inset top highlight, no glow ring
-          (§7). Strict pixel width AND height on the wrapper AND the <img>
+      {/* Root — the avatar, 56px, on the craft card plate (elevation belongs to
+          content). Strict pixel width AND height on the wrapper AND the <img>
           defends against any global rule that would stretch <img> elements. */}
       <div className="relative z-10 flex justify-center pt-1 pb-1">
         <div
           ref={rootRef}
-          className="relative shrink-0 overflow-hidden rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)]"
-          style={{
-            width: 56,
-            height: 56,
-            boxShadow: "inset 0 1px 0 var(--glass-hi)",
-          }}
+          className="craft-card relative shrink-0 overflow-hidden"
+          style={{ width: 56, height: 56 }}
         >
           {rootAvatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -347,7 +345,7 @@ export function AreasTree({
             />
           ) : (
             <span
-              className="flex items-center justify-center text-xl text-[var(--sd-ink-dull)]"
+              className="flex items-center justify-center text-title text-[var(--ink-muted)]"
               style={{ width: 56, height: 56 }}
             >
               {rootInitial}
@@ -392,10 +390,6 @@ export function AreasTree({
   );
 }
 
-/** Chip grammar (§6): h-26px rounded-[8px] --sd-input on a --sd-line hairline. */
-const CHIP_BASE =
-  "inline-flex h-[26px] items-center gap-1.5 rounded-[8px] border px-2 text-[12px] font-medium";
-
 function ChipButton({
   active,
   onClick,
@@ -415,14 +409,7 @@ function ChipButton({
       onClick={onClick}
       aria-pressed={active}
       title={title}
-      className={cn(
-        CHIP_BASE,
-        "cursor-pointer-always transition-colors duration-150 ease-out",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-        active
-          ? "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink)]"
-          : "border-transparent text-[var(--sd-ink-faint)] hover:border-[var(--sd-line)] hover:text-[var(--sd-ink-dull)]",
-      )}
+      className="craft-chip shrink-0 cursor-pointer-always"
     >
       {icon}
       {label}
@@ -497,23 +484,17 @@ function AreaBranch({
   return (
     <div className="flex w-[200px] shrink-0 flex-col items-stretch">
       <div className="relative">
-        {/* Mini entity card (§7 + §6 chrome): solid --sd-box raised off the
-            canvas by a hairline and an inset top highlight. No blur, no
-            gradient, no glow. Hover moves the border and nothing else.
-            §6 states the edge/bevel as literal white-alpha, but those are
-            dark-theme values: on light parchment a white 6% hairline is
-            invisible and the card loses its edge. Per D11 the surfaces
-            resolve through tokens instead, which land on §6's intended
-            values in dark and their parchment equivalents in light. */}
+        {/* Mini entity card, craft v2: the raised white card carries the
+            elevation, hover moves shadow + border only, and the area's one
+            colored element is its tinted icon plate (identity, not
+            decoration). */}
         <Link
           ref={setRef}
           href={`/areas/${area.id}`}
           className={cn(
-            "group relative flex flex-col gap-2 rounded-[12px] px-3 py-3 pr-8",
-            "border border-[var(--sd-line)] bg-[var(--sd-box)]",
-            "[box-shadow:inset_0_1px_0_var(--glass-hi)]",
-            "transition-colors duration-150 ease-out hover:border-[var(--sd-active)]",
-            "cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+            "craft-card craft-card-hover group relative flex flex-col gap-2 px-3 py-3 pr-8",
+            "cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
+            tintFor(area.id),
           )}
         >
           <div className="flex items-center gap-2.5">
@@ -521,15 +502,15 @@ function AreaBranch({
                 defaults to the dimensional AreaIcon (never drop user data). */}
             <span
               aria-hidden="true"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--sd-line)] bg-[var(--sd-input)] text-[15px] leading-none"
+              className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--tint-bg)] text-[var(--tint-ink)] text-meta leading-none"
             >
               {area.emoji ? area.emoji : <AreaIcon size={18} />}
             </span>
-            <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--sd-ink)]">
+            <span className="min-w-0 flex-1 truncate text-meta font-semibold text-[var(--ink)]">
               {area.name}
             </span>
           </div>
-          <span className="text-micro font-medium text-[var(--sd-ink-faint)]">
+          <span className="text-micro text-[var(--ink-faint)]">
             {activeCount} project{activeCount === 1 ? "" : "s"}
             {showArchived && archivedCount > 0 ? (
               <span className="ml-1">· {archivedCount} archived</span>
@@ -548,10 +529,10 @@ function AreaBranch({
           aria-label={collapsed ? "Show projects" : "Hide projects"}
           aria-expanded={!collapsed}
           className={cn(
-            "absolute top-2.5 right-2 inline-flex h-6 w-6 items-center justify-center rounded-lg",
-            "text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
+            "absolute top-2.5 right-2 inline-flex size-6 items-center justify-center rounded-lg",
+            "text-[var(--ink-faint)] hover:bg-[var(--hover)] hover:text-[var(--ink)]",
             "cursor-pointer-always transition-colors duration-150 ease-out",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
           )}
         >
           <ChevronDown
@@ -581,12 +562,7 @@ function AreaBranch({
                   <motion.li key={p.id} variants={leaf}>
                     <Link
                       href={`/projects/${p.id}`}
-                      className={cn(
-                        CHIP_BASE,
-                        "max-w-full border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)]",
-                        "cursor-pointer-always transition-colors duration-150 ease-out hover:text-[var(--sd-ink)]",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-                      )}
+                      className="craft-chip max-w-full cursor-pointer-always"
                     >
                       <DynamicIcon
                         name={p.icon}
@@ -598,7 +574,7 @@ function AreaBranch({
                       {p.archivedAt !== null ? (
                         <Archive
                           size={11}
-                          className="shrink-0 text-[var(--sd-ink-faint)]"
+                          className="shrink-0 text-[var(--ink-faint)]"
                           aria-label="archived"
                         />
                       ) : null}
@@ -609,12 +585,7 @@ function AreaBranch({
                   <motion.li variants={leaf}>
                     <Link
                       href={`/areas/${area.id}`}
-                      className={cn(
-                        CHIP_BASE,
-                        "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-faint)]",
-                        "cursor-pointer-always transition-colors duration-150 ease-out hover:text-[var(--sd-ink)]",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-                      )}
+                      className="craft-chip cursor-pointer-always"
                     >
                       +{hiddenCount} more
                     </Link>
@@ -622,9 +593,7 @@ function AreaBranch({
                 ) : null}
               </ul>
             ) : (
-              <p className="pt-2.5 text-[12px] text-[var(--sd-ink-faint)]">
-                No projects yet
-              </p>
+              <p className="pt-2.5 text-micro text-[var(--ink-faint)]">No projects yet</p>
             )}
           </motion.div>
         )}
@@ -633,16 +602,13 @@ function AreaBranch({
   );
 }
 
-/** Plain empty state (§7): no dashed box, no italic serif. */
+/** The one empty state (SDC-1 §2.10) — no dashed box, no local ladder. */
 function EmptyAreas() {
   return (
-    <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
-      <span aria-hidden="true">
-        <AreaIcon size={40} className="opacity-40" />
-      </span>
-      <p className="text-[13px] text-[var(--sd-ink-faint)]">
-        No areas yet. Create one from the sidebar to start branching.
-      </p>
-    </div>
+    <EmptyState
+      icon={<AreaIcon size={40} />}
+      title="No areas yet"
+      description="Create one from the sidebar to start branching."
+    />
   );
 }
