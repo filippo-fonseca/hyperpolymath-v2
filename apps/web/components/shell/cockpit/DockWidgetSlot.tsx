@@ -24,12 +24,18 @@ export function DockWidgetSlot({ def }: { def: DockWidgetDef<unknown> }) {
   const Icon = def.icon;
 
   return (
-    // jul-29 craft restyle: each widget is its own mini card riding inside
-    // the glass dock, wearing the widget's tint so its children can consume
-    // var(--tint-…) for identity color.
+    // aug-04 craft-ui-v2: with the dock chromeless, each widget is a white
+    // Craft card carrying its own elevation, wearing the widget's tint so its
+    // children can consume var(--tint-…) for identity color. Expandable
+    // widgets take the hover lift; a static readout stays still so the shadow
+    // never promises an interaction the card cannot honor.
     <section
       data-dock-widget-id={def.id}
-      className={cn("craft-card rounded-xl px-1.5 pt-1.5 pb-2", def.tint)}
+      className={cn(
+        "craft-card rounded-xl px-1.5 pt-1.5 pb-2",
+        canExpand && "craft-card-hover",
+        def.tint
+      )}
     >
       <header className="flex h-7 items-center justify-between gap-2 px-1">
         <div className="flex min-w-0 items-center gap-1.5">
