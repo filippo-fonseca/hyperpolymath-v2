@@ -17,10 +17,10 @@ interface Props {
 /**
  * WidgetCard — shared shell for /lifeos tiles (UI-CONTRACT §6 + §11).
  *
- * Chrome: `--sd-box` fill that must read *clearly raised* off `--sd-app`, 14px
- * radius, 1px hairline border, and a white inset top hairline. No backdrop blur,
- * no gradient, no glow, no shadow stack. Hover moves the border colour and
- * nothing else (150ms) — no scale, no lift.
+ * Chrome (aug-04 craft-ui-v2): `.craft-glass-tile` over the space loop, 14px
+ * radius, hairline edge, inset top highlight. Hover is `.craft-card-hover`:
+ * the shadow steps to `--shadow-card-hover` and the border firms to
+ * `--edge-strong`; no scale, no translate (shadow/color transitions only).
  *
  * The white-alpha border/inset from §6 only reads as "light catching an edge" on
  * a dark canvas; in light theme it would erase the card outline entirely, so the
@@ -41,14 +41,16 @@ export function WidgetCard({ href, ariaLabel, children, className }: Props) {
   return (
     <div
       className={cn(
-        // jul-29 craft restyle: the tile is glass over the space loop — the
-        // lighter .craft-glass-tile register (16px blur, card shadow), with
-        // hover still limited to the border. Solid-fill fallback where
-        // backdrop-filter is unsupported lives in the class itself.
+        // jul-29 craft restyle: the tile is glass over the space loop, the
+        // lighter .craft-glass-tile register (16px blur, card shadow), with a
+        // solid-fill fallback where backdrop-filter is unsupported living in
+        // the class itself. Glass stays deliberately: the /lifeos backdrop
+        // video sits behind BOTH deck views (absolute inset-0 on <main>), so
+        // this card is never over plain canvas outside the /design demo.
+        // aug-04 craft-ui-v2: every WidgetCard navigates (the full-bleed link
+        // below), so it earns .craft-card-hover, shadow + border lift only.
         "group/card relative flex h-full flex-col overflow-hidden rounded-[14px]",
-        "craft-glass-tile",
-        "transition-colors duration-[160ms]",
-        "hover:border-[var(--edge-strong)]",
+        "craft-glass-tile craft-card-hover",
         className,
       )}
     >
