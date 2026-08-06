@@ -48,13 +48,7 @@ export function DayNavigator({ date, onChange }: Props) {
 
   return (
     <div
-      className={cn(
-        "flex items-center gap-1 rounded-xl border p-1",
-        "border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-card)]",
-        "transition-[border-color,box-shadow] duration-[160ms] ease-out",
-        "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]",
-        "motion-reduce:transition-none"
-      )}
+      className="craft-pill flex items-center gap-1 p-1"
     >
       <button
         type="button"

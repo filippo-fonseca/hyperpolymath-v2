@@ -37,11 +37,11 @@ export function FrameworkSection() {
                 <span className="block w-[5px] h-[5px] rounded-full bg-[var(--sd-ink)]" />
                 <span className="block w-[5px] h-[5px] rounded-full bg-[var(--sd-ink)]" />
               </span>
-              <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
+              <span className="font-mono text-micro tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
                 § 07.7  ·  The framework
               </span>
             </div>
-            <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
+            <span className="font-mono text-micro tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
               Fork it, build your own
             </span>
           </div>
@@ -70,7 +70,7 @@ export function FrameworkSection() {
             aria-hidden="true"
           >
             <span className="h-px w-16 md:w-24 bg-[var(--sd-line)]" />
-            <span className="font-mono text-[12px] tracking-[0.3em] text-[var(--sd-ink-faint)]">
+            <span className="font-mono text-micro tracking-[0.3em] text-[var(--sd-ink-faint)]">
               ❦
             </span>
             <span className="h-px w-16 md:w-24 bg-[var(--sd-line)]" />
@@ -85,11 +85,11 @@ export function FrameworkSection() {
                   aria-hidden="true"
                   className="text-[var(--sd-ink-faint)]"
                 />
-                <p className="font-mono text-[11px] tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
+                <p className="font-mono text-micro tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
                   Just use it
                 </p>
               </div>
-              <p className="text-[18px] md:text-[19px] leading-[1.6] text-[var(--sd-ink)]">
+              <p className="text-lead md:text-lead leading-[1.6] text-[var(--sd-ink)]">
                 The platform is live. Sign in with Google, connect your
                 calendar, and start typing one sentence at a time to JARVIS.
                 Everything you see on this page is the actual app &mdash;
@@ -104,11 +104,11 @@ export function FrameworkSection() {
                   aria-hidden="true"
                   className="text-[var(--sd-ink-faint)]"
                 />
-                <p className="font-mono text-[11px] tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
+                <p className="font-mono text-micro tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
                   Or build your own
                 </p>
               </div>
-              <p className="text-[18px] md:text-[19px] leading-[1.6] text-[var(--sd-ink)]">
+              <p className="text-lead md:text-lead leading-[1.6] text-[var(--sd-ink)]">
                 Hate my UI, my colour choices, my agent&rsquo;s British
                 register, my opinions about Notion vs. Todoist? <em>Good</em>.
                 The primitives, the JARVIS JSON contract, the realtime
@@ -120,17 +120,17 @@ export function FrameworkSection() {
           </div>
 
           {/* Pull-statement */}
-          <p className="mt-10 md:mt-12 text-center italic text-[20px] md:text-[24px] leading-[1.45] max-w-[760px] mx-auto text-[var(--sd-ink)]">
+          <p className="mt-10 md:mt-12 text-center italic text-title md:text-title leading-[1.45] max-w-[760px] mx-auto text-[var(--sd-ink)]">
             &ldquo;If the methodology only works for me, it isn&rsquo;t a
             methodology.&rdquo;
           </p>
 
           {/* Footer brand spine */}
           <div className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-[var(--sd-line)] pt-4 sm:flex-row sm:items-center md:mt-12 md:pt-5">
-            <span className="font-mono text-[10px] md:text-[11px] tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
+            <span className="font-mono text-micro md:text-micro tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
               ❦  Open source by commitment
             </span>
-            <span className="font-mono text-[10px] md:text-[11px] tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
+            <span className="font-mono text-micro md:text-micro tracking-[0.16em] uppercase text-[var(--sd-ink-faint)]">
               MIT  ·  Built in public
             </span>
           </div>

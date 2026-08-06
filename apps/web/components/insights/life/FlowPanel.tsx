@@ -78,7 +78,7 @@ export function FlowPanel({ result }: Props) {
     return (
       <PanelChrome>
         <header className="mb-2 flex items-baseline justify-between">
-          <h3 className="flex items-center gap-2 font-serif text-lg text-[var(--ink)]">
+ <h3 className="flex items-center gap-2 font-serif text-subtitle text-[var(--ink)]">
             <AccentDot />
             Flow
           </h3>
@@ -106,13 +106,13 @@ export function FlowPanel({ result }: Props) {
     <PanelChrome>
       <header className="mb-4 flex items-baseline justify-between gap-4">
         <div className="flex items-baseline gap-3">
-          <h3 className="flex items-center gap-2 font-serif text-lg text-[var(--ink)]">
+ <h3 className="flex items-center gap-2 font-serif text-subtitle text-[var(--ink)]">
             <AccentDot />
             Flow
           </h3>
           <FlowUploadButton />
         </div>
-        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <div className="flex items-center gap-2 text-micro tracking-[0.06em] text-[var(--ink-muted)]">
           <button
             type="button"
             onClick={() => setWeekStart((w) => addDays(w, -7))}
@@ -134,13 +134,13 @@ export function FlowPanel({ result }: Props) {
             <ChevronRight size={14} />
           </button>
         </div>
-        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <span className="text-micro tracking-[0.06em] text-[var(--ink-muted)]">
           Total: <span className="text-[var(--ink)]">{formatHm(totalMinutes)}</span>
         </span>
       </header>
 
       {totalMinutes === 0 ? (
-        <p className="font-serif text-sm text-[var(--ink-muted)]">
+        <p className="font-serif text-meta text-[var(--ink-muted)]">
           No focused sessions this week.
         </p>
       ) : null}

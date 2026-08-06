@@ -47,10 +47,10 @@ const buttonVariants = cva(
         link: "bg-transparent text-[var(--sd-ink)] underline-offset-4 hover:underline active:opacity-80",
       },
       size: {
-        default: "h-9 px-4 py-2 text-base has-[>svg]:px-3",
+        default: "h-9 px-4 py-2 text-body has-[>svg]:px-3",
         xs: "h-6 gap-1 rounded-lg px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-lg px-3 text-sm has-[>svg]:px-2.5",
-        lg: "h-10 rounded-lg px-6 text-base has-[>svg]:px-4",
+        sm: "h-8 gap-1.5 rounded-lg px-3 text-meta has-[>svg]:px-2.5",
+        lg: "h-10 rounded-lg px-6 text-body has-[>svg]:px-4",
         icon: "size-9",
         "icon-xs": "size-6 rounded-lg [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",

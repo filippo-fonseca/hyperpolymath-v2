@@ -409,7 +409,11 @@ function NotStartedTray({
             className="size-1.5 shrink-0 rounded-full"
             style={{ background: STATUS_DOT["not started"] }}
           />
-          <span className="truncate text-meta font-medium text-[var(--ink)]">Not started</span>
+          {/* Quiet Craft disclosure label (craft-ui-v2), matching the column
+              headers: text-micro gray with the count beside it. */}
+          <span className="truncate text-micro font-medium text-[var(--ink-muted)]">
+            Not started
+          </span>
           <span className="shrink-0 text-micro tabular-nums text-[var(--ink-faint)]">
             {tasks.length}
           </span>

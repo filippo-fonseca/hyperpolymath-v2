@@ -50,7 +50,7 @@ function TooltipContent({
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          "sd-menu-surface z-50 w-fit origin-(--radix-tooltip-content-transform-origin) overflow-hidden rounded-[8px] px-2 py-1 text-balance text-[var(--sd-ink-dull)] font-mono text-[11px] uppercase tracking-[0.06em]",
+          "sd-menu-surface z-50 w-fit origin-(--radix-tooltip-content-transform-origin) overflow-hidden rounded-[8px] px-2 py-1 text-balance text-[var(--sd-ink-dull)] text-micro",
           "animate-in fade-in-0 data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
           className
         )}

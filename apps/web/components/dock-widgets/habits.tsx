@@ -1,6 +1,7 @@
 "use client";
 
 import { getHabitCompletionsInRange } from "@/app/actions/habits";
+import { DockStateNote } from "@/components/dock-widgets/dock-state";
 import { useHabitDay, useHabitMeta } from "@/components/habits/use-habit-data";
 import { useLocalToday } from "@/components/habits/use-local-today";
 import { useCurrentUserId } from "@/components/providers/CurrentUserProvider";
@@ -11,9 +12,10 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Flame, Repeat } from "lucide-react";
+import { Check, ChevronRight, Flame, Repeat } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
+import { useState } from "react";
 
 /**
  * Habits — today's loop in the dock, so checking off costs zero navigation
@@ -115,7 +117,11 @@ function useHabitsDock(): HabitsDockData {
   };
 }
 
-/** Remaining, streak and rate in one line — legible without interaction. */
+/**
+ * Remaining, streak and rate in one line — legible without interaction.
+ * aug-05 tighten: one text-micro faint line, no icon, no ink shift; the
+ * DoneBar right below already celebrates completion.
+ */
 function StatsLine({ data }: { data: HabitsDockData }) {
   const parts: string[] = [];
   parts.push(
@@ -129,17 +135,7 @@ function StatsLine({ data }: { data: HabitsDockData }) {
   if (data.ratePct !== null) parts.push(`${data.ratePct}%`);
 
   return (
-    <p
-      className={cn(
-        "flex items-center gap-1 px-2 text-micro tabular-nums",
-        data.allDone ? "text-[var(--ink)]" : "text-[var(--ink-faint)]"
-      )}
-    >
-      {data.allDone ? (
-        <Check size={11} strokeWidth={2.5} className="text-[var(--accent)]" aria-hidden />
-      ) : null}
-      {parts.join(" · ")}
-    </p>
+    <p className="px-1.5 text-micro tabular-nums text-[var(--ink-faint)]">{parts.join(" · ")}</p>
   );
 }
 
@@ -160,7 +156,11 @@ function HabitRow({
       onClick={onToggle}
       aria-pressed={row.done}
       className={cn(
-        "group/habit flex min-h-8 w-full cursor-pointer-always items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
+        // aug-05 quiet pass: h-7 exact for the single-line row (no leftover
+        // py); the expanded trail adds a second line, so only that variant
+        // keeps min-h plus breathing room.
+        "group/habit flex w-full cursor-pointer-always items-center gap-2 rounded-lg px-1.5 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
+        trail ? "min-h-7 py-0.5" : "h-7",
         // The habit's own pastel — same hue this habit wears on /habits.
         tintFor(row.id)
       )}
@@ -230,36 +230,117 @@ function HabitRow({
   );
 }
 
-function Compact({ data }: { data: HabitsDockData }) {
-  if (data.loading) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Loading…</p>;
-  }
-  if (data.rows.length === 0) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Nothing scheduled today.</p>;
-  }
+/**
+ * Done habits sink here — the same quiet cluster grammar as the Today
+ * widget: hairline separator, "Completed · N" disclosure, two visible rows,
+ * the rest behind "+N more". Rows stay checkable (tap un-completes via the
+ * exact same shared toggle), h-6, strikethrough, no flame — done work has
+ * nothing left to prove.
+ */
+function CompletedCluster({
+  rows,
+  toggle,
+}: {
+  rows: HabitsDockRow[];
+  toggle: (habitId: string) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+
+  if (rows.length === 0) return null;
+  const visible = showAll ? rows : rows.slice(0, 2);
+
   return (
-    <div className="flex flex-col gap-1">
-      <StatsLine data={data} />
-      <DoneBar done={data.doneCount} total={data.rows.length} />
-      <div className="flex flex-col">
-        {data.rows.map((row) => (
-          <HabitRow key={row.id} row={row} onToggle={() => data.toggle(row.id)} />
-        ))}
-      </div>
-      {data.allDone ? (
-        <p className="px-2 text-micro text-[var(--ink-faint)]">Done for today. See you tomorrow.</p>
+    <div className="mt-0.5 border-t border-[color-mix(in_srgb,var(--edge-strong)_60%,transparent)] pt-0.5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex h-6 w-full cursor-pointer-always items-center gap-1 rounded-lg px-1.5 text-left text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+      >
+        <ChevronRight
+          size={10}
+          strokeWidth={2}
+          aria-hidden
+          className={cn(
+            "shrink-0 transition-transform duration-[160ms] ease-out",
+            open && "rotate-90"
+          )}
+        />
+        <span className="tabular-nums">Completed · {rows.length}</span>
+      </button>
+      {open ? (
+        <div className="flex flex-col">
+          {visible.map((row) => (
+            <button
+              key={row.id}
+              type="button"
+              onClick={() => toggle(row.id)}
+              aria-pressed
+              aria-label={`Mark "${row.name}" as not done`}
+              className={cn(
+                "flex h-6 w-full cursor-pointer-always items-center gap-2 rounded-lg px-1.5 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
+                tintFor(row.id)
+              )}
+            >
+              <span className="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-[var(--tint-edge)] text-white">
+                <Check size={9} strokeWidth={2.5} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-meta text-[var(--ink-faint)] line-through">
+                {row.name}
+              </span>
+            </button>
+          ))}
+          {rows.length > 2 ? (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="block w-full cursor-pointer-always rounded-lg px-1.5 py-0.5 text-left text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+            >
+              {showAll ? "Show fewer" : `+${rows.length - 2} more`}
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
 }
 
-/** Slim sage completion bar under the stats line. */
+function Compact({ data }: { data: HabitsDockData }) {
+  if (data.loading) {
+    return <DockStateNote>Loading…</DockStateNote>;
+  }
+  if (data.rows.length === 0) {
+    return <DockStateNote>Nothing scheduled today.</DockStateNote>;
+  }
+  const active = data.rows.filter((row) => !row.done);
+  const done = data.rows.filter((row) => row.done);
+  return (
+    <div className="flex flex-col gap-0.5">
+      <StatsLine data={data} />
+      <DoneBar done={data.doneCount} total={data.rows.length} />
+      {active.length > 0 ? (
+        <div className="flex flex-col">
+          {active.map((row) => (
+            <HabitRow key={row.id} row={row} onToggle={() => data.toggle(row.id)} />
+          ))}
+        </div>
+      ) : null}
+      <CompletedCluster rows={done} toggle={data.toggle} />
+      {data.allDone ? (
+        <p className="px-1.5 text-micro text-[var(--ink-faint)]">Done for today. See you tomorrow.</p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Slim sage completion bar under the stats line (3px — aug-05 tighten). */
 function DoneBar({ done, total }: { done: number; total: number }) {
   if (total === 0) return null;
   return (
     <div
       aria-hidden
-      className="mx-1.5 h-1 overflow-hidden rounded-full bg-[var(--hover)]"
+      className="mx-1.5 h-[3px] overflow-hidden rounded-full bg-[var(--hover)]"
     >
       <div
         className="h-full rounded-full bg-[var(--tint-sage-edge)] transition-[width] duration-[280ms] ease-out"
@@ -279,10 +360,10 @@ function Expanded({ data }: { data: HabitsDockData }) {
   });
 
   if (data.loading) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Loading…</p>;
+    return <DockStateNote>Loading…</DockStateNote>;
   }
   if (data.rows.length === 0) {
-    return <p className="px-2 text-meta text-[var(--ink-faint)]">Nothing scheduled today.</p>;
+    return <DockStateNote>Nothing scheduled today.</DockStateNote>;
   }
 
   const doneByHabit = new Map<string, Set<string>>();
@@ -292,30 +373,36 @@ function Expanded({ data }: { data: HabitsDockData }) {
     doneByHabit.set(c.habitId, set);
   }
 
+  const active = data.rows.filter((row) => !row.done);
+  const doneRows = data.rows.filter((row) => row.done);
+
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-0.5">
       <StatsLine data={data} />
       <DoneBar done={data.doneCount} total={data.rows.length} />
-      <div className="flex flex-col">
-        {data.rows.map((row) => {
-          const done = doneByHabit.get(row.id) ?? new Set<string>();
-          const trail = Array.from({ length: 7 }, (_, i) => {
-            const iso = addDaysISO(data.todayISO, i - 6);
-            return {
-              // Today reflects the live (optimistic) row state, not the
-              // possibly-stale week fetch.
-              done: iso === data.todayISO ? row.done : done.has(iso),
-              scheduled: Boolean(row.daysOfWeek[dayOfWeekISO(iso)]),
-            };
-          });
-          return (
-            <HabitRow key={row.id} row={row} trail={trail} onToggle={() => data.toggle(row.id)} />
-          );
-        })}
-      </div>
+      {active.length > 0 ? (
+        <div className="flex flex-col">
+          {active.map((row) => {
+            const done = doneByHabit.get(row.id) ?? new Set<string>();
+            const trail = Array.from({ length: 7 }, (_, i) => {
+              const iso = addDaysISO(data.todayISO, i - 6);
+              return {
+                // Today reflects the live (optimistic) row state, not the
+                // possibly-stale week fetch.
+                done: iso === data.todayISO ? row.done : done.has(iso),
+                scheduled: Boolean(row.daysOfWeek[dayOfWeekISO(iso)]),
+              };
+            });
+            return (
+              <HabitRow key={row.id} row={row} trail={trail} onToggle={() => data.toggle(row.id)} />
+            );
+          })}
+        </div>
+      ) : null}
+      <CompletedCluster rows={doneRows} toggle={data.toggle} />
       <Link
         href="/habits"
-        className="rounded-lg px-2 py-1 text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+        className="rounded-lg px-1.5 py-1 text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
       >
         Open habits
       </Link>

@@ -145,7 +145,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                     />
                   </span>
                   {isCurrent && (
-                    <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
+                    <span className="text-micro text-[var(--sd-ink-dull)]">
                       {Meta.label}
                     </span>
                   )}
@@ -163,7 +163,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
           })}
         </div>
 
-        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-dull)]">
+        <p className="text-micro text-[var(--sd-ink-dull)]">
           {String(stepIdx + 1).padStart(2, "0")}&thinsp;/&thinsp;{String(TOTAL_STEPS).padStart(2, "0")}
         </p>
       </div>
@@ -198,7 +198,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
 
               <div className="space-y-4 text-center">
                 <div
-                  className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--sd-accent)]"
+                  className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-1 text-micro text-[var(--sd-accent)]"
                 >
                   <Sparkles size={9} strokeWidth={2} />
                   Your life OS is ready
@@ -230,7 +230,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                 ].map(({ label, color }) => (
                   <span
                     key={label}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-[0.1em]"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-micro"
                     style={{
                       background: `color-mix(in oklch, ${color} 9%, transparent)`,
                       border: `1px solid color-mix(in oklch, ${color} 20%, transparent)`,
@@ -261,7 +261,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
             <section className="space-y-8">
               <div className="space-y-2">
                 <div
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-1"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-micro mb-1"
                   style={{
                     background: "color-mix(in oklch, var(--sd-accent) 10%, transparent)",
                     border: "1px solid color-mix(in oklch, var(--sd-accent) 20%, transparent)",
@@ -360,7 +360,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                       }}
                     >
                       <Github className="h-3.5 w-3.5" />
-                      <span className="font-mono text-[12px] opacity-60">@</span>
+                      <span className="font-mono text-micro opacity-60">@</span>
                     </span>
                     <input
                       id="github_username"
@@ -392,7 +392,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                   >
                     <span className="text-base text-[var(--sd-ink)]">{timezone}</span>
                     <span
-                      className="ml-auto font-mono text-[9px] uppercase tracking-[0.1em] px-2 py-0.5 rounded-full"
+                      className="ml-auto text-micro px-2 py-0.5 rounded-full"
                       style={{
                         color: "var(--sd-accent)",
                         background: "color-mix(in oklch, var(--sd-accent) 10%, transparent)",
@@ -405,7 +405,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                 </GlassField>
 
                 <p
-                  className="font-mono text-[10px] uppercase tracking-[0.1em] px-1"
+                  className="text-micro px-1"
                   style={{ color: "var(--sd-ink-dull)", opacity: 0.7 }}
                 >
                   Signed in as {email}
@@ -430,7 +430,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
             <section className="space-y-8">
               <div className="space-y-2">
                 <div
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-1"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-micro mb-1"
                   style={{
                     background: "color-mix(in oklch, var(--sd-accent) 10%, transparent)",
                     border: "1px solid color-mix(in oklch, var(--sd-accent) 20%, transparent)",
@@ -474,7 +474,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
             <section className="space-y-8">
               <div className="space-y-2">
                 <div
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-1"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-micro mb-1"
                   style={{
                     background: "color-mix(in oklch, var(--sd-accent) 10%, transparent)",
                     border: "1px solid color-mix(in oklch, var(--sd-accent) 22%, transparent)",
@@ -617,7 +617,7 @@ function GhostBackButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] transition-colors disabled:opacity-40"
+      className="inline-flex items-center gap-1.5 text-micro transition-colors disabled:opacity-40"
       style={{ color: "var(--sd-ink-dull)" }}
       onMouseEnter={(e) => {
         e.currentTarget.style.color = "var(--sd-ink)";
@@ -648,7 +648,7 @@ function GlassField({
     <div className="space-y-1.5">
       <label
         htmlFor={htmlFor}
-        className="font-mono text-[10px] uppercase tracking-[0.1em] block"
+        className="text-micro block"
         style={{ color: accentColor }}
       >
         {label}
@@ -698,7 +698,7 @@ function OnboardingKeyRow({ provider }: { provider: ByokProvider }) {
             {meta.label}
           </span>
           <span
-            className="font-mono text-[9px] uppercase tracking-[0.1em] px-2 py-0.5 rounded-full"
+            className="text-micro px-2 py-0.5 rounded-full"
             style={{
               color: accentColor,
               background: `color-mix(in oklch, ${accentColor} 10%, transparent)`,
@@ -712,7 +712,7 @@ function OnboardingKeyRow({ provider }: { provider: ByokProvider }) {
           href={meta.consoleUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] transition-colors hover:text-[var(--sd-ink)]"
+          className="inline-flex items-center gap-1 text-micro tracking-[0.06em] text-[var(--sd-ink-dull)] transition-colors hover:text-[var(--sd-ink)]"
         >
           Get your key
           <ExternalLink className="h-3 w-3" />
@@ -811,7 +811,7 @@ function ShowcaseCard({
       <div className="min-w-0 space-y-1">
         <div className="flex items-baseline gap-3 flex-wrap">
           <span
-            className="font-mono text-[9px] uppercase tracking-[0.16em] px-2 py-0.5 rounded-full"
+            className="text-micro px-2 py-0.5 rounded-full"
             style={{
               color: accentColor,
               background: `color-mix(in oklch, ${accentColor} 10%, transparent)`,

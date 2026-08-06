@@ -40,7 +40,7 @@ const toneDot: Record<StatusTone, string> = {
  */
 export function StatusPill({ tone, label }: { tone: StatusTone; label: string }) {
   return (
-    <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-2.5 text-micro font-medium text-[var(--sd-ink-dull)]">
+    <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)] px-2 text-micro font-medium text-[var(--sd-ink-dull)]">
       <span
         aria-hidden
         className="size-1.5 shrink-0 rounded-full"
@@ -71,7 +71,7 @@ export function EntityCardHeader({
   pill,
   action,
 }: {
-  /** Dimensional icon (36px per §6) — the register's mascots (R3). */
+  /** Dimensional icon (20px, craft scale) — the register's mascots (R3). */
   icon: ReactNode;
   title: string;
   subtitle?: ReactNode;
@@ -81,21 +81,26 @@ export function EntityCardHeader({
 }) {
   return (
     <header className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2">
         <span className="inline-flex shrink-0 items-center justify-center">{icon}</span>
-        <div className="flex min-w-0 flex-col gap-1">
-          <h3 className="truncate text-subtitle font-medium leading-tight text-[var(--sd-ink)]">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          {/* aug-05 quiet pass: Craft card titles are ~13px SEMIBOLD ink with
+              faint metadata under them — weight carries hierarchy, not size. */}
+          <h3 className="truncate text-meta font-semibold leading-tight text-[var(--sd-ink)]">
             {title}
           </h3>
           {subtitle != null && (
-            <div className="truncate text-micro font-normal text-[var(--sd-ink-dull)]">
+            <div className="truncate text-micro font-normal text-[var(--sd-ink-faint)]">
               {subtitle}
             </div>
           )}
         </div>
       </div>
       {(pill != null || action != null) && (
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        // In a narrow /widget tile the trailing column gives way so the title
+        // never truncates to a couple of characters; outside a /widget
+        // container (e.g. /design) the query can't match and it stays visible.
+        <div className="flex shrink-0 flex-col items-end gap-1 @max-[15rem]/widget:hidden">
           {pill}
           {action}
         </div>
@@ -132,8 +137,10 @@ export function CardDivider({ className }: { className?: string }) {
 /* ----------------------------------------------------------- progress row */
 
 /**
- * §6: h-6px track (`--sd-input`), accent fill, and a 45° hatched projected
- * segment. The fill animates on transform:scaleX only — never width (zero jank).
+ * Quiet progress (aug-05 craft pass): a 3px track (`--sd-input`), accent fill,
+ * and a 45° hatched projected segment. The label/value line rides micro faint —
+ * progress is ambient information, not a headline. The fill animates on
+ * transform:scaleX only — never width (zero jank).
  */
 export function ProgressRow({
   label,
@@ -148,12 +155,12 @@ export function ProgressRow({
   const clamped = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-meta text-[var(--sd-ink-dull)]">{label}</span>
-        <span className="text-meta tabular-nums text-[var(--sd-ink)]">{value}</span>
+        <span className="text-micro text-[var(--sd-ink-faint)]">{label}</span>
+        <span className="text-micro tabular-nums text-[var(--sd-ink-dull)]">{value}</span>
       </div>
-      <div className="relative h-1.5 overflow-hidden rounded-full bg-[var(--sd-input)]">
+      <div className="relative h-[3px] overflow-hidden rounded-full bg-[var(--sd-input)]">
         {/* Projected / remaining — hatched accent beneath the solid fill. */}
         <div aria-hidden className="sd-progress-hatched absolute inset-0" />
         <motion.div

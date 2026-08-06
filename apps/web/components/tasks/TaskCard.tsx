@@ -148,17 +148,21 @@ export const TaskCard = memo(function TaskCard({
               ? { type: "spring", bounce: 0.2, duration: 0.3 }
               : { duration: 0.16, ease: "easeOut" }
         }
+        // .craft-card-hover transitions transform too; Motion writes
+        // style.transform per frame during the settle spring, so a CSS
+        // transform transition would smear it. Pin the transitioned
+        // properties (inline style beats the unlayered class).
+        style={{ transitionProperty: "box-shadow, border-color, background-color" }}
         className={cn(
-          // Card register (jul-29 craft restyle): raised white plate, one
-          // hairline, soft card shadow, hover deepens the shadow. Still no
-          // scale and no glow — the lift is shadow-only.
-          "relative rounded-xl border px-3 py-2.5",
+          // Card register (craft-ui-v2): raised white plate, one hairline,
+          // soft card shadow; the hover lift converges on the register's
+          // .craft-card-hover class (shadow + border-color only, no scale,
+          // no glow) instead of bespoke hover utilities.
+          "craft-card-hover relative rounded-xl border px-3 py-2.5",
           "shadow-[var(--shadow-card)]",
-          "transition-[border-color,background-color,box-shadow] duration-[160ms] ease-out",
           isSelected
             ? "border-[var(--edge-strong)] bg-[var(--selected)]"
-            : "border-[var(--edge)] bg-[var(--surface-raised)]",
-          !isDragging && !isSelected && "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]"
+            : "border-[var(--edge)] bg-[var(--surface-raised)]"
         )}
       >
         {onToggleSelected ? (

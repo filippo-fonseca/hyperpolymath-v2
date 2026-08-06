@@ -43,7 +43,7 @@ export function MacroProgressBar({ label, consumed, target, intent }: Props) {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="w-14 shrink-0 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+      <span className="w-14 shrink-0 text-micro text-[var(--sd-ink-faint)]">
         {label}
       </span>
 
@@ -69,11 +69,11 @@ export function MacroProgressBar({ label, consumed, target, intent }: Props) {
       </div>
 
       <span
-        className="min-w-[92px] shrink-0 text-right text-[13px] font-black tabular-nums"
+        className="min-w-[92px] shrink-0 text-right text-meta font-black tabular-nums"
         style={{ color: over ? accent : "var(--sd-ink)" }}
       >
         {displayConsumed}
-        <span className="ml-0.5 text-[11px] font-medium text-[var(--sd-ink-faint)]">
+        <span className="ml-0.5 text-micro font-medium text-[var(--sd-ink-faint)]">
           {" "}/ {displayTarget}
           {unitSuffix}
         </span>

@@ -35,7 +35,7 @@ export function StravaDisconnectButton() {
       type="button"
       onClick={onClick}
       disabled={pending}
-      className="cursor-pointer-always font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors disabled:opacity-40"
+      className="cursor-pointer-always text-micro tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors disabled:opacity-40"
     >
       {pending ? 'Disconnecting…' : 'Disconnect'}
     </button>

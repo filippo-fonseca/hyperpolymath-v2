@@ -16,12 +16,9 @@ export function ViewToggle({
   className?: string;
 }) {
   return (
-    <fieldset
-      className={cn(
-        "flex h-8 items-center overflow-hidden rounded-lg bg-[var(--sd-box)] font-sans",
-        className
-      )}
-    >
+    // aug-04 craft-ui-v2: segmented chips, not a boxed segment control. Each
+    // option is a .craft-chip pill; the active one fills via aria-pressed.
+    <fieldset className={cn("flex items-center gap-1 font-sans", className)}>
       <legend className="sr-only">View mode</legend>
       <ViewToggleButton label="Grid" active={value === "grid"} onClick={() => onChange("grid")}>
         <Grid2X2 size={14} strokeWidth={1.8} />
@@ -50,12 +47,7 @@ function ViewToggleButton({
       aria-label={`${label} view`}
       aria-pressed={active}
       onClick={onClick}
-      className={cn(
-        "flex h-full min-w-8 items-center justify-center border-r border-r-[var(--sd-line)] px-2 text-[var(--sd-ink-dull)] last:border-r-0",
-        "transition-[background-color,border-color,color] duration-[160ms] ease-out",
-        active && "bg-[var(--sd-selected)] text-[var(--sd-accent)]",
-        !active && "hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]"
-      )}
+      className="craft-chip cursor-pointer"
     >
       {children}
     </button>

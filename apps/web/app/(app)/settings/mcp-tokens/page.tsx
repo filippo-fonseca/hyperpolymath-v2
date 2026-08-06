@@ -71,13 +71,13 @@ export default async function McpTokensPage() {
       <div className="mx-auto w-full max-w-[720px] px-6 md:px-10 pt-10 pb-16">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-faint)]">
+            <p className="text-micro text-[var(--ink-faint)]">
               Settings · MCP Tokens
             </p>
             <h1 className="mt-1 text-3xl font-semibold tracking-[-0.01em] text-[var(--ink)]">
               MCP tokens
             </h1>
-            <p className="mt-3 text-[16px] leading-[1.55] text-[var(--ink-muted)]">
+            <p className="mt-3 text-subtitle leading-[1.55] text-[var(--ink-muted)]">
               Bearer tokens for external agents (Claude Desktop, Claude Code,
               claude.ai web) to read your personal-context snapshot. The
               server stores only the SHA-256 hash — the plaintext is shown
@@ -86,7 +86,7 @@ export default async function McpTokensPage() {
           </div>
           <Link
             href="/settings"
-            className="mt-1 inline-flex shrink-0 items-center rounded-lg border border-[var(--edge)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,background-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)]"
+            className="mt-1 inline-flex shrink-0 items-center rounded-lg border border-[var(--edge)] px-2.5 py-1 text-micro tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,background-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)]"
           >
             ← settings
           </Link>

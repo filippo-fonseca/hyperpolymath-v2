@@ -111,7 +111,7 @@ export function PersonalityEditor({ initial }: Props) {
       {/* Preset */}
       <SectionCard>
         <SectionLabel>Preset</SectionLabel>
-        <p className="mt-1 mb-4 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-1 mb-4 text-meta leading-[1.5] text-[var(--sd-ink-dull)]">
           A starting point for the voice. The dials below fine-tune it.
         </p>
         <div
@@ -144,13 +144,13 @@ export function PersonalityEditor({ initial }: Props) {
               >
                 <span
                   className={cn(
-                    "text-[15px] font-semibold",
+ "text-body font-semibold",
                     active ? "text-[var(--sd-accent)]" : "text-[var(--sd-ink)]",
                   )}
                 >
                   {p.label}
                 </span>
-                <span className="text-[12.5px] leading-[1.45] text-[var(--sd-ink-dull)]">
+ <span className="text-micro leading-[1.45] text-[var(--sd-ink-dull)]">
                   {p.blurb}
                 </span>
               </button>
@@ -158,7 +158,7 @@ export function PersonalityEditor({ initial }: Props) {
           })}
         </div>
         {activePreset && (
-          <p className="mt-4 font-mono text-[11px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-4 font-mono text-micro leading-[1.5] text-[var(--sd-ink-dull)]">
             Selected: <span className="text-[var(--sd-ink)]">{activePreset.label}</span> —{" "}
             {activePreset.blurb}
           </p>
@@ -169,7 +169,7 @@ export function PersonalityEditor({ initial }: Props) {
       <SectionCard className="space-y-6">
         <div>
           <SectionLabel>Voice dials</SectionLabel>
-          <p className="mt-1 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-1 text-meta leading-[1.5] text-[var(--sd-ink-dull)]">
             Nudge the tone independent of the preset.
           </p>
         </div>
@@ -200,7 +200,7 @@ export function PersonalityEditor({ initial }: Props) {
       {/* Custom instructions */}
       <SectionCard>
         <SectionLabel>Custom instructions</SectionLabel>
-        <p className="mt-1 mb-3 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
+ <p className="mt-1 mb-3 text-meta leading-[1.5] text-[var(--sd-ink-dull)]">
           Freeform directives layered on top of the dials. Optional — leave blank
           for none.
         </p>
@@ -218,12 +218,12 @@ export function PersonalityEditor({ initial }: Props) {
           style={{ background: "var(--sd-input)" }}
           className={cn(
             "w-full resize-y rounded-[10px] border border-[var(--sd-line)] px-3.5 py-3",
-            "text-[14px] leading-[1.55] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)]",
+ "text-meta leading-[1.55] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)]",
             "focus:outline-none focus:border-[var(--sd-accent)]",
             "transition-colors duration-[140ms] ease-out",
           )}
         />
-        <p className="mt-1.5 text-right font-mono text-[10px] text-[var(--sd-ink-faint)]">
+ <p className="mt-1.5 text-right font-mono text-micro text-[var(--sd-ink-faint)]">
           {(config.customInstructions ?? "").length} / 2000
         </p>
       </SectionCard>
@@ -236,7 +236,7 @@ export function PersonalityEditor({ initial }: Props) {
           disabled={pending || !dirty}
           className={cn(
             "sd-btn-solid inline-flex items-center gap-2 rounded-[8px] px-4 py-2",
-            "font-mono text-[12px] uppercase tracking-[0.06em]",
+            "text-micro",
             "transition-opacity duration-100 cursor-pointer-always",
             "disabled:opacity-40 disabled:cursor-not-allowed",
           )}
@@ -250,12 +250,12 @@ export function PersonalityEditor({ initial }: Props) {
           )}
         </button>
         {justSaved && !dirty && (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-accent)]">
+ <span className="inline-flex items-center gap-1.5 text-micro text-[var(--sd-accent)]">
             <Check size={13} /> Saved
           </span>
         )}
         {error && (
-          <span className="font-mono text-[11px] text-[var(--ink-coral)]">{error}</span>
+ <span className="font-mono text-micro text-[var(--ink-coral)]">{error}</span>
         )}
       </div>
     </div>
@@ -284,7 +284,7 @@ function SectionCard({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+ <p className="text-micro text-[var(--sd-ink-faint)]">
       {children}
     </p>
   );
@@ -306,8 +306,8 @@ function Dial<T extends string>({
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between gap-3">
-        <span className="text-[14px] font-medium text-[var(--sd-ink)]">{label}</span>
-        <span className="text-[12.5px] text-[var(--sd-ink-dull)]">{hint}</span>
+ <span className="text-meta font-medium text-[var(--sd-ink)]">{label}</span>
+ <span className="text-micro text-[var(--sd-ink-dull)]">{hint}</span>
       </div>
       <div
         role="radiogroup"
@@ -334,7 +334,7 @@ function Dial<T extends string>({
               }
               className={cn(
                 "flex-1 rounded-[7px] px-3 h-8",
-                "font-mono text-[11px] uppercase tracking-[0.06em]",
+                "text-micro",
                 "transition-colors duration-[140ms] ease-out cursor-pointer-always",
                 active
                   ? "text-[var(--sd-accent)]"

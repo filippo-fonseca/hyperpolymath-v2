@@ -50,11 +50,11 @@ export function MealSlot({ slot, logs, onAddFood }: Props) {
     <section className={cn("px-4 py-3.5", PLATE)}>
       {/* Header: slot name + subtotal */}
       <header className="mb-1 flex items-center justify-between gap-3">
-        <h2 className="text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+        <h2 className="text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
           {displayName}
         </h2>
         {hasLogs && (
-          <div className="flex shrink-0 items-center gap-3 font-mono text-[11px] tabular-nums text-[var(--sd-ink-faint)]">
+          <div className="flex shrink-0 items-center gap-3 font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
             <span className="text-[var(--sd-ink-dull)]">
               {Math.round(subtotals.kcal)} kcal
             </span>
@@ -75,7 +75,7 @@ export function MealSlot({ slot, logs, onAddFood }: Props) {
           </AnimatePresence>
         </ul>
       ) : (
-        <p className="py-2 text-[13px] text-[var(--sd-ink-faint)]">
+        <p className="py-2 text-meta text-[var(--sd-ink-faint)]">
           Nothing logged for {displayName.toLowerCase()} yet.
         </p>
       )}
@@ -85,7 +85,7 @@ export function MealSlot({ slot, logs, onAddFood }: Props) {
         variant="ghost"
         size="sm"
         onClick={() => onAddFood?.(slot)}
-        className="mt-1 font-mono text-[11px] uppercase tracking-[0.06em]"
+        className="mt-1 text-micro"
       >
         <Plus size={13} /> Add food
       </Button>

@@ -133,10 +133,10 @@ export function JarvisDemo() {
   return (
     <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 04 · DEMO" />
-      <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+      <h2 className="mt-2 font-semibold text-headline leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
         Watch it route.
       </h2>
-      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+      <p className="mt-4 text-lead leading-[1.6] text-[var(--sd-ink)]">
         One sentence in, one or more actions out, each routed to the right
         primitive. This is what I use every day to keep my own life in one
         place.
@@ -144,7 +144,7 @@ export function JarvisDemo() {
 
       {/* The terminal block */}
       <div className="mt-6 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 overflow-x-auto custom-scrollbar shadow-[0_1px_0_rgba(255,255,255,0.06)_inset]">
-        <div className="font-mono font-mono-stats text-[14px] leading-[1.55] text-[var(--sd-ink)]">
+        <div className="font-mono font-mono-stats text-body leading-[1.55] text-[var(--sd-ink)]">
           <div>
             <span className="text-[var(--sd-ink-faint)]">$ </span>
             <span>{typedText}</span>
@@ -199,7 +199,7 @@ export function JarvisDemo() {
         <button
           type="button"
           onClick={showAnother}
-          className="font-mono text-[14px] font-medium text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+          className="font-mono text-body font-medium text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
         >
           ▶ show another
         </button>

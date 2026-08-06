@@ -205,7 +205,7 @@ export function ActivityEditDialog({
           <div className="flex flex-col gap-1.5">
             <Label
               htmlFor="edit-type"
-              className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
+              className="text-micro text-[var(--sd-ink-dull)]"
             >
               Type
             </Label>
@@ -233,7 +233,7 @@ export function ActivityEditDialog({
           <div className="flex flex-col gap-1.5">
             <Label
               htmlFor="edit-title"
-              className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
+              className="text-micro text-[var(--sd-ink-dull)]"
             >
               Title
             </Label>
@@ -248,7 +248,7 @@ export function ActivityEditDialog({
           <div className="flex flex-col gap-1.5">
             <Label
               htmlFor="edit-description"
-              className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
+              className="text-micro text-[var(--sd-ink-dull)]"
             >
               Notes
             </Label>
@@ -264,7 +264,7 @@ export function ActivityEditDialog({
             <div className="flex flex-col gap-1.5">
               <Label
                 htmlFor="edit-duration"
-                className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
+                className="text-micro text-[var(--sd-ink-dull)]"
               >
                 Planned duration (min)
               </Label>
@@ -283,7 +283,7 @@ export function ActivityEditDialog({
               <div className="flex flex-col gap-1.5">
                 <Label
                   htmlFor="edit-distance"
-                  className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
+                  className="text-micro text-[var(--sd-ink-dull)]"
                 >
                   Planned distance ({distanceUnit})
                 </Label>

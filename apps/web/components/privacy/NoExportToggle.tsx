@@ -93,7 +93,7 @@ export function NoExportToggle({
       onClick={onClick}
       className={[
         "inline-flex items-center gap-1.5 px-2 py-1",
-        "font-mono text-[11px] uppercase tracking-[0.06em]",
+        "text-micro",
         "transition-colors duration-100 ease-out cursor-pointer-always",
         "border border-[var(--edge)]",
         optimistic

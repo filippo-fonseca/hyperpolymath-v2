@@ -98,9 +98,11 @@ export function ExplorerHeaderControls({
             aria-pressed={inspectorOpen}
             aria-label={inspectorOpen ? "Close inspector" : "Open inspector"}
             className={cn(
-              "flex size-8 items-center justify-center rounded-lg bg-[var(--sd-box)] text-[var(--ink-muted)]",
-              "transition-[background-color,color] duration-[160ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
-              inspectorOpen && "bg-[var(--sd-selected)] text-[var(--sd-accent)]"
+              // aug-04 craft-ui-v2: quiet ghost icon button; open state is the
+              // neutral selected fill (color is data, not chrome).
+              "flex size-8 items-center justify-center rounded-lg text-[var(--ink-muted)]",
+              "transition-[background-color,color] duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]",
+              inspectorOpen && "bg-[var(--selected)] text-[var(--ink)]"
             )}
           >
             {inspectorOpen ? (

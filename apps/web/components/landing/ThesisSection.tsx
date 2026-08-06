@@ -133,16 +133,16 @@ export function ThesisSection() {
                 className="size-6 shrink-0 rounded-full object-cover"
                 priority
               />
-              <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em]">
+              <span className="font-mono text-micro font-medium uppercase tracking-[0.12em]">
                 by Filippo Fonseca
               </span>
             </a>
 
             <div className="flex w-full min-w-0 flex-col items-center gap-1 sm:flex-row sm:justify-between sm:gap-4">
-              <span className="w-full max-w-[22rem] text-center text-balance font-mono text-[11px] font-medium uppercase leading-[1.4] tracking-[0.11em] text-[var(--ink)] sm:max-w-none sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] sm:text-[var(--ink-muted)] md:text-[11px] md:tracking-[0.2em]">
+              <span className="w-full max-w-[22rem] text-center text-balance font-mono text-micro font-medium uppercase leading-[1.4] tracking-[0.11em] text-[var(--ink)] sm:max-w-none sm:text-left sm:text-micro sm:font-normal sm:tracking-[0.18em] sm:text-[var(--ink-muted)] md:text-micro md:tracking-[0.2em]">
                 My life operating system framework, open sourced  ·  v2
               </span>
-              <span className="text-center font-mono text-[10px] font-medium uppercase tracking-[0.11em] text-[var(--ink-muted)] sm:shrink-0 sm:text-left sm:text-[10px] sm:font-normal sm:tracking-[0.18em] md:text-[11px] md:tracking-[0.2em]">
+              <span className="text-center font-mono text-micro font-medium uppercase tracking-[0.11em] text-[var(--ink-muted)] sm:shrink-0 sm:text-left sm:text-micro sm:font-normal sm:tracking-[0.18em] md:text-micro md:tracking-[0.2em]">
                 MIT  ·  Open source
               </span>
             </div>
@@ -171,14 +171,14 @@ export function ThesisSection() {
 
             <motion.p
               {...fade(3)}
-              className="max-w-[640px] px-1 font-serif text-[15px] leading-[1.45] text-balance text-[var(--ink-muted)] sm:mt-5 sm:text-[18px] sm:leading-[1.45] md:text-[21px]"
+              className="max-w-[640px] px-1 font-serif text-subtitle leading-[1.45] text-balance text-[var(--ink-muted)] sm:mt-5 sm:text-lead sm:leading-[1.45] md:text-title"
             >
               A personal life-OS for people who refuse to specialize.
             </motion.p>
 
             <motion.p
               {...fade(4)}
-              className="max-w-[760px] px-1 font-serif text-[15px] font-semibold leading-[1.45] text-balance text-[var(--ink)] sm:mt-5 sm:text-[17px] sm:leading-[1.4] md:text-[20px]"
+              className="max-w-[760px] px-1 font-serif text-subtitle font-semibold leading-[1.45] text-balance text-[var(--ink)] sm:mt-5 sm:text-subtitle sm:leading-[1.4] md:text-title"
             >
               I brought back the{" "}
               <em className="font-extrabold italic">Renaissance Human</em>. And gave
@@ -194,7 +194,7 @@ export function ThesisSection() {
           >
             <Link
               href="/sign-in"
-              className="sd-btn-primary group inline-flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition-transform duration-150 ease-out active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d] sm:flex-none sm:gap-2 sm:px-6 sm:py-3 sm:text-xs"
+              className="sd-btn-primary group inline-flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 text-micro font-semibold uppercase tracking-[0.12em] transition-transform duration-150 ease-out active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d] sm:flex-none sm:gap-2 sm:px-6 sm:py-3 sm:text-meta"
             >
               <span>Get started</span>
               <ArrowUpRight
@@ -208,7 +208,7 @@ export function ThesisSection() {
               href="https://github.com/filippo-fonseca/hyperpolymath-v2"
               target="_blank"
               rel="noopener noreferrer"
-              className="sd-btn-ghost group inline-flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors duration-150 hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d] sm:flex-none sm:gap-2 sm:px-6 sm:py-3 sm:text-xs"
+              className="sd-btn-ghost group inline-flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 text-micro font-semibold uppercase tracking-[0.12em] transition-colors duration-150 hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d] sm:flex-none sm:gap-2 sm:px-6 sm:py-3 sm:text-meta"
             >
               <Github size={14} strokeWidth={2} aria-hidden="true" />
               <span>View the source</span>
@@ -232,10 +232,10 @@ export function ThesisSection() {
           {...fade(7)}
           className="mt-6 flex w-full min-w-0 flex-col items-center justify-between gap-2 border-t border-white/10 px-1 pt-4 pb-6 sm:mt-10 sm:flex-row sm:gap-4 sm:pt-5 sm:pb-0"
         >
-          <span className="text-center font-mono text-[10px] uppercase leading-snug tracking-[0.14em] text-[var(--ink-muted)] sm:tracking-[0.18em] md:text-[11px] md:tracking-[0.22em]">
+          <span className="text-center font-mono text-micro uppercase leading-snug tracking-[0.14em] text-[var(--ink-muted)] sm:tracking-[0.18em] md:text-micro md:tracking-[0.22em]">
             ❦  Hyperpolymath  ·  by Filippo Fonseca
           </span>
-          <span className="text-center font-mono text-[10px] uppercase leading-snug tracking-[0.14em] text-[var(--ink-muted)] sm:tracking-[0.18em] md:text-[11px] md:tracking-[0.22em]">
+          <span className="text-center font-mono text-micro uppercase leading-snug tracking-[0.14em] text-[var(--ink-muted)] sm:tracking-[0.18em] md:text-micro md:tracking-[0.22em]">
             How you do one thing is how you do everything
           </span>
         </motion.div>
@@ -265,7 +265,7 @@ export function ThesisSection() {
           }
           aria-label="Learn more · scroll to bio"
         >
-          <span className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]">
+          <span className="font-mono text-body font-medium uppercase tracking-[0.14em]">
             Learn more
           </span>
           <ChevronDown size={18} aria-hidden="true" />

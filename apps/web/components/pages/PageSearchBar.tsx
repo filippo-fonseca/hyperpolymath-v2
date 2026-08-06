@@ -54,7 +54,8 @@ export function PageSearchBar({
   const hasMatches = total > 0;
 
   return (
-    <div className="absolute top-12 right-6 z-20 flex items-center gap-1 rounded-sm border border-[var(--edge)] bg-[var(--canvas)] px-1.5 py-1 shadow-sm">
+    // aug-04 craft-ui-v2: the find bar floats as a frosted pop over the sheet.
+    <div className="craft-glass-pop absolute top-12 right-6 z-20 flex items-center gap-1 px-1.5 py-1">
       <input
         ref={inputRef}
         type="text"
@@ -63,10 +64,10 @@ export function PageSearchBar({
         onKeyDown={handleKeyDown}
         placeholder="Find in page"
         spellCheck={false}
-        className="w-40 bg-transparent px-1 text-[13px] font-mono text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)]"
+        className="w-40 bg-transparent px-1 text-meta font-mono text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)]"
       />
 
-      <span className="min-w-[52px] text-right text-[11px] font-mono tabular-nums text-[var(--ink-muted)]">
+      <span className="min-w-[52px] text-right text-micro font-mono tabular-nums text-[var(--ink-muted)]">
         {counter}
       </span>
 

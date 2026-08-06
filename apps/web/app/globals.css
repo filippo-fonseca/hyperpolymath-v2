@@ -129,6 +129,24 @@
   --text-micro: 11.5px;
   --text-micro--line-height: 1.4;
 
+  /* Editorial extension — aug-05 craft v2, LANDING PAGE ONLY.
+     The marketing page is long-form reading, not chrome: it needs a larger
+     reading size than --text-body and a bigger top end than --text-display.
+     Its own docs claimed a closed {14, 18, 32, 56} scale, but it had drifted
+     to eighteen arbitrary px sizes. These three named steps close it again
+     without shrinking the page into app-chrome proportions.
+
+     Do NOT use these in the app. App chrome is the six steps above; if a
+     surface reaches for --text-hero it is a marketing surface or a mistake. */
+  --text-lead: 18px;
+  --text-lead--line-height: 1.6;
+  --text-headline: 32px;
+  --text-headline--line-height: 1.15;
+  --text-headline--letter-spacing: -0.01em;
+  --text-hero: 44px;
+  --text-hero--line-height: 1.05;
+  --text-hero--letter-spacing: -0.02em;
+
   /* Motion easing tokens */
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
@@ -543,16 +561,18 @@
   font-feature-settings: "tnum" on, "lnum" on;
 }
 
-/* Global scrollbar — JARVIS-signature cyan thumb, applied to html AND to any
+/* Global scrollbar — quiet neutral thumb, applied to html AND to any
    overflow-scrollable element across the app via the universal selector. The
    `*` rule means every TanStack table, dialog body, sidebar tree, etc. gets
    the same scrollbar without having to opt in via a utility class. Local
    `.custom-scrollbar` and `.hud-scrollbar` overrides still win for callsites
-   that want a specific variant. Phase 8 Plan 08-06 + 06.1 follow-up. */
+   that want a specific variant. Was JARVIS-signature cyan (Phase 8 Plan
+   08-06); calmed to neutral ink in the craft v2 pass — cyan chrome now lives
+   only in agent-mode scopes via .hud-scrollbar. */
 html,
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, var(--hud-cyan) 60%, transparent) transparent;
+  scrollbar-color: color-mix(in oklch, var(--ink-faint) 55%, transparent) transparent;
 }
 html::-webkit-scrollbar,
 *::-webkit-scrollbar {
@@ -565,14 +585,13 @@ html::-webkit-scrollbar-track,
 }
 html::-webkit-scrollbar-thumb,
 *::-webkit-scrollbar-thumb {
-  background-color: color-mix(in oklch, var(--hud-cyan) 55%, transparent);
+  background-color: color-mix(in oklch, var(--ink-faint) 50%, transparent);
   border-radius: 6px;
   border: 2px solid var(--canvas);
 }
 html::-webkit-scrollbar-thumb:hover,
 *::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklch, var(--hud-cyan) 80%, transparent);
-  box-shadow: 0 0 6px color-mix(in oklch, var(--hud-cyan) 45%, transparent);
+  background-color: color-mix(in oklch, var(--ink-muted) 60%, transparent);
 }
 *::-webkit-scrollbar-corner {
   background: transparent;
@@ -581,7 +600,7 @@ html::-webkit-scrollbar-thumb:hover,
 /* Thin themed scrollbar — webkit + firefox. Pairs with overflow utilities. */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, var(--hud-cyan) 55%, transparent) transparent;
+  scrollbar-color: color-mix(in oklch, var(--ink-faint) 50%, transparent) transparent;
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
@@ -591,11 +610,11 @@ html::-webkit-scrollbar-thumb:hover,
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: color-mix(in oklch, var(--hud-cyan) 55%, transparent);
+  background-color: color-mix(in oklch, var(--ink-faint) 50%, transparent);
   border-radius: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklch, var(--hud-cyan) 80%, transparent);
+  background-color: color-mix(in oklch, var(--ink-muted) 60%, transparent);
 }
 
 /* HUD-cyan scrollbar — for agent-mode surfaces (JARVIS console scrollback,
@@ -694,11 +713,12 @@ html::-webkit-scrollbar-thumb:hover,
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .wiki-explorer * {
-    scroll-behavior: auto !important;
-  }
-}
+/* aug-04 craft-ui-v2: the `.wiki-explorer *` reduced-motion guard that lived
+   here is retired with the scope itself. No element carries the class anymore
+   (WikiExplorer renders unscoped so the --sd-* aliases resolve globally), and
+   no wiki surface declares smooth scrolling, so the rule matched nothing. The
+   drop-denied / folder-swallow keyframes above are still consumed by the
+   explorer views. */
 
 /* .glass-tile / .glass-button / .glass-pressed excised in sd3 (unit-closeout):
    zero consumers once the Pages surface + sonner toast moved to the sd register.
@@ -1552,9 +1572,10 @@ select:focus-visible,
    Design Constitution: sesh-1783963573841 (Kiwi, Conductor/Designer).
 
    ADD-ONLY block. Everything Wave 1+ (Life OS, sidebar, tasks) consumes
-   lands here so the restyle speaks one chrome dialect. The single
-   sanctioned edit to an EXISTING value lives further up in .wiki-explorer
-   (the D1b accent retint); everything below is net-new.
+   lands here so the restyle speaks one chrome dialect. (Historical: the
+   single sanctioned edit to an EXISTING value, the D1b accent retint,
+   lived in the since-retired .wiki-explorer scope; aug-04 craft-ui-v2
+   removed that scope entirely.) Everything below is net-new.
 
    No `transition`/`animation` is declared in this block: consumers own
    their motion and must guard it with `prefers-reduced-motion`. That
@@ -1573,8 +1594,10 @@ select:focus-visible,
    base palette in BOTH themes, so there is nothing theme-specific left to
    declare in .dark. The accent moves off the HUD cyan family (hue 210, high
    chroma) onto the calmed --accent (hue 225, chroma 0.09). The HUD cyan family
-   itself is untouched, so agent-mode surfaces keep their signature, and
-   .wiki-explorer redeclares --sd-accent locally so the wiki stays cyan. */
+   itself is untouched, so agent-mode surfaces keep their signature.
+   aug-04 craft-ui-v2: the .wiki-explorer local --sd-accent redeclaration (the
+   cyan holdout) is fully retired — the wiki resolves this same global accent
+   (hue 225) like every other surface. */
 :root {
   --sd-accent: var(--accent);
   --sd-accent-faint: color-mix(in oklch, var(--accent) 55%, var(--canvas));
@@ -1609,15 +1632,15 @@ select:focus-visible,
    mapping; accent + ink ladders were already promoted above.
 
    Light scope: the app's light theme is warm parchment, not the cool
-   hsl(235 ...) neutral the wiki ships. Remap the sd surfaces onto the
-   existing --canvas / --surface / --surface-raised / --edge parchment
-   family so entity cards sit in-register on /lifeos in light mode. The
-   .wiki-explorer block below redeclares the full ladder locally, so the
-   wiki keeps its cool dark palette untouched (D3).
+   hsl(235 ...) neutral the wiki used to ship. Remap the sd surfaces onto
+   the existing --canvas / --surface / --surface-raised / --edge parchment
+   family so entity cards sit in-register on /lifeos in light mode.
+   aug-04 craft-ui-v2: the .wiki-explorer block that redeclared the full
+   ladder locally is retired — the wiki resolves these same alias tables
+   in both themes; no local surface ladder remains anywhere.
 
-   Dark scope: the cool hsl(235 ...) sd ladder already reads correctly;
-   we only fill in the sidebar / state members the global .dark block was
-   missing so consumers resolve them outside .wiki-explorer.
+   Dark scope: the .dark alias table below mirrors this one so both themes
+   are declared explicitly at the same place in the cascade.
 
    jul-28 / U0 C1 — CASCADE FIX. This block was written as `:root`, which also
    matches `html.dark`. Both it and the `.dark` sd block above are specificity
@@ -2369,38 +2392,41 @@ select:focus-visible,
 /* What the glass grabs. A barely-there pastel field over the cream canvas:
    sky top-left, lavender top-right, peach at the foot. Static, no motion,
    cheap (three radial gradients, painted once). */
+/* aug-04 craft-ui-v2: calmed to roughly half the jul-29 alphas. Craft's
+   canvas is nearly flat; with the shell chrome going borderless
+   (.craft-canvas-chrome below) the wash must be felt, not seen. */
 .craft-backdrop {
   background-color: var(--canvas);
   background-image: radial-gradient(
       1100px 750px at 6% -8%,
-      color-mix(in srgb, var(--tint-sky-edge) 11%, transparent),
+      color-mix(in srgb, var(--tint-sky-edge) 5%, transparent),
       transparent 62%
     ),
     radial-gradient(
       950px 700px at 102% -4%,
-      color-mix(in srgb, var(--tint-lavender-edge) 9%, transparent),
+      color-mix(in srgb, var(--tint-lavender-edge) 4%, transparent),
       transparent 58%
     ),
     radial-gradient(
       1000px 720px at 50% 112%,
-      color-mix(in srgb, var(--tint-peach-edge) 10%, transparent),
+      color-mix(in srgb, var(--tint-peach-edge) 5%, transparent),
       transparent 60%
     );
 }
 .dark .craft-backdrop {
   background-image: radial-gradient(
       1100px 750px at 6% -8%,
-      color-mix(in srgb, var(--tint-sky-edge) 9%, transparent),
+      color-mix(in srgb, var(--tint-sky-edge) 4%, transparent),
       transparent 62%
     ),
     radial-gradient(
       950px 700px at 102% -4%,
-      color-mix(in srgb, var(--tint-lavender-edge) 8%, transparent),
+      color-mix(in srgb, var(--tint-lavender-edge) 4%, transparent),
       transparent 58%
     ),
     radial-gradient(
       1000px 720px at 50% 112%,
-      color-mix(in srgb, var(--tint-plum-edge) 7%, transparent),
+      color-mix(in srgb, var(--tint-plum-edge) 3%, transparent),
       transparent 60%
     );
 }
@@ -2456,4 +2482,174 @@ select:focus-visible,
 }
 .sd-toast {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--shadow-pop) !important;
+}
+
+/* =====================================================================
+   craft register v2 — canvas-vs-sheet architecture (aug-04, craft-ui-v2).
+
+   Craft's real structure, observed on Mobbin: ONE flat calm canvas carries
+   all the chrome (sidebar, dock, top bar) with no box of its own, and
+   elevation lives exclusively in content: the sheet, cards, and pops.
+   These classes are the fixed API the shell + feature units consume by
+   name (see .planning/quick/260804-craft-ui-v2/PLAN.md, Design contract).
+
+   Every class below resolves both themes through the token ladder
+   (--surface* / --edge* / --shadow-* / --glass-panel-* / --tint-* all
+   re-declare under .dark), so explicit .dark blocks appear only where a
+   recipe genuinely differs per theme. Motion stays on the leash: shadow /
+   color / opacity only, nothing under 140ms, reduced-motion guarded.
+   ===================================================================== */
+
+/* --- 5. Canvas chrome ------------------------------------------------- */
+/* Chrome that sits directly ON the canvas: no fill, no border, no shadow.
+   Replaces `craft-glass rounded-panel` on the Sidebar and Dock containers.
+   Theme-invariant by construction (transparent is transparent in .dark). */
+.craft-canvas-chrome {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* --- 6. The pill ------------------------------------------------------- */
+/* White pill chrome: the top-bar cmd-K search field, the collapsed Jarvis
+   bar, small floating chrome. Raised fill + hairline + card shadow; hover
+   lifts the shadow one step and changes nothing else. */
+.craft-pill {
+  background: var(--surface-raised);
+  border: 1px solid var(--edge);
+  border-radius: 9999px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--duration-micro) var(--ease-out-quart);
+}
+.craft-pill:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+/* In-register focus for pill inputs: strong hairline + lifted shadow, so
+   consumers don't need bespoke rings (utility box-shadows lose to this
+   unlayered recipe anyway). */
+.craft-pill:focus-within,
+.craft-pill:focus-visible {
+  border-color: var(--edge-strong);
+  box-shadow: var(--shadow-card-hover);
+}
+@media (prefers-reduced-motion: reduce) {
+  .craft-pill {
+    transition: none;
+  }
+}
+
+/* --- 7. Segmented filter chips ----------------------------------------- */
+/* 28px pill chips (Craft's Tasks-hub filter row). Rest: raised fill +
+   hairline, muted ink, no shadow (chips sit on the sheet; they are not
+   cards). Active (`aria-pressed="true"` or `data-active`) fills with the
+   generic --tint-* triple; compose with a .tint-<hue> class, or leave
+   untinted for the neutral --selected fill. Color is data: the tint is the
+   one accent moment a chip row gets. */
+.craft-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--edge);
+  color: var(--ink-muted);
+  font-size: 13px; /* text-meta */
+  font-weight: 500;
+  line-height: 1;
+  transition: background-color var(--duration-micro) var(--ease-out-quart), border-color
+    var(--duration-micro) var(--ease-out-quart), color var(--duration-micro) var(--ease-out-quart);
+}
+.craft-chip:hover {
+  color: var(--ink);
+  border-color: var(--edge-strong);
+}
+.craft-chip[aria-pressed="true"],
+.craft-chip[data-active]:not([data-active="false"]) {
+  background: var(--tint-bg, var(--selected));
+  border-color: color-mix(in srgb, var(--tint-edge, var(--edge-strong)) 55%, transparent);
+  color: var(--tint-ink, var(--ink));
+}
+@media (prefers-reduced-motion: reduce) {
+  .craft-chip {
+    transition: none;
+  }
+}
+
+/* --- 8. The glass pop -------------------------------------------------- */
+/* Frosted popover / menu / modal surface: Craft's overlays are glass.
+   Solid fallback declared first (the .craft-glass idiom); real
+   translucency + blur only where backdrop-filter exists. Radius is the
+   card step, shadow is the pop step, and the inset highlight gives the
+   pane its lit top edge in both themes. */
+.craft-glass-pop {
+  background: var(--glass-panel-solid);
+  border: 1px solid var(--glass-panel-edge);
+  border-radius: var(--radius-card);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), var(--shadow-pop);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .craft-glass-pop {
+    background: var(--glass-panel-bg);
+    -webkit-backdrop-filter: saturate(160%) blur(20px);
+    backdrop-filter: saturate(160%) blur(20px);
+  }
+}
+
+/* --- 9. Day tiles ------------------------------------------------------ */
+/* Agenda day tile (date + weekday stack): canvas-gray at rest, and today
+   is the sky pastel with in-family ink. Defined ahead of the calendar /
+   agenda work so those units land on a stable API. */
+.craft-day-tile {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 44px;
+  padding: 6px 8px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+.craft-day-tile[data-today]:not([data-today="false"]) {
+  background: var(--tint-sky-bg);
+  color: var(--tint-sky-ink);
+}
+
+/* --- 10. Cascade upgrades v2: every menu + modal goes glass ------------ */
+/* Appended after the sd definitions AND the v1 upgrades above so these win
+   at equal specificity. .sd-menu-surface / .sd-modal-surface carry every
+   shadcn overlay (popover, dropdown-menu, select, tooltip, dialog,
+   alert-dialog, and the command dialog via DialogContent), so the whole
+   overlay layer frosts here without touching a call site. Radius is
+   deliberately NOT set: consumers own it (12px menus, 14px modals, 8px
+   tooltips). */
+.sd-menu-surface,
+.sd-modal-surface {
+  background: var(--glass-panel-solid);
+  border-color: var(--glass-panel-edge);
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), var(--shadow-pop);
+}
+/* Re-declared at .dark specificity so the v1 dark upgrades above (which
+   pin their own inset literals) stop winning; the tokenized recipe is
+   authoritative in both themes. */
+.dark .sd-menu-surface,
+.dark .sd-modal-surface {
+  box-shadow: inset 0 1px 0 var(--glass-panel-highlight), var(--shadow-pop);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .sd-menu-surface,
+  .sd-modal-surface {
+    background: var(--glass-panel-bg);
+    -webkit-backdrop-filter: saturate(160%) blur(20px);
+    backdrop-filter: saturate(160%) blur(20px);
+  }
+}
+/* CommandDialog nests <Command> (solid bg-[var(--sd-box)] when standalone)
+   inside the modal surface; inside glass it must read through. Unlayered,
+   so it beats the Tailwind utility in both themes. */
+.sd-modal-surface [data-slot="command"] {
+  background: transparent;
 }

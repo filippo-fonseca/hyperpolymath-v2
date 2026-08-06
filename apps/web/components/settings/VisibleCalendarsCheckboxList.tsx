@@ -109,7 +109,7 @@ export function VisibleCalendarsCheckboxList({
   return (
     <div className="flex flex-col gap-3 py-4 border-b border-border last:border-b-0">
       <div className="flex flex-col gap-1">
-        <div className="text-sm font-medium">Visible calendars</div>
+        <div className="text-meta font-medium">Visible calendars</div>
         <div className="text-xs text-muted-foreground">
           Calendars shown in the /calendar grid by default. The grid filter
           chips override this per session.
@@ -128,7 +128,7 @@ export function VisibleCalendarsCheckboxList({
               />
               <label
                 htmlFor={id}
-                className="flex items-center gap-2 text-sm font-sans cursor-pointer"
+                className="flex items-center gap-2 text-meta font-sans cursor-pointer"
               >
                 <span
                   aria-hidden

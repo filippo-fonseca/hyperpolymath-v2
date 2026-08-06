@@ -65,7 +65,7 @@ export function PipelineLatencyPanel({ stats }: Props) {
     return (
       <section className={`${NEUMORPHIC_TILE} mb-8 p-6`}>
         <header className="mb-4">
-          <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
+ <h2 className="font-serif text-subtitle font-semibold tracking-tight text-[var(--ink)]">
             Pipeline Latency
           </h2>
         </header>
@@ -113,10 +113,10 @@ export function PipelineLatencyPanel({ stats }: Props) {
     <section className={`${NEUMORPHIC_TILE} mb-8 p-6`}>
       <header className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
+ <h2 className="font-serif text-subtitle font-semibold tracking-tight text-[var(--ink)]">
             Pipeline Latency
           </h2>
-          <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] mt-1">
+          <p className="text-micro tracking-[0.06em] text-[var(--ink-muted)] mt-1">
             {stats.voiceTurns} voice turns · {stats.totalTurns} total · rolling 24h
           </p>
         </div>
@@ -197,13 +197,9 @@ function ToggleSwitch({
           type="button"
           role="radio"
           aria-checked={view === v}
+          data-active={view === v || undefined}
           onClick={() => setView(v)}
-          // Craft segmented control: a raised plate on a recessed track.
-          className={`cursor-pointer rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-[background-color,color,box-shadow] duration-[160ms] ease-out ${
-            view === v
-              ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
-              : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-          }`}
+          className="craft-chip cursor-pointer-always"
         >
           {v}
         </button>
@@ -232,7 +228,7 @@ function StageSparkline({
     // utility rides along; the stage hue survives as a saturated dot.
     <div className="craft-card rounded-xl p-3">
       <div className="mb-1 flex items-baseline justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <span className="flex min-w-0 items-center gap-1.5 text-micro tracking-[0.06em] text-[var(--ink-muted)]">
           <span
             aria-hidden
             className="size-1.5 shrink-0 rounded-full"
@@ -240,10 +236,10 @@ function StageSparkline({
           />
           <span className="truncate">{stage.label}</span>
         </span>
-        <span className="font-mono text-sm font-semibold tabular-nums text-[var(--ink)]">
+        <span className="font-mono text-meta font-semibold tabular-nums text-[var(--ink)]">
           {currentMs > 0 ? `${currentMs}` : "—"}
           {currentMs > 0 ? (
-            <span className="text-[10px] text-[var(--ink-muted)] ml-0.5">ms</span>
+            <span className="text-micro text-[var(--ink-muted)] ml-0.5">ms</span>
           ) : null}
         </span>
       </div>

@@ -279,3 +279,19 @@ The app is a three-zone control centre. One CSS grid, one row, three tracks:
 **`<SidePanel>` is the only detail-panel mechanism.** No portal, no `position: fixed`, no overlay, no backdrop, no dimming, no shadow, no focus trap, no scroll lock. Content reflows around it; you keep working with it open. Anything that reads or edits an entity is a `SidePanel`; modals are reserved for destructive confirmation and blocking multi-field creation. Exactly one `SidePanelHost` exists, in the shell. Never mount a second, and never re-introduce a `fixed` detail panel.
 
 **The Dock is a registry, not a strip** (`cockpit/dock-registry.ts`). A widget declares `{ id, title, defaultDocked?, order?, useData, Compact, Expanded? }` and registers by adding one file under `components/dock-widgets/` plus one appended line in `manifest.ts`. **Zero shell edits.** The Dock calls `useData()` inside the widget's own error boundary, so its fetching, its subscription and its failure mode stay its own. Widget ids are persistence keys (`cockpit-dock-widgets`, alongside `cockpit-dock-collapsed`), so they are stable kebab-case forever. Treat `DockWidgetDef` as published API: additive changes only.
+
+## 25. Craft v2 amendment (2026-08-04)
+
+The register grows a second layer: Craft.do's canvas-vs-sheet architecture. The rule is structural, and it is the one to memorize. **Chrome sits flat on the canvas; elevation belongs to content.** The sidebar, dock, and top bar own no box, no border, and no shadow of their own. The stage sheet, cards, and overlays carry every shadow in the app.
+
+New classes (globals.css, "craft register v2"; each resolves both themes through the token ladder, so no per-consumer dark work is needed):
+
+- `.craft-canvas-chrome`: transparent, borderless, shadowless chrome for containers that sit directly on the canvas (Sidebar, Dock). Replaces `craft-glass rounded-panel` on those containers.
+- `.craft-pill`: white pill chrome (raised fill, hairline `--edge`, `--shadow-card`, full radius). Hover lifts to `--shadow-card-hover` and changes nothing else. For the top-bar cmd-K search field and small floating chrome such as the collapsed Jarvis bar.
+- `.craft-chip`: 28px segmented filter pill. Rest is raised fill, hairline, muted ink, no shadow. Active state keys off `aria-pressed="true"` or `data-active` and fills with the generic tint triple; compose with a `.tint-<hue>` class for a tinted active, or leave untinted for the neutral `--selected` fill. The tint is the one accent moment a chip row gets.
+- `.craft-glass-pop`: frosted overlay surface (translucent panel fill, `blur(20px) saturate(160%)`, hairline light edge, `--shadow-pop`, card radius) with a solid fallback where `backdrop-filter` is unsupported. A cascade upgrade applies the same recipe to `.sd-menu-surface` and `.sd-modal-surface`, so every shadcn popover, dropdown, select, tooltip, dialog, alert-dialog, and command dialog frosts without touching a call site. Radius stays with the consumer (12px menus, 14px modals, 8px tooltips).
+- `.craft-day-tile`: agenda day tile (date + weekday stack) in canvas gray; `[data-today]` switches to the sky pastel with in-family ink. Defined ahead of the calendar and agenda work so that API is already stable.
+- `.craft-backdrop` is calmed: the three radial pastels drop to roughly half their previous alpha. Craft's canvas is nearly flat; the wash should be felt, not seen.
+- `.craft-card-hover` is unchanged, but it is now expected on every interactive `craft-card`, not just a lucky few.
+
+Live samples: `/design` § 16.

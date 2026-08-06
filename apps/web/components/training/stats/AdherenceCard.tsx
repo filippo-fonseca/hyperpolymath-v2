@@ -46,12 +46,12 @@ export function AdherenceCard({ activities, windowLabel }: Props) {
   return (
     <div className={TILE}>
       <div className="flex items-baseline justify-between">
-        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+        <h3 className="text-micro text-[var(--sd-ink-faint)]">
           Adherence · {windowLabel}
         </h3>
         {stats.pct !== null && (
           // Pastel chip with a saturated rim — the register's candy edge.
-          <span className="inline-flex items-center rounded-full border border-[var(--tint-edge)] bg-[var(--tint-bg)] px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.08em] tabular-nums text-[var(--tint-ink)]">
+          <span className="inline-flex items-center rounded-full border border-[var(--tint-edge)] bg-[var(--tint-bg)] px-2 py-0.5 text-micro font-medium tabular-nums text-[var(--tint-ink)]">
             {stats.pct}%
           </span>
         )}
@@ -65,7 +65,7 @@ export function AdherenceCard({ activities, windowLabel }: Props) {
         <span className="text-2xl font-semibold tabular-nums text-[var(--sd-ink-dull)]">
           {stats.denom}
         </span>
-        <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+        <span className="ml-2 text-micro text-[var(--sd-ink-faint)]">
           done / planned
         </span>
       </div>
@@ -82,14 +82,14 @@ export function AdherenceCard({ activities, windowLabel }: Props) {
       </div>
 
       {(stats.skipped > 0 || stats.cancelled > 0) && (
-        <div className="mt-3 flex gap-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+        <div className="mt-3 flex gap-3 text-micro text-[var(--sd-ink-faint)]">
           {stats.skipped > 0 && <span>{stats.skipped} skipped</span>}
           {stats.cancelled > 0 && <span>{stats.cancelled} cancelled</span>}
         </div>
       )}
 
       {stats.denom === 0 && stats.skipped === 0 && stats.cancelled === 0 && (
-        <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+        <div className="mt-3 text-micro text-[var(--sd-ink-faint)]">
           Nothing logged in this window yet.
         </div>
       )}

@@ -138,7 +138,7 @@ export function TrainingStatsClient({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-7 gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
+            className="h-7 gap-1.5 px-2 text-micro"
           >
             <Link href="/training" aria-label="Back to planner">
               <ArrowLeft size={13} strokeWidth={1.5} />
@@ -148,10 +148,10 @@ export function TrainingStatsClient({
           <span aria-hidden className="h-5 w-px bg-[var(--edge)]" />
           <TrainingIcon size={28} />
           <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+            <span className="text-micro text-[var(--sd-ink-faint)]">
               Training
             </span>
-            <h1 className="text-[20px] font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]">
+            <h1 className="text-title font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]">
               Stats
             </h1>
           </div>
@@ -168,10 +168,10 @@ export function TrainingStatsClient({
       {/* The headline visual — 12 months regardless of window toggle */}
       <div className={TILE}>
         <div className="flex items-baseline justify-between pb-3">
-          <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+          <h3 className="text-micro text-[var(--sd-ink-faint)]">
             Last 12 months · blended day colors
           </h3>
-          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+          <span className="text-micro text-[var(--sd-ink-faint)]">
             hover · click for breakdown
           </span>
         </div>

@@ -105,22 +105,22 @@ export default async function ContextSettingsPage() {
       <div className="mx-auto w-full max-w-[720px] px-6 md:px-10 pt-10 pb-16">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
+            <p className="text-micro text-[var(--sd-ink-dull)]">
               JARVIS · Personal Context
             </p>
             <h1 className="mt-1 text-3xl font-semibold text-[var(--sd-ink)]">
               Personal context
             </h1>
-            <p className="mt-3 text-[16px] leading-[1.55] text-[var(--sd-ink-dull)]">
+            <p className="mt-3 text-subtitle leading-[1.55] text-[var(--sd-ink-dull)]">
               What external agents see about you, refreshed nightly. Rebuild
               on demand to fold in changes you made since the last snapshot.
-              Rows you flag <span className="font-mono text-[13px]">no-export</span>{" "}
+              Rows you flag <span className="font-mono text-meta">no-export</span>{" "}
               are excluded. The count below reflects the most recent build.
             </p>
           </div>
           <Link
             href="/jarvis"
-            className="shrink-0 mt-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-100 ease-out"
+            className="shrink-0 mt-1 text-micro tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-100 ease-out"
           >
             ← jarvis
           </Link>

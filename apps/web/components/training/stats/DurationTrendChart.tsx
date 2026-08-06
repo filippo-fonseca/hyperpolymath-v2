@@ -79,10 +79,10 @@ export function DurationTrendChart({
   return (
     <div className={TILE}>
       <div className="flex items-baseline justify-between">
-        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+        <h3 className="text-micro text-[var(--sd-ink-faint)]">
           Duration trend · last {weeks} weeks
         </h3>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--sd-ink-dull)]">
+        <span className="text-micro tabular-nums text-[var(--sd-ink-dull)]">
           {formatMinutes(totalMin)} · {windowLabel} aware
         </span>
       </div>
@@ -111,7 +111,7 @@ export function DurationTrendChart({
                     />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="font-mono text-[10px]">
+                <TooltipContent side="top" className="font-mono text-micro">
                   Week of {b.label} — {formatMinutes(b.min)}
                 </TooltipContent>
               </Tooltip>
@@ -124,7 +124,7 @@ export function DurationTrendChart({
         {buckets.map((b, i) => (
           <span
             key={i}
-            className="flex-1 truncate text-center font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]"
+            className="flex-1 truncate text-center text-micro text-[var(--sd-ink-faint)]"
           >
             {/* Show every 2nd label so they don't crowd */}
             {i % 2 === 0 ? b.label : ""}

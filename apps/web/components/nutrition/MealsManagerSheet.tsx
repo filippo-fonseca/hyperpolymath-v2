@@ -147,7 +147,7 @@ export function MealsManagerSheet({
   }
 
   const labelClass =
-    "font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]";
+  "text-micro text-[var(--sd-ink-faint)]";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -156,7 +156,7 @@ export function MealsManagerSheet({
         className="w-full max-w-sm overflow-y-auto px-4 pb-8 pt-6"
       >
         <SheetHeader className="mb-4">
-          <SheetTitle className="text-[18px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+          <SheetTitle className="text-subtitle font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
             Saved meals
           </SheetTitle>
         </SheetHeader>
@@ -169,7 +169,7 @@ export function MealsManagerSheet({
               size="sm"
               variant="outline"
               onClick={() => setMode("create")}
-              className="self-start font-mono text-[11px] uppercase tracking-[0.06em]"
+              className="self-start text-micro"
             >
               <Plus className="h-3.5 w-3.5" />
               New meal
@@ -184,7 +184,7 @@ export function MealsManagerSheet({
             ) : savedMeals.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-12 text-center">
                 <UtensilsCrossed className="h-8 w-8 text-[var(--sd-ink-faint)]" />
-                <p className="text-[13px] leading-relaxed text-[var(--sd-ink-dull)]">
+                <p className="text-meta leading-relaxed text-[var(--sd-ink-dull)]">
                   No saved meals yet.
                 </p>
               </div>
@@ -197,7 +197,7 @@ export function MealsManagerSheet({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+                        <p className="text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
                           {meal.name}
                         </p>
                         <p className={`${labelClass} mt-0.5`}>
@@ -228,7 +228,7 @@ export function MealsManagerSheet({
                         type="button"
                         size="sm"
                         onClick={() => handleLogMeal(meal.id, targetSlot)}
-                        className="h-7 font-mono text-[11px] uppercase tracking-[0.06em]"
+                        className="h-7 text-micro"
                       >
                         Log
                       </Button>
@@ -250,7 +250,7 @@ export function MealsManagerSheet({
               ← Back
             </button>
 
-            <h3 className="text-[18px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+            <h3 className="text-subtitle font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
               New saved meal
             </h3>
 
@@ -275,7 +275,7 @@ export function MealsManagerSheet({
             {/* Items — simplified for MVP */}
             <div className="flex flex-col gap-2">
               <label className={labelClass}>Items</label>
-              <p className="text-[13px] leading-relaxed text-[var(--sd-ink-dull)]">
+              <p className="text-meta leading-relaxed text-[var(--sd-ink-dull)]">
                 Log the individual foods from the day view, then save them as a
                 meal. Full item editing coming soon.
               </p>
@@ -321,7 +321,7 @@ export function MealsManagerSheet({
                 onClick={() =>
                   setItems((prev) => [...prev, { foodName: "", quantity: "1" }])
                 }
-                className="flex items-center gap-1.5 self-start font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)] focus:outline-none"
+                className="flex items-center gap-1.5 self-start text-micro text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)] focus:outline-none"
               >
                 <Plus className="h-3 w-3" />
                 Add item
@@ -334,7 +334,7 @@ export function MealsManagerSheet({
                 size="sm"
                 onClick={handleCreateMeal}
                 disabled={isCreating}
-                className="font-mono text-[11px] uppercase tracking-[0.06em]"
+                className="text-micro"
               >
                 {isCreating ? "Saving…" : "Save meal"}
               </Button>
@@ -343,7 +343,7 @@ export function MealsManagerSheet({
                 variant="ghost"
                 size="sm"
                 onClick={resetCreate}
-                className="font-mono text-[11px] uppercase tracking-[0.06em]"
+                className="text-micro"
               >
                 Cancel
               </Button>

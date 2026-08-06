@@ -76,7 +76,7 @@ export function HashtagSidebar({
         type="button"
         onClick={() => onSelect(isActive ? null : h.id)}
         className={cn(
-          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-[13px] font-normal text-left transition-colors",
+          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-meta font-normal text-left transition-colors",
           isActive
             ? "bg-[var(--sd-selected)] font-medium text-[var(--sd-ink)]"
             : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
@@ -85,19 +85,19 @@ export function HashtagSidebar({
         aria-pressed={isActive}
       >
         <span className="truncate">#{h.displayName}</span>
-        <span className="text-[var(--sd-ink-faint)] tabular-nums shrink-0">{h.count}</span>
+        <span className="shrink-0 text-micro tabular-nums text-[var(--sd-ink-faint)]">{h.count}</span>
       </button>
     );
   }
 
   return (
-    <div className="flex flex-col p-3 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <div className="craft-card flex flex-col p-3">
       {/* All row — filter-clear; sits above the "Hashtags"heading. */}
       <button
         type="button"
         onClick={() => onSelect(null)}
         className={cn(
-          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-[13px] font-normal text-left transition-colors",
+          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-meta font-normal text-left transition-colors",
           allIsActive
             ? "bg-[var(--sd-selected)] font-medium text-[var(--sd-ink)]"
             : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
@@ -105,14 +105,14 @@ export function HashtagSidebar({
         aria-pressed={allIsActive}
       >
         <span className="truncate">All</span>
-        <span className="text-[var(--sd-ink-faint)] tabular-nums shrink-0">{totalCount}</span>
+        <span className="shrink-0 text-micro tabular-nums text-[var(--sd-ink-faint)]">{totalCount}</span>
       </button>
 
       <button
         type="button"
         onClick={onToggleFavorites}
         className={cn(
-          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-[13px] font-normal text-left transition-colors",
+          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-meta font-normal text-left transition-colors",
           favoritesActive
             ? "bg-[var(--sd-selected)] font-medium text-[var(--sd-ink)]"
             : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
@@ -127,18 +127,18 @@ export function HashtagSidebar({
           />
           <span className="truncate">Favorites</span>
         </span>
-        <span className="text-[var(--sd-ink-faint)] tabular-nums shrink-0">{favoritesCount}</span>
+        <span className="shrink-0 text-micro tabular-nums text-[var(--sd-ink-faint)]">{favoritesCount}</span>
       </button>
 
-      <div className="border-b border-[var(--sd-line)] my-2" />
+      <div className="my-2 border-b border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)]" />
 
-      <h3 className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)] mb-2 px-2">
+      <h3 className="text-micro text-[var(--sd-ink-faint)] mb-2 px-2">
         Hashtags
       </h3>
 
       <div className="flex flex-col gap-0.5">
         {active.length === 0 && orphans.length === 0 && (
-          <p className="text-[13px] text-[var(--sd-ink-faint)] italic px-2 py-1">
+          <p className="px-2 py-1 text-micro text-[var(--sd-ink-faint)]">
             No hashtags yet.
           </p>
         )}
@@ -148,7 +148,7 @@ export function HashtagSidebar({
             <button
               type="button"
               onClick={() => setShowAll((v) => !v)}
-              className="text-[13px] text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] px-2 py-1 text-left transition-colors"
+              className="px-2 py-1 text-left text-micro text-[var(--sd-ink-faint)] transition-colors hover:text-[var(--sd-ink)]"
             >
               {showAll ? "Hide unused" : `Show all (${orphans.length} unused)`}
             </button>

@@ -74,7 +74,7 @@ export type AreaOptimisticDispatch = (action: OptimisticAction<SidebarArea>) => 
  * nothing else.
  */
 export const SB_ROW =
-  "rounded-lg px-2 text-sm font-medium tracking-wide text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)]";
+  "rounded-lg px-2 text-body font-medium tracking-wide text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)]";
 /** Active row — the neutral selected backplate + ink text. No accent tint. */
 export const SB_ROW_ACTIVE = "bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)] text-[var(--sd-ink)]";
 /** Quiet icon-button / emoji-chip backplate. Buttons DO take a hover fill —
@@ -248,16 +248,15 @@ export function Sidebar({
         onMouseLeave={() => setHovered(false)}
         className={cn(
           "group/sidebar absolute inset-y-0 left-0 flex flex-col gap-2.5 overflow-hidden p-2.5 pb-2",
-          // jul-29 craft restyle: the column is a detached floating glass
-          // panel (rounded on every side), not a full-bleed bordered track.
-          "craft-glass rounded-panel",
+          // aug-04 craft-ui-v2: docked in the grid the column is quiet canvas
+          // chrome — no fill, no border, no shadow — so the canvas shows
+          // through and the sheet keeps all the elevation. Floating (desktop
+          // hover-peek or the below-md toggle sheet) it must stay legible over
+          // content, so it pops onto the frosted overlay surface and rises
+          // above the stage.
+          peeking ? "craft-glass-pop z-50" : "craft-canvas-chrome",
           animateWidth && "transition-[width] duration-[280ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
-          effectiveCollapsed ? "w-14" : "w-[230px]",
-          // Expanded-while-railed floats above the page as an overlay: desktop
-          // hover-peek and the below-md toggle sheet share this one path. The
-          // glass panel already carries border + float shadow; peeking only
-          // needs to rise above the stage.
-          peeking && "z-50"
+          effectiveCollapsed ? "w-14" : "w-[230px]"
         )}
       >
         <SidebarHeader
@@ -411,7 +410,7 @@ function SidebarHeader({
         <span
           className={cn(
             "flex min-w-0 items-center leading-none",
-            rail ? "h-9 justify-center" : "flex-1 text-[16px]"
+ rail ?"h-9 justify-center" :"flex-1 text-subtitle"
           )}
           aria-hidden="true"
         >
@@ -474,7 +473,7 @@ function SectionHeader({
   }
 
   const labelClasses =
-    "text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out";
+ "text-micro font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out";
 
   return (
     <div className="group/section mb-1 flex h-6 items-center gap-1.5 px-2">
@@ -489,7 +488,7 @@ function SectionHeader({
           className={cn(
             "flex h-[19px] min-w-[20px] items-center justify-center rounded-full px-1",
             "border border-[color-mix(in_oklch,var(--sd-line)_40%,transparent)]",
-            "text-[9px] font-medium tabular-nums text-[var(--sd-ink-faint)]"
+ "text-micro font-medium tabular-nums text-[var(--sd-ink-faint)]"
           )}
         >
           {count}
@@ -517,7 +516,7 @@ function AvatarOrInitial({
   const showInitial = !src || failed;
   if (showInitial) {
     return (
-      <span className="flex h-full w-full items-center justify-center bg-[var(--sd-box)] text-[13px] text-[var(--sd-ink-dull)]">
+ <span className="flex h-full w-full items-center justify-center bg-[var(--sd-box)] text-meta text-[var(--sd-ink-dull)]">
         {initial}
       </span>
     );
@@ -591,10 +590,10 @@ function IdentityBlock({
         <AvatarOrInitial src={src} initial={initial} />
       </span>
       <span className="flex min-w-0 flex-col leading-tight">
-        <span className="truncate text-[13px] font-medium text-[var(--sd-ink)]">
+ <span className="truncate text-meta font-medium text-[var(--sd-ink)]">
           {primaryLabel}
         </span>
-        <span className="truncate text-[11px] text-[var(--sd-ink-faint)]">
+ <span className="truncate text-micro text-[var(--sd-ink-faint)]">
           {profile.displayName?.trim() ? profile.email : "Open settings"}
         </span>
       </span>

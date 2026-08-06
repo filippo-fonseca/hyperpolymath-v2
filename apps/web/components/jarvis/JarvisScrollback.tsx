@@ -130,7 +130,7 @@ function isUndoable(a: ScrollbackAction): boolean {
 function TurnTimestamp({ createdAt }: { createdAt: Date }) {
   return (
     <span
-      className="font-mono text-[11px] text-[var(--sd-ink-faint)] opacity-40 group-hover:opacity-90 transition-opacity select-none whitespace-nowrap"
+ className="font-mono text-micro text-[var(--sd-ink-faint)] opacity-40 group-hover:opacity-90 transition-opacity select-none whitespace-nowrap"
       title={createdAt.toLocaleString()}
     >
       {createdAt.toLocaleTimeString([], {
@@ -353,7 +353,7 @@ export function JarvisScrollback({
         // Full-width + pointer-events-none so it never captures clicks meant
         // for Studio widgets behind the console.
         <div className="flex h-full items-end justify-center pb-24 pointer-events-none">
-          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] opacity-70 select-none">
+ <p className="text-micro text-[var(--sd-ink-faint)] opacity-70 select-none">
             Type below, or hold ⌘+J and speak.
           </p>
         </div>
@@ -376,7 +376,7 @@ export function JarvisScrollback({
             type="button"
             onClick={handleLoadOlderClick}
             disabled={loadingOlder}
-            className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] px-3 py-1.5 rounded text-[var(--sd-ink-dull)] hover:text-[var(--sd-accent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+ className="text-meta font-medium px-3 py-1.5 rounded text-[var(--sd-ink-dull)] hover:text-[var(--sd-accent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Load older messages"
           >
             {loadingOlder ? "Loading…" : "↑ Older messages"}
@@ -389,7 +389,7 @@ export function JarvisScrollback({
           {/* Date divider — Today / Yesterday / weekday / "Mon DD" / "Mon DD, YYYY" */}
           <div className="flex items-center gap-3 my-4 select-none">
             <div className="flex-1 h-px bg-[var(--sd-line)]" />
-            <span className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] opacity-70">
+ <span className="text-meta font-medium text-[var(--sd-ink-faint)] opacity-70">
               {formatDayHeader(group.turns[0].createdAt)}
             </span>
             <div className="flex-1 h-px bg-[var(--sd-line)]" />
@@ -420,17 +420,17 @@ export function JarvisScrollback({
                               background: "color-mix(in oklch, var(--sd-accent) 14%, transparent)",
                               boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 30%, transparent)",
                             }}
-                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--sd-accent)]"
+ className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-micro text-[var(--sd-accent)]"
                           >
                             <CalendarDays size={11} strokeWidth={1.75} />
                             Daily Page
                           </span>
-                          <span className="text-[14px] text-[var(--sd-ink-dull)]">
+ <span className="text-meta text-[var(--sd-ink-dull)]">
                             Processed this page
                           </span>
                         </span>
                       ) : (
-                        <p className="text-[15px] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
+ <p className="text-body text-[var(--sd-ink)] whitespace-pre-wrap break-words">
                           {renderUserText(stripSystemTags(turn.text), {
                             personNames,
                           })}
@@ -449,7 +449,7 @@ export function JarvisScrollback({
                 // glow halo, no blur.
                 <div className="flex justify-start mb-3">
                   <div className="flex flex-col max-w-[82%]">
-                    <span className="mb-1 ml-1 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-accent)]">
+ <span className="mb-1 ml-1 inline-flex items-center gap-1.5 text-micro text-[var(--sd-accent)]">
                       <KiwiIcon size={16} aria-hidden="true" />
                       JARVIS
                     </span>
@@ -470,6 +470,16 @@ export function JarvisScrollback({
                             : undefined,
                       }}
                     >
+                      {/* Queued placeholder — this send is waiting its turn in
+                          the FIFO queue behind the run currently streaming. A
+                          quiet mono caption, no ring: the thinking ring is
+                          reserved for the turn actually in flight. */}
+                      {turn.status === "queued" ? (
+ <span className="text-xs text-[var(--sd-ink-faint)] select-none">
+                          queued…
+                        </span>
+                      ) : null}
+
                       {/* Phase 6.1 Plan 02 (UI-SPEC §6b state 5): thinking ring
                           while status='streaming' and no textDelta has arrived. */}
                       {turn.status === "streaming" &&
@@ -477,7 +487,7 @@ export function JarvisScrollback({
                       turn.actions.length === 0 ? (
                         <div className="flex items-center gap-3 mb-2">
                           <HudThinkingRing size={32} />
-                          <span className="font-mono text-xs text-[var(--sd-ink-dull)] uppercase tracking-[0.08em]">
+ <span className="text-xs text-[var(--sd-ink-dull)]">
                             THINKING
                           </span>
                         </div>
@@ -581,7 +591,7 @@ export function JarvisScrollback({
                         <button
                           type="button"
                           onClick={() => onRetry(turn.id)}
-                          className="mt-2 font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--sd-accent)] hover:opacity-80 transition-opacity"
+ className="mt-2 text-micro text-[var(--sd-accent)] hover:opacity-80 transition-opacity"
                         >
                           ↺ Retry
                         </button>

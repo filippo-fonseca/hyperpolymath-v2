@@ -96,16 +96,16 @@ function ApiKeyRow({
     <div className="space-y-2.5 rounded-lg border border-[var(--sd-line)] bg-[var(--sd-box)] p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-lg font-semibold text-[var(--sd-ink)]">
+          <span className="text-subtitle font-semibold text-[var(--sd-ink)]">
             {meta.label}
           </span>
           {meta.required ? (
-            <span className="rounded-full border border-[var(--sd-line)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--sd-ink-dull)]">
+            <span className="rounded-full border border-[var(--sd-line)] px-2 py-0.5 text-micro text-[var(--sd-ink-dull)]">
               Required
             </span>
           ) : null}
           {configured ? (
-            <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-amber)]">
+            <span className="flex items-center gap-1 text-micro tracking-[0.08em] text-[var(--ink-amber)]">
               <Check className="h-3 w-3" />
               Configured
             </span>
@@ -115,18 +115,18 @@ function ApiKeyRow({
           href={meta.consoleUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] transition-colors duration-150 ease-out hover:text-[var(--sd-ink)] cursor-pointer-always"
+          className="inline-flex items-center gap-1 text-micro tracking-[0.06em] text-[var(--sd-ink-dull)] transition-colors duration-150 ease-out hover:text-[var(--sd-ink)] cursor-pointer-always"
         >
           Get your key
           <ExternalLink className="h-3 w-3" />
         </a>
       </div>
 
-      <p className="text-sm text-[var(--sd-ink-dull)]">{meta.powers}</p>
+      <p className="text-meta text-[var(--sd-ink-dull)]">{meta.powers}</p>
 
       {configured ? (
         <div className="flex items-center justify-between gap-3 pt-1">
-          <span className="font-mono text-sm tabular-nums text-[var(--sd-ink)]">
+          <span className="font-mono text-meta tabular-nums text-[var(--sd-ink)]">
             •••• {last4 ?? "••••"}
           </span>
           <Button
@@ -159,7 +159,7 @@ function ApiKeyRow({
             autoCapitalize="off"
             autoCorrect="off"
             autoComplete="off"
-            className="font-mono text-sm"
+            className="font-mono text-meta"
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSave();
             }}

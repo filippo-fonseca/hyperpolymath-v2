@@ -238,7 +238,7 @@ export function CreateRecurringDialog({
                     // Craft day toggle: on = raised plate in the training hue,
                     // off = flat recessed tile.
                     className={cn(
-                      "tint-mint inline-flex size-8 items-center justify-center rounded-lg border font-mono text-[11px] uppercase",
+                      "tint-mint inline-flex size-8 items-center justify-center rounded-lg border text-micro",
                       "transition-[background-color,border-color,color,box-shadow] duration-[160ms] ease-out",
                       on
                         ? "border-[var(--tint-edge)] bg-[var(--tint-bg)] font-medium text-[var(--tint-ink)] shadow-[var(--shadow-card)]"
@@ -306,7 +306,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+      <div className="text-micro text-[var(--sd-ink-dull)]">
         {label}
       </div>
       {children}

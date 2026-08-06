@@ -1,5 +1,6 @@
 "use client";
 
+import { DockStateNote } from "@/components/dock-widgets/dock-state";
 import type { DockWidgetDef } from "@/components/shell/cockpit/dock-registry";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
@@ -24,14 +25,22 @@ export function DockWidgetSlot({ def }: { def: DockWidgetDef<unknown> }) {
   const Icon = def.icon;
 
   return (
-    // jul-29 craft restyle: each widget is its own mini card riding inside
-    // the glass dock, wearing the widget's tint so its children can consume
-    // var(--tint-…) for identity color.
+    // aug-04 craft-ui-v2: with the dock chromeless, each widget is a white
+    // Craft card carrying its own elevation, wearing the widget's tint so its
+    // children can consume var(--tint-…) for identity color. Expandable
+    // widgets take the hover lift; a static readout stays still so the shadow
+    // never promises an interaction the card cannot honor.
     <section
       data-dock-widget-id={def.id}
-      className={cn("craft-card rounded-xl px-1.5 pt-1.5 pb-2", def.tint)}
+      className={cn(
+        "craft-card rounded-xl px-1.5 pt-1.5 pb-2",
+        canExpand && "craft-card-hover",
+        def.tint
+      )}
     >
-      <header className="flex h-7 items-center justify-between gap-2 px-1">
+      {/* aug-05 quiet pass: h-6 header, dull ink title — Craft keeps card
+          chrome one register quieter than the rows it introduces. */}
+      <header className="flex h-6 items-center justify-between gap-2 px-1">
         <div className="flex min-w-0 items-center gap-1.5">
           {Icon ? (
             <span
@@ -41,7 +50,7 @@ export function DockWidgetSlot({ def }: { def: DockWidgetDef<unknown> }) {
               <Icon size={11} strokeWidth={2} />
             </span>
           ) : null}
-          <h3 className="truncate text-micro font-medium text-[var(--ink-muted)]">{def.title}</h3>
+          <h3 className="truncate text-micro font-medium text-[var(--sd-ink-dull)]">{def.title}</h3>
         </div>
         {canExpand ? (
           <button
@@ -97,11 +106,9 @@ class WidgetErrorBoundary extends Component<
 
   render() {
     if (this.state.failed) {
-      return (
-        <p className="px-2 text-meta text-[var(--ink-faint)]">
-          {this.props.title} is unavailable right now.
-        </p>
-      );
+      // Same recipe as every widget's own quiet states, so a crash reads as
+      // "nothing here", not as broken chrome.
+      return <DockStateNote>{this.props.title} is unavailable right now.</DockStateNote>;
     }
     return this.props.children;
   }

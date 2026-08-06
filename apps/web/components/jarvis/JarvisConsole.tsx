@@ -106,7 +106,10 @@ function mapTurnRow(r: JarvisTurnRow): ScrollbackTurn {
       seq: nextTurnSeq(),
     };
   }
-  const rawStatus = r.status === "streaming" ? "done" : r.status;
+  // "queued" is client-only and should never be persisted, but normalise it
+  // defensively alongside "streaming" so a stray row can't render forever-
+  // pending chrome.
+  const rawStatus = r.status === "streaming" || r.status === "queued" ? "done" : r.status;
   return {
     kind: "assistant",
     id: r.id,
@@ -126,11 +129,26 @@ function mapTurnRow(r: JarvisTurnRow): ScrollbackTurn {
  * Owns:
  *   - Scrollback state (D-05) — single source of truth for visible turns
  *   - Session memory (D-06) — last 10 turns mapped to model history
- *   - AbortController plumbing (foundation for Plan 05-04 cancel UX)
+ *   - The FIFO send queue — new submissions NEVER abort an in-flight run;
+ *     they enqueue (user turn + queued assistant placeholder land in the
+ *     scrollback immediately) and a single sequential runner streams them in
+ *     order. Programmatic paths (voice transcript, clarification chips,
+ *     jarvis-prefill, retry) go through the same queue. jarvis-cancel aborts
+ *     the CURRENT run and clears the queue.
+ *   - AbortController plumbing (Plan 05-04 cancel UX)
  *   - SSE stream consumption via streamJarvis
  *
  * IDs use native `crypto.randomUUID()` directly (B4 fix — no @/lib/uuid).
  */
+
+/** One queued submission: the composer payload plus the pre-created turn ids
+ *  (both already in the scrollback; the user turn is already persisted). */
+type ConsoleJob = {
+  payload: JarvisInputPayload;
+  opts?: { isVoice?: boolean; sttDoneAt?: number | null; vadEndAt?: number };
+  userTurnId: string;
+  assistantId: string;
+};
 
 interface ProjectSource {
   id: string;
@@ -190,6 +208,13 @@ export function JarvisConsole({
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  // FIFO send queue. Submitting while a run is in flight no longer aborts it:
+  // the new turn enters the scrollback immediately (assistant placeholder in
+  // the client-only "queued" status) and streams when its turn comes. A single
+  // sequential runner (runQueueRef gate) drains the queue; jarvis-cancel and
+  // any explicit stop UI abort the CURRENT run and clear the queue.
+  const queueRef = useRef<ConsoleJob[]>([]);
+  const runningRef = useRef(false);
   // Phase 6 Plan 06-03 (AES-05, D-02): imperative handle to the JARVIS input.
   // The module-level singleton (registerJarvisFocus) is the canonical Cmd+K
   // dispatch path; this ref documents the contract and enables future
@@ -278,9 +303,13 @@ export function JarvisConsole({
           continue;
         }
         const existing = next[existingIdx];
-        // Skip any locally-streaming assistant turn — its in-memory state is
-        // authoritative until onDone/onError persists the final row.
-        if (existing.kind === "assistant" && existing.status === "streaming") {
+        // Skip any locally-streaming (or still-queued) assistant turn — its
+        // in-memory state is authoritative until onDone/onError persists the
+        // final row.
+        if (
+          existing.kind === "assistant" &&
+          (existing.status === "streaming" || existing.status === "queued")
+        ) {
           continue;
         }
         next[existingIdx] = turn;
@@ -473,19 +502,15 @@ export function JarvisConsole({
     []
   );
 
-  const handleSubmit = useCallback(
-    async (
-      payload: JarvisInputPayload,
-      opts?: {
-        isVoice?: boolean;
-        sttDoneAt?: number | null;
-        /** Phase 9 / TEL-01 — VAD end timestamp captured LOCALLY in
-         *  JarvisListener.onSpeechEnd, piped via jarvis-voice-transcript
-         *  CustomEvent detail, forwarded here, and collectStage-d inside the
-         *  onTurnStart callback AFTER setActiveTurnId binds the row. */
-        vadEndAt?: number;
-      }
-    ) => {
+  /**
+   * Stream one queued job. Called ONLY by the sequential runner (runQueue),
+   * so at most one SSE stream is ever open. The old abort-previous-on-submit
+   * contract is gone — programmatic re-entry (voice transcript, clarification
+   * chips, prefill, retry) enqueues instead, and ordering is the guarantee.
+   */
+  const runJob = useCallback(
+    async (job: ConsoleJob) => {
+      const { payload, opts, userTurnId, assistantId } = job;
       // voiceActive header is now ALWAYS false — the model no longer needs to
       // emit a separate voice_summary field. The spoken response is the
       // leading text block (collected client-side from text deltas and fired
@@ -497,54 +522,28 @@ export function JarvisConsole({
       // typing, not in active voice convo). Fix for the bug where typing
       // would keep the wake-word-free voice window open indefinitely.
       const turnIsVoice = opts?.isVoice === true;
-      const userTurn: ScrollbackTurn = {
-        kind: "user",
-        id: crypto.randomUUID(),
-        text: payload.input,
-        createdAt: new Date(),
-        seq: nextTurnSeq(),
-      };
-      const assistantId = crypto.randomUUID();
-      // Phase 5.1 (D-A2 / JARVIS-19): When the user submits any new message,
-      // mark all prior clarifications as answered (last-question-wins; historical
-      // record remains in scrollback but reply input is disabled).
+
+      // This job's turn has come — flip its queued placeholder to streaming.
       setTurns((prev) =>
         prev.map((t) =>
-          t.kind === "assistant" && t.clarification && !t.clarification.answered
-            ? {
-                ...t,
-                clarification: { ...t.clarification, answered: true },
-              }
+          t.id === assistantId && t.kind === "assistant"
+            ? { ...t, status: "streaming" as const }
             : t
         )
       );
-      const assistantTurn: ScrollbackTurn = {
-        kind: "assistant",
-        id: assistantId,
-        textDelta: "",
-        actions: [],
-        createdAt: new Date(),
-        status: "streaming",
-        seq: nextTurnSeq(),
-      };
 
-      // Read prior turns from the ref BEFORE adding new ones so history
-      // reflects what's already on screen (and on the model's side).
-      const history = buildHistory(turnsRef.current);
-      setTurns((prev) => [...prev, userTurn, assistantTurn]);
+      // Session memory: everything BEFORE this job's user turn. The enqueue
+      // path already appended this job's turns (and possibly later queued
+      // ones behind it), so the old "read the ref before appending" snapshot
+      // no longer works — cut at the user turn instead. If the enqueue append
+      // hasn't flushed yet (the first job runs in the same tick), the ref
+      // still holds the pre-enqueue list, which is equally correct. Queued
+      // assistant placeholders carry no text/actions, so buildHistory skips
+      // them either way.
+      const all = turnsRef.current;
+      const cutAt = all.findIndex((t) => t.id === userTurnId);
+      const history = buildHistory(cutAt >= 0 ? all.slice(0, cutAt) : all);
 
-      // Persist the user turn immediately — even if streaming fails or the
-      // tab closes, the user's question stays in the scrollback on reload.
-      persistTurn(userTurn);
-
-      setStreaming(true);
-      // Abort any request still in flight before starting a new one. The UI
-      // gates submits behind `disabled={streaming}`, but programmatic paths
-      // (voice transcript, clarification chips) can re-enter while a stream is
-      // open. Without this, the previous fetch leaks and both SSE readers race
-      // to mutate overlapping turn state. Mirrors GlobalJarvisHandler's
-      // abort-before-start contract.
-      abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
 
@@ -795,7 +794,8 @@ export function JarvisConsole({
               })
             );
 
-            setStreaming(false);
+            // `streaming` is owned by the queue runner now — it stays true
+            // until the queue drains.
             abortRef.current = null;
           },
           onError: (message) => {
@@ -814,7 +814,38 @@ export function JarvisConsole({
               });
             });
             if (errored) persistTurn(errored);
-            setStreaming(false);
+            // `streaming` is owned by the queue runner now — it stays true
+            // until the queue drains.
+            abortRef.current = null;
+          },
+          onAborted: () => {
+            // User-initiated stop (jarvis-cancel / explicit stop) — never a
+            // red bubble, never a persisted error turn. If the turn already
+            // streamed partial text/actions, seal it as done with what it
+            // has; if nothing arrived, drop the placeholder entirely. The
+            // user turn stays — it was really sent and is already persisted.
+            let finalized: ScrollbackTurn | undefined;
+            flushSync(() => {
+              setTurns((prev) => {
+                const current = prev.find(
+                  (t) => t.id === assistantId && t.kind === "assistant"
+                );
+                const hasContent =
+                  current?.kind === "assistant" &&
+                  (current.textDelta.length > 0 ||
+                    current.actions.length > 0 ||
+                    !!current.clarification);
+                if (!hasContent) return prev.filter((t) => t.id !== assistantId);
+                const next = prev.map((t) =>
+                  t.id === assistantId && t.kind === "assistant"
+                    ? { ...t, status: "done" as const }
+                    : t
+                );
+                finalized = next.find((t) => t.id === assistantId);
+                return next;
+              });
+            });
+            if (finalized) persistTurn(finalized);
             abortRef.current = null;
           },
         },
@@ -826,6 +857,77 @@ export function JarvisConsole({
       );
     },
     [buildHistory, voiceCapable, voiceSettings.voiceId, queryClient, userId]
+  );
+
+  /**
+   * Sequential queue runner — one stream at a time, FIFO, never aborted by a
+   * newer send. `streaming` now means "the runner is active"; the composer
+   * stays enabled regardless, because submitting feeds the queue.
+   */
+  const runQueue = useCallback(async () => {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    setStreaming(true);
+    try {
+      while (queueRef.current.length > 0) {
+        const job = queueRef.current.shift();
+        if (!job) break;
+        await runJob(job);
+      }
+    } finally {
+      runningRef.current = false;
+      setStreaming(false);
+    }
+  }, [runJob]);
+
+  /**
+   * Enqueue a submission. The user turn and a "queued" assistant placeholder
+   * enter the scrollback (and the user turn persists) immediately, so nothing
+   * is ever swallowed; the runner streams jobs in order.
+   */
+  const handleSubmit = useCallback(
+    async (payload: JarvisInputPayload, opts?: ConsoleJob["opts"]) => {
+      const userTurn: ScrollbackTurn = {
+        kind: "user",
+        id: crypto.randomUUID(),
+        text: payload.input,
+        createdAt: new Date(),
+        seq: nextTurnSeq(),
+      };
+      const assistantId = crypto.randomUUID();
+      // Phase 5.1 (D-A2 / JARVIS-19): When the user submits any new message,
+      // mark all prior clarifications as answered (last-question-wins; historical
+      // record remains in scrollback but reply input is disabled).
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.kind === "assistant" && t.clarification && !t.clarification.answered
+            ? {
+                ...t,
+                clarification: { ...t.clarification, answered: true },
+              }
+            : t
+        )
+      );
+      const assistantTurn: ScrollbackTurn = {
+        kind: "assistant",
+        id: assistantId,
+        textDelta: "",
+        actions: [],
+        createdAt: new Date(),
+        status: "queued",
+        seq: nextTurnSeq(),
+      };
+      setTurns((prev) => [...prev, userTurn, assistantTurn]);
+
+      // Persist the user turn at ENQUEUE time — even if streaming fails, the
+      // queue is cancelled, or the tab closes, the DB thread stays faithful
+      // to what the user actually sent, in order.
+      persistTurn(userTurn);
+
+      queueRef.current.push({ payload, opts, userTurnId: userTurn.id, assistantId });
+      void runQueue();
+    },
+    [runQueue]
   );
 
   // jarvis-voice-transcript handler — two distinct sources use this event:
@@ -1026,10 +1128,14 @@ export function JarvisConsole({
     return () => clearTimeout(t);
   }, [handleSubmit]);
 
-  // Phase 7 voice-everywhere: jarvis-cancel aborts the in-flight /api/jarvis
-  // request so the user can stop the run before the model finishes.
+  // Phase 7 voice-everywhere: jarvis-cancel aborts the CURRENT /api/jarvis
+  // run AND clears the send queue. Queued assistant placeholders are dropped
+  // from the scrollback (they were never persisted); the queued user turns
+  // stay — they were really sent, and the DB thread already has them.
   useEffect(() => {
     function handleCancel() {
+      queueRef.current = [];
+      setTurns((prev) => prev.filter((t) => !(t.kind === "assistant" && t.status === "queued")));
       abortRef.current?.abort();
       abortRef.current = null;
       setStreaming(false);
@@ -1163,6 +1269,9 @@ export function JarvisConsole({
     for (let i = turns.length - 1; i >= 0; i--) {
       const t = turns[i];
       if (t.kind !== "assistant") continue;
+      // Queued placeholders don't govern the pill — the turn actually
+      // streaming (earlier in the list) does.
+      if (t.status === "queued") continue;
       if (t.status === "error") return "error";
       if (t.status === "streaming") {
         // No textDelta yet → still waiting for first token (THINKING)
@@ -1291,7 +1400,6 @@ export function JarvisConsole({
           getHashtags={() => initialHashtags}
           getPeople={(query) => searchPeopleForCurrentUser(query)}
           onSubmit={handleSubmit}
-          disabled={streaming}
           autoFocus
         />
       </div>

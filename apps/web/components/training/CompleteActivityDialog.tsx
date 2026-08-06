@@ -162,7 +162,7 @@ export function CompleteActivityDialog({
           <div className="flex flex-col gap-1.5">
             <Label
               htmlFor="actual-duration"
-              className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
+              className="text-micro text-[var(--sd-ink-dull)]"
             >
               Actual duration (min)
             </Label>
@@ -182,7 +182,7 @@ export function CompleteActivityDialog({
             <div className="flex flex-col gap-1.5">
               <Label
                 htmlFor="actual-distance"
-                className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
+                className="text-micro text-[var(--sd-ink-dull)]"
               >
                 Actual distance ({distanceUnit})
               </Label>
@@ -205,7 +205,7 @@ export function CompleteActivityDialog({
               variant="ghost"
               disabled={submitting}
               onClick={() => void submit(true)}
-              className="font-mono text-[11px] uppercase tracking-[0.06em]"
+              className="text-micro"
             >
               Skip logging — just mark done
             </Button>

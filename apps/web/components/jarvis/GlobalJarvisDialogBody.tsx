@@ -260,7 +260,7 @@ function ActionList({ actions, focusedIndex, onRun, registerItemRef }: ActionLis
   return (
     <div className="sd-menu-surface overflow-hidden rounded-[12px] shadow-lg">
       <div className="flex items-center gap-2 border-b border-[var(--sd-line)] px-3 pb-1.5 pt-2.5">
-        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+ <span className="text-micro font-medium text-[var(--sd-ink-faint)]">
           Actions
         </span>
       </div>
@@ -283,7 +283,7 @@ function ActionList({ actions, focusedIndex, onRun, registerItemRef }: ActionLis
               )}
             >
               <Icon size={15} strokeWidth={1.5} className="shrink-0 text-[var(--sd-ink-dull)]" />
-              <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-[var(--sd-ink)]">
+ <span className="min-w-0 flex-1 truncate font-mono text-meta text-[var(--sd-ink)]">
                 {action.label}
               </span>
               {focused ? (
@@ -294,7 +294,7 @@ function ActionList({ actions, focusedIndex, onRun, registerItemRef }: ActionLis
                 />
               ) : (
                 action.shortcut && (
-                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+ <span className="shrink-0 text-micro text-[var(--sd-ink-faint)]">
                     {action.shortcut}
                   </span>
                 )

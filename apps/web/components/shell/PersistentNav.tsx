@@ -51,7 +51,7 @@ import { useEffect, useState } from "react";
  * The sidebar's navigation rails.
  *
  * Row grammar is the Spacedrive source grammar adopted verbatim by
- * UI-CONTRACT §11: `rounded px-2 text-sm font-medium tracking-wide`, 16px
+ * UI-CONTRACT §11: `rounded px-2 text-body font-medium tracking-wide`, 16px
  * icons, ink-dull at rest. The ACTIVE tint is the ONLY background a row ever
  * gets — there is deliberately no hover fill, which is what keeps a 14-row
  * column from strobing as the pointer crosses it. Hover moves text ink-dull →
@@ -149,7 +149,7 @@ function NavRow({
     <span
       className={cn(
         "group relative flex h-8 w-full items-center rounded-lg px-2",
-        "text-sm font-medium tracking-wide",
+        "text-body font-medium tracking-wide",
         // Colour-only transition: no fill, no transform, nothing to jank.
         "transition-colors duration-[120ms] ease-out",
         active && !disabled

@@ -94,13 +94,13 @@ export const KanbanColumn = memo(function KanbanColumn({
       ref={ref}
       className={cn(
         "flex w-full flex-col rounded-xl @4xl/main:flex-1 @4xl/main:basis-0 @4xl/main:min-w-0",
-        // jul-29 craft restyle: the column is a pastel well with a whisper of
-        // its tint on the hairline. "not started" has no tint class, so both
-        // arbitrary values fall back to the neutral surface/edge.
+        // craft-ui-v2: the column is a borderless pastel well — the tint fill
+        // alone defines it (Craft's elevation lives in the white cards, not
+        // the wells). "not started" has no tint class, so the fill falls back
+        // to the neutral surface.
         STATUS_TINT[status],
-        "border border-[color-mix(in_srgb,var(--tint-edge,var(--edge))_38%,transparent)]",
         "bg-[var(--tint-bg,var(--surface))]",
-        "transition-[background-color,border-color] duration-[160ms] ease-out"
+        "transition-[background-color] duration-[160ms] ease-out"
       )}
       data-status={status}
       onDragOver={(e) => {
@@ -126,7 +126,9 @@ export const KanbanColumn = memo(function KanbanColumn({
           className="size-1.5 shrink-0 rounded-full"
           style={{ background: STATUS_DOT[status] }}
         />
-        <span className="truncate text-meta font-medium text-[var(--tint-ink,var(--ink))]">
+        {/* Quiet Craft section label: text-micro, count beside it. The
+            in-family tint ink is the column's one identity signal. */}
+        <span className="truncate text-micro font-medium text-[var(--tint-ink,var(--ink-muted))]">
           {STATUS_LABELS[status]}
         </span>
         <span className="shrink-0 text-micro tabular-nums text-[var(--ink-faint)]">
@@ -193,7 +195,9 @@ export const KanbanColumn = memo(function KanbanColumn({
           }}
         />
 
-        <div className="mt-2 border-t border-[color-mix(in_srgb,var(--tint-edge,var(--edge))_30%,transparent)] pt-2">
+        {/* No hairline above the composer — the borderless well keeps its
+            structure through spacing alone (craft-ui-v2). */}
+        <div className="mt-2 pt-1">
           <TaskCreateInline
             status={status}
             onCreateTask={onCreateTask}

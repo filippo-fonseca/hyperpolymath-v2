@@ -20,16 +20,16 @@ export default async function NutritionSettingsPage() {
     <main className="min-h-screen bg-[var(--canvas)] px-6 py-10">
       <div className="mx-auto max-w-2xl">
         <header className="mb-8">
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--ink-faint)]">
+          <p className="text-micro text-[var(--ink-faint)]">
             Settings · Nutrition
           </p>
           {/* The two `fontFamily: "var(--)"` style props here were dead — an
               unfinished token name resolving to nothing. Dropped rather than
               guessed at; the inherited family was always what rendered. */}
-          <h1 className="mt-1 text-[28px] font-semibold leading-[1.2] tracking-[-0.01em] text-[var(--ink)]">
+          <h1 className="mt-1 text-display font-semibold leading-[1.2] tracking-[-0.01em] text-[var(--ink)]">
             Nutrition targets
           </h1>
-          <p className="mt-2 text-[16px] leading-[1.5] text-[var(--ink-muted)]">
+          <p className="mt-2 text-subtitle leading-[1.5] text-[var(--ink-muted)]">
             Set your daily calorie target and the macro split.
           </p>
         </header>

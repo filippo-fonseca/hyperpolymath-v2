@@ -17,10 +17,10 @@ interface Props {
 /**
  * WidgetCard — shared shell for /lifeos tiles (UI-CONTRACT §6 + §11).
  *
- * Chrome: `--sd-box` fill that must read *clearly raised* off `--sd-app`, 14px
- * radius, 1px hairline border, and a white inset top hairline. No backdrop blur,
- * no gradient, no glow, no shadow stack. Hover moves the border colour and
- * nothing else (150ms) — no scale, no lift.
+ * Chrome (aug-04 craft-ui-v2): `.craft-glass-tile` over the space loop, 14px
+ * radius, hairline edge, inset top highlight. Hover is `.craft-card-hover`:
+ * the shadow steps to `--shadow-card-hover` and the border firms to
+ * `--edge-strong`; no scale, no translate (shadow/color transitions only).
  *
  * The white-alpha border/inset from §6 only reads as "light catching an edge" on
  * a dark canvas; in light theme it would erase the card outline entirely, so the
@@ -41,14 +41,18 @@ export function WidgetCard({ href, ariaLabel, children, className }: Props) {
   return (
     <div
       className={cn(
-        // jul-29 craft restyle: the tile is glass over the space loop — the
-        // lighter .craft-glass-tile register (16px blur, card shadow), with
-        // hover still limited to the border. Solid-fill fallback where
-        // backdrop-filter is unsupported lives in the class itself.
-        "group/card relative flex h-full flex-col overflow-hidden rounded-[14px]",
-        "craft-glass-tile",
-        "transition-colors duration-[160ms]",
-        "hover:border-[var(--edge-strong)]",
+        // jul-29 craft restyle: the tile is glass over the space loop, the
+        // lighter .craft-glass-tile register (16px blur, card shadow), with a
+        // solid-fill fallback where backdrop-filter is unsupported living in
+        // the class itself. Glass stays deliberately: the /lifeos backdrop
+        // video sits behind BOTH deck views (absolute inset-0 on <main>), so
+        // this card is never over plain canvas outside the /design demo.
+        // aug-04 craft-ui-v2: every WidgetCard navigates (the full-bleed link
+        // below), so it earns .craft-card-hover, shadow + border lift only.
+        // Named container so header trim (EntityCardHeader) can respond to the
+        // tile's own width instead of crushing the title into "Ha…".
+        "group/card @container/widget relative flex h-full flex-col overflow-hidden rounded-[14px]",
+        "craft-glass-tile craft-card-hover",
         className,
       )}
     >
@@ -73,7 +77,7 @@ export function WidgetCard({ href, ariaLabel, children, className }: Props) {
   );
 }
 
-/** The padded region of a card (§6: 20px). Grows to fill the tile. */
+/** The padded region of a card (aug-05 craft density: 16px). Grows to fill the tile. */
 export function WidgetBody({
   children,
   className,
@@ -81,13 +85,15 @@ export function WidgetBody({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("flex min-h-0 flex-1 flex-col p-5", className)}>{children}</div>;
+  return <div className={cn("flex min-h-0 flex-1 flex-col p-4", className)}>{children}</div>;
 }
 
 /**
- * §11 footer chip strip, verbatim geometry:
- * `flex h-10 flex-row items-center gap-1.5 border-t border-app-line px-2`.
- * Chips belong here, hairline-separated, not scattered through the body.
+ * Footer strip — hairline-separated, one quiet line. aug-05 quiet pass: the
+ * §11 chip row is gone; the footer is a single text-micro ink-faint sentence
+ * (" · "-separated counts), h-8, padded flush with the body's p-4 so it reads
+ * as the card's last line instead of a boxed tray. Optional per widget — a
+ * footer that only repeats the header should not render at all.
  */
 export function WidgetFooter({
   children,
@@ -99,7 +105,7 @@ export function WidgetFooter({
   return (
     <div
       className={cn(
-        "flex h-10 shrink-0 flex-row items-center gap-2 overflow-hidden border-t border-[var(--sd-line)] px-2",
+        "flex h-8 shrink-0 flex-row items-center gap-2 overflow-hidden border-t border-[var(--sd-line)] px-4",
         className,
       )}
     >

@@ -194,7 +194,7 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
         type="button"
         onClick={() => setOpen(true)}
         disabled={types.length === 0}
-        className="flex w-full items-center gap-1 rounded-lg px-1.5 py-1 text-left font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--surface-raised)] hover:text-[var(--sd-ink)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center gap-1 rounded-lg px-1.5 py-1 text-left text-micro text-[var(--sd-ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--surface-raised)] hover:text-[var(--sd-ink)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <Plus size={11} strokeWidth={1.5} />
         Add activity
@@ -279,7 +279,7 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
         className="h-7 text-xs"
       />
 
-      <label className="flex cursor-pointer items-center gap-1.5 px-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+      <label className="flex cursor-pointer items-center gap-1.5 px-0.5 text-micro text-[var(--sd-ink-faint)]">
         <Checkbox
           checked={logDone}
           onCheckedChange={(v) => setLogDone(v === true)}
@@ -293,7 +293,7 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
           type="button"
           variant="ghost"
           size="sm"
-          className="h-6 px-2 text-[10px]"
+          className="h-6 px-2 text-micro"
           onClick={() => setOpen(false)}
         >
           Cancel
@@ -301,7 +301,7 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
         <Button
           type="submit"
           size="sm"
-          className="h-6 px-2 text-[10px]"
+          className="h-6 px-2 text-micro"
           disabled={pending || !title.trim() || !typeId}
         >
           {logDone ? "Log" : "Add"}

@@ -160,14 +160,14 @@ function EntityPreview({
 }) {
   return (
     <span className="flex flex-col gap-1 py-0.5 text-left">
-      <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+ <span className="text-micro text-[var(--sd-ink-faint)]">
         {sublabel ? `${kindName} · ${sublabel}` : kindName}
       </span>
-      <span className="text-[13px] leading-[1.35] text-[var(--sd-ink)]">
+ <span className="text-meta leading-[1.35] text-[var(--sd-ink)]">
         {label}
       </span>
       {context ? (
-        <span className="line-clamp-2 text-[12px] leading-[1.4] text-[var(--sd-ink-dull)]">
+ <span className="line-clamp-2 text-micro leading-[1.4] text-[var(--sd-ink-dull)]">
           {context}
         </span>
       ) : null}

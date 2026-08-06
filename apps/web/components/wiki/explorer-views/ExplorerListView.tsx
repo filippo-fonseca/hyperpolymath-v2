@@ -42,10 +42,10 @@ export function ExplorerListView({
   const reduceMotion = Boolean(useReducedMotion());
   const bands = partitionExplorerItems(items);
   return (
-    <div
-      className="overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] font-sans text-meta text-[var(--ink)] shadow-[var(--shadow-card)]"
-      data-view="list"
-    >
+    // aug-04 craft-ui-v2: bare rows on the surface — no per-row cards and no
+    // card wrapper around the list; the hover fill and the section labels do
+    // the structural work (Craft's Tasks-hub row grammar).
+    <div className="font-sans text-meta text-[var(--ink)]" data-view="list">
       <ExplorerListHeaderRow />
       <ExplorerListBand
         label="Folders"
@@ -92,11 +92,9 @@ function ExplorerListBand({
 }: ExplorerListViewProps & { label: string; reduceMotion: boolean }) {
   if (items.length === 0) return null;
   return (
-    <section>
-      <h2 className="border-b border-[var(--sd-line)] bg-[var(--sd-dark-box)] px-3 py-1 text-micro font-medium text-[var(--sd-ink-dull)]">
-        {label}
-      </h2>
-      <ul className="divide-y divide-[var(--sd-divider)]">
+    <section className="mt-2 first-of-type:mt-0">
+      <h2 className="px-3 pb-1 pt-2 text-micro font-medium text-[var(--sd-ink-dull)]">{label}</h2>
+      <ul>
         {items.map((item) => {
           const id = explorerItemId(item);
           const row = (
@@ -130,7 +128,7 @@ function ExplorerListBand({
 function ExplorerListHeaderRow() {
   return (
     <div
-      className="grid h-7 items-center gap-3 border-b border-[var(--sd-divider)] px-3 font-sans text-micro font-medium text-[var(--sd-ink-dull)]"
+      className="grid h-7 items-center gap-3 border-b border-[var(--edge)] px-3 font-sans text-micro font-medium text-[var(--sd-ink-dull)]"
       style={{ gridTemplateColumns: LIST_GRID_TEMPLATE }}
     >
       <span>Name</span>
@@ -211,9 +209,9 @@ function ExplorerListRow({
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       className={cn(
-        "relative grid h-10 w-full items-center gap-3 px-3 text-left text-[var(--ink)] outline-none",
-        "transition-[background-color] duration-[160ms] ease-out hover:bg-[var(--sd-hover)]",
-        "focus-visible:bg-[var(--sd-hover)]",
+        "relative grid h-9 w-full items-center gap-3 rounded-lg px-3 text-left text-[var(--ink)] outline-none",
+        "transition-[background-color] duration-[160ms] ease-out hover:bg-[var(--hover)]",
+        "focus-visible:bg-[var(--hover)]",
         selected && "bg-[var(--sd-selected-item)]",
         isOver && "bg-[color-mix(in_srgb,var(--sd-accent)_10%,var(--sd-box))]",
         rejected && !reduceMotion && "animate-[explorer-drop-denied_180ms_ease-in-out_2]"
@@ -221,7 +219,10 @@ function ExplorerListRow({
       style={{ ...style, gridTemplateColumns: LIST_GRID_TEMPLATE }}
     >
       {selected ? (
-        <span aria-hidden className="absolute inset-y-0 left-0 w-[2px] bg-[var(--sd-accent)]" />
+        <span
+          aria-hidden
+          className="absolute inset-y-1.5 left-0 w-[2px] rounded-full bg-[var(--sd-accent)]"
+        />
       ) : null}
       <span className="flex min-w-0 items-center gap-2">
         {item.kind === "folder" ? (

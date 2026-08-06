@@ -70,14 +70,10 @@ export function JournalHistoryFeed({ entries, selectedDate, onSelectDate }: Prop
               onClick={() => onSelectDate(entry.date)}
               className={cn(
                 tintFor(entry.date),
-                "w-full shrink-0 rounded-xl border p-3 text-left cursor-pointer-always",
-                "bg-[var(--tint-bg)] shadow-[var(--shadow-card)]",
-                "transition-[border-color,box-shadow] duration-[160ms] ease-out",
-                "hover:border-[var(--tint-edge)] hover:shadow-[var(--shadow-card-hover)]",
-                "motion-reduce:transition-none",
-                isSelected
-                  ? "border-[var(--tint-edge)] shadow-[var(--shadow-card-hover)]"
-                  : "border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)]"
+                "craft-card craft-card-hover w-full shrink-0 p-3 text-left cursor-pointer-always",
+                // Entity identity: the day's own pastel fills the plate.
+                "bg-[var(--tint-bg)]",
+                isSelected && "border-[var(--tint-edge)]"
               )}
               aria-current={isSelected ? "date" : undefined}
               aria-label={`Journal entry for ${formatDateLabel(entry.date)}`}

@@ -45,9 +45,16 @@ export function PagePreviewCard({
     <article
       aria-selected={selected}
       className={cn(
-        "group flex h-full min-h-[236px] flex-col overflow-hidden rounded-xl border border-[var(--sd-line,var(--edge))] bg-[var(--sd-box,var(--surface-raised))] text-left outline-none transition-[background-color,border-color] duration-[160ms] ease-out hover:border-[var(--edge-strong)]",
-        selected ? "bg-[var(--sd-selected-item)]" : undefined,
-        dropTarget ? "border-dashed border-[var(--edge-strong)] bg-[var(--sd-selected-item)]" : undefined,
+        // aug-04 craft-ui-v2: the Craft doc card — white raised surface with
+        // the soft card shadow, lifting one step on hover. The selected /
+        // drop-target states swap the unlayered craft-card recipe for explicit
+        // utilities: unlayered classes beat Tailwind utilities, so a state
+        // fill composed ON TOP of craft-card would silently lose.
+        "group flex h-full min-h-[236px] flex-col overflow-hidden rounded-xl text-left outline-none",
+        selected || dropTarget
+          ? "border border-[var(--edge-strong)] bg-[var(--sd-selected-item)] shadow-[var(--shadow-card)]"
+          : "craft-card craft-card-hover",
+        dropTarget ? "border-dashed" : undefined,
         className
       )}
     >
@@ -64,10 +71,10 @@ export function PagePreviewCard({
             {icon ?? page.emoji ?? <FallbackPageIcon />}
           </span>
           <div className="min-w-0 flex-1">
-            <h3 className="line-clamp-2 text-meta font-medium leading-snug text-[var(--ink)]">
+            <h3 className="line-clamp-2 text-body font-medium leading-snug text-[var(--ink)]">
               {title}
             </h3>
-            <p className="mt-1 truncate font-mono text-micro text-[var(--ink-faint)]">
+            <p className="mt-1 truncate font-sans text-micro text-[var(--ink-muted)]">
               {formatUpdatedAt(page.updatedAt)}
             </p>
           </div>

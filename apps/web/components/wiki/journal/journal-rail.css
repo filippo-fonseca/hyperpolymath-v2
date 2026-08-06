@@ -1,13 +1,10 @@
+/* aug-04 craft-ui-v2: the solid !important surface overrides are retired.
+   PopoverContent carries .sd-menu-surface, which the craft register's cascade
+   upgrade frosts (glass fill + pop shadow) in both themes — declaring a solid
+   fill here was fighting exactly that. Only the calendar internals remain. */
 .journal-calendar-popover {
-  border: 1px solid var(--sd-line) !important;
   border-radius: 12px !important;
-  background: var(--sd-box) !important;
-  /* Popover elevation per SDC-1 §2.6: 0 4px 16px, 6% light / 30% dark. */
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.06) !important;
   font-family: inherit;
-}
-.dark .journal-calendar-popover {
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3) !important;
 }
 .journal-calendar-popover aside {
   position: static;

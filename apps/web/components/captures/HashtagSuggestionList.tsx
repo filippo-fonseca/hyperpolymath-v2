@@ -126,7 +126,7 @@ export const HashtagSuggestionList = forwardRef<
 
   return (
     <div
-      className="min-w-[200px] max-w-[280px] rounded-md border bg-popover text-popover-foreground shadow-md py-1 font-sans text-[13px]"
+      className="min-w-[200px] max-w-[280px] rounded-md border bg-popover text-popover-foreground shadow-md py-1 font-sans text-meta"
       role="listbox"
       data-mention-suggestion-active="hashtag"
     >

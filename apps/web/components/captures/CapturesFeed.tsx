@@ -155,7 +155,7 @@ function EmptyState({
   // <Button> (the sd primitive). No serif.
   return (
     <div className="flex flex-col items-center text-center py-24 px-6 gap-3">
-      <h2 className="text-2xl font-semibold leading-tight text-[var(--sd-ink)]">{title}</h2>
+ <h2 className="text-title font-semibold leading-tight text-[var(--sd-ink)]">{title}</h2>
       <p className="text-base text-[var(--sd-ink-dull)] max-w-md">{body}</p>
       {actionLabel && onAction && (
         <Button onClick={onAction} className="mt-4">

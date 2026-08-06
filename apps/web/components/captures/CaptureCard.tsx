@@ -242,11 +242,10 @@ export function CaptureCard({
           exit={{ opacity: 0, height: 0, marginBottom: 0 }}
           transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
           className={cn(
-            // jul-29 craft restyle: raised white plate with the soft card
-            // shadow; hover lifts the shadow instead of washing the fill.
-            "group relative rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)]",
-            "shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-[160ms] ease-out",
-            onOpen && "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]",
+            // The register's content card: elevation belongs to content, and
+            // hover moves shadow + border only.
+            "craft-card group relative",
+            onOpen && "craft-card-hover",
             compact ? "px-3 py-2" : "px-5 py-4",
             onOpen && "cursor-pointer"
           )}
@@ -383,7 +382,7 @@ export function CaptureCard({
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-[20px]">Delete this capture?</DialogTitle>
+            <DialogTitle className="text-title">Delete this capture?</DialogTitle>
             <DialogDescription className="text-base">
               This can't be undone.
             </DialogDescription>
@@ -528,7 +527,7 @@ function CaptureBody({
     <EntityLabelsProvider text={capture.content}>
     <div className="flex flex-col gap-2 pr-8">
       {/* Capture body — Space Grotesk (sd register), no serif */}
-      <div className="text-[15px] leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
+      <div className="text-body leading-[1.55] text-[var(--sd-ink)] whitespace-pre-wrap break-words">
         {rendered}
       </div>
       {/* Issue #221: rich link-preview unfurls for URLs in this capture. */}
@@ -539,15 +538,15 @@ function CaptureBody({
           ))}
         </div>
       )}
-      {/* Metadata strip — mono timestamp + neutral sd chips (single cyan accent
-          reserved elsewhere; meta stays on the grey ladder). */}
-      <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--sd-ink-faint)]">
+      {/* Metadata strip — faint micro text, no filled pills: dates, counts and
+          sublabels are bare text in the register. */}
+      <div className="flex flex-wrap items-center gap-2 text-micro text-[var(--sd-ink-faint)]">
         {!compact && capture.projects.length > 0 && (
           <>
             {capture.projects.map((p) => (
               <span
                 key={p.id}
-                className="inline-flex items-center bg-[var(--sd-input)] border border-[var(--sd-line)] rounded-sm px-2 py-0.5 text-[var(--sd-ink-dull)]"
+                className="inline-flex items-center text-[var(--sd-ink-dull)]"
               >
                 {p.name}
               </span>
@@ -557,7 +556,7 @@ function CaptureBody({
         )}
         {sourceChannelLabel && (
           <>
-            <span className="inline-flex items-center bg-[var(--sd-input)] border border-[var(--sd-line)] rounded-sm px-2 py-0.5 text-[var(--sd-ink-dull)]">
+            <span className="inline-flex items-center text-[var(--sd-ink-dull)]">
               {sourceChannelLabel}
             </span>
             <span aria-hidden>·</span>

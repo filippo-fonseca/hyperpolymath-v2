@@ -71,13 +71,13 @@ export default async function JarvisPage({
             <JarvisIcon size={30} />
           </span>
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+ <span className="text-micro text-[var(--sd-ink-faint)]">
               JARVIS · Command
             </span>
-            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+ <h1 className="text-display font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
               JARVIS<span className="text-[var(--sd-accent)]">.</span>
             </h1>
-            <p className="mt-0.5 max-w-[600px] text-[13px] leading-snug text-[var(--sd-ink-dull)]">
+ <p className="mt-0.5 max-w-[600px] text-meta leading-snug text-[var(--sd-ink-dull)]">
               One home for the agent. Compose routines, shape its spoken voice, and set what it does
               the moment it wakes — plus jump to everything it remembers about you.
             </p>

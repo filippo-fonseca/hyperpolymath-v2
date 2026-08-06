@@ -44,7 +44,7 @@ export function GithubHeatmapPanel({ username }: Props) {
       style={{ ['--panel-accent']: ACCENT } as React.CSSProperties}
     >
       <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="flex items-center gap-2 font-serif text-lg text-[var(--ink)]">
+ <h3 className="flex items-center gap-2 font-serif text-subtitle text-[var(--ink)]">
           <span
             aria-hidden
             className="size-2 shrink-0 rounded-full"
@@ -57,7 +57,7 @@ export function GithubHeatmapPanel({ username }: Props) {
             href={`https://github.com/${username}`}
             target="_blank"
             rel="noreferrer"
-            className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            className="text-micro tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)]"
           >
             @{username}
           </a>
@@ -92,7 +92,7 @@ export function GithubHeatmapPanel({ username }: Props) {
           actionSlot={
             <Link
               href="/settings"
-              className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] transition-colors duration-[160ms] ease-out hover:text-[var(--ink)]"
+              className="text-micro tracking-[0.08em] text-[var(--ink-muted)] transition-colors duration-[160ms] ease-out hover:text-[var(--ink)]"
             >
               Open settings →
             </Link>

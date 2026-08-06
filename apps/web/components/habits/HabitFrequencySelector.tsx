@@ -51,12 +51,7 @@ export function HabitFrequencySelector({ value, onChange, disabled = false }: Pr
             aria-label={full}
             title={full}
             className={cn(
-              "inline-flex h-8 w-8 items-center justify-center rounded-lg",
-              "text-micro font-medium cursor-pointer-always",
-              "border transition-colors duration-[160ms] ease-out",
-              on
-                ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
-                : "border-[var(--edge)] bg-transparent text-[var(--ink-faint)] hover:border-[var(--edge-strong)] hover:text-[var(--ink)]",
+              "craft-chip w-8 justify-center px-0 cursor-pointer-always",
               disabled && "cursor-not-allowed opacity-40"
             )}
           >

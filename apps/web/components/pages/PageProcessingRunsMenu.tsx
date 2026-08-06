@@ -54,7 +54,7 @@ export function PageProcessingRunsMenu({
         <button
           type="button"
           title="View past processing runs for this page"
-          className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink-muted)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer"
+ className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-micro font-serif text-[var(--ink-muted)] hover:text-[var(--accent)] transition-colors duration-150 cursor-pointer"
         >
           <History size={12} strokeWidth={1.75} />
           <span>History</span>
@@ -62,13 +62,13 @@ export function PageProcessingRunsMenu({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-0 overflow-hidden">
         <div className="px-3 py-2 border-b border-[var(--edge)]">
-          <p className="text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+ <p className="text-micro text-[var(--ink-muted)]">
             Processing runs
           </p>
         </div>
         <div className="max-h-72 overflow-y-auto">
           {loading && (runs === null || runs.length === 0) ? (
-            <div className="flex items-center gap-2 px-3 py-4 text-[12px] text-[var(--ink-muted)]">
+ <div className="flex items-center gap-2 px-3 py-4 text-micro text-[var(--ink-muted)]">
               <Loader2 size={13} strokeWidth={1.75} className="animate-spin" />
               Loading…
             </div>
@@ -79,7 +79,7 @@ export function PageProcessingRunsMenu({
               ))}
             </ul>
           ) : (
-            <div className="px-3 py-4 text-[12px] text-[var(--ink-muted)]">
+ <div className="px-3 py-4 text-micro text-[var(--ink-muted)]">
               Not processed yet. Hit “Process this page” to extract tasks, events,
               and captures.
             </div>
@@ -107,12 +107,12 @@ function RunRow({ run }: { run: ProcessingRun }) {
   const body = (
     <>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] font-serif text-[var(--ink)] truncate">
+ <span className="text-micro font-serif text-[var(--ink)] truncate">
           {summary}
         </span>
         <StatusBadge status={run.status} />
       </div>
-      <span className="text-[11px] font-mono text-[var(--ink-muted)] flex items-center gap-1">
+ <span className="text-micro font-mono text-[var(--ink-muted)] flex items-center gap-1">
         {when}
         {linkable ? (
           <ArrowUpRight
@@ -135,7 +135,7 @@ function RunRow({ run }: { run: ProcessingRun }) {
         type="button"
         onClick={() => router.push(`/today?messageId=${run.turnId}`)}
         title="View this run in the JARVIS conversation"
-        className="group/run w-full text-left px-3 py-2 flex flex-col gap-0.5 hover:bg-[var(--hud-cyan)]/5 transition-colors cursor-pointer"
+        className="group/run w-full text-left px-3 py-2 flex flex-col gap-0.5 hover:bg-[var(--accent)]/5 transition-colors cursor-pointer"
       >
         {body}
       </button>
@@ -150,7 +150,7 @@ function StatusBadge({ status }: { status: ProcessingRun["status"] }) {
     status === "error" ? "text-destructive" : "text-[var(--ink-muted)]";
   return (
     <span
-      className={`flex-shrink-0 text-[10px] font-mono uppercase tracking-[0.06em] ${color}`}
+      className={`flex-shrink-0 text-micro ${color}`}
     >
       {label}
     </span>

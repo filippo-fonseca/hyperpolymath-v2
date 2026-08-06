@@ -478,7 +478,7 @@ export function EventDetailPanel({
               <SheetHeader className="px-6 pt-6 pb-3 border-b border-[var(--edge)]">
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    <SheetTitle className="text-[20px] font-semibold leading-tight tracking-[-0.01em] text-[var(--ink)] p-0 m-0">
+                    <SheetTitle className="text-title font-semibold leading-tight text-[var(--ink)] p-0 m-0">
                       {headerLabel}
                     </SheetTitle>
                     <p className="text-meta text-[var(--ink-faint)]">
@@ -501,7 +501,7 @@ export function EventDetailPanel({
                   // Advisory note on a butter plate — pastel fill, saturated
                   // rim, in-family ink. Advisory, not alarming.
                   <div
-                    className="tint-butter flex items-start gap-2 rounded-xl border border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] px-3 py-2.5 text-[12px] leading-relaxed text-[var(--tint-ink)]"
+                    className="tint-butter flex items-start gap-2 rounded-xl border border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] px-3 py-2.5 text-micro leading-relaxed text-[var(--tint-ink)]"
                   >
                     <span
                       aria-hidden
@@ -528,7 +528,7 @@ export function EventDetailPanel({
                 <section className="flex flex-col gap-2">
                   <Label
                     htmlFor="event-title"
-                    className="font-sans text-[13px]"
+                    className="font-sans text-meta"
                   >
                     Title
                   </Label>
@@ -549,7 +549,7 @@ export function EventDetailPanel({
                 <section className="flex flex-col gap-2">
                   <Label
                     htmlFor="event-calendar"
-                    className="font-sans text-[13px]"
+                    className="font-sans text-meta"
                   >
                     Calendar
                   </Label>
@@ -588,7 +588,7 @@ export function EventDetailPanel({
                   />
                   <Label
                     htmlFor="event-all-day"
-                    className="font-sans text-[13px] cursor-pointer"
+                    className="font-sans text-meta cursor-pointer"
                   >
                     All-day
                   </Label>
@@ -598,7 +598,7 @@ export function EventDetailPanel({
                   <div className="flex flex-col gap-2">
                     <Label
                       htmlFor="event-start"
-                      className="font-sans text-[13px]"
+                      className="font-sans text-meta"
                     >
                       Start
                     </Label>
@@ -617,7 +617,7 @@ export function EventDetailPanel({
                   <div className="flex flex-col gap-2">
                     <Label
                       htmlFor="event-end"
-                      className="font-sans text-[13px]"
+                      className="font-sans text-meta"
                     >
                       End
                     </Label>
@@ -638,7 +638,7 @@ export function EventDetailPanel({
                 <section className="flex flex-col gap-2">
                   <Label
                     htmlFor="event-description"
-                    className="font-sans text-[13px]"
+                    className="font-sans text-meta"
                   >
                     Description
                   </Label>
@@ -658,7 +658,7 @@ export function EventDetailPanel({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="font-sans text-[13px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="font-sans text-meta text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={submitting}
                   >
@@ -686,7 +686,7 @@ export function EventDetailPanel({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="font-sans text-[13px]"
+                    className="font-sans text-meta"
                     onClick={handleCancelClick}
                     disabled={submitting}
                   >
@@ -695,7 +695,7 @@ export function EventDetailPanel({
                   <Button
                     type="submit"
                     size="sm"
-                    className="font-sans text-[13px]"
+                    className="font-sans text-meta"
                     disabled={
                       submitting || (state.mode === "edit" && !isDirty)
                     }
@@ -726,19 +726,19 @@ export function EventDetailPanel({
       >
         <AlertDialogContent className="rounded-2xl border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
+            <AlertDialogTitle className="text-title font-semibold text-[var(--ink)]">
               Discard changes?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-[13px] text-[var(--ink-muted)]">
+            <AlertDialogDescription className="text-meta text-[var(--ink-muted)]">
               Your edits to this event will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="font-sans text-[13px]">
+            <AlertDialogCancel className="font-sans text-meta">
               Keep editing
             </AlertDialogCancel>
             <AlertDialogAction
-              className="font-sans text-[13px]"
+              className="font-sans text-meta"
               onClick={handleConfirmDiscard}
             >
               Discard
@@ -755,23 +755,23 @@ export function EventDetailPanel({
       >
         <AlertDialogContent className="rounded-2xl border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
+            <AlertDialogTitle className="text-title font-semibold text-[var(--ink)]">
               Delete this event?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-[13px] text-[var(--ink-muted)]">
+            <AlertDialogDescription className="text-meta text-[var(--ink-muted)]">
               This removes the event from Google Calendar. This can&apos;t be
               undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel
-              className="font-sans text-[13px]"
+              className="font-sans text-meta"
               disabled={submitting}
             >
               Discard changes
             </AlertDialogCancel>
             <AlertDialogAction
-              className="font-sans text-[13px]"
+              className="font-sans text-meta"
               disabled={submitting}
               aria-busy={submitting}
               onClick={(e) => {

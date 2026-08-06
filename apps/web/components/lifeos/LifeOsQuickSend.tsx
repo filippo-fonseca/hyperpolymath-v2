@@ -12,6 +12,12 @@ import { LiteJarvisComposer } from "@/components/jarvis/LiteJarvisComposer";
  *
  * No new endpoint, no duplicated streaming logic — the existing console owns
  * the turn pipeline; this just hands off the seed text.
+ *
+ * aug-04 craft-ui-v2: the composer wears `.craft-pill` (white pill, hairline,
+ * shadow-card, hover shadow lift). The class lands after the composer's own
+ * `craft-glass-tile rounded-xl` and, being declared later in globals.css,
+ * wins fill/border/shadow/radius by cascade; every key/send behavior in
+ * LiteJarvisComposer is untouched.
  */
 export function LifeOsQuickSend() {
   const router = useRouter();
@@ -41,7 +47,7 @@ export function LifeOsQuickSend() {
 
   return (
     <motion.section {...animProps}>
-      <LiteJarvisComposer onSubmit={handleSubmit} />
+      <LiteJarvisComposer onSubmit={handleSubmit} className="craft-pill" />
     </motion.section>
   );
 }

@@ -289,7 +289,13 @@ function ResizableCell({
       className="group/cell relative min-h-0"
       style={{ gridColumn: `span ${span.w}`, gridRow: `span ${span.h}` }}
     >
-      {children}
+      {/* The widget arrives as an RSC-serialized element owned by LifeOsPage
+          (its Flight `validated` flag is unset), so placing it directly in
+          this motion.div's children ARRAY (next to the projection + handle)
+          trips React 19's missing-key reconciler warning on every hard load.
+          A client-owned `display: contents` wrapper gives the array a locally
+          created member instead — zero layout impact, warning gone. */}
+      <div className="contents">{children}</div>
 
       {projStyle && (
         <div aria-hidden className="lifeos-resize-projection" style={projStyle} />

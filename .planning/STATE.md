@@ -413,6 +413,7 @@ None yet.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 260804-craft-ui-v2 | Craft v2 UI overhaul — canvas-vs-sheet shell (quiet sidebar, cmd-K pill top bar, floating Jarvis pill, chromeless dock), register v2 (chips, pills, glass pops, day tiles), LifeOS/Tasks/Wiki passes, neutral scrollbars | 2026-08-04 | 581dbad | [260804-craft-ui-v2](./quick/260804-craft-ui-v2/) |
 | 260518-mhu | JARVIS console polish — $project autocomplete pill commit + undo visual feedback on receipts | 2026-05-18 | ba33d49 | [260518-mhu-jarvis-console-polish-project-autocomple](./quick/260518-mhu-jarvis-console-polish-project-autocomple/) |
 | 260607-fgb | Build LifeOS tab — /lifeos route as canonical homepage centered on Areas tree with Recent Captures, Today's Habits, and Upcoming Tasks widgets | 2026-06-07 | 2304923 | [260607-fgb-build-lifeos-tab-lifeos-route-as-canonic](./quick/260607-fgb-build-lifeos-tab-lifeos-route-as-canonic/) |
 | 260607-g56 | LifeOS polish — wrapping AreasTree, scoped warm wallpaper, JARVIS quick-send + global Cmd+K dialog (sessionStorage handoff), motion/react pass | 2026-06-07 | 742a0cc | [260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr](./quick/260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr/) |

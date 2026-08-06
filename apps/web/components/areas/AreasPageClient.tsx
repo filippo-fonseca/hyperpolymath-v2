@@ -124,20 +124,16 @@ export function AreasPageClient({
       subtitle={'"Energy is the currency of productivity." (Ali Abdaal)'}
       actions={
         <>
-          <div className="flex items-center gap-1 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-1">
+          {/* View segments join the craft chip row: active is a tinted fill,
+              rest is the quiet raised pill. */}
+          <div className="flex items-center gap-1.5">
             {VIEW_SEGMENTS.map((seg) => (
               <button
                 key={seg.value}
                 type="button"
                 onClick={() => setView(seg.value)}
                 aria-pressed={view === seg.value}
-                className={cn(
-                  "cursor-pointer-always rounded px-2 py-1 text-meta",
-                  "transition-colors duration-[160ms] ease-out",
-                  view === seg.value
-                    ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
-                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-                )}
+                className="craft-chip cursor-pointer-always"
               >
                 {seg.label}
               </button>
@@ -161,8 +157,8 @@ export function AreasPageClient({
             rootLabel={rootLabel}
           />
         ) : isPending ? (
-          <div className="sd-panel flex items-center justify-center px-6 py-14">
-            <span className="text-meta text-[var(--ink-muted)]">Loading timeline…</span>
+          <div className="flex items-center justify-center px-6 py-14">
+            <span className="text-meta text-[var(--ink-faint)]">Loading timeline…</span>
           </div>
         ) : (
           <ProjectsTimeline
@@ -176,13 +172,7 @@ export function AreasPageClient({
                 onClick={toggleShowArchived}
                 aria-pressed={showArchived}
                 title="Archived and ended projects render as muted ghost bars"
-                className={cn(
-                  "inline-flex h-8 items-center gap-2 rounded-lg border px-2 text-meta font-medium",
-                  "cursor-pointer-always transition-colors duration-[160ms] ease-out",
-                  showArchived
-                    ? "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink)]"
-                    : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]",
-                )}
+                className="craft-chip shrink-0 cursor-pointer-always"
               >
                 Show archived
               </button>
@@ -196,18 +186,25 @@ export function AreasPageClient({
           title="Manage areas"
           divided
           action={
-            <span className="text-meta tabular-nums text-[var(--ink-muted)]">{areas.length}</span>
+            <span className="text-micro tabular-nums text-[var(--ink-faint)]">{areas.length}</span>
           }
         >
-          <ul className="craft-card flex flex-col divide-y divide-[var(--edge)] rounded-xl px-4">
+          {/* Bare rows on the sheet, craft row grammar: 28px rhythm, meta title,
+              faint micro trailing count, hairline separators. */}
+          <ul className="flex flex-col">
             {areas.map((area) => (
               <li
                 key={area.id}
-                className={cn("group/area-row flex items-center gap-3 px-1 py-3", tintFor(area.id))}
+                className={cn(
+                  "group/area-row flex items-center gap-3 rounded-lg px-2 py-1.5",
+                  "border-b border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] last:border-b-0",
+                  "hover:bg-[var(--hover)]",
+                  tintFor(area.id),
+                )}
               >
                 {area.emoji ? (
                   <span
-                    className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--tint-bg)] text-sm leading-none"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--tint-bg)] text-meta leading-none"
                     aria-hidden="true"
                   >
                     {area.emoji}
@@ -215,7 +212,7 @@ export function AreasPageClient({
                 ) : (
                   <span className="w-7 shrink-0" aria-hidden="true" />
                 )}
-                <span className="flex-1 text-body leading-snug text-[var(--ink)]">
+                <span className="flex-1 truncate text-meta text-[var(--ink)]">
                   {area.name}
                   {isSentinel(area) && (
                     <span className="ml-2 text-micro text-[var(--ink-faint)]">
@@ -223,7 +220,7 @@ export function AreasPageClient({
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 text-meta tabular-nums text-[var(--ink-muted)]">
+                <span className="shrink-0 text-micro tabular-nums text-[var(--ink-faint)]">
                   {area.projects.length} project
                   {area.projects.length === 1 ? "" : "s"}
                 </span>

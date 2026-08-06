@@ -68,22 +68,26 @@ export function AreaCapturesSection({ userId, areaProjectIds, initialCaptures }:
 
   return (
     <div className="flex flex-col">
-      <ul className="flex flex-col divide-y divide-[var(--edge)]">
+      {/* Craft row grammar: 28px rows on the sheet, faint hairlines, hover fill. */}
+      <ul className="flex flex-col divide-y divide-[color-mix(in_srgb,var(--sd-line)_60%,transparent)]">
         {visible.map((c) => (
-          <li key={c.id} className="flex min-h-9 items-center gap-4 py-2">
-            <span className="min-w-0 flex-1 truncate text-body text-[var(--ink)]">{c.content}</span>
-            <span className="flex shrink-0 items-center text-meta text-[var(--ink-muted)]">
+          <li
+            key={c.id}
+            className="flex min-h-9 items-center gap-4 rounded-lg px-2 py-1.5 hover:bg-[var(--hover)]"
+          >
+            <span className="min-w-0 flex-1 truncate text-meta text-[var(--ink)]">{c.content}</span>
+            <span className="flex shrink-0 items-center text-micro text-[var(--ink-faint)]">
               {c.projects[0]?.name}
               <span aria-hidden className="mx-2 text-[var(--ink-faint)]">
                 ·
               </span>
-              <RelativeTime date={c.createdAt} className="font-mono text-micro tabular-nums" />
+              <RelativeTime date={c.createdAt} className="text-micro tabular-nums" />
             </span>
           </li>
         ))}
       </ul>
       {remaining > 0 ? (
-        <p className="pt-3 text-meta text-[var(--ink-faint)]">
+        <p className="px-2 pt-3 text-micro text-[var(--ink-faint)]">
           {remaining} earlier capture{remaining === 1 ? "" : "s"} on the captures page.
         </p>
       ) : null}

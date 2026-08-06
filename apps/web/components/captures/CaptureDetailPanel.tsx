@@ -446,7 +446,7 @@ export function CaptureDetailPanel({
       editorProps: {
         attributes: {
           class:
-            "capture-detail-editor focus:outline-none min-h-[160px] max-h-[400px] overflow-y-auto p-4 text-[15px]",
+            "capture-detail-editor focus:outline-none min-h-[160px] max-h-[400px] overflow-y-auto p-4 text-body",
         },
       },
       content: initialDoc,
@@ -789,15 +789,15 @@ export function CaptureDetailPanel({
                         referrerPolicy="no-referrer"
                       />
                     ) : null}
-                    <AvatarFallback className="text-[13px] text-[var(--sd-ink-faint)]">
+                    <AvatarFallback className="text-meta text-[var(--sd-ink-faint)]">
                       {userInitials ?? "·"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    <SheetTitle className="text-[20px] font-semibold leading-tight text-[var(--sd-ink)] p-0 m-0">
+                    <SheetTitle className="text-title font-semibold leading-tight text-[var(--sd-ink)] p-0 m-0">
                       Capture
                     </SheetTitle>
-                    <p className="text-[13px] text-[var(--sd-ink-faint)]">
+                    <p className="text-meta text-[var(--sd-ink-faint)]">
                       <RelativeTime date={capture.createdAt} />
                       <span aria-hidden> · </span>
                       <span title={format(capture.createdAt, "PPpp")}>
@@ -820,20 +820,20 @@ export function CaptureDetailPanel({
               <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-6 py-5">
                 {/* Content editor — generous whitespace, journal-paper aesthetic */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
+                  <h3 className="text-micro text-[var(--sd-ink-faint)]">
                     Content
                   </h3>
                   <div className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-input)] transition-colors focus-within:border-[var(--sd-accent)]">
                     <EditorContent editor={editor} />
                   </div>
-                  <p className="text-[13px] text-[var(--sd-ink-faint)] italic">
+                  <p className="text-meta text-[var(--sd-ink-faint)] italic">
                     Type # to add a hashtag. Plain #words are picked up too.
                   </p>
                 </section>
 
                 {/* Project links */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
+                  <h3 className="text-micro text-[var(--sd-ink-faint)]">
                     Linked projects
                   </h3>
                   <ProjectMultiSelect
@@ -852,7 +852,7 @@ export function CaptureDetailPanel({
                     auto-derived from the body (Haiku smart-match) and via inline
                     `@`-mentions; add/remove them here too. */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
+                  <h3 className="text-micro text-[var(--sd-ink-faint)]">
                     Linked people
                   </h3>
                   <PersonListField
@@ -868,7 +868,7 @@ export function CaptureDetailPanel({
                 {/* URL property (issue #101) — Notion-style multi-link field.
                     Links auto-derive from the body; add/remove extra links here. */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
+                  <h3 className="text-micro text-[var(--sd-ink-faint)]">
                     {form.urls.length > 1 ? "URLs" : "URL"}
                   </h3>
                   <UrlListField
@@ -882,7 +882,7 @@ export function CaptureDetailPanel({
                     to have this capture reappear in the /captures "Resurfacing
                     today" section; clear it to stop. */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
+                  <h3 className="text-micro text-[var(--sd-ink-faint)]">
                     Resurface
                   </h3>
                   <div className="flex items-center gap-2">
@@ -894,7 +894,7 @@ export function CaptureDetailPanel({
                       }
                       disabled={isPending}
                       aria-label="Resurface date"
-                      className="text-[13px] h-8 flex-1 rounded-md border border-[var(--sd-line)] bg-[var(--sd-input)] px-2 text-[var(--sd-ink)] focus:outline-none focus:border-[var(--sd-accent)]"
+                      className="text-meta h-8 flex-1 rounded-md border border-[var(--sd-line)] bg-[var(--sd-input)] px-2 text-[var(--sd-ink)] focus:outline-none focus:border-[var(--sd-accent)]"
                     />
                     {form.resurfaceAt && (
                       <button
@@ -908,17 +908,17 @@ export function CaptureDetailPanel({
                       </button>
                     )}
                   </div>
-                  <p className="text-[13px] text-[var(--sd-ink-faint)] italic">
+                  <p className="text-meta text-[var(--sd-ink-faint)] italic">
                     Reappears in “Resurfacing today” on this day.
                   </p>
                 </section>
 
                 {/* Metadata */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
+                  <h3 className="text-micro text-[var(--sd-ink-faint)]">
                     Info
                   </h3>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px] p-4 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-meta p-4 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                     <dt className="text-[var(--sd-ink-faint)]">Created</dt>
                     <dd className="text-[var(--sd-ink)]">
                       {format(capture.createdAt, "PPpp")}
@@ -963,7 +963,7 @@ export function CaptureDetailPanel({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="font-sans text-[13px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="font-sans text-meta text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={isPending}
                   >
@@ -975,7 +975,7 @@ export function CaptureDetailPanel({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="font-sans text-[13px]"
+                      className="font-sans text-meta"
                       onClick={() => setShowConvert(true)}
                       disabled={isPending}
                     >
@@ -986,7 +986,7 @@ export function CaptureDetailPanel({
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
-                      "text-[13px] text-[var(--sd-ink-faint)] transition-opacity",
+                      "text-meta text-[var(--sd-ink-faint)] transition-opacity",
                       dirty ? "opacity-100" : "opacity-0",
                     )}
                     aria-hidden={!dirty}
@@ -997,7 +997,7 @@ export function CaptureDetailPanel({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="font-sans text-[13px]"
+                    className="font-sans text-meta"
                     onClick={handleCancelClick}
                     disabled={isPending}
                     title={dirty ? "Discard unsaved changes" : "Close"}
@@ -1007,7 +1007,7 @@ export function CaptureDetailPanel({
                   <Button
                     type="button"
                     size="sm"
-                    className="font-sans text-[13px]"
+                    className="font-sans text-meta"
                     onClick={() => startTransition(() => void handleSave())}
                     disabled={!dirty || isPending}
                   >
@@ -1033,7 +1033,7 @@ export function CaptureDetailPanel({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[20px]">
+            <AlertDialogTitle className="text-title">
               Discard changes?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-base">
@@ -1041,11 +1041,11 @@ export function CaptureDetailPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="font-sans text-[13px]">
+            <AlertDialogCancel className="font-sans text-meta">
               Keep editing
             </AlertDialogCancel>
             <AlertDialogAction
-              className="font-sans text-[13px]"
+              className="font-sans text-meta"
               onClick={handleConfirmDiscard}
             >
               Discard
@@ -1096,7 +1096,7 @@ export function CaptureDetailPanel({
             <Button
               variant="outline"
               size="sm"
-              className="font-sans text-[13px]"
+              className="font-sans text-meta"
               onClick={() => setShowDeleteConfirm(false)}
             >
               Never mind
@@ -1104,7 +1104,7 @@ export function CaptureDetailPanel({
             <Button
               variant="destructive"
               size="sm"
-              className="font-sans text-[13px]"
+              className="font-sans text-meta"
               onClick={() => startTransition(() => void handleDelete())}
               disabled={isPending}
             >

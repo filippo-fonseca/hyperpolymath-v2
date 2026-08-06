@@ -74,10 +74,12 @@ export function TaskCreateInline({ status, onCreateTask, onStartCreate }: Props)
           exit={{ opacity: 0, y: -2 }}
           transition={{ duration: reduced ? 0 : 0.16, ease: [0.25, 1, 0.5, 1] }}
           className={cn(
-            "w-full rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2",
+            // craft-ui-v2: the composer is a .craft-pill input row. Focus uses
+            // an outline (ring is box-shadow-based and loses to the unlayered
+            // pill's shadow); the pill's own hover handles the lift.
+            "craft-pill w-full px-3.5 py-2",
             "text-meta text-[var(--ink)] placeholder:text-[var(--ink-faint)]",
-            "focus:outline-none focus:ring-2 focus:ring-[var(--accent)]",
-            "transition-colors duration-[160ms] ease-out",
+            "focus:outline-2 focus:-outline-offset-1 focus:outline-[var(--accent)]",
           )}
         />
       ) : (

@@ -148,13 +148,7 @@ export function PeopleClient({ userId, initialPeople }: Props) {
                 type="button"
                 onClick={() => setActiveTag(null)}
                 aria-pressed={activeTag === null}
-                className={cn(
-                  "h-[26px] rounded-lg border px-2.5 text-micro font-medium cursor-pointer-always",
-                  "transition-[border-color,box-shadow,background-color] duration-[160ms] ease-out",
-                  activeTag === null
-                    ? "border-[var(--edge-strong)] bg-[var(--surface-raised)] text-[var(--ink)] shadow-[var(--shadow-card)]"
-                    : "border-[var(--edge)] text-[var(--ink-muted)] hover:border-[var(--edge-strong)] hover:text-[var(--ink)]"
-                )}
+                className="craft-chip cursor-pointer-always"
               >
                 All
               </button>
@@ -164,14 +158,7 @@ export function PeopleClient({ userId, initialPeople }: Props) {
                   type="button"
                   onClick={() => setActiveTag((cur) => (cur === t ? null : t))}
                   aria-pressed={activeTag === t}
-                  className={cn(
-                    tintFor(t),
-                    "h-[26px] rounded-lg border px-2.5 text-micro font-medium cursor-pointer-always",
-                    "transition-[border-color,box-shadow,background-color] duration-[160ms] ease-out",
-                    activeTag === t
-                      ? "border-[var(--tint-edge)] bg-[var(--tint-bg)] text-[var(--tint-ink)] shadow-[var(--shadow-card)]"
-                      : "border-[color-mix(in_srgb,var(--tint-edge)_35%,transparent)] text-[var(--ink-muted)] hover:border-[var(--tint-edge)] hover:text-[var(--tint-ink)]"
-                  )}
+                  className={cn("craft-chip cursor-pointer-always", tintFor(t))}
                 >
                   {t}
                 </button>

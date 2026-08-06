@@ -252,7 +252,7 @@ function CollapsedPathMenu({
                 )}
               >
                 <span
-                  className="shrink-0 font-mono text-[10px] tabular-nums text-[var(--sd-ink-faint)]"
+ className="shrink-0 font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]"
                   aria-hidden
                 >
                   {index + 1}

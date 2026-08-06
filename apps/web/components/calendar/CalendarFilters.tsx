@@ -69,7 +69,7 @@ export function CalendarFilters({ calendars }: Props) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-8 items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-2.5 text-meta text-[var(--ink-muted)] shadow-[var(--shadow-card)] transition-[border-color,box-shadow,color] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card-hover)] cursor-pointer-always"
+          className="craft-chip shrink-0 cursor-pointer-always"
           aria-label="Calendar visibility filter"
         >
           <span className="flex items-center gap-1.5">
@@ -98,9 +98,9 @@ export function CalendarFilters({ calendars }: Props) {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-64 rounded-2xl border-[var(--edge)] bg-[var(--surface-raised)] p-1.5 text-[var(--ink)]"
+        className="w-64 rounded-[var(--radius-card)] p-1.5 text-[var(--ink)]"
       >
-        <p className="px-2 pt-1 pb-1.5 text-meta text-[var(--ink-faint)]">
+        <p className="px-2 pt-1 pb-1.5 text-micro text-[var(--ink-faint)]">
           Show calendars
         </p>
         <ul className="space-y-0.5">
@@ -114,7 +114,7 @@ export function CalendarFilters({ calendars }: Props) {
                   aria-pressed={active}
                   className={cn(
                     tintFor(c.id),
-                    "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-body cursor-pointer-always",
+                    "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-meta cursor-pointer-always",
                     "transition-colors duration-[160ms] ease-out",
                     "hover:bg-[var(--hover)]",
                     active ? "text-[var(--ink)]" : "text-[var(--ink-muted)]",

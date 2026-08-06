@@ -32,10 +32,10 @@ export function NutritionHeatMap({ data }: NutritionHeatMapProps) {
   if (isEmpty) {
     return (
       <div className="flex flex-col gap-2 py-4 text-center">
-        <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+        <p className="text-micro text-[var(--sd-ink-faint)]">
           No Logs Yet
         </p>
-        <p className="text-[13px] text-[var(--sd-ink-dull)]">
+        <p className="text-meta text-[var(--sd-ink-dull)]">
           Your history will appear here as you log meals.
         </p>
       </div>
@@ -68,7 +68,7 @@ export function NutritionHeatMap({ data }: NutritionHeatMapProps) {
         {/* Empty offset for day labels alignment */}
         <div style={{ width: 10 * firstDayOfWeek + 2 * firstDayOfWeek }} />
         <span
-          className="font-mono text-[9px] text-[var(--sd-ink-faint)]"
+          className="font-mono text-micro text-[var(--sd-ink-faint)]"
           style={{ lineHeight: "10px" }}
         />
       </div>
@@ -116,7 +116,7 @@ export function NutritionHeatMap({ data }: NutritionHeatMapProps) {
 
       {/* Legend */}
       <div className="mt-3 flex items-center gap-2">
-        <span className="font-mono text-[9px] text-[var(--sd-ink-faint)]">Less</span>
+        <span className="font-mono text-micro text-[var(--sd-ink-faint)]">Less</span>
         {([0, 1, 2, 3, 4] as const).map((lvl) => (
           <div
             key={lvl}
@@ -129,7 +129,7 @@ export function NutritionHeatMap({ data }: NutritionHeatMapProps) {
             }}
           />
         ))}
-        <span className="font-mono text-[9px] text-[var(--sd-ink-faint)]">More</span>
+        <span className="font-mono text-micro text-[var(--sd-ink-faint)]">More</span>
       </div>
     </div>
   );

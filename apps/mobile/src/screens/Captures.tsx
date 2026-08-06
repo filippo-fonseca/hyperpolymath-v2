@@ -2,7 +2,7 @@
 // content, #hashtags, provenance), tap to edit, FAB to capture.
 
 import * as Haptics from "expo-haptics";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -52,10 +52,16 @@ interface FormState {
   content: string;
 }
 
-export function CapturesScreen({ active }: { active: boolean }) {
+export function CapturesScreen({ active, composeToken = 0 }: { active: boolean; composeToken?: number }) {
   const insets = useSafeAreaInsets();
   const { data, loading, error, refresh, mutate } = useCollection(getCaptures, active);
   const [form, setForm] = useState<FormState | null>(null);
+
+  // Widget / deep-link: open the new-capture composer when composeToken bumps.
+  useEffect(() => {
+    if (composeToken > 0) setForm({ id: null, content: "" });
+  }, [composeToken]);
+
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
 

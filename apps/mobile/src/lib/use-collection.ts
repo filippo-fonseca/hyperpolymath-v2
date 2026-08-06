@@ -15,6 +15,14 @@ export function emitDataInvalidate(): void {
   for (const fn of listeners) fn();
 }
 
+/** Subscribe to JARVIS / data invalidation (e.g. to refresh home-screen widgets). */
+export function onDataInvalidate(listener: Listener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 const POLL_MS = 30_000;
 
 export function useCollection<T>(

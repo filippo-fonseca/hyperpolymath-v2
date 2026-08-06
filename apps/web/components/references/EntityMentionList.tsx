@@ -105,12 +105,12 @@ export const EntityMentionList = forwardRef<EntityMentionListHandle, Props>(
 
     return (
       <div
-        className="max-h-[280px] min-w-[260px] max-w-[340px] overflow-y-auto py-1 font-sans text-[13px]"
+ className="max-h-[280px] min-w-[260px] max-w-[340px] overflow-y-auto py-1 font-sans text-meta"
         role="listbox"
         data-mention-suggestion-active="entity"
       >
         {items.length === 0 ? (
-          <div className="px-3 py-2 text-[12px] text-[var(--sd-ink-faint)]">
+ <div className="px-3 py-2 text-micro text-[var(--sd-ink-faint)]">
             {loading ? "Searching…" : "No matches"}
           </div>
         ) : (
@@ -119,7 +119,7 @@ export const EntityMentionList = forwardRef<EntityMentionListHandle, Props>(
               <div
                 key={row.semantic ? "h-__semantic__" : `h-${row.kind}`}
                 // Sticky so the section stays legible while a long group scrolls.
-                className="sticky top-0 z-10 bg-[var(--sd-box)] px-3 pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+ className="sticky top-0 z-10 bg-[var(--sd-box)] px-3 pb-1 pt-2 text-micro text-[var(--sd-ink-faint)]"
               >
                 {row.semantic ? SEMANTIC_SECTION_LABEL : MENTION_KIND_LABEL[row.kind]}
               </div>
@@ -178,13 +178,13 @@ function EntityMentionItem({
           {isCreate ? `Create person “${option.label}”` : option.label}
         </span>
         {option.sublabel && !isCreate ? (
-          <span className="block truncate text-[11px] text-[var(--sd-ink-faint)]">
+ <span className="block truncate text-micro text-[var(--sd-ink-faint)]">
             {option.sublabel}
           </span>
         ) : null}
       </span>
       {isCreate ? (
-        <span className="shrink-0 italic text-[11px] text-[var(--sd-ink-faint)]">
+ <span className="shrink-0 italic text-micro text-[var(--sd-ink-faint)]">
           new
         </span>
       ) : null}

@@ -2,12 +2,21 @@
 // All five screens stay mounted (display:none when inactive) so SSE/TTS survive.
 
 import * as Haptics from "expo-haptics";
-import { useCallback, useRef, useState, type ReactNode } from "react";
-import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Animated,
+  Linking,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CelebrationOverlay } from "../components/celebrate";
 import { KiwiMark, TabIcon } from "../components/icons";
+import { parseDeepLink } from "../lib/deep-link";
 import { font, sd } from "../theme";
 import { CalendarScreen } from "./Calendar";
 import { CapturesScreen } from "./Captures";
@@ -32,6 +41,8 @@ function primaryTab(tab: Tab): PrimaryTab {
 export function Root() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>("today");
+  const [composeTaskToken, setComposeTaskToken] = useState(0);
+  const [composeCaptureToken, setComposeCaptureToken] = useState(0);
   const orbPulse = useRef(new Animated.Value(1)).current;
   const voicePressRef = useRef<(() => void) | null>(null);
 
@@ -39,6 +50,54 @@ export function Root() {
     setTab(next);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
+
+  const pulseOrb = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(orbPulse, { toValue: 1.22, duration: 130, useNativeDriver: true }),
+      Animated.spring(orbPulse, { toValue: 1, friction: 4, useNativeDriver: true }),
+    ]).start();
+  }, [orbPulse]);
+
+  const applyDeepLink = useCallback(
+    (url: string) => {
+      const action = parseDeepLink(url);
+      if (!action) return;
+
+      if (action.kind === "today") {
+        switchTab("today");
+        return;
+      }
+      if (action.kind === "jarvis") {
+        switchTab("jarvis");
+        pulseOrb();
+        if (action.talk) {
+          // Let the JARVIS tab paint before opening the voice overlay.
+          setTimeout(() => {
+            voicePressRef.current?.();
+          }, 250);
+        }
+        return;
+      }
+      if (action.kind === "new-task") {
+        switchTab("tasks");
+        setComposeTaskToken((n) => n + 1);
+        return;
+      }
+      if (action.kind === "new-capture") {
+        switchTab("captures");
+        setComposeCaptureToken((n) => n + 1);
+      }
+    },
+    [pulseOrb, switchTab],
+  );
+
+  useEffect(() => {
+    void Linking.getInitialURL().then((url) => {
+      if (url) applyDeepLink(url);
+    });
+    const sub = Linking.addEventListener("url", ({ url }) => applyDeepLink(url));
+    return () => sub.remove();
+  }, [applyDeepLink]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -71,13 +130,6 @@ export function Root() {
     }),
   ).current;
 
-  const pulseOrb = useCallback(() => {
-    Animated.sequence([
-      Animated.timing(orbPulse, { toValue: 1.22, duration: 130, useNativeDriver: true }),
-      Animated.spring(orbPulse, { toValue: 1, friction: 4, useNativeDriver: true }),
-    ]).start();
-  }, [orbPulse]);
-
   const handleJarvisNavPress = useCallback(() => {
     switchTab("jarvis");
     pulseOrb();
@@ -105,7 +157,10 @@ export function Root() {
     <View style={styles.root}>
       <View style={styles.stage} {...panResponder.panHandlers}>
         {screen("today", <TodayScreen active={tab === "today"} />)}
-        {screen("tasks", <TasksScreen active={tab === "tasks"} />)}
+        {screen(
+          "tasks",
+          <TasksScreen active={tab === "tasks"} composeToken={composeTaskToken} />,
+        )}
         {screen(
           "jarvis",
           <Home
@@ -114,7 +169,10 @@ export function Root() {
             }}
           />,
         )}
-        {screen("captures", <CapturesScreen active={tab === "captures"} />)}
+        {screen(
+          "captures",
+          <CapturesScreen active={tab === "captures"} composeToken={composeCaptureToken} />,
+        )}
         {screen(
           "more",
           <MoreScreen active={tab === "more"} onNavigate={(destination) => switchTab(destination)} />,

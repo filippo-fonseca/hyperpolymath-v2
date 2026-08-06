@@ -343,7 +343,7 @@ export function ProjectHeader({
       {project.bannerUrl ? (
         <div className="mx-auto w-full max-w-[1120px] px-8 pt-6">
           <div
-            className="group/banner-area relative w-full overflow-hidden rounded-2xl border border-[var(--edge)] shadow-[var(--shadow-card)]"
+            className="craft-card group/banner-area relative w-full overflow-hidden"
             style={{ height: "140px", background: parseBanner(project.bannerUrl) }}
           >
           <div

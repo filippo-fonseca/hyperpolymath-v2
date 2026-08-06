@@ -454,7 +454,9 @@ export function CapturesClient({
               />
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-0.5 rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-0.5">
+          {/* List | Graph joins the craft chip row; the bordered mono well is
+              retired with the rest of the July segmented controls. */}
+          <div className="flex shrink-0 items-center gap-1.5">
             {(
               [
                 ["list", "List"],
@@ -468,11 +470,7 @@ export function CapturesClient({
                   type="button"
                   aria-pressed={active}
                   onClick={() => setViewParam(value === "graph" ? "graph" : null)}
-                  className={`rounded-[8px] px-2.5 py-1 font-mono text-[11px] transition-colors ${
-                    active
-                      ? "bg-[var(--sd-hover)] text-[var(--sd-ink)]"
-                      : "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
-                  }`}
+                  className="craft-chip cursor-pointer-always"
                 >
                   {label}
                 </button>

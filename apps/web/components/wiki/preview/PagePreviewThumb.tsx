@@ -68,7 +68,7 @@ export function PagePreviewThumb({ page, model, size = "card", className }: Page
  * rides the tokens.
  */
 function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "inspector" }) {
-  const textClass = size === "card" ? "text-[8px] leading-[1.35]" : "text-[11px] leading-[1.45]";
+ const textClass = size ==="card" ?"text-[8px] leading-[1.35]" :"text-micro leading-[1.45]";
 
   switch (block.kind) {
     case "heading":
@@ -76,8 +76,8 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
         <p
           className={cn(
             "line-clamp-1 font-sans font-semibold text-[var(--ink)]",
-            size === "card" && block.level === 1 ? "text-[10px]" : textClass,
-            size === "inspector" && block.level === 1 ? "text-[15px]" : undefined
+ size ==="card" && block.level === 1 ?"text-micro" : textClass,
+ size ==="inspector" && block.level === 1 ?"text-body" : undefined
           )}
         >
           {block.text}
@@ -146,7 +146,7 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
         <pre
           className={cn(
             "max-h-12 overflow-hidden rounded-[4px] bg-[var(--hover)] px-1.5 py-1 font-mono text-[var(--ink-muted)]",
-            size === "card" ? "text-[7px] leading-[1.35]" : "text-[10px] leading-[1.45]"
+ size ==="card" ?"text-[7px] leading-[1.35]" :"text-micro leading-[1.45]"
           )}
         >
           {block.text}
@@ -170,7 +170,7 @@ function PreviewLine({ block, size }: { block: PreviewBlock; size: "card" | "ins
             <p
               className={cn(
                 "truncate px-1 py-0.5 text-[var(--ink-faint)]",
-                size === "card" ? "text-[7px]" : "text-[10px]"
+ size ==="card" ?"text-[7px]" :"text-micro"
               )}
             >
               {block.caption}
@@ -197,7 +197,7 @@ function EmptyPreview({ size }: { size: "card" | "inspector" }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1 text-[var(--ink-faint)]">
       <MiniPageIcon className={size === "card" ? "h-7 w-6" : "h-12 w-10"} />
-      <span className={cn("font-sans", size === "card" ? "text-[8px]" : "text-[10px]")}>Empty</span>
+ <span className={cn("font-sans", size ==="card" ?"text-[8px]" :"text-micro")}>Empty</span>
     </div>
   );
 }

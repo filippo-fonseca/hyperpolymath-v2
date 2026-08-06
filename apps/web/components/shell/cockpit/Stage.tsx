@@ -10,8 +10,10 @@ import type { ReactNode } from "react";
  * STAGE — track two of the cockpit (SDC-1 §2.1), and the only zone that swaps
  * on navigation.
  *
- * It is a flex column: the tab bar on top, the scroll container in the middle,
- * the JARVIS command bar pinned at the bottom. Because those are flex siblings
+ * It is a flex column: the top bar sits transparent on the canvas (aug-04
+ * craft-ui-v2 — Craft's bar is canvas chrome, not sheet furniture), and the
+ * white sheet floats below it carrying the scroll container and the JARVIS
+ * command bar. Because bar, scroll box and command bar are flex relatives
  * rather than overlays, nothing pinned to the stage can ever cover route
  * content, fight a sticky editor toolbar, or collide with a BlockNote menu:
  * everything that scrolls lives inside the middle box and simply has less
@@ -34,20 +36,22 @@ export function Stage({
   children: ReactNode;
 }) {
   return (
-    <main className="craft-sheet flex min-w-0 flex-col overflow-hidden rounded-panel">
+    <div className="flex min-w-0 flex-col overflow-hidden">
       <DailyAutoOpen userId={userId} />
       <TopTabBar userId={userId} />
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div
-          className={cn(
-            "@container/main min-h-0 flex-1",
-            onWikiHome ? "h-full overflow-hidden" : "overflow-auto"
-          )}
-        >
-          {children}
+      <main className="craft-sheet flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-panel">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <div
+            className={cn(
+              "@container/main min-h-0 flex-1",
+              onWikiHome ? "h-full overflow-hidden" : "overflow-auto"
+            )}
+          >
+            {children}
+          </div>
         </div>
-      </div>
-      <JarvisCommandBar />
-    </main>
+        <JarvisCommandBar />
+      </main>
+    </div>
   );
 }

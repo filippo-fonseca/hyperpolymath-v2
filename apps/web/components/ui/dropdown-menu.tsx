@@ -174,7 +174,7 @@ function DropdownMenuLabel({
       data-slot="dropdown-menu-label"
       data-inset={inset}
       className={cn(
-        "px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)] data-[inset]:pl-8",
+ "px-2 py-1.5 text-micro font-semibold text-[var(--sd-ink-faint)] data-[inset]:pl-8",
         className,
       )}
       {...props}
@@ -203,7 +203,7 @@ function DropdownMenuShortcut({
     <span
       data-slot="dropdown-menu-shortcut"
       className={cn(
-        "ml-auto font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]",
+ "ml-auto text-micro text-[var(--sd-ink-faint)]",
         className,
       )}
       {...props}

@@ -174,7 +174,7 @@ export function JournalEntryEditor({ date, entry }: Props) {
       <textarea
         className={cn(
           "min-h-[220px] w-full resize-none border-none bg-transparent",
-          "text-[16px] leading-[1.7] text-[var(--ink)]",
+          "text-subtitle leading-[1.7] text-[var(--ink)]",
           "placeholder:text-[var(--ink-faint)] focus:outline-none"
         )}
         placeholder="Write freely…"

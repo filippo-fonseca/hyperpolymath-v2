@@ -75,7 +75,7 @@ export function IconPicker({ value, onChange, renderTrigger }: Props) {
             {SelectedIcon ? (
               <SelectedIcon size={18} />
             ) : selectedEmoji ? (
-              <span className="text-[18px] leading-none">{selectedEmoji}</span>
+ <span className="text-subtitle leading-none">{selectedEmoji}</span>
             ) : (
               <Folder size={18} />
             )}

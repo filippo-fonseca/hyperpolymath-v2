@@ -59,10 +59,10 @@ export function PlannerHeader({
         <div className="flex items-center gap-3">
           <TrainingIcon size={28} />
           <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+            <span className="text-micro text-[var(--sd-ink-faint)]">
               Week planner
             </span>
-            <h1 className="text-[20px] font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]">
+            <h1 className="text-title font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]">
               Training
             </h1>
           </div>
@@ -74,7 +74,7 @@ export function PlannerHeader({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-7 gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
+            className="h-7 gap-1.5 px-2 text-micro"
           >
             <Link href="/training/stats" aria-label="Open training stats">
               <BarChart3 size={13} strokeWidth={1.5} />
@@ -85,7 +85,7 @@ export function PlannerHeader({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-7 gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
+            className="h-7 gap-1.5 px-2 text-micro"
             onClick={onManageTypesClick}
           >
             <Settings size={13} strokeWidth={1.5} />
@@ -113,7 +113,7 @@ export function PlannerHeader({
               variant="ghost"
               size="sm"
               className={cn(
-                "h-7 px-2 font-mono text-[11px] uppercase tracking-[0.06em]",
+                "h-7 px-2 text-micro",
                 isCurrentWeek && "text-[var(--sd-ink-faint)]",
               )}
               onClick={onJumpToday}
@@ -133,7 +133,7 @@ export function PlannerHeader({
               <ChevronRight size={14} strokeWidth={1.5} />
             </Button>
           </div>
-          <span className="text-sm font-medium tabular-nums text-[var(--sd-ink)]">
+          <span className="text-meta font-medium tabular-nums text-[var(--sd-ink)]">
             {startLabel} – {endLabel}
           </span>
         </div>
@@ -143,7 +143,7 @@ export function PlannerHeader({
             stays a neutral raised chip rather than shouting. */}
         <span
           className={cn(
-            "tint-mint inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums",
+            "tint-mint inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-micro tabular-nums",
             "shadow-[var(--shadow-card)] transition-[background-color,border-color,color] duration-[160ms] ease-out",
             adherencePct !== null && adherencePct >= 80
               ? "border-[var(--tint-edge)] bg-[var(--tint-bg)] font-medium text-[var(--tint-ink)]"

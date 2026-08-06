@@ -117,7 +117,7 @@ export function PagesBackupSection({ settings, gcalConnected }: Props) {
       {/* Enable / disable the daily automatic backup */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <div className="text-sm font-medium text-[var(--sd-ink)]">
+          <div className="text-meta font-medium text-[var(--sd-ink)]">
             Daily automatic backup
           </div>
           <div className="text-xs text-[var(--sd-ink-dull)]">
@@ -138,13 +138,10 @@ export function PagesBackupSection({ settings, gcalConnected }: Props) {
                 type="button"
                 role="radio"
                 aria-checked={selected}
+                data-active={selected || undefined}
                 disabled={togglePending && !selected}
                 onClick={() => handleToggle(opt.value)}
-                className={`font-mono text-xs uppercase tracking-[0.08em] px-3 py-1.5 rounded-sm transition-colors duration-100 cursor-pointer-always disabled:opacity-50 ${
-                  selected
-                    ? "bg-[var(--sd-box)] text-[var(--sd-ink)] border border-[var(--sd-accent)]"
-                    : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
-                }`}
+                className="craft-chip cursor-pointer-always disabled:opacity-50"
               >
                 {opt.label}
               </button>
@@ -156,7 +153,7 @@ export function PagesBackupSection({ settings, gcalConnected }: Props) {
       {/* Last-backup status line */}
       <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
         <div className="flex flex-col gap-1">
-          <div className="text-sm font-medium text-[var(--sd-ink)]">
+          <div className="text-meta font-medium text-[var(--sd-ink)]">
             Last backup
           </div>
           {meta && lastRunLabel ? (

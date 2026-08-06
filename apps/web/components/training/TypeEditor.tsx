@@ -323,13 +323,13 @@ function TypeRow({
             className="h-6 text-xs"
           />
         ) : (
-          <span className="flex-1 truncate text-sm">{type.name}</span>
+          <span className="flex-1 truncate text-meta">{type.name}</span>
         )}
       </div>
 
       {/* Distance toggle — ad-hoc switch (no shadcn Switch in repo yet). */}
       <label
-        className="flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] transition-colors duration-[160ms] ease-out hover:bg-[var(--surface-raised)]"
+        className="flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-micro text-[var(--sd-ink-dull)] transition-colors duration-[160ms] ease-out hover:bg-[var(--surface-raised)]"
         title="Track distance for this activity"
       >
         <input

@@ -309,23 +309,18 @@ export function ProjectTasksSection({
 
         {!collapsed && (
           <div className="flex items-center gap-2">
-            {/* Lesno visibility toggle — quiet text control. */}
+            {/* Lesno visibility toggle — a craft chip in the section's chip row. */}
             <button
               type="button"
               onClick={() => setShowLesno((v) => !v)}
               aria-pressed={showLesno}
-              className={cn(
-                "h-8 rounded-lg border px-2 text-micro font-medium cursor-pointer transition-colors duration-[160ms] ease-out",
-                showLesno
-                  ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                  : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]"
-              )}
+              className="craft-chip shrink-0 cursor-pointer-always"
               title={showLesno ? "Hide completed (lesno) tasks" : "Show completed (lesno) tasks"}
             >
               {showLesno ? "Hide lesno" : "Show lesno"}
             </button>
 
-            <div className="flex items-center gap-1 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-0.5">
+            <div className="flex items-center gap-1.5">
               <ViewToggle
                 active={view === "kanban"}
                 onClick={() => setView("kanban")}
@@ -455,12 +450,7 @@ function ViewToggle({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={cn(
-        "inline-flex h-7 items-center gap-1 rounded-sm px-2 text-micro font-medium cursor-pointer transition-colors duration-[160ms] ease-out",
-        active
-          ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-      )}
+      className="craft-chip shrink-0 cursor-pointer-always"
     >
       {icon}
       {label}

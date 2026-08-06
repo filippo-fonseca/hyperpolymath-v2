@@ -39,7 +39,7 @@ export default async function MemoryPage() {
       <main className="relative z-10 max-w-2xl mx-auto space-y-6">
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-2 flex-1">
-            <h1 className="text-4xl font-semibold tracking-[-0.01em] text-[var(--ink)]">
+            <h1 className="text-display font-semibold text-[var(--ink)]">
               Memory
             </h1>
             <p className="text-base text-[var(--ink-muted)]">
@@ -49,7 +49,7 @@ export default async function MemoryPage() {
           </div>
           <Link
             href="/jarvis"
-            className="mt-2 inline-flex shrink-0 items-center rounded-lg border border-[var(--edge)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,background-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)]"
+            className="mt-2 inline-flex shrink-0 items-center rounded-lg border border-[var(--edge)] px-2.5 py-1 text-micro tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,background-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)]"
           >
             ← jarvis
           </Link>
@@ -66,13 +66,13 @@ export default async function MemoryPage() {
                 (1px --edge left edge only + ambient --hud-cyan-glow-soft)
                 so the page itself reads as a fact-card register. */}
             <aside className="flex items-center gap-3 rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)] px-4 py-3 shadow-[var(--shadow-card)]">
-              <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+              <span className="text-micro tracking-[0.06em] text-[var(--ink-muted)]">
                 FACT · ledger
               </span>
               <span aria-hidden="true" className="text-[var(--ink-faint)]">
                 ·
               </span>
-              <span className="tint-lavender rounded-md border border-[color-mix(in_srgb,var(--tint-edge)_50%,transparent)] bg-[var(--tint-bg)] px-2 py-[1px] font-mono text-[11px] text-[var(--tint-ink)]">
+              <span className="tint-lavender rounded-md border border-[color-mix(in_srgb,var(--tint-edge)_50%,transparent)] bg-[var(--tint-bg)] px-2 py-[1px] font-mono text-micro text-[var(--tint-ink)]">
                 {facts.length} remembered
               </span>
             </aside>

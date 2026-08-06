@@ -34,11 +34,11 @@ export function SurfaceSection() {
     <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 07 · THE SURFACE" />
 
-      <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
+      <h2 className="mt-2 font-semibold text-headline leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
         One canvas. Any input.
       </h2>
 
-      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+      <p className="mt-4 text-lead leading-[1.6] text-[var(--sd-ink)]">
         Areas, projects, tasks, captures, wiki pages, habits, training,
         health, your Google Calendar, the relationship graph between all of
         it, and the insights that fall out: every signal worth tracking lives on a
@@ -51,7 +51,7 @@ export function SurfaceSection() {
       </p>
 
       <div className="mt-5 flex flex-wrap items-center gap-1.5">
-        <span className="mr-1 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+        <span className="mr-1 font-mono text-micro font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
           Surfaces
         </span>
         {SURFACES.map((s) => (
@@ -69,7 +69,7 @@ export function SurfaceSection() {
           before pivoting into the input-paths card grid below. */}
       <LifeosCanvasPreview />
 
-      <p className="mt-12 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
+      <p className="mt-12 text-lead leading-[1.6] text-[var(--sd-ink)]">
         Getting sentences <em>into</em> JARVIS has two paths. Neither
         depends on the other. Both feed the same agent, the same router,
         the same hierarchy.
@@ -85,23 +85,23 @@ export function SurfaceSection() {
             >
               <Monitor size={15} strokeWidth={1.75} />
             </span>
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+            <p className="font-mono text-micro font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
               DESKTOP APP
             </p>
           </div>
 
-          <h3 className="mt-4 font-semibold text-[22px] leading-[1.2] text-[var(--sd-ink)]">
+          <h3 className="mt-4 font-semibold text-title leading-[1.2] text-[var(--sd-ink)]">
             The default path.
           </h3>
 
-          <p className="mt-3 text-[16px] leading-[1.55] text-[var(--sd-ink)]">
+          <p className="mt-3 text-subtitle leading-[1.55] text-[var(--sd-ink)]">
             A small Mac app sits in your menu bar, listens for a global
             hotkey, opens a single composer, and ships the sentence
             straight to JARVIS. No hardware, no setup beyond installing
             the app. If you only want one path, this is it.
           </p>
 
-          <ul className="mt-4 space-y-1.5 text-[15px] text-[var(--sd-ink-faint)]">
+          <ul className="mt-4 space-y-1.5 text-subtitle text-[var(--sd-ink-faint)]">
             <li>· Global hotkey, anywhere on macOS</li>
             <li>· Voice or text, same composer</li>
             <li>· Always-on; no browser needed</li>
@@ -124,16 +124,16 @@ export function SurfaceSection() {
             >
               <Cpu size={15} strokeWidth={1.75} />
             </span>
-            <p className="min-w-0 text-center font-mono text-[10px] font-medium uppercase leading-snug tracking-[0.12em] text-[var(--sd-accent)] sm:text-[11px] sm:tracking-[0.14em]">
+            <p className="min-w-0 text-center font-mono text-micro font-medium uppercase leading-snug tracking-[0.12em] text-[var(--sd-accent)] sm:text-micro sm:tracking-[0.14em]">
               MACROPAD + VOICE DETECTOR HARDWARE
             </p>
           </div>
 
-          <h3 className="mt-4 font-semibold text-[22px] leading-[1.2] text-[var(--sd-ink)]">
+          <h3 className="mt-4 font-semibold text-title leading-[1.2] text-[var(--sd-ink)]">
             The Polypad.
           </h3>
 
-          <p className="mt-3 text-[16px] leading-[1.55] text-[var(--sd-ink)]">
+          <p className="mt-3 text-subtitle leading-[1.55] text-[var(--sd-ink)]">
             I built a small ESP32-based macropad that sits on the desk and
             fires JARVIS turns over a USB-serial bridge. Push a key to
             talk, push another to capture. The firmware, bridge, and CAD
@@ -141,7 +141,7 @@ export function SurfaceSection() {
             different switches, ship your own.
           </p>
 
-          <ul className="mt-4 space-y-1.5 text-[15px] text-[var(--sd-ink-faint)]">
+          <ul className="mt-4 space-y-1.5 text-subtitle text-[var(--sd-ink-faint)]">
             <li>
               <Keyboard
                 size={12}
@@ -158,7 +158,7 @@ export function SurfaceSection() {
             href={POLYPAD_REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-5 inline-flex items-center gap-1.5 font-mono text-[13px] font-medium tracking-[0.04em] text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] transition-colors w-fit"
+            className="mt-5 inline-flex items-center gap-1.5 font-mono text-meta font-medium tracking-[0.04em] text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] transition-colors w-fit"
           >
             <span>Build your own →</span>
             <ExternalLink size={12} aria-hidden="true" />
@@ -166,7 +166,7 @@ export function SurfaceSection() {
         </div>
       </div>
 
-      <p className="mt-6 font-mono text-[14px] text-[var(--sd-ink-faint)]">
+      <p className="mt-6 font-mono text-body text-[var(--sd-ink-faint)]">
         Same agent. Same contract. Two surfaces. Pick whichever fits your
         hands.
       </p>

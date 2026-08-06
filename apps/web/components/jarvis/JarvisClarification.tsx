@@ -55,12 +55,12 @@ export function JarvisClarification({ clarification, onReply }: Props) {
     >
       {/* 'clarify' chrome readout — cyan mono, marks the surface as a JARVIS
           artifact without any glow or bracket theatrics. */}
-      <div className="relative font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-accent)] mb-2">
+ <div className="relative text-micro text-[var(--sd-accent)] mb-2">
         clarify
       </div>
 
       {/* Question body — Space Grotesk (no serif outside Logotype). */}
-      <p className="relative text-[15px] leading-[1.5] text-[var(--sd-ink)]">
+ <p className="relative text-body leading-[1.5] text-[var(--sd-ink)]">
         {clarification.question}
       </p>
 

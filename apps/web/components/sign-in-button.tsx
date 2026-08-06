@@ -65,7 +65,7 @@ export function SignInButton({
       className={cn(
         "group inline-flex w-full items-center justify-center gap-3",
         "h-12 px-5 rounded-lg",
-        "font-serif text-[15px] tracking-tight text-[var(--ink)]",
+ "font-serif text-body tracking-tight text-[var(--ink)]",
         "bg-[var(--surface)] border border-[var(--edge)]",
         "shadow-[0_1px_0_color-mix(in_oklch,var(--ink)_4%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_6%,transparent)]",
         "hover:bg-[var(--surface-raised)] hover:border-[color-mix(in_oklch,var(--ink)_18%,var(--edge))]",

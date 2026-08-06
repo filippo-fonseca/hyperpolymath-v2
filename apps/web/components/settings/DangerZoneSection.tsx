@@ -51,11 +51,11 @@ export function DangerZoneSection({ email }: { email: string }) {
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_oklch,var(--ink-coral)_12%,var(--surface-raised))] text-[var(--ink-coral)]">
             <TriangleAlert className="h-4 w-4" />
           </span>
-          <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--ink-coral)]">
+          <h3 className="text-body font-semibold tracking-[-0.01em] text-[var(--ink-coral)]">
             Delete account
           </h3>
         </div>
-        <p className="text-[13px] leading-[1.5] text-[var(--ink-muted)]">
+        <p className="text-meta leading-[1.5] text-[var(--ink-muted)]">
           Permanently erase your account and everything in it: tasks, captures, projects, notes,
           calendar connection, and all other data. This cannot be undone.
         </p>
@@ -70,7 +70,7 @@ export function DangerZoneSection({ email }: { email: string }) {
           <div className="space-y-2">
             <label
               htmlFor="delete-account-confirm"
-              className="block font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-muted)]"
+              className="block text-micro text-[var(--ink-faint)]"
             >
               Type <span className="text-[var(--ink)] normal-case tracking-normal">{email}</span> to
               confirm
@@ -87,7 +87,7 @@ export function DangerZoneSection({ email }: { email: string }) {
             />
           </div>
 
-          {error ? <p className="text-sm text-[var(--ink-coral)]">{error}</p> : null}
+          {error ? <p className="text-meta text-[var(--ink-coral)]">{error}</p> : null}
 
           <div className="flex items-center gap-2">
             <Button

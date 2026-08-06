@@ -97,7 +97,7 @@ export function ClaudeCodePanel({ result }: Props) {
       <DevPanelHeader
         eyebrow="Claude Code · daily tokens"
         right={
-          <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+          <div className="flex items-baseline gap-4 text-micro tracking-[0.06em] text-[var(--sd-ink-faint)]">
             <span>
               <span className="text-[var(--sd-ink)] tabular-nums">
                 {formatTokens(totalTokens)}

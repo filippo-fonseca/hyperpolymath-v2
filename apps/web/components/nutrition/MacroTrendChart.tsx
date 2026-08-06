@@ -108,7 +108,7 @@ export function MacroTrendChart({ data }: MacroTrendChartProps) {
               className="h-[3px] w-3.5 rounded-full"
               style={{ backgroundColor: s.color }}
             />
-            <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+            <span className="text-micro text-[var(--sd-ink-dull)]">
               {s.label}
             </span>
           </li>

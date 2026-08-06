@@ -90,22 +90,22 @@ export function FoodLogRow({ log }: Props) {
     >
       {/* Left: food info */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[14px] text-[var(--sd-ink)]">
+        <p className="truncate text-meta text-[var(--sd-ink)]">
           {foodName}
           {brand && (
             <span className="ml-1.5 text-[var(--sd-ink-faint)]">{brand}</span>
           )}
         </p>
-        <p className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--sd-ink-faint)]">
+        <p className="mt-0.5 font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
           {quantityLabel}
         </p>
       </div>
 
       {/* Right: kcal + kebab menu */}
       <div className="flex shrink-0 items-center gap-2">
-        <span className="text-[14px] font-black leading-none tabular-nums text-[var(--sd-ink)]">
+        <span className="text-meta font-black leading-none tabular-nums text-[var(--sd-ink)]">
           {log.log.kcal}
-          <span className="ml-0.5 font-mono text-[10px] font-medium text-[var(--sd-ink-faint)]">
+          <span className="ml-0.5 font-mono text-micro font-medium text-[var(--sd-ink-faint)]">
             kcal
           </span>
         </span>

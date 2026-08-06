@@ -74,7 +74,7 @@ export function DefaultCalendarPicker({ calendars, currentDefault }: Props) {
   return (
     <div className="flex items-center justify-between gap-4 py-4 border-b border-border last:border-b-0">
       <div className="flex flex-col gap-1">
-        <div className="text-sm font-medium">Default calendar</div>
+        <div className="text-meta font-medium">Default calendar</div>
         <div className="text-xs text-muted-foreground">
           New events from Kiwi and the Cmd+K composer post here by default.
         </div>
@@ -94,7 +94,7 @@ export function DefaultCalendarPicker({ calendars, currentDefault }: Props) {
                 />
                 {c.summary}
                 {c.primary && (
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-micro text-muted-foreground">
                     (primary)
                   </span>
                 )}

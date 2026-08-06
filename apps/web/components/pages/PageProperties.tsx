@@ -83,10 +83,14 @@ export function PageProperties({ pageId, fields, onChanged }: PagePropertiesProp
 
   return (
     <div className="flex flex-col gap-1">
+      {/* aug-04 craft-ui-v2: the properties toggle is a rest-state craft chip
+          (also retires the mono eyebrow — is banned outside
+          kbd + sidebar eyebrows). */}
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="group/pt flex items-center gap-1 w-fit px-1 py-0.5 rounded text-[11px] font-mono uppercase tracking-wide text-[var(--ink-muted)] opacity-60 hover:opacity-100 hover:text-[var(--ink)] transition-all duration-150 cursor-pointer"
+        aria-expanded={expanded}
+        className="craft-chip group/pt w-fit cursor-pointer"
       >
         <ChevronRight
           size={12}
@@ -94,11 +98,11 @@ export function PageProperties({ pageId, fields, onChanged }: PagePropertiesProp
           className={cn("transition-transform duration-200", expanded && "rotate-90")}
         />
         <span>Properties</span>
-        <span className="text-[10px] text-[var(--ink-muted)] opacity-80">{visible.length}</span>
+        <span className="text-micro text-[var(--ink-faint)]">{visible.length}</span>
       </button>
 
       {expanded && (
-        <div className="rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] px-2 py-1.5 flex flex-col gap-0.5">
+        <div className="rounded-xl bg-[var(--surface)] px-2 py-1.5 flex flex-col gap-0.5">
           {visible.map((field) => (
             <FieldRow
               key={field.id}
@@ -114,7 +118,7 @@ export function PageProperties({ pageId, fields, onChanged }: PagePropertiesProp
               <button
                 type="button"
                 onClick={() => setShowHidden((v) => !v)}
-                className="flex items-center gap-1 w-fit mt-0.5 px-1.5 py-1 rounded-md text-[11px] font-mono text-[var(--ink-muted)] opacity-70 hover:opacity-100 hover:text-[var(--ink)] transition-all duration-150 cursor-pointer"
+                className="flex items-center gap-1 w-fit mt-0.5 px-1.5 py-1 rounded-md text-micro text-[var(--ink-muted)] opacity-70 hover:opacity-100 hover:text-[var(--ink)] transition-all duration-150 cursor-pointer"
               >
                 <ChevronRight
                   size={11}
@@ -164,7 +168,7 @@ function FieldRow({
       )}
     >
       <div
-        className="flex items-center gap-1.5 shrink-0 self-center w-[128px] px-1.5 py-1 text-[12px] font-mono text-[var(--ink-muted)]"
+ className="flex items-center gap-1.5 shrink-0 self-center w-[128px] px-1.5 py-1 text-micro font-mono text-[var(--ink-muted)]"
         title={field.name}
       >
         <Icon size={12} strokeWidth={1.5} className="shrink-0" />
@@ -256,7 +260,7 @@ function TextEditor({
         }
       }}
       placeholder="Empty"
-      className="w-full bg-transparent px-2 py-1 text-[13px] font-sans text-[var(--ink)] placeholder:text-[var(--ink-muted)] rounded-md outline-none transition-all duration-150 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] focus:shadow-[inset_1px_1px_3px_var(--glass-lo),inset_-1px_-1px_2px_var(--glass-hi)]"
+ className="w-full bg-transparent px-2 py-1 text-meta font-sans text-[var(--ink)] placeholder:text-[var(--ink-muted)] rounded-md outline-none transition-all duration-150 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] focus:shadow-[inset_1px_1px_3px_var(--glass-lo),inset_-1px_-1px_2px_var(--glass-hi)]"
     />
   );
 }
@@ -274,7 +278,7 @@ function DateEditor({
       type="date"
       value={value}
       onChange={(e) => void onSave(e.target.value === "" ? null : e.target.value)}
-      className="bg-transparent px-2 py-1 text-[13px] font-mono text-[var(--ink)] rounded-md outline-none transition-all duration-150 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] focus:shadow-[inset_1px_1px_3px_var(--glass-lo),inset_-1px_-1px_2px_var(--glass-hi)] [color-scheme:light_dark]"
+ className="bg-transparent px-2 py-1 text-meta font-mono text-[var(--ink)] rounded-md outline-none transition-all duration-150 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] focus:shadow-[inset_1px_1px_3px_var(--glass-lo),inset_-1px_-1px_2px_var(--glass-hi)] [color-scheme:light_dark]"
     />
   );
 }
@@ -362,7 +366,7 @@ function SelectEditor({
           className="flex flex-wrap items-center gap-1 w-full min-h-[28px] px-2 py-1 text-left rounded-md transition-colors duration-150 cursor-pointer hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)]"
         >
           {selectedOptions.length === 0 ? (
-            <span className="text-[13px] font-sans text-[var(--ink-muted)]">Empty</span>
+ <span className="text-meta font-sans text-[var(--ink-muted)]">Empty</span>
           ) : (
             selectedOptions.map((o) => <TagChip key={o.id} option={o} />)
           )}
@@ -413,7 +417,7 @@ function TagChip({ option }: { option: PageFieldSelectOption }) {
   const c = tagColorStyle(option.color);
   return (
     <span
-      className="inline-flex items-center max-w-full px-1.5 py-0.5 rounded-sm text-[12px] font-sans truncate border"
+ className="inline-flex items-center max-w-full px-1.5 py-0.5 rounded-sm text-micro font-sans truncate border"
       style={{ backgroundColor: c.bg, color: c.fg, borderColor: c.border }}
     >
       {option.label}

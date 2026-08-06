@@ -114,7 +114,7 @@ export function NutritionClient({
             variant="ghost"
             size="sm"
             onClick={() => setMealsOpen(true)}
-            className="font-mono text-[11px] uppercase tracking-[0.06em]"
+            className="text-micro"
           >
             <Settings2 size={13} /> Meals
           </Button>
@@ -122,7 +122,7 @@ export function NutritionClient({
             asChild
             variant="ghost"
             size="sm"
-            className="font-mono text-[11px] uppercase tracking-[0.06em]"
+            className="text-micro"
           >
             <Link href="/nutrition/stats">
               <BarChart3 size={13} /> Stats

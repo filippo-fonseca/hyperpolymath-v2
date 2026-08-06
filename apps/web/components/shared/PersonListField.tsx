@@ -88,7 +88,7 @@ export function PersonListField({
               <span
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-lg px-2 py-1",
-                  "font-sans text-[13px] text-[var(--ink-amber)]",
+ "font-sans text-meta text-[var(--ink-amber)]",
                   "border border-[color-mix(in_oklch,var(--ink-amber)_35%,transparent)]",
                   "bg-[color-mix(in_oklch,var(--ink-amber)_10%,transparent)]",
                 )}
@@ -130,7 +130,7 @@ export function PersonListField({
               }}
               onBlur={() => add(draft)}
               placeholder="Add a person…"
-              className="font-sans text-[13px] h-8 flex-1"
+ className="font-sans text-meta h-8 flex-1"
               aria-label="Add a person"
             />
             <button
@@ -163,7 +163,7 @@ export function PersonListField({
                       e.preventDefault();
                       add(p.name);
                     }}
-                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left font-sans text-[13px] text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink-amber)_12%,transparent)] cursor-pointer-always transition-colors duration-150"
+ className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left font-sans text-meta text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink-amber)_12%,transparent)] cursor-pointer-always transition-colors duration-150"
                   >
                     <User size={13} strokeWidth={1.75} className="shrink-0 text-[var(--ink-amber)]" />
                     <span className="truncate">{p.name}</span>
@@ -178,7 +178,7 @@ export function PersonListField({
                       e.preventDefault();
                       add(trimmed);
                     }}
-                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left font-sans text-[13px] text-[var(--ink-muted)] hover:bg-[color-mix(in_oklch,var(--ink-amber)_12%,transparent)] cursor-pointer-always transition-colors duration-150"
+ className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left font-sans text-meta text-[var(--ink-muted)] hover:bg-[color-mix(in_oklch,var(--ink-amber)_12%,transparent)] cursor-pointer-always transition-colors duration-150"
                   >
                     <UserPlus size={13} strokeWidth={1.75} className="shrink-0" />
                     <span className="truncate">
@@ -197,7 +197,7 @@ export function PersonListField({
           disabled={disabled}
           className={cn(
             "inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1",
-            "font-sans text-[13px] text-[var(--ink-muted)] cursor-pointer-always",
+ "font-sans text-meta text-[var(--ink-muted)] cursor-pointer-always",
             "border border-dashed border-[var(--edge)] hover:border-[var(--edge-hud)] hover:text-[var(--ink)]",
             "transition-colors duration-150 ease-out disabled:opacity-40",
           )}

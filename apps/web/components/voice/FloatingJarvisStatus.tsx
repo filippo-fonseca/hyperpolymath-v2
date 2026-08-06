@@ -139,7 +139,7 @@ export function FloatingJarvisStatus() {
       <div
         className={cn(
           "relative flex items-center gap-2 rounded-full border px-3 py-1.5",
-          "font-mono text-xs uppercase tracking-[0.08em]",
+          "text-xs",
           "transition-colors duration-200 ease-out",
           muted
             ? "bg-[var(--surface-raised)]/95 border-[var(--edge)] text-[var(--ink-muted)]"

@@ -73,7 +73,7 @@ import { UrlField } from "@/components/shared/UrlField";
 import { PersonListField } from "@/components/shared/PersonListField";
 import { MoveToMenu } from "./MoveToMenu";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
-import { STATUS_DOT } from "./status";
+import { STATUS_DOT, STATUS_TINT } from "./status";
 import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 import type { RecurrenceRule } from "@/lib/tasks/recurrence";
@@ -154,9 +154,11 @@ const PRIORITY_PILL: { value: Priority; label: string; opacity: number }[] = [
 ];
 
 /**
- * Single-select pill row. The option's functional hue lives only in a 6px dot;
- * selection is a neutral `--selected` backplate with an `--edge-strong` border,
- * never an accent ring (accent budget, SDC-1 §2.3).
+ * Single-select craft-chip row (craft-ui-v2). Each value is a `.craft-chip`
+ * pill; the selected one fills with its semantic tint where one exists
+ * (status via STATUS_TINT) and falls back to the neutral `--selected` fill
+ * otherwise (priority keeps its amber alpha ladder in the dot, no tint —
+ * accent budget: color is data). `data-active` is set only while selected.
  */
 function PillGroup<T extends string>({
   options,
@@ -164,13 +166,13 @@ function PillGroup<T extends string>({
   onChange,
   ariaLabel,
 }: {
-  options: { value: T; label: string; color: string }[];
+  options: { value: T; label: string; color: string; tint?: string | null }[];
   value: T;
   onChange: (v: T) => void;
   ariaLabel: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={ariaLabel}>
+    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={ariaLabel}>
       {options.map((opt) => {
         const selected = opt.value === value;
         return (
@@ -179,15 +181,9 @@ function PillGroup<T extends string>({
             type="button"
             role="radio"
             aria-checked={selected}
+            data-active={selected ? "true" : undefined}
             onClick={() => onChange(opt.value)}
-            className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 cursor-pointer-always",
-              "text-micro font-medium",
-              "transition-colors duration-[160ms] ease-out motion-reduce:transition-none",
-              selected
-                ? "border-[var(--edge-strong)] bg-[var(--selected)] text-[var(--ink)]"
-                : "border-[var(--edge)] bg-transparent text-[var(--ink-muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
-            )}
+            className={cn("craft-chip cursor-pointer-always", selected && opt.tint)}
           >
             <span
               className="inline-block size-1.5 shrink-0 rounded-full transition-opacity duration-[160ms] motion-reduce:transition-none"
@@ -831,6 +827,7 @@ export function TaskDetailPanel({
                   value: s.value,
                   label: s.label,
                   color: STATUS_DOT[s.value],
+                  tint: STATUS_TINT[s.value],
                 }))}
               />
             </FieldSection>

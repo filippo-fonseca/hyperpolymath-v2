@@ -55,7 +55,7 @@ export function TrainingDayColumn({
       <div className="flex items-baseline justify-between px-1.5 pb-1">
         <span
           className={cn(
-            "font-mono text-[10px] uppercase tracking-[0.08em]",
+            "text-micro",
             isToday ? "text-[var(--tint-ink)]" : "text-[var(--sd-ink-faint)]"
           )}
         >

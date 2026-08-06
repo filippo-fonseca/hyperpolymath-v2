@@ -54,16 +54,16 @@ export function FoodSearchResult({ result, isFocused, onSelect }: Props) {
       }`}
     >
       <div className="flex flex-col gap-0.5 min-w-0 flex-1 pr-3">
-        <span className="truncate text-[14px] font-medium leading-tight text-[var(--sd-ink)]">
+        <span className="truncate text-meta font-medium leading-tight text-[var(--sd-ink)]">
           {result.name}
         </span>
         {result.brand && (
-          <span className="truncate text-[12px] leading-tight text-[var(--sd-ink-dull)]">
+          <span className="truncate text-micro leading-tight text-[var(--sd-ink-dull)]">
             {result.brand}
           </span>
         )}
       </div>
-      <span className="shrink-0 font-mono text-[11px] tabular-nums text-[var(--sd-ink-faint)]">
+      <span className="shrink-0 font-mono text-micro tabular-nums text-[var(--sd-ink-faint)]">
         {kcal} kcal/100g
       </span>
     </button>

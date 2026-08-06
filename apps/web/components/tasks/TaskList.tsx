@@ -29,7 +29,8 @@ interface Props {
   tasks: TaskWithProjects[];
   onTaskClick: (id: string | null) => void;
   addOptimistic: TasksOptimisticDispatch;
-  /** Hide the column-caption row (grouped sections repeat the list). */
+  /** Unused since the craft-ui-v2 bare-row pass (rows carry their own
+   * grammar, no column captions); kept so existing call sites compile. */
   showHeader?: boolean;
   /** Distinguishes multiple lists mounted at once (grouped view). */
   id?: string;
@@ -39,7 +40,6 @@ export function TaskList({
   tasks,
   onTaskClick,
   addOptimistic,
-  showHeader = true,
   id = "tasks-list",
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -114,29 +114,10 @@ export function TaskList({
         items={tasks.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="craft-card flex flex-col rounded-xl px-1.5 py-1">
-          {/* Column captions — quiet text-micro register over one hairline. */}
-          {showHeader && (
-            <div className="flex h-8 items-center gap-2 border-b border-[var(--edge)] px-2">
-              <div className="w-4 flex-shrink-0" /> {/* drag handle placeholder */}
-              <div className="w-4 flex-shrink-0" /> {/* checkbox placeholder */}
-              <div className="w-4 flex-shrink-0" /> {/* priority placeholder */}
-              <span className="flex-1 text-micro font-medium text-[var(--ink-faint)]">
-                Title
-              </span>
-              <span className="w-28 flex-shrink-0 text-micro font-medium text-[var(--ink-faint)]">
-                Project
-              </span>
-              <span className="w-24 flex-shrink-0 text-micro font-medium text-[var(--ink-faint)]">
-                Status
-              </span>
-              <span className="w-20 flex-shrink-0 text-micro font-medium text-[var(--ink-faint)]">
-                Due
-              </span>
-              <div className="w-6 flex-shrink-0" />
-            </div>
-          )}
-
+        {/* Craft Tasks hub grammar (craft-ui-v2): bare rows sitting directly
+            on the sheet — no card box, no column captions. Each row carries
+            its own trailing meta chips, so the list is just a quiet stack. */}
+        <div className="flex flex-col gap-0.5">
           {tasks.map((task) => (
             <TaskListRow
               key={task.id}

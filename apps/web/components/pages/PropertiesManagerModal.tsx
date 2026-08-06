@@ -133,7 +133,7 @@ export function PropertiesManagerModal({
 
         <div className="flex flex-col gap-1 max-h-[320px] overflow-y-auto -mx-1 px-1">
           {items.length === 0 && (
-            <p className="px-1 py-2 text-[13px] font-serif italic text-[var(--ink-muted)]">
+ <p className="px-1 py-2 text-meta font-serif italic text-[var(--ink-muted)]">
               No properties yet. Add one below.
             </p>
           )}
@@ -152,7 +152,7 @@ export function PropertiesManagerModal({
         </div>
 
         <div className="mt-1 border-t border-[var(--edge)] pt-3 flex flex-col gap-2">
-          <div className="text-[10px] font-mono uppercase tracking-wide text-[var(--ink-muted)]">
+ <div className="text-micro tracking-wide text-[var(--ink-muted)]">
             Add a property
           </div>
           <div className="flex items-center gap-2">
@@ -165,13 +165,13 @@ export function PropertiesManagerModal({
                 if (e.key === "Enter") addProperty();
               }}
               placeholder="Property name"
-              className="flex-1 min-w-0 px-2 py-1.5 text-[13px] font-sans bg-transparent border border-[var(--edge)] rounded-md text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)] disabled:opacity-50"
+ className="flex-1 min-w-0 px-2 py-1.5 text-meta font-sans bg-transparent border border-[var(--edge)] rounded-md text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)] disabled:opacity-50"
             />
             <button
               type="button"
               onClick={addProperty}
               disabled={busy || newName.trim() === ""}
-              className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-mono text-[var(--ink)] transition-colors duration-150 cursor-pointer disabled:opacity-40"
+ className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-micro font-mono text-[var(--ink)] transition-colors duration-150 cursor-pointer disabled:opacity-40"
             >
               <Plus size={13} strokeWidth={1.75} />
               Add
@@ -186,9 +186,9 @@ export function PropertiesManagerModal({
                   type="button"
                   onClick={() => setNewType(t)}
                   className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] font-mono transition-colors duration-150 cursor-pointer border",
+ "flex items-center gap-1.5 px-2 py-1 rounded-md text-micro font-mono transition-colors duration-150 cursor-pointer border",
                     newType === t
-                      ? "border-[color-mix(in_oklch,var(--hud-cyan)_45%,var(--edge))] text-[var(--ink)] bg-[color-mix(in_oklch,var(--hud-cyan)_10%,transparent)]"
+                      ? "border-[color-mix(in_oklch,var(--accent)_45%,var(--edge))] text-[var(--ink)] bg-[color-mix(in_oklch,var(--accent)_10%,transparent)]"
                       : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)]",
                   )}
                 >
@@ -300,9 +300,9 @@ function ManagerRow({
               e.currentTarget.blur();
             }
           }}
-          className="flex-1 min-w-0 px-1.5 py-1 text-[13px] font-sans bg-transparent rounded-md text-[var(--ink)] outline-none hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] transition-colors duration-150"
+ className="flex-1 min-w-0 px-1.5 py-1 text-meta font-sans bg-transparent rounded-md text-[var(--ink)] outline-none hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] transition-colors duration-150"
         />
-        <span className="shrink-0 text-[10px] font-mono uppercase tracking-wide text-[var(--ink-muted)]">
+ <span className="shrink-0 text-micro tracking-wide text-[var(--ink-muted)]">
           {FIELD_TYPE_LABELS[item.type]}
         </span>
         <button
@@ -324,7 +324,7 @@ function ManagerRow({
               return (
                 <span
                   key={o.id}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[12px] font-sans border"
+ className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-micro font-sans border"
                   style={{ backgroundColor: c.bg, color: c.fg, borderColor: c.border }}
                 >
                   {o.label}
@@ -347,15 +347,15 @@ function ManagerRow({
                 if (e.key === "Enter") addOption();
               }}
               placeholder="Add option…"
-              className="min-w-[100px] flex-1 px-1.5 py-0.5 text-[12px] font-sans bg-transparent border border-dashed border-[var(--edge)] rounded-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)]"
+ className="min-w-[100px] flex-1 px-1.5 py-0.5 text-micro font-sans bg-transparent border border-dashed border-[var(--edge)] rounded-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)]"
             />
           </div>
-          <label className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--ink-muted)] cursor-pointer w-fit">
+ <label className="flex items-center gap-1.5 text-micro font-mono text-[var(--ink-muted)] cursor-pointer w-fit">
             <input
               type="checkbox"
               checked={item.allowMultiple}
               onChange={(e) => setAllowMultiple(e.target.checked)}
-              className="accent-[var(--hud-cyan)] cursor-pointer"
+              className="accent-[var(--accent)] cursor-pointer"
             />
             Allow multiple (tags)
           </label>

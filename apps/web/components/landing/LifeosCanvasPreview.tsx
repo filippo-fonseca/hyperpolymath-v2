@@ -41,14 +41,14 @@ export function LifeosCanvasPreview() {
         }}
       >
         <header className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--sd-line)] bg-[var(--sd-input)]">
-          <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-[var(--sd-ink-faint)]">
+          <span className="font-mono text-micro tracking-[0.18em] uppercase text-[var(--sd-ink-faint)]">
             Areas
           </span>
-          <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-[var(--sd-ink-faint)] opacity-60">
+          <span className="font-mono text-micro tracking-[0.18em] uppercase text-[var(--sd-ink-faint)] opacity-60">
             tree · live
           </span>
         </header>
-        <div className="p-4 font-mono text-[13px] leading-[1.9] text-[var(--sd-ink)] flex-1">
+        <div className="p-4 font-mono text-meta leading-[1.9] text-[var(--sd-ink)] flex-1">
           {TREE.map((node, i) => (
             <div
               key={i}
@@ -56,7 +56,7 @@ export function LifeosCanvasPreview() {
               style={{ paddingLeft: `${node.depth * 16}px` }}
             >
               <span
-                className="inline-block w-3 text-[10px]"
+                className="inline-block w-3 text-micro"
                 style={{ color: "var(--sd-ink-faint)" }}
               >
                 {node.icon ?? "·"}
@@ -74,7 +74,7 @@ export function LifeosCanvasPreview() {
             </div>
           ))}
         </div>
-        <figcaption className="px-4 py-2.5 border-t border-[var(--sd-line)] text-[13px] italic text-[var(--sd-ink-faint)]">
+        <figcaption className="px-4 py-2.5 border-t border-[var(--sd-line)] text-meta italic text-[var(--sd-ink-faint)]">
           Every page in the app lives somewhere on this tree.
         </figcaption>
       </figure>
@@ -88,10 +88,10 @@ export function LifeosCanvasPreview() {
         }}
       >
         <header className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--sd-line)] bg-[var(--sd-input)]">
-          <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-[var(--sd-ink-faint)]">
+          <span className="font-mono text-micro tracking-[0.18em] uppercase text-[var(--sd-ink-faint)]">
             Knowledge Graph
           </span>
-          <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-[var(--sd-ink-faint)] opacity-60">
+          <span className="font-mono text-micro tracking-[0.18em] uppercase text-[var(--sd-ink-faint)] opacity-60">
             force-directed
           </span>
         </header>
@@ -208,7 +208,7 @@ export function LifeosCanvasPreview() {
             ))}
           </svg>
         </div>
-        <figcaption className="px-4 py-2.5 border-t border-[var(--sd-line)] text-[13px] italic text-[var(--sd-ink-faint)]">
+        <figcaption className="px-4 py-2.5 border-t border-[var(--sd-line)] text-meta italic text-[var(--sd-ink-faint)]">
           Areas, projects, tasks, captures, and the lines between them.
         </figcaption>
       </figure>

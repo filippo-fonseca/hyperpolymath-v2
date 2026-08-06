@@ -91,9 +91,9 @@ export function SearchPageClient() {
           placeholder="Search everything: tasks, captures, projects, areas…"
         />
 
-        {/* Segmented filter rail: one quiet track, the active segment lifted
-            onto a raised white plate. No cyan — selection is depth, not hue. */}
-        <div className="mt-3 flex flex-wrap items-center gap-1 rounded-2xl border border-[var(--edge)] bg-[var(--surface)] p-1">
+        {/* Segmented filter rail: craft chips on the sheet. The active chip
+            fills; the track it used to sit in is gone. */}
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
           {FILTERS.map((f) => {
             const isActive = filter === f.value;
             const count =
@@ -104,25 +104,10 @@ export function SearchPageClient() {
                 type="button"
                 aria-pressed={isActive}
                 onClick={() => setFilter(f.value)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-lg px-3 py-1 font-mono text-[11px] uppercase tracking-[0.08em]",
-                  "transition-[color,background-color,box-shadow] duration-[160ms] ease-out",
-                  isActive
-                    ? "bg-[var(--surface-raised)] font-medium text-[var(--ink)] shadow-[var(--shadow-card)]"
-                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-                )}
+                className="craft-chip cursor-pointer-always"
               >
                 {f.label}
-                {active && (
-                  <span
-                    className={cn(
-                      "text-[10px] tabular-nums",
-                      isActive ? "text-[var(--ink-muted)]" : "opacity-60"
-                    )}
-                  >
-                    {count}
-                  </span>
-                )}
+                {active && <span className="text-micro tabular-nums opacity-70">{count}</span>}
               </button>
             );
           })}

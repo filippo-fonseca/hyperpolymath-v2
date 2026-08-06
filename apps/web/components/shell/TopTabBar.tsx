@@ -1,15 +1,16 @@
 "use client";
 
 import { NavArrows } from "./NavArrows";
+import { JarvisUnreadBadge } from "@/components/jarvis/JarvisUnreadBadge";
+import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { useTodayDailyPage } from "@/lib/pages/useTodayDailyPage";
 import { useSplitScreen } from "@/lib/ui/useSplitScreen";
+import { sfx } from "@/lib/ui/sfx";
 import { cn } from "@/lib/utils";
-import { Columns2, Plus, X } from "lucide-react";
+import { Columns2, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { sfx } from "@/lib/ui/sfx";
-import { JarvisUnreadBadge } from "@/components/jarvis/JarvisUnreadBadge";
 
 const JARVIS_PATH = "/today";
 const FALLBACK_LEFT_PATH = "/lifeos";
@@ -47,21 +48,26 @@ function metaForPath(pathname: string): { label: string } {
 }
 
 /**
- * TopTabBar — the full-width segmented tab bar (UI-CONTRACT §3 + §11).
+ * TopTabBar — the Craft top bar (aug-04 craft-ui-v2; keeps the historical
+ * filename and export).
  *
- * Their pattern, exactly: the tabs divide the whole bar between them rather
- * than huddling left. Each is a flex-1 pill (min 220px, max 480px) with a
- * centred label; the active one fills with the neutral `--sd-selected`
- * backplate, the rest sit transparent on the canvas. Selection is carried by
- * the fill alone — no accent tint, no icon, no glow dot (R4). The close ✕
- * lives inside the pill at left and reveals on hover; the ^N hint sits right.
+ * The full-width segmented tabs are gone: navigation lives in the sidebar,
+ * which already lists every route. What remains is Craft's transparent bar on
+ * the canvas above the sheet — no fill, no border, no shadow — with three
+ * quiet zones:
  *
- * Split-screen affordance: a quiet vertical-split glyph after the tabs. When
- * split is on, both routes render simultaneously (70% / 30%) so switching
- * tabs swaps the left pane only. The "+" cell opens the command palette.
+ *   left    NavArrows plus the current route title as breadcrumb text
+ *   center  a craft-pill "Open anything…" field that opens the CommandMenu
+ *   right   JARVIS console button (with the unread badge) and the
+ *           split-screen toggle as small ghost icon buttons
  *
- * Keyboard shortcuts (handled in GlobalHotkeys, NOT here):
- *   Ctrl+1 → left tab · Ctrl+2 → JARVIS. Both no-op while split-screen is on.
+ * The localStorage bridges survive the restyle untouched, because
+ * GlobalHotkeys still reads them: `top-tab-last-route` feeds Ctrl+1 (last
+ * non-JARVIS route) and `top-tab-today-route` feeds Ctrl+3 (today's daily
+ * page). Ctrl+2 → JARVIS needs no bridge. The split-screen mechanics are the
+ * same as the tab era: enabling split from the console first pushes the main
+ * route back to the last non-JARVIS route so the two panes never both render
+ * the console.
  */
 export function TopTabBar({ userId }: { userId: string }) {
   const pathname = usePathname() ?? "";
@@ -71,9 +77,9 @@ export function TopTabBar({ userId }: { userId: string }) {
 
   const [lastRoute, setLastRoute] = useState<string>(FALLBACK_LEFT_PATH);
 
-  // Today's daily page is a pinned tab (issue #92, part 3). It sits outside the
-  // dynamic left/JARVIS swap pair, so — like JARVIS — its route must not be
-  // remembered as the "last left route" or the two would collapse onto one tab.
+  // Today's daily page keeps its dedicated shortcut (issue #92, part 3). Like
+  // JARVIS, its route must not be remembered as the "last left route" or the
+  // Ctrl+1 target and the Ctrl+3 target would collapse onto one another.
   const todayPath = today ? `/wiki/${today.id}` : null;
   const onToday = todayPath !== null && pathname === todayPath;
 
@@ -90,7 +96,7 @@ export function TopTabBar({ userId }: { userId: string }) {
   }, [pathname, todayPath]);
 
   // Expose today's route to GlobalHotkeys (Ctrl+3) via the same localStorage
-  // bridge the left tab uses.
+  // bridge the last-route swap uses.
   useEffect(() => {
     try {
       if (todayPath) localStorage.setItem(TODAY_ROUTE_KEY, todayPath);
@@ -101,10 +107,9 @@ export function TopTabBar({ userId }: { userId: string }) {
   }, [todayPath]);
 
   const onJarvis = pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
-  const leftPath = onJarvis || onToday ? lastRoute : pathname || FALLBACK_LEFT_PATH;
-  const leftMeta = metaForPath(leftPath);
+  const title = onJarvis ? "JARVIS" : onToday ? "Today" : metaForPath(pathname).label;
 
-  // Soft "pop" when the active feature tab actually changes — not on drill-in
+  // Soft "pop" when the active feature actually changes — not on drill-in
   // navigations within a feature (e.g. /tasks → /tasks/123) or first mount.
   const tabKey = onJarvis ? "jarvis" : onToday ? "today" : metaForPath(pathname).label;
   const prevTabKey = useRef<string | null>(null);
@@ -117,11 +122,11 @@ export function TopTabBar({ userId }: { userId: string }) {
 
   if (pathname.startsWith("/onboarding")) return null;
 
-  // Split-screen toggle that works from either tab. The side panel only
-  // renders when the main route is NOT JARVIS (otherwise two JARVIS consoles
-  // would stack). So when enabling split from the JARVIS tab, push main to
-  // the last non-JARVIS route — that becomes the left pane, JARVIS occupies
-  // the right pane via the side panel.
+  // Split-screen toggle that works from anywhere. The side panel only renders
+  // when the main route is NOT JARVIS (otherwise two JARVIS consoles would
+  // stack). So when enabling split from the console, push main to the last
+  // non-JARVIS route — that becomes the left pane, JARVIS occupies the right
+  // pane via the side panel.
   const onSplitToggle = () => {
     if (splitOn) {
       setSplitOn(false);
@@ -133,9 +138,11 @@ export function TopTabBar({ userId }: { userId: string }) {
     setSplitOn(true);
   };
 
-  // The "+" cell is their new-tab affordance; here it opens the command
-  // palette, which is how a new surface actually gets reached in this app.
-  const onNewTab = () => {
+  // The pill opens the existing CommandMenu the same way the global hotkey
+  // does: CommandMenu holds nothing but a document-level Cmd+Shift+K listener
+  // and its open flag, so a synthetic keydown IS the public API — no second
+  // store, no duplicated state.
+  const openCommandMenu = () => {
     document.dispatchEvent(
       new KeyboardEvent("keydown", {
         key: "k",
@@ -148,64 +155,61 @@ export function TopTabBar({ userId }: { userId: string }) {
 
   return (
     <div
-      role="tablist"
-      aria-label="App tabs"
-      className="relative flex h-11 w-full items-center gap-1.5 px-2 mb-1"
+      aria-label="Top bar"
+      className="mb-1 flex h-11 w-full shrink-0 items-center gap-2 px-2"
     >
-      <NavArrows />
-
-      {/* The tabs divide the bar between them (§3). */}
-      <div className="flex min-w-0 flex-1 items-center gap-1.5">
-        <TabPill
-          href={leftPath}
-          active={!onJarvis && !onToday && !splitOn}
-          label={leftMeta.label}
-          kbd="⌃1"
-          onClose={
-            onJarvis
-              ? undefined
-              : () => {
-                  router.push(JARVIS_PATH);
-                }
-          }
-        />
-
-        <TabPill
-          href={JARVIS_PATH}
-          active={onJarvis || splitOn}
-          label="JARVIS"
-          kbd="⌃2"
-          dataTour="top-tab-jarvis"
-          badge={<JarvisUnreadBadge />}
-        />
-
-        {todayPath && (
-          <TabPill
-            href={todayPath}
-            active={onToday && !splitOn}
-            label="Today"
-            kbd="⌃3"
-          />
-        )}
+      {/* Left — history arrows plus the current route as quiet breadcrumb
+          text. Both side zones are flex-1 so the pill stays truly centered. */}
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <NavArrows />
+        <span className="truncate text-meta font-medium text-[var(--ink-muted)]">{title}</span>
       </div>
 
+      {/* Center — the Craft cmd-K pill. A button dressed as a search field;
+          clicking it opens the command palette. */}
       <button
         type="button"
-        onClick={onNewTab}
-        aria-label="Open command palette"
-        title="Open command palette (⌘⇧K)"
+        onClick={openCommandMenu}
+        aria-label="Open anything (⌘⇧K)"
         className={cn(
-          "inline-flex shrink-0 items-center justify-center rounded-lg p-1.5",
-          "text-[var(--sd-ink-faint)] transition-colors duration-[160ms] ease-out",
-          "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
+          "craft-pill flex h-8 w-full min-w-0 max-w-[420px] shrink items-center gap-2 px-3.5 text-left",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
         )}
       >
-        <Plus size={14} strokeWidth={2.5} />
+        <Search size={13} strokeWidth={1.75} className="shrink-0 text-[var(--ink-faint)]" />
+        <span className="min-w-0 flex-1 truncate text-meta text-[var(--ink-faint)]">
+          Open anything…
+        </span>
+        <kbd
+ className="pointer-events-none hidden shrink-0 text-micro text-[var(--ink-faint)] md:inline"
+          aria-hidden
+        >
+          ⌘⇧K
+        </kbd>
       </button>
 
-      <div className="shrink-0" data-tour="top-split-toggle">
-        <SplitToggle on={splitOn} onClick={onSplitToggle} />
+      {/* Right — the bar's utilities as small ghost icon buttons. */}
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
+        <Link
+          href={JARVIS_PATH}
+          data-tour="top-tab-jarvis"
+          aria-label="Open the JARVIS console"
+          title="JARVIS console (⌃2)"
+          className={cn(
+            "flex h-7 shrink-0 items-center rounded-lg px-1.5",
+            "text-[var(--sd-ink-faint)] transition-colors duration-[160ms] ease-out",
+            "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+            onJarvis && "text-[var(--sd-ink)]"
+          )}
+        >
+          <KiwiIcon size={15} aria-hidden="true" />
+          <JarvisUnreadBadge />
+        </Link>
+
+        <div className="shrink-0" data-tour="top-split-toggle">
+          <SplitToggle on={splitOn} onClick={onSplitToggle} />
+        </div>
       </div>
     </div>
   );
@@ -220,7 +224,7 @@ function SplitToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
       aria-label={on ? "Exit split screen" : "Enter split screen"}
       title={on ? "Exit split screen" : "Split screen with JARVIS"}
       className={cn(
-        "inline-flex h-6 w-6 items-center justify-center rounded-lg",
+        "inline-flex h-7 w-7 items-center justify-center rounded-lg",
         "transition-colors duration-[160ms] ease-out",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
         on
@@ -228,93 +232,7 @@ function SplitToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
           : "text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
       )}
     >
-      <Columns2 size={12} strokeWidth={1.75} />
+      <Columns2 size={13} strokeWidth={1.75} />
     </button>
-  );
-}
-
-/**
- * One segment of the bar: a flex-1 pill with a centred label, a hover-revealed
- * close ✕ inside at left and the shortcut hint inside at right. Both affordances
- * are absolutely placed so they never shift the label off centre.
- */
-function TabPill({
-  href,
-  active,
-  label,
-  kbd,
-  onClose,
-  dataTour,
-  badge,
-}: {
-  href: string;
-  active: boolean;
-  label: string;
-  kbd?: string;
-  onClose?: () => void;
-  dataTour?: string;
-  /** Optional trailing indicator (e.g. JARVIS unread-message counter). */
-  badge?: React.ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        // Below md the 220px floor would push 2-3 pills past a ~334px route and
-        // clip the +/split controls off the right edge, so the floor (and the
-        // kbd-hint padding room) only applies at md+. flex-1 + truncate share
-        // the row cleanly at narrow widths; >= md is byte-for-byte unchanged.
-        "group/tab relative flex h-9 min-w-0 max-w-[480px] flex-1 items-center rounded-full md:min-w-[220px]",
-        "transition-colors duration-[160ms] ease-out",
-        active
-          ? "bg-[var(--sd-selected)]"
-          : "bg-transparent hover:bg-[color-mix(in_oklch,var(--sd-hover)_40%,transparent)]"
-      )}
-      role="tab"
-      aria-selected={active}
-      {...(dataTour ? { "data-tour": dataTour } : {})}
-    >
-      <Link
-        href={href}
-        className={cn(
-          // px-9 reserves room for the absolute close-✕ (left) and kbd hint
-          // (right); below md the hint is hidden and touch has no hover-✕, so
-          // that padding only clips the label there. Restore it at md+.
-          "flex h-full w-full items-center justify-center gap-1.5 rounded-full px-3 md:px-9",
-          "font-sans text-[14px] font-medium tracking-[-0.005em] outline-none",
-          "transition-colors duration-[160ms] ease-out",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
-          active
-            ? "text-[var(--sd-ink)]"
-            : "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
-        )}
-      >
-        <span className="truncate">{label}</span>
-        {badge}
-      </Link>
-
-      {onClose && (
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={`Close ${label} tab`}
-          className={cn(
-            "absolute left-2 inline-flex items-center justify-center rounded p-1",
-            "text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
-            "opacity-0 group-hover/tab:opacity-100 transition-opacity duration-[160ms] ease-out"
-          )}
-        >
-          <X size={14} strokeWidth={2} />
-        </button>
-      )}
-
-      {kbd && (
-        <kbd
-          className="pointer-events-none absolute right-3 hidden font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] md:inline"
-          aria-hidden
-        >
-          {kbd}
-        </kbd>
-      )}
-    </div>
   );
 }

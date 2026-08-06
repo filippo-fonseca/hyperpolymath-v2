@@ -114,7 +114,7 @@ export function BatchTotalsTable({
   return (
     <div className={TILE}>
       <div className="flex items-baseline justify-between">
-        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+        <h3 className="text-micro text-[var(--sd-ink-faint)]">
           By batch · {windowLabel}
         </h3>
       </div>
@@ -171,13 +171,13 @@ function BatchSection({
         <span
           className={
             muted
-              ? "font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
-              : "text-sm font-semibold tracking-[-0.01em] text-[var(--sd-ink)]"
+              ?"text-micro text-[var(--sd-ink-faint)]"
+              : "text-meta font-semibold tracking-[-0.01em] text-[var(--sd-ink)]"
           }
         >
           {title}
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--sd-ink-dull)]">
+        <span className="text-micro tabular-nums text-[var(--sd-ink-dull)]">
           {formatMinutes(totalDone)}
           {hasAnyDistance && totalKm > 0 && (
             <> · {formatDistance(totalKm, distanceUnit)}</>
@@ -185,7 +185,7 @@ function BatchSection({
         </span>
       </div>
       {typeAggs.length === 0 ? (
-        <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+        <div className="mt-1 text-micro text-[var(--sd-ink-faint)]">
           No types in this batch.
         </div>
       ) : (
@@ -208,11 +208,11 @@ function BatchSection({
                     style={{ backgroundColor: t.color }}
                   />
                 </span>
-                <span className="truncate text-[13px] text-[var(--sd-ink)]">
+                <span className="truncate text-meta text-[var(--sd-ink)]">
                   {t.name}
                 </span>
               </span>
-              <span className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--sd-ink-dull)]">
+              <span className="flex items-baseline gap-2 text-micro tabular-nums text-[var(--sd-ink-dull)]">
                 <span>{formatMinutes(t.doneMin)}</span>
                 {t.plannedMin > 0 && (
                   <span className="opacity-60">

@@ -243,7 +243,7 @@ export function AnthropicApiPanel({ result, requests }: Props) {
       <DevPanelHeader
         eyebrow="Anthropic API"
         right={
-          <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+          <div className="flex items-baseline gap-4 text-micro tracking-[0.06em] text-[var(--sd-ink-faint)]">
             <Total value={formatUsd(totalCost)} label="spend" />
             <Total value={formatTokens(totalInput)} label="in" />
             <Total value={formatTokens(totalOutput)} label="out" />
@@ -337,7 +337,7 @@ export function AnthropicApiPanel({ result, requests }: Props) {
       {/* When the request-count source is unavailable, say so quietly rather
           than silently dropping a requested metric. */}
       {requests && !requests.ok ? (
-        <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+        <p className="mt-3 text-micro tracking-[0.06em] text-[var(--sd-ink-faint)]">
           Request counts unavailable — {requests.error}
         </p>
       ) : null}
@@ -368,13 +368,9 @@ function SegmentedControl<T extends string>({
           type="button"
           role="radio"
           aria-checked={value === v}
+          data-active={value === v || undefined}
           onClick={() => onChange(v)}
-          // Craft segmented control: raised plate on a recessed track.
-          className={`cursor-pointer rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-[background-color,color,box-shadow] duration-[160ms] ease-out ${
-            value === v
-              ? 'bg-[var(--surface-raised)] font-medium text-[var(--sd-ink)] shadow-[var(--shadow-card)]'
-              : 'text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]'
-          }`}
+          className="craft-chip cursor-pointer-always"
         >
           {label}
         </button>

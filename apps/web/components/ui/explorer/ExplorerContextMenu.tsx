@@ -23,8 +23,9 @@ export function ExplorerContextMenuContent({
       <ContextMenuPrimitive.Content
         data-slot="explorer-context-menu-content"
         className={cn(
-          "z-50 min-w-[168px] overflow-hidden rounded-xl border border-[var(--sd-line)] bg-[var(--sd-menu)] p-1 font-sans text-meta text-[var(--ink)]",
-          "shadow-[0_4px_16px_rgb(0_0_0_/_0.06)] dark:shadow-[0_4px_16px_rgb(0_0_0_/_0.30)]",
+          // aug-04 craft-ui-v2: frosted menu surface (craft-glass-pop owns
+          // fill, edge, radius, and the pop shadow in both themes).
+          "craft-glass-pop z-50 min-w-[168px] overflow-hidden p-1 font-sans text-meta text-[var(--ink)]",
           "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1",
           "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1",
           className
@@ -80,7 +81,7 @@ export function ExplorerContextMenuShortcut({ className, ...props }: ComponentPr
   return (
     <kbd
       className={cn(
-        "ml-auto pl-6 font-mono text-micro uppercase tracking-[0.06em] text-[var(--ink-muted)]",
+ "ml-auto pl-6 text-micro text-[var(--ink-muted)]",
         className
       )}
       {...props}

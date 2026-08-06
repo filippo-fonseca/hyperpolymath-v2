@@ -35,14 +35,16 @@ export function Dock() {
     <aside
       aria-label="Dock"
       data-dock
-      className={`craft-glass flex h-full min-w-0 flex-col overflow-hidden rounded-panel ${
+      // aug-04 craft-ui-v2: the dock is quiet canvas chrome, not a glass
+      // panel — the widget cards below carry all the elevation themselves.
+      className={`craft-canvas-chrome flex h-full min-w-0 flex-col overflow-hidden ${
         mounted ? "" : "invisible"
       }`}
     >
-      <header className="flex h-12 shrink-0 items-center justify-between gap-1 border-b border-[var(--edge)] px-2">
+      <header className="flex h-12 shrink-0 items-center justify-between gap-1 px-2">
         {collapsed ? null : (
           <>
-            <span className="truncate px-1 text-micro font-medium text-[var(--ink-faint)]">
+            <span className="truncate px-1 text-meta font-medium text-[var(--ink-faint)]">
               Dock
             </span>
             <DockChooser />

@@ -52,7 +52,7 @@ export function InlineProjectCreateForm({ areas, onCreate, onDone, onCancel }: P
 
   return (
     <div className="flex flex-col gap-2.5 p-3">
-      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+ <p className="text-micro text-[var(--ink-muted)]">
         New project
       </p>
       <Input
@@ -69,15 +69,15 @@ export function InlineProjectCreateForm({ areas, onCreate, onDone, onCancel }: P
           }
         }}
         placeholder="Project name"
-        className="h-8 font-sans text-[13px]"
+ className="h-8 font-sans text-meta"
       />
       <Select value={areaId} onValueChange={setAreaId}>
-        <SelectTrigger className="h-8 font-sans text-[13px]">
+ <SelectTrigger className="h-8 font-sans text-meta">
           <SelectValue placeholder="Select area" />
         </SelectTrigger>
         <SelectContent>
           {areas.map((a) => (
-            <SelectItem key={a.id} value={a.id} className="font-sans text-[13px]">
+ <SelectItem key={a.id} value={a.id} className="font-sans text-meta">
               {`${a.emoji ?? ""} ${a.name}`.trim()}
             </SelectItem>
           ))}
@@ -88,7 +88,7 @@ export function InlineProjectCreateForm({ areas, onCreate, onDone, onCancel }: P
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 font-sans text-[13px]"
+ className="h-7 font-sans text-meta"
           onClick={onCancel}
           disabled={submitting}
         >
@@ -97,7 +97,7 @@ export function InlineProjectCreateForm({ areas, onCreate, onDone, onCancel }: P
         <Button
           type="button"
           size="sm"
-          className="h-7 font-sans text-[13px]"
+ className="h-7 font-sans text-meta"
           onClick={() => void submit()}
           disabled={submitting || !name.trim() || !areaId}
         >

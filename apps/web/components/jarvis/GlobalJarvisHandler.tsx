@@ -100,6 +100,33 @@ export function GlobalJarvisHandler({ userId }: { userId: string }) {
 
     let abort: AbortController | null = null;
 
+    // FIFO queue + single sequential runner. A new transcript arriving while
+    // a turn is in flight no longer cancels it — it waits its turn, so no
+    // utterance is ever swallowed. jarvis-cancel aborts the CURRENT run and
+    // clears the queue.
+    type HandlerJob = {
+      transcript: string;
+      sttDoneAt: number | null;
+      vadEndAt: number | undefined;
+      assistantTurnId: string;
+    };
+    let queue: HandlerJob[] = [];
+    let running = false;
+
+    async function runQueue() {
+      if (running) return;
+      running = true;
+      try {
+        while (queue.length > 0) {
+          const job = queue.shift();
+          if (!job) break;
+          await runJob(job);
+        }
+      } finally {
+        running = false;
+      }
+    }
+
     function handleVoiceTranscript(e: Event) {
       // Phase 9 / TEL-01: detail now also carries sttDoneAt (epoch ms or null)
       // read off the /api/jarvis/stt response header by JarvisListener, AND
@@ -126,31 +153,35 @@ export function GlobalJarvisHandler({ userId }: { userId: string }) {
       // call handleSubmit directly. Yielding here prevents a double-execution
       // where both GlobalJarvisHandler AND JarvisConsole submit the same turn.
       if (isJarvisConsoleMounted()) return;
-      const sttDoneAt = detail.sttDoneAt ?? null;
-      const vadEndAt = detail.vadEndAt;
-
-      // Cancel any in-flight call before starting a new one.
-      abort?.abort();
-      abort = new AbortController();
-
-      // Phase 10 Plan 10-04 (LAT-02) — per-turn sentence dispatch state.
-      // Local to this submit closure so every transcript starts fresh.
-      let ttsBuffer = "";
-      let ttsSeq = 0;
-
-      // Persist this turn to jarvis_turns so it joins the JARVIS conversation
-      // record and surfaces live on /today (deduped by client UUID). Mirrors
-      // JarvisConsole's persist-user-immediately / persist-assistant-on-done
-      // semantics. Best-effort: persistTurn never bubbles.
+      // Enqueue. The user turn persists to jarvis_turns NOW so it joins the
+      // JARVIS conversation record in true send order and surfaces live on
+      // /today (deduped by client UUID) even if its stream never runs. The
+      // sequential runner streams it when its turn comes.
       const userTurnId = crypto.randomUUID();
-      const assistantTurnId = crypto.randomUUID();
-      const userTurn: ScrollbackTurn = {
+      persistTurn({
         kind: "user",
         id: userTurnId,
         text: detail.transcript,
         createdAt: new Date(),
-      };
-      persistTurn(userTurn);
+      });
+      queue.push({
+        transcript: detail.transcript,
+        sttDoneAt: detail.sttDoneAt ?? null,
+        vadEndAt: detail.vadEndAt,
+        assistantTurnId: crypto.randomUUID(),
+      });
+      void runQueue();
+    }
+
+    async function runJob(job: HandlerJob) {
+      const { transcript, sttDoneAt, vadEndAt, assistantTurnId } = job;
+      abort = new AbortController();
+
+      // Phase 10 Plan 10-04 (LAT-02) — per-turn sentence dispatch state.
+      // Local to this run closure so every transcript starts fresh.
+      let ttsBuffer = "";
+      let ttsSeq = 0;
+
       const assistant: {
         kind: "assistant";
         id: string;
@@ -170,9 +201,9 @@ export function GlobalJarvisHandler({ userId }: { userId: string }) {
         status: "streaming",
       };
 
-      void streamJarvis(
+      await streamJarvis(
         {
-          input: detail.transcript,
+          input: transcript,
           history: [],
           parsedDates: [],
           parsedPriority: undefined,
@@ -334,17 +365,29 @@ export function GlobalJarvisHandler({ userId }: { userId: string }) {
             // mounted, so a completed reply here is unread by definition. Bump
             // the badge (the bus still gates on document-visibility internally).
             bumpUnread();
-
-            abort = null;
           },
           onError: (message) => {
-            if (message !== "aborted") {
-              toast.error(`JARVIS: ${message}`);
-            }
+            // The abort sentinel no longer reaches here — onAborted below
+            // owns user-initiated stops. Everything else (incl. "Request
+            // timed out") is a real error and persists as one.
+            toast.error(`JARVIS: ${message}`);
             assistant.status = "error";
             assistant.errorMessage = message;
             persistTurn(assistant);
-            abort = null;
+          },
+          onAborted: () => {
+            // User-initiated stop — not an error, no red receipt in the
+            // conversation record. Persist the partial reply as done if
+            // anything streamed; otherwise persist nothing (the user turn
+            // already landed at enqueue).
+            const hasContent =
+              assistant.textDelta.length > 0 ||
+              assistant.actions.length > 0 ||
+              !!assistant.clarification;
+            if (hasContent) {
+              assistant.status = "done";
+              persistTurn(assistant);
+            }
           },
         },
         abort.signal,
@@ -357,9 +400,14 @@ export function GlobalJarvisHandler({ userId }: { userId: string }) {
         // records null in stages.sttDoneAt — non-fatal).
         sttDoneAt,
       );
+      abort = null;
     }
 
     function handleCancel() {
+      // Stop the CURRENT run and drop everything waiting behind it. The
+      // queued user turns were already persisted at enqueue — the DB thread
+      // stays faithful; only their (never-started) runs are discarded.
+      queue = [];
       abort?.abort();
       abort = null;
     }

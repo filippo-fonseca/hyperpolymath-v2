@@ -114,6 +114,13 @@ export interface JarvisCallbacks {
   onAck?: (text: string) => void;
   onDone: (usage: Record<string, number>) => void;
   onError: (message: string) => void;
+  /** Fired INSTEAD of onError when the caller's own AbortSignal cancelled the
+   *  stream (explicit stop / caller teardown) — a user-initiated stop is not
+   *  an error and must not become a persisted error turn. Idle-timeout stalls
+   *  still surface as onError("Request timed out"). When this callback is
+   *  absent, the legacy onError("aborted") sentinel fires so older consumers
+   *  keep working unchanged. */
+  onAborted?: () => void;
 }
 
 export async function streamJarvis(
@@ -188,9 +195,12 @@ export async function streamJarvis(
     cleanup();
     const e = err as { name?: string; message?: string };
     if (e?.name === "AbortError") {
-      // Distinguish a user/caller cancel ("aborted") from a stall timeout so
-      // the UI surfaces a real network error instead of a silent no-op.
-      callbacks.onError(timedOut ? "Request timed out" : "aborted");
+      // Distinguish a user/caller cancel from a stall timeout so the UI
+      // surfaces a real network error instead of a silent no-op. Caller
+      // cancels route to onAborted (falling back to the "aborted" sentinel).
+      if (timedOut) callbacks.onError("Request timed out");
+      else if (callbacks.onAborted) callbacks.onAborted();
+      else callbacks.onError("aborted");
     } else {
       callbacks.onError(String(e?.message ?? err));
     }
@@ -289,7 +299,9 @@ export async function streamJarvis(
     const e = err as { name?: string; message?: string };
     if (e?.name === "AbortError") {
       // A mid-stream abort is either a user cancel or our idle-timeout firing.
-      callbacks.onError(timedOut ? "Request timed out" : "aborted");
+      if (timedOut) callbacks.onError("Request timed out");
+      else if (callbacks.onAborted) callbacks.onAborted();
+      else callbacks.onError("aborted");
     } else {
       callbacks.onError(String(e?.message ?? err));
     }

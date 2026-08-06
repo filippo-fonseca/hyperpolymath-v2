@@ -22,20 +22,20 @@ export function LandingHeader() {
           aria-label="Hyperpolymath · home"
         >
           <KiwiIcon size={18} aria-hidden="true" className="shrink-0" />
-          <Logotype className="truncate text-[16px] leading-none sm:text-[17px]" />
-          <span className="ml-1 hidden border-l border-[var(--edge)] pl-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)] md:inline">
+          <Logotype className="truncate text-subtitle leading-none sm:text-subtitle" />
+          <span className="ml-1 hidden border-l border-[var(--edge)] pl-2 font-mono text-micro uppercase tracking-[0.14em] text-[var(--ink-muted)] md:inline">
             MANIFESTO
           </span>
         </Link>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3 md:gap-4">
-          <span className="hidden md:inline font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          <span className="hidden md:inline font-mono text-micro font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             EST. 2026 / MIT
           </span>
           <ThemeToggle variant="header" />
           <Link
             href="/sign-in"
-            className="group inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--ink)] px-3 font-serif text-[14px] font-medium tracking-tight text-[var(--canvas)] shadow-[0_1px_0_color-mix(in_oklch,var(--ink)_22%,transparent),0_4px_12px_color-mix(in_oklch,var(--ink)_18%,transparent)] transition-[background-color,transform] duration-150 ease-out hover:bg-[color-mix(in_oklch,var(--ink)_88%,var(--ink-muted))] active:translate-y-px sm:px-4"
+            className="group inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--ink)] px-3 font-serif text-body font-medium tracking-tight text-[var(--canvas)] shadow-[0_1px_0_color-mix(in_oklch,var(--ink)_22%,transparent),0_4px_12px_color-mix(in_oklch,var(--ink)_18%,transparent)] transition-[background-color,transform] duration-150 ease-out hover:bg-[color-mix(in_oklch,var(--ink)_88%,var(--ink-muted))] active:translate-y-px sm:px-4"
           >
             <span>Sign in</span>
             <ArrowUpRight

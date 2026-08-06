@@ -124,7 +124,7 @@ export function JarvisDemoButton() {
       onClick={handleClick}
       aria-label="Play a line from JARVIS"
       aria-pressed={state === "speaking"}
-      className="inline-flex items-center gap-2 rounded-md px-3.5 py-2 font-mono text-[12px] uppercase tracking-[0.12em] transition-colors duration-150 cursor-pointer"
+      className="inline-flex items-center gap-2 rounded-md px-3.5 py-2 font-mono text-micro uppercase tracking-[0.12em] transition-colors duration-150 cursor-pointer"
       style={{
         background:
           state === "speaking"

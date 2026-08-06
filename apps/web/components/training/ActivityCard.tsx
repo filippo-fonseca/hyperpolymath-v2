@@ -39,7 +39,7 @@ interface Props {
 
 /**
  * Compact activity card. Smaller density than TaskCard per D-01:
- *   - text-xs across the board (TaskCard uses text-sm)
+ *   - text-xs across the board (TaskCard uses text-meta)
  *   - single-line subline mashing type/duration/distance
  *   - kebab menu (mark cancelled / skipped / delete)
  *
@@ -169,7 +169,7 @@ export function ActivityCard({ activity, distanceUnit, addOptimistic, onCheckOff
             {activity.title}
           </span>
         </div>
-        <div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.04em] text-[var(--sd-ink-faint)]">
+        <div className="flex items-center gap-1 text-micro text-[var(--sd-ink-faint)]">
           <span className="truncate">{activity.type.name}</span>
           {durationMin != null ? (
             <>

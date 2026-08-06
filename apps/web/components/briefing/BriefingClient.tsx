@@ -120,11 +120,11 @@ export function BriefingClient({ userId, initial }: Props) {
       <header className="space-y-4">
         <div className="flex items-start justify-between gap-6">
           <div className="space-y-1">
-            <h1 className="font-serif text-5xl font-semibold leading-none tracking-tight text-[var(--ink)]">
+ <h1 className="font-serif text-display font-semibold leading-none tracking-tight text-[var(--ink)]">
               Briefing
             </h1>
             {edition && (
-              <p className="text-meta uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+              <p className="text-meta text-[var(--ink-muted)]">
                 {formatEditionDate(edition.editionDate)}
                 <span className="mx-2 text-[var(--edge-strong)]">·</span>
                 Updated {relativeTime(edition.generatedAt)}
@@ -136,14 +136,7 @@ export function BriefingClient({ userId, initial }: Props) {
             onClick={handleRefresh}
             disabled={refreshing}
             aria-label="Refresh briefing"
-            className={cn(
-              "inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-4",
-              "border border-[var(--edge)] bg-[var(--surface-raised)] shadow-[var(--shadow-card)]",
-              "font-serif text-[14px] text-[var(--ink)] cursor-pointer-always",
-              "transition-[border-color,box-shadow] duration-[160ms] ease-out",
-              "hover:border-[var(--edge-strong)] hover:shadow-[var(--shadow-card-hover)]",
-              "disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-[var(--shadow-card)]"
-            )}
+            className="craft-chip shrink-0 cursor-pointer-always disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw
               size={15}
@@ -166,11 +159,11 @@ export function BriefingClient({ userId, initial }: Props) {
                 ? { duration: 0 }
                 : { duration: 0.22, ease: [0.25, 1, 0.5, 1] }
             }
-            className="tint-lavender space-y-2 rounded-2xl border border-[var(--edge)] bg-[var(--surface-raised)] p-5 shadow-[var(--shadow-card)]"
+            className="craft-card tint-lavender space-y-2 p-5"
             style={{ borderLeft: "3px solid var(--tint-edge)" }}
           >
             {edition.headline && (
-              <h2 className="font-serif text-2xl font-medium leading-snug text-[var(--ink)]">
+ <h2 className="font-serif text-title font-medium leading-snug text-[var(--ink)]">
                 {edition.headline}
               </h2>
             )}

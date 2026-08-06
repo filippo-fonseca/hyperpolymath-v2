@@ -52,7 +52,7 @@ function ApproxBar({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+      <div className="flex items-baseline justify-between text-micro tracking-[0.06em] text-[var(--sd-ink-faint)]">
         <span>{label}</span>
         <span className="text-[var(--sd-ink)] tabular-nums">
           {detail}
@@ -115,7 +115,7 @@ export function ClaudeSubscriptionPanel({ result }: Props) {
       <DevPanelHeader
         eyebrow="Claude Code"
         right={
-          <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+          <span className="text-micro tracking-[0.06em] text-[var(--sd-ink-faint)]">
             subscription
           </span>
         }
@@ -127,7 +127,7 @@ export function ClaudeSubscriptionPanel({ result }: Props) {
           <div className="flex items-baseline justify-between">
             <Eyebrow className="tracking-[0.08em]">Current session</Eyebrow>
             {sessionWindow ? (
-              <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+              <span className="text-micro tracking-[0.06em] text-[var(--sd-ink-faint)]">
                 {sessionWindow}
               </span>
             ) : null}
@@ -135,7 +135,7 @@ export function ClaudeSubscriptionPanel({ result }: Props) {
 
           {session ? (
             <>
-              <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+              <div className="flex items-baseline gap-4 text-micro tracking-[0.06em] text-[var(--sd-ink-faint)]">
                 <span>
                   <span className="text-[var(--sd-ink)] tabular-nums">
                     {formatUsd(session.costUsd)}
@@ -175,12 +175,12 @@ export function ClaudeSubscriptionPanel({ result }: Props) {
               </div>
             </>
           ) : (
-            <p className="text-[13px] text-[var(--sd-ink-faint)]">
+            <p className="text-meta text-[var(--sd-ink-faint)]">
               No active session block.
             </p>
           )}
 
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+          <p className="text-micro tracking-[0.08em] text-[var(--sd-ink-faint)]">
             {APPROX_CAPTION}
           </p>
         </div>
@@ -191,7 +191,7 @@ export function ClaudeSubscriptionPanel({ result }: Props) {
 
           {latestWeek ? (
             <>
-              <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+              <div className="flex items-baseline gap-4 text-micro tracking-[0.06em] text-[var(--sd-ink-faint)]">
                 <span>
                   <span className="text-[var(--sd-ink)] tabular-nums">
                     {formatUsd(latestWeek.costUsd)}
@@ -232,12 +232,12 @@ export function ClaudeSubscriptionPanel({ result }: Props) {
               </div>
             </>
           ) : (
-            <p className="text-[13px] text-[var(--sd-ink-faint)]">
+            <p className="text-meta text-[var(--sd-ink-faint)]">
               No weekly usage synced yet.
             </p>
           )}
 
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+          <p className="text-micro tracking-[0.08em] text-[var(--sd-ink-faint)]">
             {APPROX_CAPTION}
           </p>
         </div>

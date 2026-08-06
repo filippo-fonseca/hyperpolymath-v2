@@ -69,7 +69,7 @@ function FactCard({
       )}
     >
       {/* Metadata top row — the type sits on its deterministic pastel chip. */}
-      <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+      <div className="mb-2 flex items-center gap-2 text-micro tracking-[0.06em] text-[var(--ink-muted)]">
         <span>FACT</span>
         <span className="rounded-md border border-[color-mix(in_srgb,var(--tint-edge)_50%,transparent)] bg-[var(--tint-bg)] px-1.5 py-[1px] text-[var(--tint-ink)]">
           {fact.type}
@@ -84,7 +84,7 @@ function FactCard({
       </div>
 
       {/* Source row — mono dim. */}
-      <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-[11px] text-[var(--ink-faint)]">
+      <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-micro text-[var(--ink-faint)]">
         <span>{sourceLabel}</span>
         <span aria-hidden="true">·</span>
         <span>
@@ -100,7 +100,7 @@ function FactCard({
           type="button"
           onClick={onEdit}
           aria-label="Edit fact"
-          className="cursor-pointer-always rounded-lg border border-[var(--edge)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)]"
+          className="cursor-pointer-always rounded-lg border border-[var(--edge)] px-2.5 py-1 text-micro tracking-[0.06em] text-[var(--ink-muted)] transition-[color,border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--edge-strong)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-card)]"
         >
           Edit
         </button>
@@ -108,7 +108,7 @@ function FactCard({
           type="button"
           onClick={onDelete}
           aria-label="Forget fact"
-          className="cursor-pointer-always rounded-lg border border-[color-mix(in_oklch,var(--ink-coral)_35%,var(--edge))] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-coral)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--ink-coral)] hover:shadow-[var(--shadow-card)]"
+          className="cursor-pointer-always rounded-lg border border-[color-mix(in_oklch,var(--ink-coral)_35%,var(--edge))] px-2.5 py-1 text-micro tracking-[0.06em] text-[var(--ink-coral)] transition-[border-color,box-shadow] duration-[160ms] ease-out hover:border-[var(--ink-coral)] hover:shadow-[var(--shadow-card)]"
         >
           Delete
         </button>
@@ -178,7 +178,7 @@ export function MemoryTable({ userId, initialFacts }: Props) {
           if (list.length === 0) return null;
           return (
             <section key={type} className="space-y-3">
-              <h2 className="pl-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+              <h2 className="pl-1 text-micro tracking-[0.08em] text-[var(--ink-faint)]">
                 {TYPE_LABELS[type]}
               </h2>
               <div className="space-y-3">

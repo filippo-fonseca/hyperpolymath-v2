@@ -107,7 +107,7 @@ export function ProjectAutocomplete({
             <span
               key={p.id}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-sans text-[13px]",
+ "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-sans text-meta",
                 "border border-[var(--edge-hud)] text-[var(--ink)]",
                 "bg-[color:color-mix(in_oklch,var(--surface-raised)_82%,transparent)]",
                 "shadow-[inset_0_1px_0_var(--glass-hi),inset_0_-1px_0_var(--glass-lo)]"
@@ -148,7 +148,7 @@ export function ProjectAutocomplete({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-sans text-[13px] h-8"
+ className="w-full justify-between font-sans text-meta h-8"
           >
             {selected.length === 0 ? "Link projects..." : `${selected.length} linked`}
             <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
@@ -174,15 +174,15 @@ export function ProjectAutocomplete({
                   }
                 }}
                 placeholder="Project name"
-                className="h-8 font-sans text-[13px]"
+ className="h-8 font-sans text-meta"
               />
               <Select value={draftAreaId} onValueChange={setDraftAreaId}>
-                <SelectTrigger className="h-8 font-sans text-[13px]">
+ <SelectTrigger className="h-8 font-sans text-meta">
                   <SelectValue placeholder="Select area" />
                 </SelectTrigger>
                 <SelectContent>
                   {areas.map((a) => (
-                    <SelectItem key={a.id} value={a.id} className="font-sans text-[13px]">
+ <SelectItem key={a.id} value={a.id} className="font-sans text-meta">
                       {`${a.emoji ?? ""} ${a.name}`.trim()}
                     </SelectItem>
                   ))}
@@ -193,7 +193,7 @@ export function ProjectAutocomplete({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-7 font-sans text-[13px]"
+ className="h-7 font-sans text-meta"
                   onClick={cancelCreate}
                   disabled={submitting}
                 >
@@ -202,7 +202,7 @@ export function ProjectAutocomplete({
                 <Button
                   type="button"
                   size="sm"
-                  className="h-7 font-sans text-[13px]"
+ className="h-7 font-sans text-meta"
                   onClick={() => void submitCreate()}
                   disabled={submitting || !draftName.trim() || !draftAreaId}
                 >
@@ -219,9 +219,9 @@ export function ProjectAutocomplete({
             </div>
           ) : (
             <Command>
-              <CommandInput placeholder="Search projects..." className="font-sans text-[13px]" />
+ <CommandInput placeholder="Search projects..." className="font-sans text-meta" />
               <CommandList>
-                <CommandEmpty className="font-sans text-[13px] py-6 text-center">
+ <CommandEmpty className="font-sans text-meta py-6 text-center">
                   No projects found.
                 </CommandEmpty>
                 <CommandGroup>
@@ -234,7 +234,7 @@ export function ProjectAutocomplete({
                         key={p.id}
                         value={`${getLabel(p)} ${p.areaName ?? ""}`}
                         onSelect={() => toggle(p.id)}
-                        className="font-sans text-[13px]"
+ className="font-sans text-meta"
                       >
                         <Check
                           className={cn(
@@ -253,7 +253,7 @@ export function ProjectAutocomplete({
                         <span className="truncate">{getLabel(p)}</span>
                         <span
                           className={cn(
-                            "ml-auto pl-2 shrink-0 truncate text-[12px] text-[var(--ink-muted)]",
+ "ml-auto pl-2 shrink-0 truncate text-micro text-[var(--ink-muted)]",
                             !p.areaName && "italic opacity-70"
                           )}
                         >
@@ -268,7 +268,7 @@ export function ProjectAutocomplete({
                     <CommandItem
                       value="__create_new_project__"
                       onSelect={startCreate}
-                      className="font-sans text-[13px] text-[var(--ink)]"
+ className="font-sans text-meta text-[var(--ink)]"
                     >
                       <Plus className="mr-2 h-4 w-4 shrink-0 text-[var(--ink-muted)]" />
                       Create new project

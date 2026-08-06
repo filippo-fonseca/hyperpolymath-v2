@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 
 export type MealSlot = "breakfast" | "lunch" | "dinner" | "snacks";
 
@@ -39,13 +38,7 @@ export function MealSlotPillBar({ value, onChange }: Props) {
             aria-current={isActive ? "true" : undefined}
             aria-pressed={isActive}
             onClick={() => onChange(slot.value)}
-            className={cn(
-              "inline-flex items-center rounded-md px-3 py-1 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-              "transition-colors duration-150 ease-out",
-              isActive
-                ? "bg-[var(--sd-input)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]"
-                : "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]",
-            )}
+            className="craft-chip cursor-pointer-always"
           >
             {slot.label}
           </button>

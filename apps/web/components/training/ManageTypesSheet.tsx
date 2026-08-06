@@ -86,7 +86,7 @@ export function ManageTypesSheet({
 
         {isEmpty ? (
           <div className="flex flex-1 flex-col gap-3 p-4">
-            <p className="text-sm text-[var(--sd-ink-dull)]">
+            <p className="text-meta text-[var(--sd-ink-dull)]">
               Create your first activity type to start planning. Types are the
               templates ("Run", "Yoga", "Lift") you reuse across days. Batches
               are optional groupings ("Cardio", "Strength").
@@ -109,7 +109,7 @@ export function ManageTypesSheet({
             <div className="border-t border-[var(--edge)]" />
 
             <div className="flex flex-col gap-1">
-              <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+              <div className="px-1 pb-1 text-micro text-[var(--sd-ink-dull)]">
                 {scope === "__ungrouped__"
                   ? "Ungrouped types"
                   : `Types in ${batches.find((b) => b.id === scope)?.name ?? "batch"}`}

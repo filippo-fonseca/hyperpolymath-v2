@@ -761,10 +761,10 @@ export function CalendarClient({
         <div className="flex items-center gap-3">
           <CalendarIcon size={34} aria-hidden />
           <div className="flex flex-col gap-1">
-            <h1 className="text-[26px] font-semibold leading-none tracking-[-0.01em] text-[var(--ink)]">
+            <h1 className="text-display font-semibold leading-none text-[var(--ink)]">
               Calendar<span className="text-[var(--tint-sky-edge)]">.</span>
             </h1>
-            <p className="text-meta tabular-nums text-[var(--ink-faint)]">
+            <p className="text-micro tabular-nums text-[var(--ink-faint)]">
               {displayEvents.length} event{displayEvents.length === 1 ? "" : "s"} in view
             </p>
           </div>

@@ -61,7 +61,7 @@ function ChartPanel({
     // utility here, the unlayered class would win over it anyway.
     <div className={`relative ${NEUMORPHIC_TILE} p-6 ${className}`}>
       <header className="mb-5 flex items-baseline justify-between gap-3">
-        <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
+ <h2 className="font-serif text-subtitle font-semibold tracking-tight text-[var(--ink)]">
           {title}
         </h2>
         {subtitle ? (

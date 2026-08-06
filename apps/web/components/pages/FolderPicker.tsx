@@ -76,7 +76,7 @@ export function FolderPicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[11px] font-mono text-[var(--ink-muted)] border border-[var(--edge)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer"
+ className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-micro font-mono text-[var(--ink-muted)] border border-[var(--edge)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer"
           title="File this page in a folder"
         >
           <Folder size={11} strokeWidth={1.5} />
@@ -92,7 +92,7 @@ export function FolderPicker({
             onPick(null);
             setOpen(false);
           }}
-          className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm text-[12px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-100 cursor-pointer"
+ className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm text-micro font-serif text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-100 cursor-pointer"
         >
           <FolderInput size={12} strokeWidth={1.5} className="text-[var(--ink-muted)] flex-shrink-0" />
           <span className="flex-1">Unfiled</span>
@@ -124,7 +124,7 @@ export function FolderPicker({
                     strokeWidth={1.5}
                     className="text-[var(--ink-muted)] flex-shrink-0"
                   />
-                  <span className="flex-1 truncate text-[12px] font-serif text-[var(--ink)]">
+ <span className="flex-1 truncate text-micro font-serif text-[var(--ink)]">
                     {folder.name}
                   </span>
                   {currentFolderId === folder.id && (
@@ -153,7 +153,7 @@ export function FolderPicker({
             </div>
           ))}
           {flat.length === 0 && (
-            <p className="px-2 py-1.5 text-[12px] font-serif italic text-[var(--ink-muted)]">
+ <p className="px-2 py-1.5 text-micro font-serif italic text-[var(--ink-muted)]">
               No folders yet.
             </p>
           )}
@@ -175,7 +175,7 @@ export function FolderPicker({
           <button
             type="button"
             onClick={() => openCreateInput("__root__")}
-            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm text-[12px] font-mono text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer"
+ className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm text-micro font-mono text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer"
           >
             <Plus size={12} strokeWidth={1.5} className="flex-shrink-0" />
             New folder
@@ -215,7 +215,7 @@ function InlineCreate({
           if (e.key === "Escape") onCancel();
         }}
         placeholder="Folder name..."
-        className="flex-1 min-w-0 px-2 py-1 text-[12px] font-serif bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)] disabled:opacity-50"
+ className="flex-1 min-w-0 px-2 py-1 text-micro font-serif bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)] disabled:opacity-50"
       />
       <button
         type="button"
