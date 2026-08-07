@@ -27,8 +27,8 @@ import { db } from "@/lib/db";
 import { getMessagingSettings } from "@/lib/db/queries/messaging";
 import { jarvisSmsEvents, users } from "@/lib/db/schema";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
-import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import { runChannelTurn } from "@/lib/jarvis/run-channel-turn";
+import { composeSmsReply } from "@/lib/jarvis/sms-receipt";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 import { isAllowedSmsSender, isOwnSmsNumber, normalizePhoneNumber } from "@/lib/twilio/config";
 import { sendSmsReply } from "@/lib/twilio/send";
@@ -240,10 +240,13 @@ export async function processInboundSms(input: InboundSms): Promise<ProcessSmsOu
       throw new Error(turn.errorMessage ?? "JARVIS turn failed");
     }
 
-    // A pure tool turn produces no prose. Falling back to the receipt line
-    // means the user always gets a confirmation, never a blank reply.
+    // Prose AND receipt, not either/or. The old `prose || receipt` meant any
+    // turn that produced a sentence dropped its receipt on the floor: "Loud
+    // and clear, sir." with no mention of the task it had just filed. A text
+    // message has no UI behind it to go check, so what changed is the part
+    // that matters most — see lib/jarvis/sms-receipt.ts.
     const prose = stripSystemTags(turn.text ?? "").trim();
-    const reply = prose || formatReceiptSummary(turn.actions.map((a) => ({ name: a.name })));
+    const reply = composeSmsReply(prose, turn.actions);
 
     const sent = await sendSmsReply({ to: from, body: reply });
     if (!sent.ok) throw new Error(sent.error);
