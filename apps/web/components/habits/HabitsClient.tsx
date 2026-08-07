@@ -5,12 +5,13 @@ import {
   type HabitWithAreas,
   deleteHabit,
   getArchivedHabitsForCurrentUser,
+  getHabitCompletionsInRange,
   getHabitsForCurrentUser,
   updateHabit,
 } from "@/app/actions/habits";
-import { Chip, ProgressRow } from "@/components/lifeos/entity-card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageScaffold } from "@/components/ui/PageScaffold";
+import { SidePanel } from "@/components/ui/SidePanel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,13 +47,15 @@ import {
   Flame,
   MoreHorizontal,
   Plus,
+  SlidersHorizontal,
   Trash2,
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { HabitCheckRow, buildTrail } from "./HabitCheckRow";
 import { type AreaOption, HabitDialog } from "./HabitDialog";
-import { HabitStatusRing } from "./HabitStatusRing";
+import { HabitWeekPicker } from "./HabitWeekPicker";
 import { MiniCalendar } from "./MiniCalendar";
 import { addDaysISO, dayOfWeekISO, parseISODate, toISODate } from "./date-utils";
 import { scheduleLabel } from "./schedule";
@@ -117,17 +120,25 @@ type StreakDisplay = { value: number; saturated: boolean };
  * the canvas, so it carries the only border), surface-raised fill, 8px radius
  * per the ladder, hover to --edge-strong only.
  */
-/** jul-29 craft restyle: habit rows are lifted white cards. Compose with a
- *  tintFor(habit.id) class so the row's check circle and hover rim pick up
- *  the habit's own pastel via var(--tint-…). */
-const ROW = "craft-card craft-card-hover flex items-center gap-3 px-4 py-3";
+/** aug-07: bare rows on the sheet, per Craft §5. These are the MANAGE rows
+ *  (inside the side panel); the daily check-off rows live in HabitCheckRow.
+ *  Composed with tintFor(habit.id) so a row's accents pick up the habit's own
+ *  pastel via var(--tint-…). */
+const ROW =
+  "flex items-center gap-3 rounded-lg px-2 py-2 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]";
 
 /**
- * /habits — the daily loop on the stage.
+ * /habits — the daily loop on the stage, and nothing else.
  *
- * One document, two sections: **Today** (the check-off surface — nothing on it
- * edits, archives or analyzes) and **All habits** (manage: edit, archive,
- * delete, with the archive list revealed on demand and fetched lazily).
+ * The page used to promise this split in prose while breaking it in layout:
+ * "Today" and "All habits" were stacked in one scroll using the identical row
+ * chrome, so a surface you touch every morning and a surface you touch once a
+ * month competed for the same attention. That is most of why it did not feel
+ * intuitive.
+ *
+ * Now the page IS the check-off surface — day pills, bare rows, one tap to
+ * complete — and managing habits (edit, archive, delete, restore) opens in a
+ * side panel. The archive list is still fetched lazily, only on reveal.
  *
  * Data plane: `useHabitDay` for per-day completion state (shared cache entry
  * with the dock widget and the LifeOS tile for today), `useHabitMeta` for
@@ -152,6 +163,7 @@ export function HabitsClient({
   const [editing, setEditing] = useState<HabitWithAreas | null>(null);
   const [deleting, setDeleting] = useState<HabitWithAreas | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(today);
 
   // If the day rolls over while we sit on the old "today", snap forward. An
@@ -182,6 +194,29 @@ export function HabitsClient({
   const selectedDay = useHabitDay(userId, selectedDate, today);
   const isTodaySelected = selectedDate === today;
   const todayDay = isTodaySelected ? selectedDay : todayBase;
+
+  // The seven-day strip in each row needs statuses for the whole window, which
+  // the per-day hooks do not carry. One range read, shared by every row, keyed
+  // on the window so paging the week refetches once rather than per habit.
+  const trailStart = addDaysISO(selectedDate, -6);
+  const { data: trailRows = [] } = useQuery({
+    queryKey: [...tableKey("habit_completions", userId), trailStart, selectedDate],
+    queryFn: () => getHabitCompletionsInRange(trailStart, selectedDate),
+  });
+  const trailStatus = useMemo(() => {
+    const m = new Map<string, HabitStatus>();
+    for (const r of trailRows) m.set(`${r.habitId}::${r.completedDate}`, r.status);
+    return m;
+  }, [trailRows]);
+  const statusOnDay = useCallback(
+    (habitId: string, iso: string): HabitStatus => {
+      // The selected day reads from the optimistic overlay so a tap updates
+      // its own dot immediately; the rest come from the range fetch.
+      if (iso === selectedDate) return selectedDay.statusOf(habitId);
+      return trailStatus.get(`${habitId}::${iso}`) ?? "not_started";
+    },
+    [selectedDate, selectedDay, trailStatus]
+  );
 
   // ── Derived stats (live: base streaks + today's optimistic state) ─────
   const metaById = useMemo(() => new Map((meta?.habits ?? []).map((h) => [h.id, h])), [meta]);
@@ -330,9 +365,19 @@ export function HabitsClient({
         </PageScaffold.MetaRow>
       }
       actions={
-        <Button size="sm" className="rounded-lg" onClick={() => setCreateOpen(true)}>
-          <Plus size={14} /> New habit
-        </Button>
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-lg"
+            onClick={() => setManageOpen(true)}
+          >
+            <SlidersHorizontal size={14} /> Manage
+          </Button>
+          <Button size="sm" className="rounded-lg" onClick={() => setCreateOpen(true)}>
+            <Plus size={14} /> New habit
+          </Button>
+        </>
       }
     >
       {habits.length === 0 ? (
@@ -357,65 +402,77 @@ export function HabitsClient({
               isFuture={isFuture}
               isPast={isPast}
               isToday={isTodaySelected}
-              doneSet={selectedDay.doneSet}
               statusOf={selectedDay.statusOf}
-              onAdvance={selectedDay.advance}
+              statusOnDay={statusOnDay}
+              onToggle={selectedDay.toggle}
+              onSetStatus={selectedDay.setStatus}
               streakOf={streakOf}
             />
           </PageScaffold.Section>
-
-          <PageScaffold.Section
-            title="All habits"
-            action={
-              <Button
-                variant="ghost"
-                size="sm"
-                className="rounded-lg"
-                onClick={() => setShowArchived((v) => !v)}
-              >
-                {showArchived ? "Hide archived" : "Show archived"}
-              </Button>
-            }
-          >
-            <ul className="flex flex-col gap-2">
-              {habits.map((h) => (
-                <li key={h.id}>
-                  <ManageHabitRow
-                    habit={h}
-                    streak={streakOf(h.id)}
-                    onEdit={() => setEditing(h)}
-                    onArchive={() => handleArchive(h)}
-                    onDelete={() => setDeleting(h)}
-                  />
-                </li>
-              ))}
-            </ul>
-
-            {showArchived ? (
-              <div className="mt-6">
-                <h3 className="mb-3 text-micro font-medium text-[var(--ink-faint)]">Archived</h3>
-                {archivedPending ? (
-                  <p className="text-meta text-[var(--ink-faint)]">Loading…</p>
-                ) : archived.length === 0 ? (
-                  <EmptyState size="inline" title="Nothing archived yet." />
-                ) : (
-                  <ul className="flex flex-col gap-2">
-                    {archived.map((h) => (
-                      <li key={h.id}>
-                        <ArchivedHabitRow
-                          habit={h}
-                          onRestore={() => handleRestore(h)}
-                          onDelete={() => setDeleting(h)}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ) : null}
-          </PageScaffold.Section>
         </>
       )}
+
+      {/* Management lives OFF the daily path. The page's own docstring already
+          claimed this split ("Today = check-off, All habits = manage") while
+          rendering both sections stacked in one scroll, with identical row
+          chrome — so the daily loop and the CRUD surface competed for the same
+          attention. The panel is the split made real: check-off is the page,
+          managing is something you open. */}
+      <SidePanel
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
+        title="Manage habits"
+        width={360}
+        actions={
+          <Button size="sm" className="rounded-lg" onClick={() => setCreateOpen(true)}>
+            <Plus size={14} /> New
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-4 p-3">
+          <ul className="flex flex-col divide-y divide-[color-mix(in_srgb,var(--sd-line)_60%,transparent)]">
+            {habits.map((h) => (
+              <li key={h.id}>
+                <ManageHabitRow
+                  habit={h}
+                  streak={streakOf(h.id)}
+                  onEdit={() => setEditing(h)}
+                  onArchive={() => handleArchive(h)}
+                  onDelete={() => setDeleting(h)}
+                />
+              </li>
+            ))}
+          </ul>
+
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            className="w-fit cursor-pointer-always rounded-lg px-1.5 py-1 text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+          >
+            {showArchived ? "Hide archived" : "Show archived"}
+          </button>
+
+          {showArchived ? (
+            archivedPending ? (
+              <p className="text-meta text-[var(--ink-faint)]">Loading…</p>
+            ) : archived.length === 0 ? (
+              <EmptyState size="inline" title="Nothing archived yet." />
+            ) : (
+              <ul className="flex flex-col divide-y divide-[color-mix(in_srgb,var(--sd-line)_60%,transparent)]">
+                {archived.map((h) => (
+                  <li key={h.id}>
+                    <ArchivedHabitRow
+                      habit={h}
+                      onRestore={() => handleRestore(h)}
+                      onDelete={() => setDeleting(h)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : null}
+        </div>
+      </SidePanel>
 
       <HabitDialog
         mode="create"
@@ -458,8 +515,9 @@ export function HabitsClient({
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Today — day navigator + check-off list. Check-off only: no edit, no
-// archive, no analytics on the daily surface.
+// The check-off surface. Day pills, then bare rows. Nothing here edits,
+// archives, or deletes — that lives in the Manage panel, which is the whole
+// point of the split (see the component docstring).
 // ──────────────────────────────────────────────────────────────────────────
 
 function DaySection({
@@ -471,9 +529,10 @@ function DaySection({
   isFuture,
   isPast,
   isToday,
-  doneSet,
   statusOf,
-  onAdvance,
+  statusOnDay,
+  onToggle,
+  onSetStatus,
   streakOf,
 }: {
   habits: HabitWithAreas[];
@@ -484,81 +543,30 @@ function DaySection({
   isFuture: boolean;
   isPast: boolean;
   isToday: boolean;
-  doneSet: ReadonlySet<string>;
   statusOf: (habitId: string) => HabitStatus;
-  onAdvance: (habitId: string) => void;
+  /** Status for any date in the trail window. */
+  statusOnDay: (habitId: string, iso: string) => HabitStatus;
+  onToggle: (habitId: string) => void;
+  onSetStatus: (habitId: string, next: HabitStatus) => void;
   streakOf: (habitId: string) => StreakDisplay;
 }) {
-  const [calOpen, setCalOpen] = useState(false);
   const reduced = useReducedMotion();
 
   return (
-    <div className="flex flex-col">
-      {/* Day navigator */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="rounded-lg"
-            aria-label="Previous day"
-            onClick={() => onSelectDate(addDaysISO(selectedDate, -1))}
-          >
-            <ChevronLeft size={14} />
-          </Button>
-          <Popover open={calOpen} onOpenChange={setCalOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="rounded-lg px-2 text-meta font-medium">
-                <CalendarIcon size={14} className="opacity-60" aria-hidden="true" />
-                {formatDateLabel(selectedDate, today)}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-auto p-3">
-              <MiniCalendar
-                value={selectedDate}
-                onChange={(iso) => {
-                  onSelectDate(iso);
-                  setCalOpen(false);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="rounded-lg"
-            aria-label="Next day"
-            onClick={() => onSelectDate(addDaysISO(selectedDate, 1))}
-          >
-            <ChevronRight size={14} />
-          </Button>
-          {!isToday ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-1 rounded-lg text-meta"
-              onClick={() => onSelectDate(today)}
-            >
-              Jump to today
-            </Button>
-          ) : null}
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <HabitWeekPicker selectedDate={selectedDate} today={today} onSelectDate={onSelectDate} />
+        {habits.length > 0 ? (
+          <span className="shrink-0 text-micro tabular-nums text-[var(--ink-faint)]">
+            {doneCount}/{habits.length} done
+          </span>
+        ) : null}
       </div>
 
       {isFuture ? (
-        <p className="mt-3 text-meta text-[var(--ink-muted)]">
+        <p className="text-meta text-[var(--ink-muted)]">
           This day has not started yet; check-off opens on the day.
         </p>
-      ) : null}
-
-      {habits.length > 0 ? (
-        <div className="mt-4">
-          <ProgressRow
-            label={doneCount === habits.length ? "All done" : "Completed"}
-            value={`${doneCount}/${habits.length}`}
-            ratio={habits.length ? doneCount / habits.length : 0}
-          />
-        </div>
       ) : null}
 
       {habits.length === 0 ? (
@@ -567,7 +575,9 @@ function DaySection({
           title={isPast ? "Nothing was scheduled this day." : "Nothing scheduled for this day."}
         />
       ) : (
-        <ul className="mt-4 flex flex-col gap-2">
+        // Hairline separators belong to the LIST, not to each row — that is
+        // what turns ten rows into one list instead of ten cards.
+        <ul className="flex flex-col divide-y divide-[color-mix(in_srgb,var(--sd-line)_60%,transparent)]">
           <AnimatePresence mode="popLayout" initial={false}>
             {habits.map((h) => (
               <motion.li
@@ -581,12 +591,17 @@ function DaySection({
                 }
                 transition={reduced ? { duration: 0 } : { duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
               >
-                <DayHabitRow
-                  habit={h}
+                <HabitCheckRow
+                  id={h.id}
+                  name={h.name}
+                  emoji={h.icon}
                   status={statusOf(h.id)}
-                  streak={isToday ? streakOf(h.id) : null}
+                  streak={isToday ? streakOf(h.id).value : 0}
+                  streakSaturated={isToday ? streakOf(h.id).saturated : false}
+                  trail={buildTrail(h.daysOfWeek, (iso) => statusOnDay(h.id, iso), selectedDate)}
                   disabled={isFuture}
-                  onAdvance={() => onAdvance(h.id)}
+                  onToggle={() => onToggle(h.id)}
+                  onSetStatus={(next) => onSetStatus(h.id, next)}
                 />
               </motion.li>
             ))}
@@ -597,69 +612,24 @@ function DaySection({
   );
 }
 
-function DayHabitRow({
-  habit,
-  status,
-  streak,
-  disabled,
-  onAdvance,
-}: {
-  habit: HabitWithAreas;
-  status: HabitStatus;
-  /** Null on non-today dates: a current streak is a property of today. */
-  streak: StreakDisplay | null;
-  disabled: boolean;
-  onAdvance: () => void;
-}) {
-  const completed = status === "done";
-  const partial = status === "in_progress" || status === "almost_done";
-  return (
-    <div className={cn(ROW, tintFor(habit.id))}>
-      <HabitStatusRing
-        status={status}
-        habitName={habit.name}
-        disabled={disabled}
-        onClick={onAdvance}
-      />
-      <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            "truncate text-meta font-semibold",
-            completed ? "text-[var(--ink-faint)] line-through" : "text-[var(--ink)]"
-          )}
-        >
-          {habit.name}
-        </p>
-        {partial || habit.areas.length > 0 ? (
-          <p className="mt-1 truncate text-micro text-[var(--ink-faint)]">
-            {/* Partial progress leads: the ring shows how far, this says what
-                "how far" is called, so the third-fill needs no decoding. */}
-            {partial ? (
-              <span className="font-medium text-[var(--ink-muted)]">
-                {HABIT_STATUS_LABEL[status]}
-              </span>
-            ) : null}
-            {partial && habit.areas.length > 0 ? " · " : ""}
-            {habit.areas.map((a) => `${a.emoji ?? ""} ${a.name}`.trim()).join(" · ")}
-          </p>
-        ) : null}
-      </div>
-      {streak ? <StreakChip streak={streak} /> : null}
-    </div>
-  );
-}
-
-/** Functional-amber streak accent, visible from day one (streak ≥ 1). */
+/**
+ * Craft §3: "dates/counts/priorities are bare colored TEXT or a size-1.5 dot —
+ * never a filled pill." This was a filled Chip, which read as an entity badge
+ * rather than as the metadata it is.
+ */
 function StreakChip({ streak }: { streak: StreakDisplay }) {
   if (streak.value < 1) return null;
   const label = streak.saturated ? `${streak.value}+` : String(streak.value);
   const days = streak.value === 1 && !streak.saturated ? "day" : "days";
   return (
-    <Chip icon={<Flame size={11} />} tone="var(--ink-amber)" className="shrink-0">
-      <span className="tabular-nums" aria-label={`${label} ${days} streak`}>
-        {label}
-      </span>
-    </Chip>
+    <span
+      className="flex shrink-0 items-center gap-1 text-micro tabular-nums"
+      style={{ color: "var(--ink-amber)" }}
+      aria-label={`${label} ${days} streak`}
+    >
+      <Flame size={11} aria-hidden />
+      {label}
+    </span>
   );
 }
 
