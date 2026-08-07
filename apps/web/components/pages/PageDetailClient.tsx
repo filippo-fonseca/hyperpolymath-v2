@@ -17,6 +17,7 @@ import {
 import { getPeopleForCurrentUser, reconcilePersonReferences } from "@/app/actions/people";
 import { createProject } from "@/app/actions/projects";
 import { UrlField } from "@/components/shared/UrlField";
+import { EmojiPicker } from "@/components/ui/EmojiPicker";
 import { PageScaffold } from "@/components/ui/PageScaffold";
 import {
   AlertDialog,
@@ -198,8 +199,6 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   // unlike `showSaved` it deliberately does not fade, because the user's text
   // is only in the browser at that point and silence is what lost it before.
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [emojiInput, setEmojiInput] = useState(serverPage.emoji ?? "");
-  const [emojiOpen, setEmojiOpen] = useState(false);
   // Cover/banner image (issue #28). Optimistic local mirrors of
   // pages.cover_image_url / cover_image_attribution; serverPage (TanStack Query +
   // realtime) is the source of truth and re-syncs these on any external change.
@@ -587,11 +586,9 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     scheduleAutosave({ title: v });
   }
 
-  function handleEmojiCommit() {
-    const val = emojiInput.trim() || null;
-    setEmoji(val);
-    setEmojiOpen(false);
-    scheduleAutosave({ emoji: val });
+  function handleEmojiPicked(next: string | null) {
+    setEmoji(next);
+    scheduleAutosave({ emoji: next });
   }
 
   // Issue #101 — set/clear the page's URL property, then autosave on the same
@@ -915,12 +912,18 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     // Lives inside the scaffold's `h1.text-display`; the input inherits the
     // display metrics through the preflight `font: inherit` on form fields.
     <span className="flex min-w-0 flex-1 items-start gap-3">
-      {/* Emoji picker */}
-      <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
-        <PopoverTrigger asChild>
+      {/* Emoji picker — the shared one (components/ui/EmojiPicker). Clicking
+          the default document glyph rolls a random emoji straight away, so a
+          page that has never been given an icon gets one in a single click,
+          with the grid open on top for anyone who wants to choose. */}
+      <EmojiPicker
+        value={emoji}
+        onChange={handleEmojiPicked}
+        randomizeOnOpenWhenEmpty
+        trigger={
           <button
             type="button"
- className="flex size-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-title leading-none transition-colors duration-[160ms] hover:bg-[var(--surface)]"
+            className="flex size-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-title leading-none transition-colors duration-[160ms] hover:bg-[var(--surface)]"
             title="Set emoji"
           >
             {emoji ? (
@@ -929,46 +932,8 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
               <FileText size={18} strokeWidth={1.25} className="text-[var(--ink-muted)]" />
             )}
           </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-56 p-3 flex flex-col gap-2" align="start">
-          <label htmlFor="page-emoji-input" className="text-micro text-[var(--ink-muted)]">
-            Emoji
-          </label>
-          <input
-            id="page-emoji-input"
-            type="text"
-            maxLength={4}
-            value={emojiInput}
-            onChange={(e) => setEmojiInput(e.target.value)}
-            placeholder="Type an emoji..."
-            className="w-full rounded-lg border border-[var(--edge)] bg-transparent px-2 py-1 text-body text-[var(--ink)] transition-colors duration-[160ms] placeholder:text-[var(--ink-muted)]"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleEmojiCommit();
-            }}
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleEmojiCommit}
-              className="flex-1 cursor-pointer rounded-lg border border-[var(--edge)] py-1 text-meta text-[var(--ink)] transition-colors duration-[160ms] hover:bg-[var(--surface)]"
-            >
-              Set
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEmojiInput("");
-                setEmoji(null);
-                setEmojiOpen(false);
-                scheduleAutosave({ emoji: null });
-              }}
-              className="cursor-pointer rounded-lg border border-[var(--edge)] px-2 py-1 text-meta text-[var(--ink-muted)] transition-colors duration-[160ms] hover:bg-[var(--surface)]"
-            >
-              Clear
-            </button>
-          </div>
-        </PopoverContent>
-      </Popover>
+        }
+      />
 
       {/* Inline title */}
       <input
