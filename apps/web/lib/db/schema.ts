@@ -521,6 +521,10 @@ export const pageFolders = pgTable("page_folders", {
     onDelete: "cascade",
   }),
   name: text("name").notNull(),
+  // Palette token from lib/ui/palette.ts ("sage", "sky", …), never a colour
+  // literal — the tint ramp owns the values. NULL = the neutral card.
+  // CHECK constraint in migration 0041.
+  color: text("color"),
   orderIndex: integer("order_index").notNull().default(0),
   // Wiki Renaissance (migration 0048) — base-62 fractional index for manual
   // drag-to-reorder in the Explorer (see lib/pages/position.ts). NULL = never

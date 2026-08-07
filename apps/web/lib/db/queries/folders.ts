@@ -23,6 +23,7 @@ const FOLDER_COLS = {
   id: pageFolders.id,
   parentId: pageFolders.parentId,
   name: pageFolders.name,
+  color: pageFolders.color,
   orderIndex: pageFolders.orderIndex,
   positionKey: pageFolders.positionKey,
   createdAt: pageFolders.createdAt,

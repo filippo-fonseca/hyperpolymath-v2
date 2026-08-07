@@ -7,6 +7,7 @@ import { partitionExplorerItems } from "@/components/wiki/explorer-hooks/explore
 import type { SelectionClickModifiers } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
+import { type PaletteToken, coercePaletteToken, paletteClass } from "@/lib/ui/palette";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { formatDistanceToNow } from "date-fns";
@@ -226,14 +227,25 @@ function ExplorerListRow({
       ) : null}
       <span className="flex min-w-0 items-center gap-2">
         {item.kind === "folder" ? (
-          <FolderIcon
-            size={20}
-            variant="closed"
-            dropTarget={isOver}
+          // A painted folder wears its colour in the list too, or the row and
+          // the grid tile would disagree about what the same folder looks like.
+          <span
             className={cn(
-              dropSucceeded && !reduceMotion && "animate-[explorer-folder-swallow_160ms_ease-out]"
+              "inline-flex shrink-0",
+              coercePaletteToken(item.folder.color)
+                ? `${paletteClass(coercePaletteToken(item.folder.color) as PaletteToken)} text-[var(--tint-edge)]`
+                : undefined
             )}
-          />
+          >
+            <FolderIcon
+              size={20}
+              variant="closed"
+              dropTarget={isOver}
+              className={cn(
+                dropSucceeded && !reduceMotion && "animate-[explorer-folder-swallow_160ms_ease-out]"
+              )}
+            />
+          </span>
         ) : (
           <PageIcon size={20} kind={item.page.dailyDate ? "daily" : "note"} />
         )}

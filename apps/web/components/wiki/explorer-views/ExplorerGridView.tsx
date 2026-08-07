@@ -7,6 +7,7 @@ import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
 import { PagePreviewCard } from "@/components/wiki/preview/PagePreviewCard";
 import { tintFor } from "@/lib/tint";
+import { coercePaletteToken, paletteClass } from "@/lib/ui/palette";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Folder, FolderOpen, Star } from "lucide-react";
@@ -228,11 +229,15 @@ function ExplorerGridTile({
 
   const name = item.kind === "folder" ? item.folder.name : item.page.title || "Untitled";
 
-  // Folder tile: a white craft card with a pastel icon plate (tintFor keeps the
-  // hue stable per folder id, both themes), name in text-body, count in
-  // text-micro gray. Selection keeps the pre-craft treatment (strong border +
-  // faint accent wash) layered over the card.
+  // Folder tile: a white craft card with a pastel icon plate, name in
+  // text-body, count in text-micro gray. Selection keeps the pre-craft
+  // treatment (strong border + faint accent wash) layered over the card.
+  //
+  // The plate's hue is the folder's CHOSEN colour when it has one (right-click
+  // → Colour), falling back to the id-hashed tint so an unpainted folder still
+  // reads as a distinct object rather than a gray box.
   if (item.kind === "folder") {
+    const chosen = coercePaletteToken(item.folder.color);
     const caption =
       item.itemCount === 0 ? "Empty" : `${item.itemCount} item${item.itemCount === 1 ? "" : "s"}`;
     return (
@@ -266,7 +271,7 @@ function ExplorerGridTile({
       >
         <span
           className={cn(
-            tintFor(item.id),
+            chosen ? paletteClass(chosen) : tintFor(item.id),
             "grid size-9 shrink-0 place-items-center rounded-[10px] border border-[color-mix(in_srgb,var(--tint-edge)_45%,transparent)] bg-[var(--tint-bg)] text-[var(--tint-ink)]",
             dropSucceeded && !reduceMotion && "animate-[explorer-folder-swallow_160ms_ease-out]"
           )}

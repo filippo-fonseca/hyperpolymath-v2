@@ -1,5 +1,6 @@
 "use client";
 
+import { ColorSwatchRow } from "@/components/ui/ColorSwatchRow";
 import {
   ExplorerContextMenu,
   ExplorerContextMenuContent,
@@ -8,6 +9,7 @@ import {
   ExplorerContextMenuTrigger,
 } from "@/components/ui/explorer";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
+import { type PaletteToken, coercePaletteToken } from "@/lib/ui/palette";
 import type { ReactNode } from "react";
 
 export interface ExplorerItemContextMenuProps {
@@ -20,6 +22,8 @@ export interface ExplorerItemContextMenuProps {
   onDelete: (item: ExplorerItem) => void;
   /** Star/unstar — pages only (issue #365). */
   onToggleStar?: (item: ExplorerItem) => void;
+  /** Paint a folder. Folders only; omitted on pages. */
+  onSetFolderColor?: (folderId: string, color: PaletteToken | null) => void;
 }
 
 /**
@@ -36,6 +40,7 @@ export function ExplorerItemContextMenu({
   onExport,
   onDelete,
   onToggleStar,
+  onSetFolderColor,
 }: ExplorerItemContextMenuProps) {
   return (
     <ExplorerContextMenu>
@@ -54,6 +59,21 @@ export function ExplorerItemContextMenu({
           </ExplorerContextMenuItem>
         ) : null}
         <ExplorerContextMenuItem onSelect={() => onRename(item)}>Rename</ExplorerContextMenuItem>
+        {item.kind === "folder" && onSetFolderColor ? (
+          <>
+            <ExplorerContextMenuSeparator />
+            {/* Inline rather than a submenu: colour is a glance-and-click
+                decision, and one extra hover to reach eight dots is worse than
+                the row of dots itself. */}
+            <div className="px-2 py-1.5">
+              <p className="pb-1.5 text-micro text-[var(--ink-faint)]">Colour</p>
+              <ColorSwatchRow
+                value={coercePaletteToken(item.folder.color)}
+                onChange={(next) => onSetFolderColor(item.id, next)}
+              />
+            </div>
+          </>
+        ) : null}
         {onExport ? (
           <ExplorerContextMenuItem onSelect={() => onExport(item)}>Export</ExplorerContextMenuItem>
         ) : null}

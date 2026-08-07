@@ -6,7 +6,7 @@ export type ExplorerItem =
   | { kind: "folder"; id: string; folder: FolderRow; itemCount: number }
   | { kind: "page"; id: string; page: PageWithProjects };
 
-export type ExplorerSortMode = "manual" | "name" | "updated";
+export type ExplorerSortMode = "manual" | "name" | "updated" | "created";
 
 /** `page:<uuid>` or `folder:<uuid>` — encoded stable id for selection + dnd. */
 export function explorerItemId(item: ExplorerItem): string {

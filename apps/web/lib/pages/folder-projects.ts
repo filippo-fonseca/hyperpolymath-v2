@@ -19,6 +19,8 @@ export interface FolderRow {
   name: string;
   orderIndex: number;
   positionKey?: string | null;
+  /** Palette token from lib/ui/palette.ts, or null for the neutral card. */
+  color?: string | null;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }

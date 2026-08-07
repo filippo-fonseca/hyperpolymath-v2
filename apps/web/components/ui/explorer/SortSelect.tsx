@@ -4,12 +4,13 @@ import { cn } from "@/lib/utils";
 import { Check, ChevronDown } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 
-export type ExplorerSortValue = "manual" | "name" | "updated";
+export type ExplorerSortValue = "manual" | "name" | "updated" | "created";
 
 const sortLabels: Record<ExplorerSortValue, string> = {
   manual: "Manual",
   name: "Name",
   updated: "Updated",
+  created: "Created",
 };
 
 export function SortSelect({

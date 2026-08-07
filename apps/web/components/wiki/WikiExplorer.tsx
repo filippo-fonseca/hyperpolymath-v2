@@ -82,7 +82,7 @@ export function WikiExplorer({
     const v = localStorage.getItem("wiki:view");
     if (v === "grid" || v === "list") setView(v);
     const s = localStorage.getItem("wiki:sort");
-    if (s === "manual" || s === "name" || s === "updated") setSort(s);
+    if (s === "manual" || s === "name" || s === "updated" || s === "created") setSort(s);
     const insp = localStorage.getItem("wiki:inspector");
     if (insp === "1") setInspectorOpen(true);
   }, []);
@@ -204,6 +204,7 @@ export function WikiExplorer({
     handleCreatePage,
     handleCreateFolder,
     handleDelete,
+    handleSetFolderColor,
     submitRename,
     renameTarget,
     setRenameTarget,
@@ -280,11 +281,12 @@ export function WikiExplorer({
         onToggleStar={(it) => {
           if (it.kind === "page") void mutations.toggleStar(it.id, !it.page.pinned);
         }}
+        onSetFolderColor={(folderId, color) => void handleSetFolderColor(folderId, color)}
       >
         {node}
       </ExplorerItemContextMenu>
     ),
-    [handleDelete, mutations, openItem, setRenameTarget]
+    [handleDelete, handleSetFolderColor, mutations, openItem, setRenameTarget]
   );
 
   const wrapItemForListView = useCallback(
