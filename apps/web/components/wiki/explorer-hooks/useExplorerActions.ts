@@ -4,6 +4,7 @@ import {
   createFolder,
   deleteFolder,
   renameFolder,
+  setFolderColor,
 } from "@/app/actions/folders";
 import { createPage, deletePage } from "@/app/actions/pages";
 import type { useExplorerMutations } from "@/components/wiki/explorer-hooks/useExplorerMutations";
@@ -11,6 +12,7 @@ import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import type { FolderRow } from "@/lib/pages/folder-projects";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { PaletteToken } from "@/lib/ui/palette";
 import { toast } from "sonner";
 
 type Mutations = ReturnType<typeof useExplorerMutations>;
@@ -151,11 +153,29 @@ export function useExplorerActions({
     [mutations, renameTarget],
   );
 
+  /**
+   * Paint (or un-paint) a folder. Optimistic patch first so the tile recolours
+   * under the cursor, then the write; a rejection falls back to whatever the
+   * refetch says rather than to a guess about the previous colour.
+   */
+  const handleSetFolderColor = useCallback(
+    async (folderId: string, color: PaletteToken | null) => {
+      mutations.patchFolders((old) =>
+        old.map((f) => (f.id === folderId ? { ...f, color } : f)),
+      );
+      const r = await setFolderColor({ id: folderId, color });
+      if (!r.success) toast.error(r.error);
+      mutations.invalidateFolders();
+    },
+    [mutations],
+  );
+
   return {
     openItem,
     handleCreatePage,
     handleCreateFolder,
     handleDelete,
+    handleSetFolderColor,
     submitRename,
     renameTarget,
     setRenameTarget,

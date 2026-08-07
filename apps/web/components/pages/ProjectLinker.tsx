@@ -1,5 +1,6 @@
 "use client";
 
+import { InlineProjectCreateForm } from "@/components/shared/InlineProjectCreateForm";
 import {
   Command,
   CommandEmpty,
@@ -9,8 +10,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { InlineProjectCreateForm } from "@/components/shared/InlineProjectCreateForm";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
+import { cn } from "@/lib/utils";
 import { Check, Lock, Plus } from "lucide-react";
 import { useState } from "react";
 
@@ -84,13 +85,13 @@ export function ProjectLinker({
       <PopoverTrigger asChild>
         <button
           type="button"
- className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-micro font-mono text-[var(--ink-muted)] border border-dashed border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
+          className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-micro font-mono text-[var(--ink-muted)] border border-dashed border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
         >
           <Plus size={10} strokeWidth={2} />
           {triggerLabel}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-0" align="start">
+      <PopoverContent className="w-[300px] p-0" align="start">
         {creating && canCreate ? (
           <InlineProjectCreateForm
             areas={areas.map((a) => ({ id: a.id, name: a.name, emoji: a.emoji }))}
@@ -103,76 +104,91 @@ export function ProjectLinker({
           />
         ) : (
           <>
-        {inheritedLinks.length > 0 && (
-          <div className="flex flex-col gap-1 border-b border-[var(--edge)] p-2">
- <p className="px-1 text-micro text-[var(--ink-muted)]">
-              Inherited
-            </p>
-            {inheritedLinks.map((link) => (
-              <div
-                key={link.projectId}
-                title={`Inherited from ${link.sourceFolderName}`}
- className="flex items-center gap-2 px-1 py-1 rounded-sm text-micro font-mono text-[var(--ink-muted)] opacity-70"
-              >
-                <Lock size={11} strokeWidth={1.5} className="flex-shrink-0" />
-                <span className="truncate">
-                  {projectName.get(link.projectId) ?? "Project"}
-                </span>
- <span className="ml-auto flex-shrink-0 text-micro italic">
-                  from {link.sourceFolderName}
-                </span>
+            {inheritedLinks.length > 0 && (
+              <div className="flex flex-col gap-1 border-b border-[var(--edge)] p-2">
+                <p className="px-1 text-micro text-[var(--ink-muted)]">Inherited</p>
+                {inheritedLinks.map((link) => (
+                  <div
+                    key={link.projectId}
+                    title={`Inherited from ${link.sourceFolderName}`}
+                    className="flex items-center gap-2 px-1 py-1 rounded-sm text-micro font-mono text-[var(--ink-muted)] opacity-70"
+                  >
+                    <Lock size={11} strokeWidth={1.5} className="flex-shrink-0" />
+                    <span className="truncate">{projectName.get(link.projectId) ?? "Project"}</span>
+                    <span className="ml-auto flex-shrink-0 text-micro italic">
+                      from {link.sourceFolderName}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-        <Command className="bg-transparent">
-          <CommandInput placeholder="Search projects..." />
-          <CommandList>
-            <CommandEmpty>No projects found.</CommandEmpty>
-            {areas.map((area) => {
-              const linkable = area.projects.filter((p) => !inheritedSet.has(p.id));
-              if (linkable.length === 0) return null;
-              return (
-                <CommandGroup
-                  key={area.id}
-                  heading={`${area.emoji ?? ""} ${area.name}`.trim()}
+            )}
+            <Command className="bg-transparent">
+              <CommandInput placeholder="Search projects…" />
+              <CommandList>
+                <CommandEmpty>No projects found.</CommandEmpty>
+                {areas.map((area) => {
+                  const linkable = area.projects.filter((p) => !inheritedSet.has(p.id));
+                  if (linkable.length === 0) return null;
+                  return (
+                    <CommandGroup
+                      key={area.id}
+                      className="p-1"
+                      heading={`${area.emoji ?? ""} ${area.name}`.trim()}
+                    >
+                      {linkable.map((project) => {
+                        const isSelected = selected.has(project.id);
+                        return (
+                          <CommandItem
+                            key={project.id}
+                            value={`${area.name} ${project.name}`}
+                            onSelect={() => onToggle(project.id, !isSelected)}
+                            className="gap-2 rounded-lg px-2 py-1.5 text-meta"
+                          >
+                            {/* One fixed leading slot, matching the task linker, so
+                            names start on the same x whether or not the row is
+                            selected. */}
+                            <span className="inline-flex size-4 shrink-0 items-center justify-center">
+                              {isSelected ? (
+                                <Check
+                                  size={13}
+                                  strokeWidth={2.5}
+                                  className="text-[var(--accent)]"
+                                />
+                              ) : (
+                                <span
+                                  aria-hidden
+                                  className="size-1.5 rounded-full bg-[var(--edge-strong)]"
+                                />
+                              )}
+                            </span>
+                            <span
+                              className={cn(
+                                "min-w-0 flex-1 truncate",
+                                isSelected && "font-medium text-[var(--ink)]"
+                              )}
+                            >
+                              {project.name}
+                            </span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  );
+                })}
+              </CommandList>
+            </Command>
+            {canCreate && (
+              <div className="border-t border-[var(--edge)] p-1">
+                <button
+                  type="button"
+                  onClick={() => setCreating(true)}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-micro font-mono text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer"
                 >
-                  {linkable.map((project) => {
-                    const isSelected = selected.has(project.id);
-                    return (
-                      <CommandItem
-                        key={project.id}
-                        value={`${area.name} ${project.name}`}
-                        onSelect={() => onToggle(project.id, !isSelected)}
-                      >
-                        <span className="truncate">{project.name}</span>
-                        {isSelected && (
-                          <Check
-                            size={13}
-                            strokeWidth={2}
-                            className="ml-auto flex-shrink-0 text-[var(--ink)]"
-                          />
-                        )}
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              );
-            })}
-          </CommandList>
-        </Command>
-        {canCreate && (
-          <div className="border-t border-[var(--edge)] p-1">
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
- className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-micro font-mono text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer"
-            >
-              <Plus size={11} strokeWidth={2} className="flex-shrink-0" />
-              Create new project
-            </button>
-          </div>
-        )}
+                  <Plus size={11} strokeWidth={2} className="flex-shrink-0" />
+                  Create new project
+                </button>
+              </div>
+            )}
           </>
         )}
       </PopoverContent>

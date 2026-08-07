@@ -11,21 +11,8 @@ import { Sparkles } from "lucide-react";
 
 import { createCapture, suggestTagsForCapture } from "@/app/actions/captures";
 import {
-  ProjectMultiSelect,
-  type ProjectMultiSelectOption,
-} from "@/components/shared/ProjectMultiSelect";
-import { Spinner } from "@/components/shared/Spinner";
-import { Button } from "@/components/ui/button";
-import type { SuggestedTag } from "@/lib/captures/suggest-tags";
-import type { CaptureWithLinks } from "@/lib/db/queries/captures";
-import { sfx } from "@/lib/ui/sfx";
-import { mergeContentUrls } from "@/lib/url";
-import { HashtagChip } from "./HashtagChip";
-import { HashtagDecorations } from "./hashtag-decorations";
-import { createPersonDecorations } from "./person-decorations";
-import {
-  EntityMention,
   ENTITY_MENTION_HTML_ATTRIBUTES,
+  EntityMention,
   renderEntityMentionHTML,
 } from "@/components/references/entity-mention-node";
 import {
@@ -33,10 +20,20 @@ import {
   insertCreatedPerson,
 } from "@/components/references/entity-mention-suggestion";
 import {
-  ENTITY_MENTION_NODE,
-  entityMentionAttrsToRef,
-} from "@/lib/references/tiptap-tokens";
+  ProjectMultiSelect,
+  type ProjectMultiSelectOption,
+} from "@/components/shared/ProjectMultiSelect";
+import { Spinner } from "@/components/shared/Spinner";
+import { Button } from "@/components/ui/button";
+import type { SuggestedTag } from "@/lib/captures/suggest-tags";
+import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { ENTITY_MENTION_NODE, entityMentionAttrsToRef } from "@/lib/references/tiptap-tokens";
 import { serializeReference } from "@/lib/references/token";
+import { sfx } from "@/lib/ui/sfx";
+import { mergeContentUrls } from "@/lib/url";
+import { HashtagChip } from "./HashtagChip";
+import { HashtagDecorations } from "./hashtag-decorations";
+import { createPersonDecorations } from "./person-decorations";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 
 interface Hashtag {
@@ -189,8 +186,7 @@ export function CaptureComposer({
         renderHTML: renderEntityMentionHTML,
         suggestion: createEntityMentionSuggestion({
           allowCreatePerson: true,
-          onCreatePerson: ({ name, editor: ed, range }) =>
-            insertCreatedPerson(ed, range, name),
+          onCreatePerson: ({ name, editor: ed, range }) => insertCreatedPerson(ed, range, name),
         }),
       }),
       // Live-decorate plain `#word` text so the token styling lands without
@@ -492,7 +488,12 @@ export function CaptureComposer({
     // sd writing surface — recessed --sd-input field, 1px --sd-line hairline,
     // no glow ring. focus-within brings the border to the single cyan accent so
     // the composer reads "live" while typing, matching every sd input.
-    <div className="craft-card craft-card-hover focus-within:border-[var(--edge-strong)]">
+    // aug-07: the composer read as a crate dropped into the project page —
+    // card radius against the softer panels around it, a mono footer strip in
+    // a different type register from everything else on the page, and the
+    // --sd-* hairline rather than the --edge one the rest of the sheet uses.
+    // Same anatomy, matched to its surroundings.
+    <div className="craft-card craft-card-hover overflow-hidden rounded-2xl focus-within:border-[var(--edge-strong)]">
       <EditorContent editor={editor} />
       {/* Blocker 4: project multi-select below the editor (CAPT-07 UI path) */}
       <div className="px-3 pb-2">
@@ -507,7 +508,7 @@ export function CaptureComposer({
           tag to the note; the small x dismisses it. Nothing applies on its own. */}
       {suggestions.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2">
-          <span className="font-mono text-micro text-[var(--sd-ink-faint)] mr-0.5">Suggested:</span>
+          <span className="mr-0.5 text-micro text-[var(--ink-faint)]">Suggested:</span>
           {suggestions.map((tag) => (
             <span key={tag.name} className="inline-flex items-center gap-0.5">
               <HashtagChip
@@ -519,7 +520,7 @@ export function CaptureComposer({
                 type="button"
                 aria-label={`Dismiss ${tag.name}`}
                 onClick={() => dismissSuggestion(tag)}
-                className="font-mono text-xs text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] cursor-pointer-always px-0.5"
+                className="cursor-pointer-always px-0.5 text-micro text-[var(--ink-faint)] hover:text-[var(--ink)]"
               >
                 &times;
               </button>
@@ -527,12 +528,12 @@ export function CaptureComposer({
           ))}
         </div>
       ) : null}
-      <div className="flex items-center justify-between p-2 border-t border-[var(--sd-line)]">
+      <div className="flex items-center justify-between gap-3 border-t border-[var(--edge)] bg-[color-mix(in_srgb,var(--hover)_45%,transparent)] px-2.5 py-2">
         <button
           type="button"
           onClick={handleSuggestTags}
           disabled={suggesting || !editor}
-          className="inline-flex items-center gap-1 font-mono text-xs text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] disabled:opacity-50 cursor-pointer-always"
+          className="inline-flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] hover:bg-[var(--hover)] hover:text-[var(--ink)] disabled:opacity-50 cursor-pointer-always"
         >
           {suggesting ? (
             <Spinner size={12} label="Suggesting tags" />
@@ -543,11 +544,11 @@ export function CaptureComposer({
         </button>
         <div className="flex items-center gap-3">
           <span
-            className="font-mono text-xs text-[var(--sd-ink-faint)]"
+            className="hidden text-micro text-[var(--ink-faint)] sm:inline"
             title="Press ⌘K (Ctrl+K) in the editor to insert a #tag"
           >
-            <span className="font-mono">⌘K</span> for tags ·{" "}
-            <span className="font-mono">⌘Enter</span> to capture
+            <kbd className="font-mono">⌘K</kbd> for tags · <kbd className="font-mono">⌘↵</kbd> to
+            capture
           </span>
           <Button onClick={handleSubmit} disabled={pending || !editor} size="sm">
             {pending ? (

@@ -10,6 +10,8 @@ import {
   ensureTaskPeople,
   updateTask,
 } from "@/app/actions/tasks";
+import { HashtagDecorations } from "@/components/captures/hashtag-decorations";
+import { SidePanel } from "@/components/ui/SidePanel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,20 +31,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SidePanel } from "@/components/ui/SidePanel";
-import { HashtagDecorations } from "@/components/captures/hashtag-decorations";
 
 import { createPersonDecorations } from "@/components/captures/person-decorations";
 import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
 import {
-  EntityMention,
   ENTITY_MENTION_HTML_ATTRIBUTES,
+  EntityMention,
   renderEntityMentionHTML,
 } from "@/components/references/entity-mention-node";
 import {
   createEntityMentionSuggestion,
   insertCreatedPerson,
 } from "@/components/references/entity-mention-suggestion";
+import { PersonListField } from "@/components/shared/PersonListField";
+import { UrlField } from "@/components/shared/UrlField";
+import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import {
   ENTITY_MENTION_NODE,
   entityMentionAttrsToRef,
@@ -50,7 +53,7 @@ import {
   segmentTextForSeeding,
 } from "@/lib/references/tiptap-tokens";
 import { serializeReference } from "@/lib/references/token";
-import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 import { cn } from "@/lib/utils";
 import {
   Calendar,
@@ -62,21 +65,18 @@ import {
   Flag,
   FolderOpen,
   Link2,
+  type LucideIcon,
   Repeat,
   Users,
   X,
-  type LucideIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { UrlField } from "@/components/shared/UrlField";
-import { PersonListField } from "@/components/shared/PersonListField";
 import { MoveToMenu } from "./MoveToMenu";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
-import { STATUS_DOT, STATUS_TINT } from "./status";
 import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
 import type { TasksOptimisticDispatch } from "./TasksClient";
-import type { RecurrenceRule } from "@/lib/tasks/recurrence";
+import { STATUS_DOT, STATUS_TINT } from "./status";
 
 type Priority = "P∞" | "P1" | "P2" | "P3";
 type Status = "not started" | "up next" | "in progress" | "almost done" | "lesno";
@@ -238,6 +238,83 @@ function toFormState(task: TaskWithProjects): FormState {
   };
 }
 
+/**
+ * Walk a TipTap notes doc into the three things the task actually stores: the
+ * plain-text notes, the `#hashtags`, and the `@people`.
+ *
+ * Module level (rather than a closure over the editor) so BOTH the save path
+ * and the live `onUpdate` can call it. That split is the whole fix for the
+ * Save button staying dark while you typed a description: the editor's content
+ * was only ever read at save time, so form state never changed and the dirty
+ * check had nothing to compare.
+ */
+function parseNotesDoc(json: unknown): {
+  notes: string;
+  hashtagNames: string[];
+  personNames: string[];
+} {
+  const HASHTAG_RE = /(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]+)/gu;
+  const tagCasing = new Map<string, string>();
+  const personCasing = new Map<string, string>();
+  let notes = "";
+
+  function walk(node: unknown): void {
+    if (!node || typeof node !== "object") return;
+    const n = node as {
+      type?: string;
+      text?: string;
+      attrs?: { label?: string };
+      content?: unknown[];
+    };
+    if (n.type === "text" && typeof n.text === "string") {
+      notes += n.text;
+      for (const m of n.text.matchAll(HASHTAG_RE)) {
+        const raw = m[1];
+        if (!raw) continue;
+        const lower = raw.toLowerCase();
+        if (!tagCasing.has(lower)) tagCasing.set(lower, raw);
+      }
+    }
+    // Without this the node contributes nothing to the saved notes
+    // (doc.textContent ignores renderText), so the reference would be erased
+    // the first time the task was saved after inserting it.
+    if (n.type === ENTITY_MENTION_NODE) {
+      const ref = entityMentionAttrsToRef(n.attrs);
+      if (ref) {
+        notes += serializeReference(ref);
+        // Keep personNames fed so ensureTaskPeople still links a referenced
+        // person — the switch from personMention to entityMention must not
+        // quietly stop writing people_references.
+        if (ref.type === "person") {
+          const lower = ref.label.toLowerCase();
+          if (!personCasing.has(lower)) personCasing.set(lower, ref.label);
+        }
+      }
+    }
+    if (n.type === "mention" && typeof n.attrs?.label === "string") {
+      const label = n.attrs.label;
+      tagCasing.set(label.toLowerCase(), label);
+      notes += `#${label}`;
+    }
+    if (n.type === "personMention" && typeof n.attrs?.label === "string") {
+      const label = n.attrs.label;
+      const lower = label.toLowerCase();
+      if (!personCasing.has(lower)) personCasing.set(lower, label);
+      notes += `@${label}`;
+    }
+    if (n.type === "paragraph" || n.type === "doc") {
+      (n.content ?? []).forEach(walk);
+      if (n.type === "paragraph") notes += "\n";
+    }
+  }
+  walk(json);
+  return {
+    notes: notes.trim(),
+    hashtagNames: Array.from(tagCasing.values()),
+    personNames: Array.from(personCasing.values()),
+  };
+}
+
 function isDirty(a: FormState, b: FormState): boolean {
   return (
     a.title !== b.title ||
@@ -246,7 +323,9 @@ function isDirty(a: FormState, b: FormState): boolean {
     a.dueDate !== b.dueDate ||
     a.url !== b.url ||
     a.notes !== b.notes ||
-    JSON.stringify(a.projectIds.sort()) !== JSON.stringify(b.projectIds.sort()) ||
+    // Copy before sorting: `a` and `b` are live form state, and sorting them
+    // in place quietly reorders what the user picked.
+    JSON.stringify([...a.projectIds].sort()) !== JSON.stringify([...b.projectIds].sort()) ||
     JSON.stringify(a.recurrence) !== JSON.stringify(b.recurrence) ||
     JSON.stringify([...a.hashtagNames].sort()) !== JSON.stringify([...b.hashtagNames].sort()) ||
     JSON.stringify([...a.personNames].sort()) !== JSON.stringify([...b.personNames].sort())
@@ -277,9 +356,7 @@ function notesToDoc(notes: string): Record<string, unknown> {
           inline.push({ type: "text", text: part.text });
         }
       }
-      return inline.length === 0
-        ? { type: "paragraph" }
-        : { type: "paragraph", content: inline };
+      return inline.length === 0 ? { type: "paragraph" } : { type: "paragraph", content: inline };
     }),
   };
 }
@@ -374,8 +451,7 @@ export function TaskDetailPanel({
         renderHTML: renderEntityMentionHTML,
         suggestion: createEntityMentionSuggestion({
           allowCreatePerson: true,
-          onCreatePerson: ({ name, editor: ed, range }) =>
-            insertCreatedPerson(ed, range, name),
+          onCreatePerson: ({ name, editor: ed, range }) => insertCreatedPerson(ed, range, name),
         }),
       }),
       HashtagDecorations,
@@ -389,74 +465,29 @@ export function TaskDetailPanel({
       },
     },
     content: notesToDoc(form.notes),
+    // Every keystroke, chip, and mention lands in form state, so the dirty
+    // check sees description edits and the Save button lights up for them the
+    // same way it does for a title edit (and ⌘↵ becomes available too).
+    onUpdate: ({ editor }) => {
+      const parsed = parseNotesDoc(editor.getJSON());
+      // notes + hashtags only. `personNames` stays owned by the explicit People
+      // field and is unioned with the notes' @-mentions at save time; mirroring
+      // the parse into it here would drop anyone added explicitly but not
+      // mentioned in the text.
+      setForm((prev) =>
+        prev.notes === parsed.notes &&
+        JSON.stringify(prev.hashtagNames) === JSON.stringify(parsed.hashtagNames)
+          ? prev
+          : { ...prev, notes: parsed.notes, hashtagNames: parsed.hashtagNames }
+      );
+    },
   });
 
   // Parse the notes TipTap doc into { notes, hashtagNames, personNames }.
   function parseNotesEditor(): { notes: string; hashtagNames: string[]; personNames: string[] } {
     if (!notesEditor) return { notes: "", hashtagNames: [], personNames: [] };
-    const json = notesEditor.getJSON();
-    const HASHTAG_RE = /(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]+)/gu;
-    const tagCasing = new Map<string, string>();
-    const personCasing = new Map<string, string>();
-    let notes = "";
-
-    function walk(node: unknown): void {
-      if (!node || typeof node !== "object") return;
-      const n = node as {
-        type?: string;
-        text?: string;
-        attrs?: { label?: string };
-        content?: unknown[];
-      };
-      if (n.type === "text" && typeof n.text === "string") {
-        notes += n.text;
-        for (const m of n.text.matchAll(HASHTAG_RE)) {
-          const raw = m[1];
-          if (!raw) continue;
-          const lower = raw.toLowerCase();
-          if (!tagCasing.has(lower)) tagCasing.set(lower, raw);
-        }
-      }
-      // Without this the node contributes nothing to the saved notes
-      // (doc.textContent ignores renderText), so the reference would be erased
-      // the first time the task was saved after inserting it.
-      if (n.type === ENTITY_MENTION_NODE) {
-        const ref = entityMentionAttrsToRef(n.attrs);
-        if (ref) {
-          notes += serializeReference(ref);
-          // Keep personNames fed so ensureTaskPeople still links a referenced
-          // person — the switch from personMention to entityMention must not
-          // quietly stop writing people_references.
-          if (ref.type === "person") {
-            const lower = ref.label.toLowerCase();
-            if (!personCasing.has(lower)) personCasing.set(lower, ref.label);
-          }
-        }
-      }
-      if (n.type === "mention" && typeof n.attrs?.label === "string") {
-        const label = n.attrs.label;
-        tagCasing.set(label.toLowerCase(), label);
-        notes += `#${label}`;
-      }
-      if (n.type === "personMention" && typeof n.attrs?.label === "string") {
-        const label = n.attrs.label;
-        const lower = label.toLowerCase();
-        if (!personCasing.has(lower)) personCasing.set(lower, label);
-        notes += `@${label}`;
-      }
-      if (n.type === "paragraph" || n.type === "doc") {
-        (n.content ?? []).forEach(walk);
-        if (n.type === "paragraph") notes += "\n";
-      }
-    }
-    walk(json);
-    return {
-      notes: notes.trim(),
-      hashtagNames: Array.from(tagCasing.values()),
-      personNames: Array.from(personCasing.values()),
-    };
+    return parseNotesDoc(notesEditor.getJSON());
   }
-
   // Sync notes editor content when the task changes (panel opens a different task).
   useEffect(() => {
     if (!notesEditor) return;
@@ -491,10 +522,10 @@ export function TaskDetailPanel({
       if (cancelled || !r.success || !r.data.changed) return;
       const nextNames = r.data.people.map((p) => p.name);
       setForm((prev) =>
-        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev,
+        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev
       );
       setInitialForm((prev) =>
-        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev,
+        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev
       );
       addOptimistic({ type: "update", id: taskId, patch: { people: r.data.people } });
     });
@@ -539,7 +570,11 @@ export function TaskDetailPanel({
         createdAt: new Date(),
         recurrence: form.recurrence,
         projects: projectChips,
-        hashtags: hashtagNames.map((name) => ({ id: `pending-${name}`, name: name.toLowerCase(), displayName: name })),
+        hashtags: hashtagNames.map((name) => ({
+          id: `pending-${name}`,
+          name: name.toLowerCase(),
+          displayName: name,
+        })),
         people: personNames.map((name) => ({ id: `pending-${name}`, name })),
         peopleDerivedAt: null,
       },
@@ -596,7 +631,11 @@ export function TaskDetailPanel({
       patch: {
         ...patch,
         projects: projectChips,
-        hashtags: hashtagNames.map((name) => ({ id: `pending-${name}`, name: name.toLowerCase(), displayName: name })),
+        hashtags: hashtagNames.map((name) => ({
+          id: `pending-${name}`,
+          name: name.toLowerCase(),
+          displayName: name,
+        })),
         people: personNames.map((name) => ({ id: `pending-${name}`, name })),
       },
     });
@@ -778,11 +817,7 @@ export function TaskDetailPanel({
                 onClick={handleCancelClick}
                 disabled={isPending}
                 title={
-                  isCreate
-                    ? "Discard this draft"
-                    : dirty
-                      ? "Discard unsaved changes"
-                      : undefined
+                  isCreate ? "Discard this draft" : dirty ? "Discard unsaved changes" : undefined
                 }
               >
                 Cancel
@@ -896,6 +931,11 @@ export function TaskDetailPanel({
                 value={form.recurrence}
                 onChange={(next) => set("recurrence", next)}
                 disabled={isPending}
+                // "Weekly" should mean the day this task is actually due, not
+                // a hardcoded Monday.
+                anchorWeekday={
+                  form.dueDate ? new Date(`${form.dueDate}T00:00:00`).getDay() : undefined
+                }
               />
               {!isCreate && form.recurrence && (
                 <Button
@@ -981,9 +1021,7 @@ export function TaskDetailPanel({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-title font-semibold">Delete task?</DialogTitle>
-            <DialogDescription className="text-body">
-              This can&apos;t be undone.
-            </DialogDescription>
+            <DialogDescription className="text-body">This can&apos;t be undone.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
@@ -1022,9 +1060,7 @@ function FieldSection({
   return (
     <div className="flex flex-col gap-2">
       <label className="flex items-center gap-1.5 text-micro font-medium text-[var(--ink-muted)]">
-        {Icon ? (
-          <Icon size={13} strokeWidth={1.75} className="text-[var(--ink-faint)]" />
-        ) : null}
+        {Icon ? <Icon size={13} strokeWidth={1.75} className="text-[var(--ink-faint)]" /> : null}
         {label}
       </label>
       {children}

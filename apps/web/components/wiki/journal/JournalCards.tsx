@@ -84,7 +84,7 @@ export function JournalTodayCard({ iso, page, exists, loading, onActivate }: Jou
 }
 
 export function JournalTrailCard({ iso, page, exists, loading, onActivate }: JournalCardProps) {
-  const preview = previewLine(page, exists);
+  const lines = previewLines(page, exists);
   return (
     <button
       type="button"
@@ -95,20 +95,47 @@ export function JournalTrailCard({ iso, page, exists, loading, onActivate }: Jou
         // aug-04 craft-ui-v2: white craft cards; the day marker is a
         // .craft-day-tile (Craft's agenda grammar) and days without an entry
         // just read quieter through their preview line.
-        "craft-card craft-card-hover group relative flex w-[132px] flex-shrink-0 snap-start cursor-pointer flex-col rounded-xl p-2.5 text-left",
+        //
+        // aug-07: widened from 132px and the preview grew from one clamped
+        // line to a real excerpt. The old card was mostly empty space under
+        // two words, which made a week of entries unskimmable — the whole
+        // point of a trail.
+        "craft-card craft-card-hover group relative flex w-[176px] flex-shrink-0 snap-start cursor-pointer flex-col rounded-xl p-2.5 text-left",
         "disabled:cursor-progress"
       )}
       aria-label={`${exists ? "Open" : "Create"} daily page for ${dailyPageTitle(iso)}`}
     >
       <JournalDayTile iso={iso} />
-      <span
+      {/* Block-per-line rather than one run-on string, so a heading still reads
+          as a heading and a bullet still reads as a bullet. The container
+          clips: `overflow-hidden` on a flex-1 box beats a line-clamp here
+          because the excerpt is several elements, not one paragraph. */}
+      <div
         className={cn(
-          "mt-2 line-clamp-2 text-micro",
+          "mt-2 flex min-h-[72px] flex-1 flex-col gap-1 overflow-hidden text-micro leading-snug",
           exists ? "text-[var(--sd-ink-dull)]" : "text-[var(--sd-ink-faint)]"
         )}
       >
-        {preview}
-      </span>
+        {lines.map((line, i) => (
+          <span
+            // Positional by design: these are excerpt lines, not entities.
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed excerpt slice
+            key={i}
+            className={cn(
+              "block break-words",
+              // Only the first line may run long; the rest are single-line so
+              // the card shows breadth of the day rather than one paragraph.
+              i === 0 ? "line-clamp-2" : "truncate",
+              line.emphasis && "font-medium text-[var(--sd-ink)]"
+            )}
+          >
+            {line.prefix ? (
+              <span className="mr-1 text-[var(--sd-ink-faint)]">{line.prefix}</span>
+            ) : null}
+            {line.text}
+          </span>
+        ))}
+      </div>
       <span className="mt-auto flex h-4 items-end justify-end pt-1 text-[var(--sd-ink-faint)]">
         {loading ? <Loader2 size={11} className="animate-spin motion-reduce:animate-none" /> : null}
         {!loading && !exists ? <Plus size={11} /> : null}
@@ -133,13 +160,61 @@ function JournalDayTile({ iso, today }: { iso: string; today?: boolean }) {
   );
 }
 
-function previewLine(page: JournalPage, exists: boolean): string {
-  if (!page) return exists ? "Daily entry" : "No entry yet";
-  const block = extractPreviewModel(page.contentJson, page.content, {
-    maxBlocks: 1,
-    maxChars: 72,
-  }).blocks[0];
-  return block && "text" in block && block.text ? block.text : page.title || "Daily entry";
+type PreviewLine = { text: string; prefix?: string; emphasis?: boolean };
+
+/**
+ * Up to five excerpt lines for a trail card, each carrying the shape of the
+ * block it came from (a bullet keeps its dot, a to-do keeps its box, a heading
+ * gets weight). Empty and structural blocks are dropped, since a divider or a
+ * blank paragraph spends a line of a very small card saying nothing.
+ */
+function previewLines(page: JournalPage, exists: boolean): PreviewLine[] {
+  if (!page) return [{ text: exists ? "Daily entry" : "No entry yet" }];
+
+  const { blocks } = extractPreviewModel(page.contentJson, page.content, {
+    maxBlocks: 12,
+    maxChars: 480,
+  });
+
+  const lines: PreviewLine[] = [];
+  for (const b of blocks) {
+    if (lines.length >= 5) break;
+    switch (b.kind) {
+      case "heading":
+        if (b.text.trim()) lines.push({ text: b.text, emphasis: true });
+        break;
+      case "todo":
+        if (b.text.trim()) lines.push({ text: b.text, prefix: b.checked ? "☑" : "☐" });
+        break;
+      case "bullet":
+        if (b.text.trim()) lines.push({ text: b.text, prefix: "•" });
+        break;
+      case "numbered":
+        if (b.text.trim()) lines.push({ text: b.text, prefix: "›" });
+        break;
+      case "quote":
+        if (b.text.trim()) lines.push({ text: b.text, prefix: "❝" });
+        break;
+      case "code":
+        if (b.text.trim()) lines.push({ text: b.text, prefix: "‹›" });
+        break;
+      case "paragraph":
+        if (b.text.trim()) lines.push({ text: b.text });
+        break;
+      case "image":
+        lines.push({ text: b.caption?.trim() || "Image", prefix: "🖼" });
+        break;
+      case "table-hint":
+        lines.push({ text: `Table · ${b.rows}×${b.cols}` });
+        break;
+      default:
+        // divider and anything new: nothing worth a line on a card this size.
+        break;
+    }
+  }
+
+  if (lines.length > 0) return lines;
+  return [{ text: page.title || (exists ? "Empty entry" : "No entry yet") }];
 }
 
 function EmptyToday({ loading }: { loading: boolean }) {

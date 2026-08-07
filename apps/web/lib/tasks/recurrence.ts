@@ -56,9 +56,9 @@ export const RecurrenceRuleSchema = z.object({
 export function normalizeRule(rule: RecurrenceRule): RecurrenceRule {
   const interval = Math.min(365, Math.max(1, Math.round(rule.interval || 1)));
   if (rule.frequency === "weekly") {
-    const weekdays = Array.from(new Set((rule.weekdays ?? []).filter((d) => d >= 0 && d <= 6))).sort(
-      (a, b) => a - b,
-    );
+    const weekdays = Array.from(
+      new Set((rule.weekdays ?? []).filter((d) => d >= 0 && d <= 6))
+    ).sort((a, b) => a - b);
     return { frequency: "weekly", interval, weekdays };
   }
   return { frequency: rule.frequency, interval };
@@ -113,6 +113,114 @@ export function nextOccurrence(rule: RecurrenceRule, from: string): string {
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+/** Mon–Fri, in storage order (Sun = 0). */
+export const WEEKDAYS_WORKWEEK = [1, 2, 3, 4, 5];
+/** Sat + Sun. */
+export const WEEKDAYS_WEEKEND = [0, 6];
+
+/**
+ * The presets the editor offers, in menu order. Every one of them is expressed
+ * in the SAME rule shape — no new storage, no migration: "every weekday" is
+ * just a weekly rule whose weekdays are Mon–Fri.
+ *
+ * `custom` is not a preset; it is what you land on when the pills or the
+ * interval no longer match any of these.
+ */
+export type RecurrencePreset =
+  | "none"
+  | "daily"
+  | "weekly"
+  | "weekdays"
+  | "weekends"
+  | "every-n-days"
+  | "custom";
+
+function sameDays(a: number[] | undefined, b: number[]): boolean {
+  const x = Array.from(new Set(a ?? [])).sort((p, q) => p - q);
+  return x.length === b.length && x.every((d, i) => d === b[i]);
+}
+
+/**
+ * Which preset a stored rule reads as. This is what keeps the editor honest
+ * when a rule arrives from elsewhere (JARVIS, an older row): the menu shows
+ * the name of what the rule ACTUALLY does rather than defaulting to Custom.
+ *
+ * `anchorWeekday` is the due date's weekday, so a plain weekly rule on the
+ * task's own day reads as "Weekly" rather than as a custom one-pill selection.
+ */
+export function presetForRule(
+  rule: RecurrenceRule | null,
+  anchorWeekday?: number
+): RecurrencePreset {
+  if (!rule) return "none";
+  const r = normalizeRule(rule);
+
+  if (r.frequency === "daily") return "daily";
+  if (r.frequency === "custom") return r.interval === 1 ? "daily" : "every-n-days";
+
+  // weekly
+  if (r.interval !== 1) return "custom";
+  const days = r.weekdays ?? [];
+  if (sameDays(days, WEEKDAYS_WORKWEEK)) return "weekdays";
+  if (sameDays(days, WEEKDAYS_WEEKEND)) return "weekends";
+  if (days.length === 1 && (anchorWeekday === undefined || days[0] === anchorWeekday)) {
+    return "weekly";
+  }
+  return "custom";
+}
+
+/**
+ * The rule a preset produces. `anchorWeekday` seeds "Weekly" with the task's
+ * own day, and `previous` carries an interval or weekday selection forward so
+ * flipping between presets does not silently discard what was typed.
+ */
+export function ruleForPreset(
+  preset: RecurrencePreset,
+  opts: { anchorWeekday?: number; previous?: RecurrenceRule | null } = {}
+): RecurrenceRule | null {
+  const { anchorWeekday = 1, previous } = opts;
+  switch (preset) {
+    case "none":
+      return null;
+    case "daily":
+      return normalizeRule({ frequency: "daily", interval: 1 });
+    case "weekly":
+      return normalizeRule({
+        frequency: "weekly",
+        interval: 1,
+        weekdays: [anchorWeekday],
+      });
+    case "weekdays":
+      return normalizeRule({
+        frequency: "weekly",
+        interval: 1,
+        weekdays: WEEKDAYS_WORKWEEK,
+      });
+    case "weekends":
+      return normalizeRule({
+        frequency: "weekly",
+        interval: 1,
+        weekdays: WEEKDAYS_WEEKEND,
+      });
+    case "every-n-days":
+      return normalizeRule({
+        frequency: "custom",
+        interval: Math.max(2, previous?.interval ?? 2),
+      });
+    case "custom": {
+      const weekdays =
+        previous?.frequency === "weekly" && (previous.weekdays?.length ?? 0) > 0
+          ? previous.weekdays
+          : [anchorWeekday];
+      return normalizeRule({
+        frequency: "weekly",
+        interval: previous?.frequency === "weekly" ? previous.interval : 1,
+        weekdays,
+      });
+    }
+  }
+}
+
 /**
  * Human-readable summary of a rule for badges / detail copy.
  * e.g. "Every day", "Every 3 days", "Weekly on Mon, Wed", "Every 2 weeks on Fri".
@@ -125,6 +233,12 @@ export function describeRule(rule: RecurrenceRule): string {
   }
   // weekly
   const days = r.weekdays && r.weekdays.length > 0 ? r.weekdays : null;
+  // Name the two selections that have names. "Mon, Tue, Wed, Thu, Fri" is
+  // technically accurate and nobody reads it as "every weekday".
+  if (days && r.interval === 1) {
+    if (sameDays(days, WEEKDAYS_WORKWEEK)) return "Every weekday";
+    if (sameDays(days, WEEKDAYS_WEEKEND)) return "Every weekend day";
+  }
   const dayLabel = days ? days.map((d) => WEEKDAY_LABELS[d]).join(", ") : null;
   if (r.interval === 1) {
     return dayLabel ? `Weekly on ${dayLabel}` : "Weekly";

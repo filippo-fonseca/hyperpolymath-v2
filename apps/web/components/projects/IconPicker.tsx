@@ -1,5 +1,6 @@
 "use client";
 
+import { EmojiPickerPanel } from "@/components/ui/EmojiPicker";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ interface Props {
 export function IconPicker({ value, onChange, renderTrigger }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<"icons" | "emoji">("icons");
 
   const filteredCategories = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -50,14 +52,6 @@ export function IconPicker({ value, onChange, renderTrigger }: Props) {
 
   const SelectedIcon = value ? CURATED_ICONS[value as CuratedIconName] : null;
   const selectedEmoji = value && !SelectedIcon ? value : null;
-
-  const handleEmojiChange = useCallback(
-    (raw: string) => {
-      const emoji = Array.from(raw.trim()).slice(0, 2).join("");
-      onChange(emoji || null);
-    },
-    [onChange]
-  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -88,20 +82,39 @@ export function IconPicker({ value, onChange, renderTrigger }: Props) {
         side="bottom"
         sideOffset={4}
       >
-        {/* Emoji + Search */}
-        <div className="p-2 border-b border-[var(--sd-line)] space-y-2">
-          <div className="flex items-center gap-2">
-            <Input
-              aria-label="Emoji"
-              placeholder="🎓"
-              value={selectedEmoji ?? ""}
-              onChange={(e) => handleEmojiChange(e.target.value)}
-              className="h-8 w-12 text-center text-subtitle"
-            />
-            <span className="font-sans text-micro text-[var(--ink-faint)]">
-              Type or paste an emoji
-            </span>
-          </div>
+        {/* Two ways to say the same thing, so neither is a cramped afterthought
+            bolted onto the other: a curated Lucide set, or the shared emoji
+            picker every other surface uses. */}
+        <div className="flex items-center gap-1 border-b border-[var(--sd-line)] p-2">
+          {(["icons", "emoji"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={cn(
+                "h-7 flex-1 cursor-pointer rounded-lg text-meta capitalize transition-colors duration-[160ms] ease-out",
+                tab === t
+                  ? "bg-[var(--selected)] text-[var(--ink)]"
+                  : "text-[var(--ink-faint)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {tab === "emoji" ? (
+          <EmojiPickerPanel
+            value={selectedEmoji}
+            onChange={(next) => {
+              onChange(next);
+              setOpen(false);
+            }}
+            onPicked={() => setOpen(false)}
+          />
+        ) : (
+          <>
+        <div className="p-2 border-b border-[var(--sd-line)]">
           <Input
             placeholder="Search icons..."
             value={search}
@@ -155,6 +168,8 @@ export function IconPicker({ value, onChange, renderTrigger }: Props) {
             </p>
           )}
         </div>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   );

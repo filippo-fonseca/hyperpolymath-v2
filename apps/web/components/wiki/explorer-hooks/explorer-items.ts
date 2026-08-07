@@ -38,8 +38,16 @@ export function buildExplorerItems(
 
   const folderCounts = counts ?? computeFolderItemCounts(folders, pages);
 
+  // FolderRow's timestamps are optional and may arrive as ISO strings over the
+  // wire, so normalize; a folder missing the stamp sorts last rather than
+  // throwing the whole list into NaN comparisons.
+  const stamp = (v: Date | string | undefined): number =>
+    v ? new Date(v).getTime() : 0;
+
   const sortedFolders = [...childFolders].sort((a, b) => {
     if (sort === "manual") return compareExplorerItems(a, b);
+    if (sort === "created") return stamp(b.createdAt) - stamp(a.createdAt);
+    if (sort === "updated") return stamp(b.updatedAt) - stamp(a.updatedAt);
     return a.name.localeCompare(b.name);
   });
 
@@ -52,6 +60,13 @@ export function buildExplorerItems(
     if (sort === "updated") {
       return withPinnedFirst<PageWithProjects>(
         (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
+    }
+    // Newest first, same direction as Updated: "when did this appear" is
+    // almost always asked about the recent end of the list.
+    if (sort === "created") {
+      return withPinnedFirst<PageWithProjects>(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
     }
     return withPinnedFirst<PageWithProjects>((a, b) =>

@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { EmojiPicker } from "@/components/ui/EmojiPicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
@@ -162,13 +163,25 @@ export function AreaCreateDialog({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="area-emoji">Emoji (optional)</Label>
-              <Input
-                id="area-emoji"
-                placeholder="e.g. 🎓"
-                value={emoji}
-                onChange={(e) => setEmoji(e.target.value)}
-                maxLength={8}
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
+              <Label>Emoji (optional)</Label>
+              {/* The shared picker, same as pages and projects — browse, search,
+                  roll a random one, or still just type the character. */}
+              <EmojiPicker
+                value={emoji || null}
+                onChange={(next) => setEmoji(next ?? "")}
+                trigger={
+                  <button
+                    type="button"
+                    aria-label={emoji ? `Emoji ${emoji} (click to change)` : "Pick an emoji"}
+                    className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-[var(--edge)] bg-transparent px-3 text-left transition-colors duration-[160ms] hover:bg-[var(--hover)]"
+                  >
+                    <span className="text-subtitle leading-none">{emoji || "🙂"}</span>
+                    <span className="text-meta text-[var(--ink-faint)]">
+                      {emoji ? "Change emoji" : "Pick an emoji"}
+                    </span>
+                  </button>
+                }
               />
             </div>
             {error && (

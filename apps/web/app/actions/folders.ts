@@ -15,6 +15,7 @@ import {
   projects,
 } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { PALETTE_TOKENS } from "@/lib/ui/palette";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -104,6 +105,33 @@ export async function renameFolder(input: unknown): Promise<ActionResult<null>> 
   await db
     .update(pageFolders)
     .set({ name: parsed.data.name, updatedAt: sql`now()` })
+    .where(and(eq(pageFolders.id, parsed.data.id), eq(pageFolders.userId, userId)));
+  return { success: true, data: null };
+}
+
+const SetFolderColorSchema = z.object({
+  id: z.string().uuid(),
+  /** A palette token from lib/ui/palette.ts, or null to clear it. */
+  color: z.enum(PALETTE_TOKENS).nullable(),
+});
+
+/**
+ * Paint a folder. Stores the token name, not a colour: the tint ramp owns the
+ * values, so a palette re-tune moves every folder and dark mode stays legible.
+ */
+export async function setFolderColor(input: unknown): Promise<ActionResult<null>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = SetFolderColorSchema.safeParse(input);
+  if (!parsed.success)
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+
+  await db
+    .update(pageFolders)
+    .set({ color: parsed.data.color, updatedAt: sql`now()` })
     .where(and(eq(pageFolders.id, parsed.data.id), eq(pageFolders.userId, userId)));
   return { success: true, data: null };
 }
