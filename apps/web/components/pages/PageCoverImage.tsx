@@ -1,9 +1,10 @@
 "use client";
 
-import { type CoverSelection, CoverImagePicker } from "./CoverImagePicker";
+import { coverBackground, parseCover } from "@/lib/ui/cover";
 import { ImagePlus, RefreshCw, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
+import { CoverImagePicker, type CoverSelection } from "./CoverImagePicker";
 
 interface Props {
   /** The current cover URL, or null when the page has no banner. */
@@ -15,7 +16,9 @@ interface Props {
    * image-URL cover); null `url` removes the banner. The parent decides how to
    * persist (autosave) and may fire the Unsplash download-tracking ping.
    */
-  onChange: (next: CoverSelection | { url: null; attribution: null; downloadLocation: null }) => void;
+  onChange: (
+    next: CoverSelection | { url: null; attribution: null; downloadLocation: null }
+  ) => void;
 }
 
 const UNSPLASH_HOST = "images.unsplash.com";
@@ -76,17 +79,30 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
           Add cover
         </button>
         {everOpened ? (
-          <CoverImagePicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelect} />
+          <CoverImagePicker
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            onSelect={handleSelect}
+            currentValue={coverUrl}
+          />
         ) : null}
       </>
     );
   }
 
+  // A cover is either a painted colour (solid:/gradient: preset) or an image
+  // URL. The colour branch must not go anywhere near next/image — there is no
+  // remote to fetch, and the optimizer would choke on the CSS string.
+  const cover = parseCover(coverUrl);
+  const isColor = cover?.kind === "color";
+
   let isUnsplash = false;
-  try {
-    isUnsplash = new URL(coverUrl).hostname === UNSPLASH_HOST;
-  } catch {
-    isUnsplash = false;
+  if (!isColor) {
+    try {
+      isUnsplash = new URL(coverUrl).hostname === UNSPLASH_HOST;
+    } catch {
+      isUnsplash = false;
+    }
   }
 
   return (
@@ -95,16 +111,21 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
           renders this outside the page measure when a cover is set. aug-04
           craft-ui-v2: no hairline under the cover — it bleeds clean into the
           sheet, and the stage sheet's rounded corners clip its top edges. */}
-      <div className="group relative h-44 w-full overflow-hidden sm:h-52">
-        <Image
-          src={coverUrl}
-          alt={attribution ? `Cover photo — ${attribution}` : "Page cover"}
-          fill
-          priority
-          sizes="(max-width: 768px) 100vw, 768px"
-          unoptimized={!isUnsplash}
-          className="object-cover object-center"
-        />
+      <div
+        className="group relative h-44 w-full overflow-hidden sm:h-52"
+        style={isColor ? { background: coverBackground(coverUrl) } : undefined}
+      >
+        {isColor ? null : (
+          <Image
+            src={coverUrl}
+            alt={attribution ? `Cover photo — ${attribution}` : "Page cover"}
+            fill
+            priority
+            sizes="(max-width: 768px) 100vw, 768px"
+            unoptimized={!isUnsplash}
+            className="object-cover object-center"
+          />
+        )}
 
         {/* Hover controls, top-right. */}
         <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
@@ -138,7 +159,12 @@ export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
       </div>
 
       {everOpened ? (
-        <CoverImagePicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelect} />
+        <CoverImagePicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          onSelect={handleSelect}
+          currentValue={coverUrl}
+        />
       ) : null}
     </>
   );

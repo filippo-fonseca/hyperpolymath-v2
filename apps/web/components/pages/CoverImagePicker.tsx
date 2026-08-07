@@ -1,14 +1,11 @@
 "use client";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { UnsplashPhoto } from "@/lib/pages/unsplash";
+import { COVER_PRESETS, coverBackground } from "@/lib/ui/cover";
+import { cn } from "@/lib/utils";
 import { ImageIcon, Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -28,6 +25,12 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (selection: CoverSelection) => void;
+  /** The value already set, so the matching preset can read as selected. */
+  currentValue?: string | null;
+  /** Which tab opens first. Projects lead with colour, pages with photos. */
+  defaultTab?: "color" | "unsplash" | "url";
+  /** Dialog heading; "cover" for pages, "banner" for projects. */
+  title?: string;
 }
 
 interface SearchResponse {
@@ -36,7 +39,9 @@ interface SearchResponse {
 }
 
 /**
- * Notion-style cover picker (issue #28). Two tabs:
+ * Notion-style cover picker (issue #28). Three tabs:
+ *   - "Colour": the shared preset palette (lib/ui/cover.ts) — solids and
+ *     fresco gradients, stored with a solid:/gradient: prefix.
  *   - "Unsplash": debounced search against the server proxy; click a tile to set
  *     the cover (with photographer attribution). When UNSPLASH_ACCESS_KEY is
  *     unset the proxy returns { configured: false }, and we show a hint.
@@ -45,7 +50,14 @@ interface SearchResponse {
  * The Unsplash Access Key NEVER touches this client — search goes through
  * /api/integrations/unsplash/search, which holds the key server-side.
  */
-export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
+export function CoverImagePicker({
+  open,
+  onOpenChange,
+  onSelect,
+  currentValue = null,
+  defaultTab = "unsplash",
+  title = "Add a cover",
+}: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UnsplashPhoto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,7 +78,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/integrations/unsplash/search?query=${encodeURIComponent(trimmed)}`,
+        `/api/integrations/unsplash/search?query=${encodeURIComponent(trimmed)}`
       );
       if (!res.ok) {
         if (reqId === reqIdRef.current) setResults([]);
@@ -129,14 +141,54 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="font-serif">Add a cover</DialogTitle>
+          <DialogTitle className="font-serif">{title}</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="unsplash" className="mt-1">
+        <Tabs defaultValue={defaultTab} className="mt-1">
           <TabsList>
+            <TabsTrigger value="color">Colour</TabsTrigger>
             <TabsTrigger value="unsplash">Unsplash</TabsTrigger>
             <TabsTrigger value="url">Image URL</TabsTrigger>
           </TabsList>
+
+          {/* ── Colour tab ───────────────────────────────────────────────── */}
+          {/* Shared with project banners (lib/ui/cover.ts), so a page and a
+              project painted "Verdigris" are the same green. The value is
+              stored with its solid:/gradient: prefix, which is why no
+              migration was needed to give pages colours. */}
+          <TabsContent value="color" className="mt-3 flex flex-col gap-3">
+            {(["solid", "gradient"] as const).map((kind) => (
+              <div key={kind}>
+                <p className="mb-2 font-sans text-micro font-medium text-[var(--ink-faint)]">
+                  {kind === "solid" ? "Solids" : "Gradients"}
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {COVER_PRESETS.filter((o) => o.kind === kind).map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      aria-label={`${preset.name} cover`}
+                      title={preset.name}
+                      onClick={() => {
+                        onSelect({
+                          url: preset.value,
+                          attribution: null,
+                          downloadLocation: null,
+                        });
+                        onOpenChange(false);
+                      }}
+                      className={cn(
+                        "h-12 w-full cursor-pointer rounded-lg border border-[var(--edge)] transition-opacity duration-[160ms] ease-out hover:opacity-90",
+                        currentValue === preset.value &&
+                          "ring-2 ring-[var(--edge-strong)] ring-offset-1"
+                      )}
+                      style={{ background: coverBackground(preset.value) }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </TabsContent>
 
           {/* ── Unsplash tab ─────────────────────────────────────────────── */}
           <TabsContent value="unsplash" className="mt-3 flex flex-col gap-3">
@@ -158,23 +210,27 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
             {configured === false ? (
               <div className="flex flex-col items-center gap-2 py-10 text-center">
                 <ImageIcon size={22} strokeWidth={1.25} className="text-[var(--ink-muted)]" />
- <p className="font-serif text-meta text-[var(--ink)]">
+                <p className="font-serif text-meta text-[var(--ink)]">
                   Unsplash search isn&rsquo;t set up.
                 </p>
- <p className="max-w-xs font-mono text-micro leading-relaxed text-[var(--ink-muted)]">
-                  Set <span className="text-[var(--ink)]">UNSPLASH_ACCESS_KEY</span> on the
-                  server to search photos. You can still paste a direct image URL from the
-                  &ldquo;Image URL&rdquo; tab.
+                <p className="max-w-xs font-mono text-micro leading-relaxed text-[var(--ink-muted)]">
+                  Set <span className="text-[var(--ink)]">UNSPLASH_ACCESS_KEY</span> on the server
+                  to search photos. You can still paste a direct image URL from the &ldquo;Image
+                  URL&rdquo; tab.
                 </p>
               </div>
             ) : loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 size={18} strokeWidth={1.75} className="animate-spin text-[var(--ink-muted)]" />
+                <Loader2
+                  size={18}
+                  strokeWidth={1.75}
+                  className="animate-spin text-[var(--ink-muted)]"
+                />
               </div>
             ) : results.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-10 text-center">
                 <ImageIcon size={22} strokeWidth={1.25} className="text-[var(--ink-muted)]" />
- <p className="font-mono text-micro text-[var(--ink-muted)]">
+                <p className="font-mono text-micro text-[var(--ink-muted)]">
                   {query.trim() ? "No photos found." : "Search for a cover photo."}
                 </p>
               </div>
@@ -197,7 +253,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
                       loading="lazy"
                       className="h-full w-full object-cover"
                     />
- <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1 pt-3 text-left text-micro font-mono text-white/90 opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1 pt-3 text-left text-micro font-mono text-white/90 opacity-0 transition-opacity group-hover:opacity-100">
                       {photo.authorName}
                     </span>
                   </button>
@@ -205,7 +261,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
               </div>
             )}
 
- <p className="font-mono text-micro text-[var(--ink-muted)]">
+            <p className="font-mono text-micro text-[var(--ink-muted)]">
               Photos from Unsplash. Selecting one credits the photographer.
             </p>
           </TabsContent>
@@ -214,7 +270,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
           <TabsContent value="url" className="mt-3 flex flex-col gap-3">
             <label
               htmlFor="cover-url-input"
- className="text-micro tracking-wide text-[var(--ink-muted)]"
+              className="text-micro tracking-wide text-[var(--ink-muted)]"
             >
               Image URL
             </label>
@@ -237,7 +293,7 @@ export function CoverImagePicker({ open, onOpenChange, onSelect }: Props) {
                 type="button"
                 onClick={handleSubmitUrl}
                 disabled={!urlInput.trim()}
- className="rounded-sm border border-[var(--edge)] px-3 py-1.5 font-serif text-meta text-[var(--ink)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                className="rounded-sm border border-[var(--edge)] px-3 py-1.5 font-serif text-meta text-[var(--ink)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
               >
                 Set cover
               </button>

@@ -5,7 +5,7 @@ import { PageScaffold } from "@/components/ui/PageScaffold";
 import { Button } from "@/components/ui/button";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { cn } from "@/lib/utils";
-import { parseBanner } from "@/lib/utils/banner";
+import { coverBackground, parseCover } from "@/lib/ui/cover";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Settings2 } from "lucide-react";
 import Link from "next/link";
@@ -333,6 +333,8 @@ export function ProjectHeader({
     ...classMetaParts,
   ];
 
+  const bannerCover = parseCover(project.bannerUrl);
+
   return (
     <>
       {/* Banner — jul-29 craft restyle: an inset rounded cover aligned with
@@ -344,7 +346,20 @@ export function ProjectHeader({
         <div className="mx-auto w-full max-w-[1120px] px-8 pt-6">
           <div
             className="craft-card group/banner-area relative w-full overflow-hidden"
-            style={{ height: "140px", background: parseBanner(project.bannerUrl) }}
+            style={
+              // An image banner paints as a cover background rather than an
+              // <Image>: the strip is fixed-height and decorative, so a CSS
+              // background avoids a layout-shifting fill layer for a band the
+              // reader is not looking at.
+              bannerCover?.kind === "image"
+                ? {
+                    height: "140px",
+                    backgroundImage: `url(${bannerCover.url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }
+                : { height: "140px", background: coverBackground(project.bannerUrl) }
+            }
           >
           <div
             className={cn(
