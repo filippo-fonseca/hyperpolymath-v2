@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronDown, Archive } from "lucide-react";
-import { AreaIcon } from "@/components/ui/icons";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { AreaIcon } from "@/components/ui/icons";
+import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
-import type { SidebarArea } from "@/lib/db/queries/sidebar";
+import { Archive, ChevronDown } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   areas: SidebarArea[];
@@ -64,29 +64,19 @@ function elbowPath(x0: number, x1: number, y: number, yEnd: number): string {
   const r = Math.min(ELBOW, Math.abs(run), Math.max(drop, 0));
   if (r < 1) return `M ${x0} ${y} H ${x1} V ${yEnd}`;
   const dir = run > 0 ? 1 : -1;
-  return [
-    `M ${x0} ${y}`,
-    `H ${x1 - dir * r}`,
-    `Q ${x1} ${y} ${x1} ${y + r}`,
-    `V ${yEnd}`,
-  ].join(" ");
+  return [`M ${x0} ${y}`, `H ${x1 - dir * r}`, `Q ${x1} ${y} ${x1} ${y + r}`, `V ${yEnd}`].join(
+    " "
+  );
 }
 
-export function AreasTree({
-  areas,
-  rootAvatarUrl,
-  rootInitial,
-  rootLabel,
-}: Props) {
+export function AreasTree({ areas, rootAvatarUrl, rootInitial, rootLabel }: Props) {
   const prefersReducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
 
   const [paths, setPaths] = useState<{ id: string; d: string }[]>([]);
-  const [cardVertices, setCardVertices] = useState<
-    { id: string; cx: number; cy: number }[]
-  >([]);
+  const [cardVertices, setCardVertices] = useState<{ id: string; cx: number; cy: number }[]>([]);
   const [trunkLine, setTrunkLine] = useState<{
     x: number;
     y1: number;
@@ -110,11 +100,7 @@ export function AreasTree({
     const collapsed = new Set<string>();
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (
-        k &&
-        k.startsWith(PER_AREA_COLLAPSED_PREFIX) &&
-        localStorage.getItem(k) === "true"
-      ) {
+      if (k && k.startsWith(PER_AREA_COLLAPSED_PREFIX) && localStorage.getItem(k) === "true") {
         collapsed.add(k.slice(PER_AREA_COLLAPSED_PREFIX.length));
       }
     }
@@ -122,8 +108,7 @@ export function AreasTree({
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined")
-      localStorage.setItem(HIDE_ALL_KEY, String(hideAllProjects));
+    if (typeof window !== "undefined") localStorage.setItem(HIDE_ALL_KEY, String(hideAllProjects));
   }, [hideAllProjects]);
   useEffect(() => {
     if (typeof window !== "undefined")
@@ -135,8 +120,7 @@ export function AreasTree({
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
-        if (typeof window !== "undefined")
-          localStorage.removeItem(PER_AREA_COLLAPSED_PREFIX + id);
+        if (typeof window !== "undefined") localStorage.removeItem(PER_AREA_COLLAPSED_PREFIX + id);
       } else {
         next.add(id);
         if (typeof window !== "undefined")
@@ -193,9 +177,7 @@ export function AreasTree({
       if (cardCenters.length === 1) {
         const only = cardCenters[0];
         const branchEndY = Math.max(rootBottom + TRUNK_DROP, only.top - 2);
-        setPaths([
-          { id: only.id, d: `M ${rootCx} ${rootBottom} V ${branchEndY}` },
-        ]);
+        setPaths([{ id: only.id, d: `M ${rootCx} ${rootBottom} V ${branchEndY}` }]);
         setCardVertices([{ id: only.id, cx: rootCx, cy: branchEndY }]);
         setTrunkLine(null);
         setSvgSize({ w: containerRect.width, h: containerRect.height });
@@ -254,9 +236,7 @@ export function AreasTree({
             onClick={() => setHideAllProjects((v) => !v)}
             label={hideAllProjects ? "Show projects" : "Hide projects"}
             title={
-              hideAllProjects
-                ? "Show all project sub-branches"
-                : "Hide all project sub-branches"
+              hideAllProjects ? "Show all project sub-branches" : "Hide all project sub-branches"
             }
           />
           <ChipButton
@@ -264,9 +244,7 @@ export function AreasTree({
             onClick={() => setShowArchived((v) => !v)}
             label={showArchived ? "Hiding archived" : "Show archived"}
             title={
-              showArchived
-                ? "Hide archived projects"
-                : "Include archived projects in the tree"
+              showArchived ? "Hide archived projects" : "Include archived projects in the tree"
             }
             icon={<Archive size={13} />}
           />
@@ -295,26 +273,13 @@ export function AreasTree({
         ) : null}
 
         {paths.map((p) => (
-          <path
-            key={p.id}
-            d={p.d}
-            fill="none"
-            stroke={CONNECTOR}
-            strokeWidth="1"
-          />
+          <path key={p.id} d={p.d} fill="none" stroke={CONNECTOR} strokeWidth="1" />
         ))}
 
         {/* Junction dots — 3px unlit accent terminals where each branch meets
             its card. The lone accent moment in the drawing; no halo, no blur. */}
         {cardVertices.map((v) => (
-          <circle
-            key={`dot-${v.id}`}
-            cx={v.cx}
-            cy={v.cy}
-            r="1.5"
-            fill={DOT}
-            opacity="0.7"
-          />
+          <circle key={`dot-${v.id}`} cx={v.cx} cy={v.cy} r="1.5" fill={DOT} opacity="0.7" />
         ))}
       </svg>
 
@@ -484,25 +449,35 @@ function AreaBranch({
   return (
     <div className="flex w-[200px] shrink-0 flex-col items-stretch">
       <div className="relative">
-        {/* Mini entity card, craft v2: the raised white card carries the
-            elevation, hover moves shadow + border only, and the area's one
-            colored element is its tinted icon plate (identity, not
-            decoration). */}
+        {/* Mini entity card. aug-07: the areas read as boxes at the head of
+            the tree — a hard 14px-radius white rectangle with a square icon
+            plate inside it, three corners' worth of right angle stacked at the
+            top of a drawing that is otherwise all curves. It is now a softer
+            rounded-2xl card washed in the area's own tint, with a circular
+            icon plate and a tint-derived hairline instead of the generic edge,
+            which lets the branch lines meet something that looks like a node
+            rather than a crate. */}
         <Link
           ref={setRef}
           href={`/areas/${area.id}`}
           className={cn(
-            "craft-card craft-card-hover group relative flex flex-col gap-2 px-3 py-3 pr-8",
+            "group relative flex flex-col gap-2 rounded-2xl px-3.5 py-3 pr-9",
+            "border border-[color-mix(in_srgb,var(--tint-edge)_38%,transparent)]",
+            "bg-[color-mix(in_srgb,var(--tint-bg)_60%,var(--surface-raised))]",
+            "shadow-[var(--shadow-card)] transition-[box-shadow,border-color,background-color] duration-[160ms] ease-out",
+            "hover:border-[color-mix(in_srgb,var(--tint-edge)_62%,transparent)]",
+            "hover:bg-[color-mix(in_srgb,var(--tint-bg)_80%,var(--surface-raised))]",
+            "hover:shadow-[var(--shadow-card-hover)]",
             "cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
-            tintFor(area.id),
+            tintFor(area.id)
           )}
         >
           <div className="flex items-center gap-2.5">
-            {/* 28px icon backplate. Keeps the user's chosen emoji where set;
+            {/* 28px icon disc. Keeps the user's chosen emoji where set;
                 defaults to the dimensional AreaIcon (never drop user data). */}
             <span
               aria-hidden="true"
-              className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--tint-bg)] text-[var(--tint-ink)] text-meta leading-none"
+              className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--surface-raised)] text-[var(--tint-ink)] text-meta leading-none shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--tint-edge)_35%,transparent)]"
             >
               {area.emoji ? area.emoji : <AreaIcon size={18} />}
             </span>
@@ -529,10 +504,10 @@ function AreaBranch({
           aria-label={collapsed ? "Show projects" : "Hide projects"}
           aria-expanded={!collapsed}
           className={cn(
-            "absolute top-2.5 right-2 inline-flex size-6 items-center justify-center rounded-lg",
+            "absolute top-3 right-2.5 inline-flex size-6 items-center justify-center rounded-full",
             "text-[var(--ink-faint)] hover:bg-[var(--hover)] hover:text-[var(--ink)]",
             "cursor-pointer-always transition-colors duration-150 ease-out",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           )}
         >
           <ChevronDown
@@ -564,12 +539,7 @@ function AreaBranch({
                       href={`/projects/${p.id}`}
                       className="craft-chip max-w-full cursor-pointer-always"
                     >
-                      <DynamicIcon
-                        name={p.icon}
-                        size={13}
-                        strokeWidth={1.5}
-                        className="shrink-0"
-                      />
+                      <DynamicIcon name={p.icon} size={13} strokeWidth={1.5} className="shrink-0" />
                       <span className="truncate">{p.name}</span>
                       {p.archivedAt !== null ? (
                         <Archive
@@ -583,10 +553,7 @@ function AreaBranch({
                 ))}
                 {hiddenCount > 0 ? (
                   <motion.li variants={leaf}>
-                    <Link
-                      href={`/areas/${area.id}`}
-                      className="craft-chip cursor-pointer-always"
-                    >
+                    <Link href={`/areas/${area.id}`} className="craft-chip cursor-pointer-always">
                       +{hiddenCount} more
                     </Link>
                   </motion.li>

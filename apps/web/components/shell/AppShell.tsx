@@ -4,6 +4,7 @@ import { AmbientGlow } from "@/components/ui/ambient";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { useReducedMotion } from "motion/react";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { ProductTour } from "./ProductTour";
 import { Rail } from "./cockpit/Rail";
 import { RightSlot } from "./cockpit/RightSlot";
@@ -86,13 +87,36 @@ function CockpitGrid({ userId, activeAreas, allAreas, graduationYear, profile, c
     atLeastXl: slot.atLeastXl,
   });
 
+  // The shell IS the viewport: it is h-[100dvh] and owns every scroll region
+  // inside it, so the document must not scroll too. Without this lock a tall
+  // route (Settings is the reliable one) lets the whole app slide up and
+  // reveals dead canvas below the sheet, with the stage's rounded bottom
+  // corners cut against a seam. Scoped to the app shell rather than set
+  // globally in CSS, because the marketing pages outside (app) do scroll.
+  useEffect(() => {
+    const { documentElement, body } = document;
+    const prev = {
+      htmlOverflow: documentElement.style.overflow,
+      bodyOverflow: body.style.overflow,
+      overscroll: body.style.overscrollBehavior,
+    };
+    documentElement.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    return () => {
+      documentElement.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      body.style.overscrollBehavior = prev.overscroll;
+    };
+  }, []);
+
   return (
     <div
       // aug-04 craft-ui-v2: with the rail and dock now chromeless, the outer
       // padding reads as canvas margin around the one floating sheet, so it
       // gets the half-step up to p-3. Grid mechanics, gap and the sanctioned
       // grid-template-columns transition are untouched.
-      className="craft-backdrop isolate grid h-screen w-screen gap-2.5 overflow-hidden p-3 text-[var(--ink)]"
+      className="craft-backdrop isolate grid h-[100dvh] w-screen gap-2.5 overflow-hidden p-3 text-[var(--ink)]"
       style={{
         gridTemplateColumns: `auto minmax(0,1fr) ${rightWidth}`,
         gridTemplateRows: "minmax(0,1fr)",

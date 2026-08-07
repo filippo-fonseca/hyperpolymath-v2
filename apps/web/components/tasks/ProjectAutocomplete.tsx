@@ -42,13 +42,7 @@ interface Props {
   onCreateProject: (input: { name: string; areaId: string }) => Promise<string | null>;
 }
 
-export function ProjectAutocomplete({
-  value,
-  onChange,
-  projects,
-  areas,
-  onCreateProject,
-}: Props) {
+export function ProjectAutocomplete({ value, onChange, projects, areas, onCreateProject }: Props) {
   const [open, setOpen] = React.useState(false);
   // Inline create (issue #34): when true the popover swaps from the project
   // list to a tiny create form (name + area). Submitting creates the project,
@@ -107,7 +101,7 @@ export function ProjectAutocomplete({
             <span
               key={p.id}
               className={cn(
- "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-sans text-meta",
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-sans text-meta",
                 "border border-[var(--edge-hud)] text-[var(--ink)]",
                 "bg-[color:color-mix(in_oklch,var(--surface-raised)_82%,transparent)]",
                 "shadow-[inset_0_1px_0_var(--glass-hi),inset_0_-1px_0_var(--glass-lo)]"
@@ -148,18 +142,16 @@ export function ProjectAutocomplete({
             variant="outline"
             role="combobox"
             aria-expanded={open}
- className="w-full justify-between font-sans text-meta h-8"
+            className="w-full justify-between font-sans text-meta h-8"
           >
             {selected.length === 0 ? "Link projects..." : `${selected.length} linked`}
             <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[300px] p-0">
+        <PopoverContent className="w-[340px] p-0">
           {creating ? (
             <div className="flex flex-col gap-2.5 p-3">
-              <p className="text-micro font-medium text-[var(--ink-muted)]">
-                New project
-              </p>
+              <p className="text-micro font-medium text-[var(--ink-muted)]">New project</p>
               <Input
                 autoFocus
                 value={draftName}
@@ -174,15 +166,15 @@ export function ProjectAutocomplete({
                   }
                 }}
                 placeholder="Project name"
- className="h-8 font-sans text-meta"
+                className="h-8 font-sans text-meta"
               />
               <Select value={draftAreaId} onValueChange={setDraftAreaId}>
- <SelectTrigger className="h-8 font-sans text-meta">
+                <SelectTrigger className="h-8 font-sans text-meta">
                   <SelectValue placeholder="Select area" />
                 </SelectTrigger>
                 <SelectContent>
                   {areas.map((a) => (
- <SelectItem key={a.id} value={a.id} className="font-sans text-meta">
+                    <SelectItem key={a.id} value={a.id} className="font-sans text-meta">
                       {`${a.emoji ?? ""} ${a.name}`.trim()}
                     </SelectItem>
                   ))}
@@ -193,7 +185,7 @@ export function ProjectAutocomplete({
                   type="button"
                   variant="ghost"
                   size="sm"
- className="h-7 font-sans text-meta"
+                  className="h-7 font-sans text-meta"
                   onClick={cancelCreate}
                   disabled={submitting}
                 >
@@ -202,7 +194,7 @@ export function ProjectAutocomplete({
                 <Button
                   type="button"
                   size="sm"
- className="h-7 font-sans text-meta"
+                  className="h-7 font-sans text-meta"
                   onClick={() => void submitCreate()}
                   disabled={submitting || !draftName.trim() || !draftAreaId}
                 >
@@ -219,12 +211,12 @@ export function ProjectAutocomplete({
             </div>
           ) : (
             <Command>
- <CommandInput placeholder="Search projects..." className="font-sans text-meta" />
+              <CommandInput placeholder="Search projects…" className="font-sans text-meta" />
               <CommandList>
- <CommandEmpty className="font-sans text-meta py-6 text-center">
+                <CommandEmpty className="font-sans text-meta py-6 text-center">
                   No projects found.
                 </CommandEmpty>
-                <CommandGroup>
+                <CommandGroup className="p-1">
                   {projects.map((p) => {
                     const areaLabel = p.areaName
                       ? `${p.areaEmoji ?? ""} ${p.areaName}`.trim()
@@ -234,26 +226,44 @@ export function ProjectAutocomplete({
                         key={p.id}
                         value={`${getLabel(p)} ${p.areaName ?? ""}`}
                         onSelect={() => toggle(p.id)}
- className="font-sans text-meta"
+                        className="gap-2 rounded-lg px-2 py-1.5 font-sans text-meta"
                       >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4 shrink-0",
-                            value.includes(p.id) ? "opacity-100" : "opacity-0"
+                        {/* One fixed leading slot, not two. The old row kept an
+                            always-rendered checkmark (opacity-0 when unselected)
+                            AND an optional icon, so names started at a
+                            different x on every row and every name sat ~30px
+                            in from the edge for no reason. The slot now shows
+                            the tick when selected and the project's own icon
+                            otherwise, so the column is one width and the names
+                            line up. */}
+                        <span className="inline-flex size-4 shrink-0 items-center justify-center text-[var(--ink-muted)]">
+                          {value.includes(p.id) ? (
+                            <Check className="size-3.5 text-[var(--accent)]" strokeWidth={2.5} />
+                          ) : p.icon ? (
+                            <DynamicIcon name={p.icon} size={14} strokeWidth={1.5} />
+                          ) : (
+                            <span
+                              aria-hidden
+                              className="size-1.5 rounded-full bg-[var(--edge-strong)]"
+                            />
                           )}
-                        />
-                        {p.icon ? (
-                          <DynamicIcon
-                            name={p.icon}
-                            size={14}
-                            strokeWidth={1.5}
-                            className="mr-1.5 text-[var(--ink-muted)] shrink-0"
-                          />
-                        ) : null}
-                        <span className="truncate">{getLabel(p)}</span>
+                        </span>
                         <span
                           className={cn(
- "ml-auto pl-2 shrink-0 truncate text-micro text-[var(--ink-muted)]",
+                            "min-w-0 flex-1 truncate",
+                            value.includes(p.id)
+                              ? "font-medium text-[var(--ink)]"
+                              : "text-[var(--ink)]"
+                          )}
+                        >
+                          {getLabel(p)}
+                        </span>
+                        {/* The area reads as a chip rather than a second run of
+                            body text, so the eye can tell the two apart at a
+                            glance instead of parsing one long line. */}
+                        <span
+                          className={cn(
+                            "shrink-0 truncate rounded-full bg-[var(--hover)] px-1.5 py-0.5 text-micro text-[var(--ink-muted)]",
                             !p.areaName && "italic opacity-70"
                           )}
                         >
@@ -268,7 +278,7 @@ export function ProjectAutocomplete({
                     <CommandItem
                       value="__create_new_project__"
                       onSelect={startCreate}
- className="font-sans text-meta text-[var(--ink)]"
+                      className="font-sans text-meta text-[var(--ink)]"
                     >
                       <Plus className="mr-2 h-4 w-4 shrink-0 text-[var(--ink-muted)]" />
                       Create new project
