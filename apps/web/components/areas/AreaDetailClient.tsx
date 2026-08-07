@@ -1,20 +1,19 @@
 "use client";
 
 import { deleteArea, getAreasForCurrentUser, updateArea } from "@/app/actions/areas";
+import { type AreaCaptureRow, AreaCapturesSection } from "@/components/areas/AreaCapturesSection";
 import type { AreaDetailArea, AreaProject } from "@/components/areas/AreaProjectList";
 import { AreaProjectList } from "@/components/areas/AreaProjectList";
-import {
-  type AreaCaptureRow,
-  AreaCapturesSection,
-} from "@/components/areas/AreaCapturesSection";
 import {
   type AreaTaskRow,
   AreaTasksRollup,
   useAreaTasks,
 } from "@/components/areas/AreaTasksRollup";
+import { AreaWikiSection } from "@/components/areas/AreaWikiSection";
 import { ProjectCreateDialog } from "@/components/projects/ProjectCreateDialog";
 import { Spinner } from "@/components/shared/Spinner";
 import { usePendingAction } from "@/components/shared/use-pending-action";
+import { PageScaffold } from "@/components/ui/PageScaffold";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,7 +31,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PageScaffold } from "@/components/ui/PageScaffold";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -245,6 +243,18 @@ export function AreaDetailClient({
         }
       >
         <AreaTasksRollup userId={userId} areaProjectIds={areaProjectIds} initialTasks={tasks} />
+      </PageScaffold.Section>
+
+      <PageScaffold.Section
+        title="Wiki"
+        divided
+        action={
+          <Button asChild variant="ghost" size="sm" className="rounded-lg">
+            <Link href="/wiki">Open wiki</Link>
+          </Button>
+        }
+      >
+        <AreaWikiSection userId={userId} areaProjectIds={areaProjectIds} />
       </PageScaffold.Section>
 
       <PageScaffold.Section
