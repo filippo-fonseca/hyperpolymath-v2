@@ -2,18 +2,20 @@
 
 import { getHabitCompletionsInRange } from "@/app/actions/habits";
 import { DockStateNote } from "@/components/dock-widgets/dock-state";
+import { HabitStatusRingVisual } from "@/components/habits/HabitStatusRing";
 import { useHabitDay, useHabitMeta } from "@/components/habits/use-habit-data";
 import { useLocalToday } from "@/components/habits/use-local-today";
 import { useCurrentUserId } from "@/components/providers/CurrentUserProvider";
 import { defineDockWidget } from "@/components/shell/cockpit/dock-registry";
 import { addDaysISO, dayOfWeekISO } from "@/lib/habits/dates";
+import { HABIT_STATUS_LABEL, type HabitStatus, habitStatusActionLabel } from "@/lib/habits/status";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronRight, Flame, Repeat } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+
 import Link from "next/link";
 import { useState } from "react";
 
@@ -38,6 +40,7 @@ type HabitsDockRow = {
   id: string;
   name: string;
   daysOfWeek: boolean[];
+  status: HabitStatus;
   done: boolean;
   /** Current streak (base + today's credit), from day 1. */
   streak: number;
@@ -55,6 +58,9 @@ type HabitsDockData = {
   /** Live 28-day completion rate (today folded in), null with no schedule. */
   ratePct: number | null;
   allDone: boolean;
+  /** Advance one rung on the ladder (the ring's tap handler). */
+  advance: (habitId: string) => void;
+  /** Binary un-check, used by the Completed cluster. */
   toggle: (habitId: string) => void;
 };
 
@@ -69,17 +75,19 @@ function useHabitsDock(): HabitsDockData {
   const { data: meta, isPending } = useHabitMeta(userId, today, undefined, {
     enabled,
   });
-  const { doneSet, toggle } = useHabitDay(userId, today, today, undefined, {
+  const { doneSet, statusOf, advance, toggle } = useHabitDay(userId, today, today, undefined, {
     enabled,
   });
 
   const scheduled = (meta?.habits ?? []).filter((h) => h.scheduledToday);
   const rows: HabitsDockRow[] = scheduled.map((h) => {
-    const done = doneSet.has(h.id);
+    const status = statusOf(h.id);
+    const done = status === "done";
     return {
       id: h.id,
       name: h.name,
       daysOfWeek: h.daysOfWeek,
+      status,
       done,
       streak: h.streakBase + (done ? 1 : 0),
       saturated: h.streakSaturated,
@@ -113,6 +121,7 @@ function useHabitsDock(): HabitsDockData {
     bestSaturated,
     ratePct,
     allDone: rows.length > 0 && doneCount === rows.length,
+    advance,
     toggle,
   };
 }
@@ -141,20 +150,23 @@ function StatsLine({ data }: { data: HabitsDockData }) {
 
 function HabitRow({
   row,
-  onToggle,
+  onAdvance,
   trail,
 }: {
   row: HabitsDockRow;
-  onToggle: () => void;
+  onAdvance: () => void;
   /** Optional last-7-days dots (Expanded only). */
   trail?: { done: boolean; scheduled: boolean }[];
 }) {
-  const reduced = useReducedMotion();
+  const partial = row.status === "in_progress" || row.status === "almost_done";
   return (
+    // One tap target for the whole row (dock ergonomics), so the ring rides
+    // along as presentation — a button inside a button is invalid HTML.
     <button
       type="button"
-      onClick={onToggle}
-      aria-pressed={row.done}
+      onClick={onAdvance}
+      aria-label={habitStatusActionLabel(row.name, row.status)}
+      title={habitStatusActionLabel(row.name, row.status)}
       className={cn(
         // aug-05 quiet pass: h-7 exact for the single-line row (no leftover
         // py); the expanded trail adds a second line, so only that variant
@@ -165,23 +177,11 @@ function HabitRow({
         tintFor(row.id)
       )}
     >
-      <motion.span
-        initial={false}
-        animate={reduced ? undefined : row.done ? { scale: [1, 1.18, 1] } : { scale: 1 }}
-        transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
-        className="inline-flex shrink-0"
-      >
-        {row.done ? (
-          <span className="flex size-4 items-center justify-center rounded-full bg-[var(--tint-edge)] text-white">
-            <Check size={10} strokeWidth={2.5} />
-          </span>
-        ) : (
-          <span
-            aria-hidden
-            className="size-4 rounded-full border-[1.5px] border-[color-mix(in_srgb,var(--tint-edge)_65%,var(--edge-strong))] bg-[var(--tint-bg)] transition-colors duration-[160ms] group-hover/habit:border-[var(--tint-edge)]"
-          />
-        )}
-      </motion.span>
+      <HabitStatusRingVisual
+        status={row.status}
+        size="sm"
+        className="group-hover/habit:opacity-90"
+      />
       <span className="min-w-0 flex-1">
         <span
           className={cn(
@@ -190,6 +190,11 @@ function HabitRow({
           )}
         >
           {row.name}
+          {partial ? (
+            <span className="ml-1.5 text-micro text-[var(--ink-faint)]">
+              {HABIT_STATUS_LABEL[row.status]}
+            </span>
+          ) : null}
         </span>
         {trail ? (
           <span
@@ -207,7 +212,10 @@ function HabitRow({
                   t.done
                     ? { background: "var(--tint-edge)" }
                     : t.scheduled
-                      ? { border: "1px solid color-mix(in srgb, var(--tint-edge) 55%, var(--edge-strong))" }
+                      ? {
+                          border:
+                            "1px solid color-mix(in srgb, var(--tint-edge) 55%, var(--edge-strong))",
+                        }
                       : { background: "var(--hover)" }
                 }
               />
@@ -322,13 +330,15 @@ function Compact({ data }: { data: HabitsDockData }) {
       {active.length > 0 ? (
         <div className="flex flex-col">
           {active.map((row) => (
-            <HabitRow key={row.id} row={row} onToggle={() => data.toggle(row.id)} />
+            <HabitRow key={row.id} row={row} onAdvance={() => data.advance(row.id)} />
           ))}
         </div>
       ) : null}
       <CompletedCluster rows={done} toggle={data.toggle} />
       {data.allDone ? (
-        <p className="px-1.5 text-micro text-[var(--ink-faint)]">Done for today. See you tomorrow.</p>
+        <p className="px-1.5 text-micro text-[var(--ink-faint)]">
+          Done for today. See you tomorrow.
+        </p>
       ) : null}
     </div>
   );
@@ -338,10 +348,7 @@ function Compact({ data }: { data: HabitsDockData }) {
 function DoneBar({ done, total }: { done: number; total: number }) {
   if (total === 0) return null;
   return (
-    <div
-      aria-hidden
-      className="mx-1.5 h-[3px] overflow-hidden rounded-full bg-[var(--hover)]"
-    >
+    <div aria-hidden className="mx-1.5 h-[3px] overflow-hidden rounded-full bg-[var(--hover)]">
       <div
         className="h-full rounded-full bg-[var(--tint-sage-edge)] transition-[width] duration-[280ms] ease-out"
         style={{ width: `${Math.round((done / total) * 100)}%` }}
@@ -366,8 +373,10 @@ function Expanded({ data }: { data: HabitsDockData }) {
     return <DockStateNote>Nothing scheduled today.</DockStateNote>;
   }
 
+  // Done rows only: a day left at `almost_done` earns no trail dot, same as it
+  // earns no streak credit.
   const doneByHabit = new Map<string, Set<string>>();
-  for (const c of weekRows) {
+  for (const c of weekRows.filter((r) => r.status === "done")) {
     const set = doneByHabit.get(c.habitId) ?? new Set<string>();
     set.add(c.completedDate);
     doneByHabit.set(c.habitId, set);
@@ -394,7 +403,12 @@ function Expanded({ data }: { data: HabitsDockData }) {
               };
             });
             return (
-              <HabitRow key={row.id} row={row} trail={trail} onToggle={() => data.toggle(row.id)} />
+              <HabitRow
+                key={row.id}
+                row={row}
+                trail={trail}
+                onAdvance={() => data.advance(row.id)}
+              />
             );
           })}
         </div>
