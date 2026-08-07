@@ -4,8 +4,9 @@ import {
   type HabitDockToday,
   getHabitCompletionsInRange,
   getHabitDockToday,
-  toggleHabitCompletion,
+  setHabitCompletionStatus,
 } from "@/app/actions/habits";
+import { type HabitStatus, nextHabitStatus } from "@/lib/habits/status";
 import type { OptimisticAction } from "@/lib/realtime/optimistic-reducer";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
@@ -17,7 +18,7 @@ import { toast } from "sonner";
 /**
  * The one data plane behind every habits surface — the /habits page and the
  * habits dock widget both consume these hooks, so the two can never disagree:
- * one mutation (`toggleHabitCompletion`), one completions cache entry per day,
+ * one mutation (`setHabitCompletionStatus`), one completions cache entry per day,
  * one streak source (`getHabitDockToday`, itself built on
  * `lib/habits/streak.ts`).
  *
@@ -64,12 +65,23 @@ export function useHabitMeta(
   });
 }
 
-type CompletionRow = { id: string; habitId: string; completedDate: string };
+type CompletionRow = {
+  id: string;
+  habitId: string;
+  completedDate: string;
+  status: HabitStatus;
+};
 
 export type HabitDay = {
-  /** Habit ids with a (possibly optimistic) done completion on this date. */
+  /** Habit ids with a (possibly optimistic) DONE completion on this date. */
   doneSet: ReadonlySet<string>;
-  /** One-tap toggle: optimistic flip, then the server action. */
+  /** Where each habit sits on the ladder; absent id = `not_started`. */
+  statusOf: (habitId: string) => HabitStatus;
+  /** Advance one rung: not started → started → almost → done → not started. */
+  advance: (habitId: string) => void;
+  /** Jump straight to a rung (used by surfaces with an explicit control). */
+  setStatus: (habitId: string, status: HabitStatus) => void;
+  /** Binary shorthand kept for callers that only mean done/not-done. */
   toggle: (habitId: string) => void;
   pending: boolean;
 };
@@ -84,7 +96,7 @@ export function useHabitDay(
   userId: string,
   dateISO: string,
   todayISO: string,
-  seed?: { habitId: string; completedDate: string }[],
+  seed?: { habitId: string; completedDate: string; status: HabitStatus }[],
   options: { enabled?: boolean } = {}
 ): HabitDay {
   const queryClient = useQueryClient();
@@ -106,30 +118,57 @@ export function useHabitDay(
   );
   const [optimistic, dispatch] = useOptimisticList<CompletionRow>(rows);
 
-  const doneSet = useMemo(
-    () => new Set(optimistic.filter((c) => c.completedDate === dateISO).map((c) => c.habitId)),
-    [optimistic, dateISO]
+  const statusMap = useMemo(() => {
+    const m = new Map<string, HabitStatus>();
+    for (const c of optimistic) {
+      if (c.completedDate === dateISO) m.set(c.habitId, c.status);
+    }
+    return m;
+  }, [optimistic, dateISO]);
+
+  const statusOf = useCallback(
+    (habitId: string): HabitStatus => statusMap.get(habitId) ?? "not_started",
+    [statusMap]
   );
 
-  const toggle = useCallback(
-    (habitId: string) => {
+  const doneSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const [habitId, status] of statusMap) {
+      if (status === "done") s.add(habitId);
+    }
+    return s;
+  }, [statusMap]);
+
+  const setStatus = useCallback(
+    (habitId: string, next: HabitStatus) => {
       const key = `${habitId}::${dateISO}`;
-      const next = !doneSet.has(habitId);
+      const current = statusMap.get(habitId) ?? "not_started";
+      if (next === current) return;
 
-      // Space-console cue on completion only, never on un-check. No-op when
-      // muted or while the shared AudioContext is still gesture-locked.
-      if (next) sfx.play("habitCheck");
+      // Space-console cue on completion only — never on a partial rung, never
+      // on clearing. No-op when muted or while the shared AudioContext is
+      // still gesture-locked.
+      if (next === "done") sfx.play("habitCheck");
 
-      const action: OptimisticAction<CompletionRow> = next
-        ? { type: "insert", row: { id: key, habitId, completedDate: dateISO } }
-        : { type: "delete", id: key };
+      // Three optimistic shapes, because the row itself may or may not exist:
+      // clearing deletes it, arriving from `not_started` inserts it, and every
+      // move between two partial rungs patches the one already there.
+      const action: OptimisticAction<CompletionRow> =
+        next === "not_started"
+          ? { type: "delete", id: key }
+          : current === "not_started"
+            ? {
+                type: "insert",
+                row: { id: key, habitId, completedDate: dateISO, status: next },
+              }
+            : { type: "update", id: key, patch: { status: next } };
       dispatch(action);
 
       void (async () => {
-        const r = await toggleHabitCompletion({
+        const r = await setHabitCompletionStatus({
           habitId,
           completedDate: dateISO,
-          completed: next,
+          status: next,
         });
         if (!r.success) {
           toast.error(r.error);
@@ -137,23 +176,40 @@ export function useHabitDay(
           return;
         }
         // Ownership split per the module comment: the echo covers inserts;
-        // deletes never echo (replica identity), so un-check invalidates.
-        if (!next) {
+        // deletes never echo (replica identity), so clearing invalidates. An
+        // UPDATE echo does reach the channel (the new record carries user_id),
+        // but the overlay holds the patch until it lands either way.
+        if (next === "not_started") {
           void queryClient.invalidateQueries({
             queryKey: dayCompletionsKey(userId, dateISO),
           });
         }
-        // Streak bases and the rate only shift when a day other than today
-        // changed.
-        if (dateISO !== todayISO) {
+        // Streak bases and the rate live under habitMetaKey. A backfill on any
+        // other day shifts them; so does today crossing into or out of `done`,
+        // which the completions echo alone does not cover.
+        if (dateISO !== todayISO || next === "done" || current === "done") {
           void queryClient.invalidateQueries({
             queryKey: habitMetaKey(userId, todayISO),
           });
         }
       })();
     },
-    [dateISO, todayISO, userId, doneSet, dispatch, queryClient]
+    [dateISO, todayISO, userId, statusMap, dispatch, queryClient]
   );
 
-  return { doneSet, toggle, pending: isPending };
+  const advance = useCallback(
+    (habitId: string) => {
+      setStatus(habitId, nextHabitStatus(statusMap.get(habitId) ?? "not_started"));
+    },
+    [setStatus, statusMap]
+  );
+
+  const toggle = useCallback(
+    (habitId: string) => {
+      setStatus(habitId, doneSet.has(habitId) ? "not_started" : "done");
+    },
+    [setStatus, doneSet]
+  );
+
+  return { doneSet, statusOf, advance, setStatus, toggle, pending: isPending };
 }

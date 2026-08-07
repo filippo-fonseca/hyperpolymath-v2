@@ -59,7 +59,11 @@ export default async function InsightsPage({
     getAnalyticsData(user.id),
     getInsightsData(user.id),
     getHabitsForCurrentUser(),
-    getHabitCompletionsInRange(startISO, todayISO),
+    // Done rows only — the range read now also returns partial progress, and
+    // every insight downstream reads row presence as a completion.
+    getHabitCompletionsInRange(startISO, todayISO).then((rows) =>
+      rows.filter((r) => r.status === "done"),
+    ),
     // Phase 9 / TEL-02 — rolling 24h window per CONTEXT §D-04.
     getStageLatencyStats(user.id, 60 * 24),
     // 260607-h2k — each integration returns Result<T> and never throws (D-06).

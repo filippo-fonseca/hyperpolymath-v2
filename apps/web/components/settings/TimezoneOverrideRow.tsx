@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { setTimezone } from "@/app/actions/gcal-calendars";
+import { MANUAL_TZ_KEY } from "@/components/shell/TimezoneSync";
 
 interface Props {
   currentTimezone: string | null;
@@ -92,9 +93,22 @@ export function TimezoneOverrideRow({ currentTimezone }: Props) {
 
   const [value, setValue] = useState<string>(currentTimezone ?? detected ?? "UTC");
 
+  // An explicit pick here outranks the shell's device sync on this device
+  // (see TimezoneSync). Choosing the detected zone is not an override — it is
+  // agreement — so "Match detected" clears the stamp instead of setting it.
+  const stampManual = (next: string) => {
+    try {
+      if (detected && next === detected) localStorage.removeItem(MANUAL_TZ_KEY);
+      else localStorage.setItem(MANUAL_TZ_KEY, next);
+    } catch {
+      // Storage disabled: the device sync simply keeps winning.
+    }
+  };
+
   const handleChange = (next: string) => {
     if (next === value) return;
     setValue(next);
+    stampManual(next);
     startTransition(async () => {
       const res = await setTimezone({ timezone: next });
       if (res.success) {
@@ -116,7 +130,9 @@ export function TimezoneOverrideRow({ currentTimezone }: Props) {
       <div className="flex flex-col gap-1">
         <div className="text-meta font-medium">Timezone</div>
         <div className="text-xs text-muted-foreground">
-          Used to render event times on the /calendar grid.
+          Detected from this device automatically and used everywhere a row is
+          dated: the calendar grid, daily pages, backups, and JARVIS. Pick one
+          here to override it on this device.
           {detected && detected !== value && (
             <>
               {" "}Detected: <span className="font-mono">{detected}</span>.

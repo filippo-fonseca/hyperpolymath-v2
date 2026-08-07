@@ -16,6 +16,11 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { addDaysISO, dayOfWeekISO, toISODate } from "@/lib/habits/dates";
+import {
+  HABIT_STATUSES,
+  type HabitStatus,
+  coerceHabitStatus,
+} from "@/lib/habits/status";
 import { computeHabitStreak, groupCompletedDates } from "@/lib/habits/streak";
 import {
   areas,
@@ -69,6 +74,13 @@ const ToggleCompletionSchema = z.object({
   completedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
   /** When false, removes the completion for that date instead. */
   completed: z.boolean(),
+});
+
+const SetCompletionStatusSchema = z.object({
+  habitId: z.string().uuid(),
+  /** ISO `YYYY-MM-DD` — the user-local date this progress belongs to. */
+  completedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
+  status: z.enum(HABIT_STATUSES),
 });
 
 export type HabitRow = typeof habits.$inferSelect;
@@ -165,9 +177,21 @@ export async function getArchivedHabitsForCurrentUser(): Promise<
   return habitRows.map((h) => ({ ...h, areas: byHabit.get(h.id) ?? [] }));
 }
 
+export type HabitCompletionRow = {
+  habitId: string;
+  completedDate: string;
+  /** Never `not_started` — that state is the absence of the row. */
+  status: HabitStatus;
+};
+
 /**
  * Completions in a date window (inclusive). Used by the dashboard's daily
  * panel and by the insights tab for weekly heatmaps.
+ *
+ * Rows carry their progress `status`, and PARTIAL rows (`in_progress`,
+ * `almost_done`) come back alongside the done ones — a habit half-walked is
+ * still state the UI has to render. Anything that means "completed" must
+ * filter `status === "done"` rather than treating row presence as credit.
  *
  * Dates are passed as `YYYY-MM-DD` strings so the client decides "today" in
  * its own timezone without a TZ round-trip.
@@ -175,7 +199,7 @@ export async function getArchivedHabitsForCurrentUser(): Promise<
 export async function getHabitCompletionsInRange(
   startDate: string,
   endDate: string,
-): Promise<{ habitId: string; completedDate: string }[]> {
+): Promise<HabitCompletionRow[]> {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
 
@@ -183,6 +207,7 @@ export async function getHabitCompletionsInRange(
     .select({
       habitId: habitCompletions.habitId,
       completedDate: habitCompletions.completedDate,
+      status: habitCompletions.status,
     })
     .from(habitCompletions)
     .where(
@@ -201,6 +226,7 @@ export async function getHabitCompletionsInRange(
       typeof r.completedDate === "string"
         ? r.completedDate
         : (r.completedDate as Date).toISOString().slice(0, 10),
+    status: coerceHabitStatus(r.status),
   }));
 }
 
@@ -229,6 +255,8 @@ export type HabitDockToday = {
   habits: HabitTodayEntry[];
   /** Habit ids with a done completion on `todayISO`. */
   doneIds: string[];
+  /** Today's progress ladder per habit; absent id = `not_started`. */
+  statusById: Record<string, HabitStatus>;
   /** Scheduled/done counts over the 28 days ENDING YESTERDAY. Today is
    * excluded so the client can fold its live state in optimistically. */
   rate28: { scheduled: number; done: number };
@@ -272,26 +300,37 @@ export async function getHabitDockToday(
       .select({
         habitId: habitCompletions.habitId,
         completedDate: habitCompletions.completedDate,
+        status: habitCompletions.status,
       })
       .from(habitCompletions)
       .where(
         and(
           eq(habitCompletions.userId, userId),
-          eq(habitCompletions.status, "done"),
           gte(habitCompletions.completedDate, windowStartISO),
           lte(habitCompletions.completedDate, todayISO),
         ),
       ),
   ]);
 
+  // One pass over the window: normalize the date, split done rows (which feed
+  // streaks and the 28-day rate) from today's ladder state (which feeds the
+  // partial-fill rings). Partial progress never counts as credit.
+  const normalized = completionRows.map((r) => ({
+    habitId: r.habitId,
+    completedDate:
+      typeof r.completedDate === "string"
+        ? r.completedDate
+        : (r.completedDate as Date).toISOString().slice(0, 10),
+    status: coerceHabitStatus(r.status),
+  }));
+
+  const statusById: Record<string, HabitStatus> = {};
+  for (const r of normalized) {
+    if (r.completedDate === todayISO) statusById[r.habitId] = r.status;
+  }
+
   const completedByHabit = groupCompletedDates(
-    completionRows.map((r) => ({
-      habitId: r.habitId,
-      completedDate:
-        typeof r.completedDate === "string"
-          ? r.completedDate
-          : (r.completedDate as Date).toISOString().slice(0, 10),
-    })),
+    normalized.filter((r) => r.status === "done"),
   );
 
   const dow = dayOfWeekISO(todayISO);
@@ -342,6 +381,7 @@ export async function getHabitDockToday(
   return {
     habits: entries,
     doneIds,
+    statusById,
     rate28: { scheduled: scheduled28, done: done28 },
   };
 }
@@ -532,14 +572,21 @@ export async function toggleHabitCompletion(
   if (!owned) return { success: false, error: "Habit not found" };
 
   if (parsed.data.completed) {
+    // DO UPDATE, not DO NOTHING: a habit sitting at `in_progress` must land on
+    // `done` when the surface asks for done, not silently keep the partial row
+    // the unique index already owns.
     await db
       .insert(habitCompletions)
       .values({
         habitId: parsed.data.habitId,
         userId,
         completedDate: parsed.data.completedDate,
+        status: "done",
       })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: [habitCompletions.habitId, habitCompletions.completedDate],
+        set: { status: "done", completedAt: new Date() },
+      });
   } else {
     await db
       .delete(habitCompletions)
@@ -553,4 +600,63 @@ export async function toggleHabitCompletion(
   }
 
   return { success: true, data: { completed: parsed.data.completed } };
+}
+
+/**
+ * Set a habit's progress on a date to any rung of the ladder.
+ *
+ * `not_started` deletes the row (absence IS the state, so nothing downstream
+ * has to special-case a zero-progress row); every other status upserts. The
+ * unique index on (habit_id, completed_date) makes the upsert the whole
+ * concurrency story — two surfaces tapping at once converge on the later
+ * write instead of raising a constraint error.
+ *
+ * `toggleHabitCompletion` stays as the binary shorthand for callers that only
+ * ever mean done/not-done (JARVIS, the device API); both write the same rows.
+ */
+export async function setHabitCompletionStatus(
+  input: unknown,
+): Promise<ActionResult<{ status: HabitStatus }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = SetCompletionStatusSchema.safeParse(input);
+  if (!parsed.success)
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+
+  const [owned] = await db
+    .select({ id: habits.id })
+    .from(habits)
+    .where(and(eq(habits.id, parsed.data.habitId), eq(habits.userId, userId)))
+    .limit(1);
+  if (!owned) return { success: false, error: "Habit not found" };
+
+  if (parsed.data.status === "not_started") {
+    await db
+      .delete(habitCompletions)
+      .where(
+        and(
+          eq(habitCompletions.habitId, parsed.data.habitId),
+          eq(habitCompletions.completedDate, parsed.data.completedDate),
+          eq(habitCompletions.userId, userId),
+        ),
+      );
+  } else {
+    await db
+      .insert(habitCompletions)
+      .values({
+        habitId: parsed.data.habitId,
+        userId,
+        completedDate: parsed.data.completedDate,
+        status: parsed.data.status,
+      })
+      .onConflictDoUpdate({
+        target: [habitCompletions.habitId, habitCompletions.completedDate],
+        set: { status: parsed.data.status, completedAt: new Date() },
+      });
+  }
+
+  return { success: true, data: { status: parsed.data.status } };
 }

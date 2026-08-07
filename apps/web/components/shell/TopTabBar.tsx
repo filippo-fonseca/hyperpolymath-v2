@@ -1,16 +1,19 @@
 "use client";
 
-import { NavArrows } from "./NavArrows";
+import { openDailyPage } from "@/app/actions/pages";
 import { JarvisUnreadBadge } from "@/components/jarvis/JarvisUnreadBadge";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { useTodayDailyPage } from "@/lib/pages/useTodayDailyPage";
-import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import { sfx } from "@/lib/ui/sfx";
+import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import { cn } from "@/lib/utils";
-import { Columns2, Search } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { CalendarDays, Columns2, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { NavArrows } from "./NavArrows";
 
 const JARVIS_PATH = "/today";
 const FALLBACK_LEFT_PATH = "/lifeos";
@@ -73,7 +76,9 @@ export function TopTabBar({ userId }: { userId: string }) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const { splitOn, setSplitOn } = useSplitScreen();
-  const { today } = useTodayDailyPage(userId);
+  const { today, todayIso } = useTodayDailyPage(userId);
+  const queryClient = useQueryClient();
+  const [openingToday, startOpeningToday] = useTransition();
 
   const [lastRoute, setLastRoute] = useState<string>(FALLBACK_LEFT_PATH);
 
@@ -142,6 +147,26 @@ export function TopTabBar({ userId }: { userId: string }) {
   // does: CommandMenu holds nothing but a document-level Cmd+Shift+K listener
   // and its open flag, so a synthetic keydown IS the public API — no second
   // store, no duplicated state.
+  // Today's page may not exist yet (the auto-open only fires on some routes),
+  // so this is a button rather than a Link: it creates the page on demand via
+  // the same idempotent action, then navigates. When the page already exists
+  // the query cache has it and this is one click to a known route.
+  const goToToday = () => {
+    if (todayPath) {
+      router.push(todayPath);
+      return;
+    }
+    startOpeningToday(async () => {
+      const res = await openDailyPage({ date: todayIso });
+      if (!res.success) {
+        toast.error(res.error);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["daily-pages", userId] });
+      router.push(`/wiki/${res.data.id}`);
+    });
+  };
+
   const openCommandMenu = () => {
     document.dispatchEvent(
       new KeyboardEvent("keydown", {
@@ -154,10 +179,7 @@ export function TopTabBar({ userId }: { userId: string }) {
   };
 
   return (
-    <div
-      aria-label="Top bar"
-      className="mb-1 flex h-11 w-full shrink-0 items-center gap-2 px-2"
-    >
+    <div aria-label="Top bar" className="mb-1 flex h-11 w-full shrink-0 items-center gap-2 px-2">
       {/* Left — history arrows plus the current route as quiet breadcrumb
           text. Both side zones are flex-1 so the pill stays truly centered. */}
       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -181,7 +203,7 @@ export function TopTabBar({ userId }: { userId: string }) {
           Open anything…
         </span>
         <kbd
- className="pointer-events-none hidden shrink-0 text-micro text-[var(--ink-faint)] md:inline"
+          className="pointer-events-none hidden shrink-0 text-micro text-[var(--ink-faint)] md:inline"
           aria-hidden
         >
           ⌘⇧K
@@ -190,6 +212,25 @@ export function TopTabBar({ userId }: { userId: string }) {
 
       {/* Right — the bar's utilities as small ghost icon buttons. */}
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
+        <button
+          type="button"
+          onClick={goToToday}
+          disabled={openingToday}
+          aria-label="Open today's daily page"
+          title="Today's daily page (⌃3)"
+          className={cn(
+            "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+            "transition-colors duration-[160ms] ease-out",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+            openingToday && "opacity-50",
+            onToday
+              ? "bg-[color-mix(in_oklch,var(--sd-accent)_14%,transparent)] text-[var(--sd-accent)]"
+              : "text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
+          )}
+        >
+          <CalendarDays size={13} strokeWidth={1.75} />
+        </button>
+
         <Link
           href={JARVIS_PATH}
           data-tour="top-tab-jarvis"

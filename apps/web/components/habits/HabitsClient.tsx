@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HabitIcon } from "@/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { HABIT_STATUS_LABEL, type HabitStatus } from "@/lib/habits/status";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { tintFor } from "@/lib/tint";
@@ -51,6 +52,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { type AreaOption, HabitDialog } from "./HabitDialog";
+import { HabitStatusRing } from "./HabitStatusRing";
 import { MiniCalendar } from "./MiniCalendar";
 import { addDaysISO, dayOfWeekISO, parseISODate, toISODate } from "./date-utils";
 import { scheduleLabel } from "./schedule";
@@ -62,7 +64,11 @@ interface Props {
   /** The server's local date at render time; seeds are keyed by it. */
   serverToday: string;
   initialHabits: HabitWithAreas[];
-  initialTodayCompletions: { habitId: string; completedDate: string }[];
+  initialTodayCompletions: {
+    habitId: string;
+    completedDate: string;
+    status: HabitStatus;
+  }[];
   initialMeta: HabitDockToday;
   areas: AreaOption[];
 }
@@ -352,7 +358,8 @@ export function HabitsClient({
               isPast={isPast}
               isToday={isTodaySelected}
               doneSet={selectedDay.doneSet}
-              onToggle={selectedDay.toggle}
+              statusOf={selectedDay.statusOf}
+              onAdvance={selectedDay.advance}
               streakOf={streakOf}
             />
           </PageScaffold.Section>
@@ -465,7 +472,8 @@ function DaySection({
   isPast,
   isToday,
   doneSet,
-  onToggle,
+  statusOf,
+  onAdvance,
   streakOf,
 }: {
   habits: HabitWithAreas[];
@@ -477,7 +485,8 @@ function DaySection({
   isPast: boolean;
   isToday: boolean;
   doneSet: ReadonlySet<string>;
-  onToggle: (habitId: string) => void;
+  statusOf: (habitId: string) => HabitStatus;
+  onAdvance: (habitId: string) => void;
   streakOf: (habitId: string) => StreakDisplay;
 }) {
   const [calOpen, setCalOpen] = useState(false);
@@ -499,11 +508,7 @@ function DaySection({
           </Button>
           <Popover open={calOpen} onOpenChange={setCalOpen}>
             <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="rounded-lg px-2 text-meta font-medium"
-              >
+              <Button variant="ghost" size="sm" className="rounded-lg px-2 text-meta font-medium">
                 <CalendarIcon size={14} className="opacity-60" aria-hidden="true" />
                 {formatDateLabel(selectedDate, today)}
               </Button>
@@ -578,10 +583,10 @@ function DaySection({
               >
                 <DayHabitRow
                   habit={h}
-                  completed={doneSet.has(h.id)}
+                  status={statusOf(h.id)}
                   streak={isToday ? streakOf(h.id) : null}
                   disabled={isFuture}
-                  onToggle={() => onToggle(h.id)}
+                  onAdvance={() => onAdvance(h.id)}
                 />
               </motion.li>
             ))}
@@ -594,21 +599,28 @@ function DaySection({
 
 function DayHabitRow({
   habit,
-  completed,
+  status,
   streak,
   disabled,
-  onToggle,
+  onAdvance,
 }: {
   habit: HabitWithAreas;
-  completed: boolean;
+  status: HabitStatus;
   /** Null on non-today dates: a current streak is a property of today. */
   streak: StreakDisplay | null;
   disabled: boolean;
-  onToggle: () => void;
+  onAdvance: () => void;
 }) {
+  const completed = status === "done";
+  const partial = status === "in_progress" || status === "almost_done";
   return (
     <div className={cn(ROW, tintFor(habit.id))}>
-      <CheckCircle completed={completed} disabled={disabled} onClick={onToggle} />
+      <HabitStatusRing
+        status={status}
+        habitName={habit.name}
+        disabled={disabled}
+        onClick={onAdvance}
+      />
       <div className="min-w-0 flex-1">
         <p
           className={cn(
@@ -618,8 +630,16 @@ function DayHabitRow({
         >
           {habit.name}
         </p>
-        {habit.areas.length > 0 ? (
+        {partial || habit.areas.length > 0 ? (
           <p className="mt-1 truncate text-micro text-[var(--ink-faint)]">
+            {/* Partial progress leads: the ring shows how far, this says what
+                "how far" is called, so the third-fill needs no decoding. */}
+            {partial ? (
+              <span className="font-medium text-[var(--ink-muted)]">
+                {HABIT_STATUS_LABEL[status]}
+              </span>
+            ) : null}
+            {partial && habit.areas.length > 0 ? " · " : ""}
             {habit.areas.map((a) => `${a.emoji ?? ""} ${a.name}`.trim()).join(" · ")}
           </p>
         ) : null}
@@ -718,56 +738,6 @@ function ArchivedHabitRow({
 // ──────────────────────────────────────────────────────────────────────────
 // Shared bits
 // ──────────────────────────────────────────────────────────────────────────
-
-function CheckCircle({
-  completed,
-  disabled,
-  onClick,
-}: {
-  completed: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  const reduced = useReducedMotion();
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={completed}
-      aria-label={completed ? "Mark not done" : "Mark done"}
-      className={cn(
-        "inline-flex size-7 shrink-0 items-center justify-center rounded-full border-2",
-        "cursor-pointer-always transition-colors duration-[160ms] ease-out",
-        // Filled state rides the habit's own tint edge (falls back to the
-        // app accent outside a tinted row). White check on the saturated fill.
-        completed
-          ? "border-transparent bg-[var(--tint-edge,var(--accent))] text-white"
-          : "border-[color-mix(in_srgb,var(--tint-edge,var(--edge-strong))_60%,var(--edge-strong))] bg-[var(--tint-bg,transparent)] hover:border-[var(--tint-edge,var(--ink-faint))]",
-        disabled && "cursor-not-allowed opacity-40"
-      )}
-    >
-      <motion.span
-        initial={false}
-        animate={reduced ? undefined : completed ? { scale: [1, 1.22, 1] } : { scale: 1 }}
-        transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
-        className="inline-flex"
-      >
-        {completed ? (
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path
-              d="M3 7.5L6 10.5L11 4.5"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        ) : null}
-      </motion.span>
-    </button>
-  );
-}
 
 function HabitRowMenu({
   onEdit,

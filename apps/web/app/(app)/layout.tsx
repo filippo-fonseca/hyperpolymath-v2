@@ -9,6 +9,7 @@ import { CommandMenu } from "@/components/shell/CommandMenu";
 import { GlobalHotkeys } from "@/components/shell/GlobalHotkeys";
 import { NavHistoryProvider } from "@/components/shell/NavHistoryProvider";
 import { ShortcutsCheatSheet } from "@/components/shell/ShortcutsCheatSheet";
+import { TimezoneSync } from "@/components/shell/TimezoneSync";
 import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
 import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
 import { PhysicalExtensionListener } from "@/components/voice/PhysicalExtensionListener";
@@ -95,6 +96,10 @@ export default async function AppLayout({
             <CommandMenu hashtags={hashtagsForComposer} projects={projectsForComposer} />
             {/* `?` opens shortcuts cheat sheet (when no input is focused) */}
             <ShortcutsCheatSheet />
+            {/* Keeps users.timezone equal to the device zone from any route.
+            Everything that dates a row reads that column, so leaving it to
+            /calendar's first-visit effect left the rest of the app guessing. */}
+            <TimezoneSync currentTimezone={user.timezone ?? null} />
             {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC).
             sd register: solid --sd-box surface, hairline --sd-line, no blur (see .sd-toast). */}
             <Toaster
