@@ -14,6 +14,7 @@ export interface AuthenticatedUser {
   bio: string | null;
   avatarUrl: string | null;
   githubUsername: string | null;
+  timezone: string | null;
 }
 
 /**
@@ -79,6 +80,9 @@ export const getUserOrRedirect = cache(async (): Promise<AuthenticatedUser> => {
     bio: users.bio,
     avatarUrl: users.avatarUrl,
     githubUsername: users.githubUsername,
+    // Read by the shell's TimezoneSync, which keeps this equal to the
+    // device's IANA zone from any route (not just /calendar).
+    timezone: users.timezone,
   } as const;
 
   const rows = await db.select(cols).from(users).where(eq(users.id, userId)).limit(1);
