@@ -131,7 +131,7 @@ export function JournalRail({
 
   return (
     <Rail
-      label="Daily journal"
+      label="Daily Pages"
       className={className}
       collapsed={collapsed}
       onToggleCollapsed={toggleCollapsed}
@@ -144,7 +144,17 @@ export function JournalRail({
           className="flex-shrink-0 text-[var(--sd-ink-dull)]"
         />
       }
-      title="Journal"
+      title={
+        <span className="flex items-center gap-1.5">
+          Daily Pages
+          {/* These are not ordinary wiki pages: one per calendar day, created
+              on demand, and reachable from the top bar and Ctrl+3. The pill
+              says so without a sentence of explanation. */}
+          <span className="rounded-full bg-[color-mix(in_oklch,var(--accent)_16%,transparent)] px-1.5 py-px text-[9px] font-semibold uppercase leading-[1.4] tracking-wide text-[var(--accent)]">
+            Special
+          </span>
+        </span>
+      }
       count={dailyPages.length > 0 ? dailyPages.length : undefined}
       headerAccessory={
         <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
