@@ -154,6 +154,7 @@ function Compact({ data }: { data: TodayCounts }) {
   const [overrides, setOverrides] = useState<Map<string, boolean>>(new Map());
   const [clusterOpen, setClusterOpen] = useState(true);
   const [showAllDone, setShowAllDone] = useState(false);
+  const [showAllOpen, setShowAllOpen] = useState(false);
 
   const clearOverride = (id: string) =>
     setOverrides((prev) => {
@@ -209,7 +210,7 @@ function Compact({ data }: { data: TodayCounts }) {
     return <DockStateNote>All clear. Nothing due today.</DockStateNote>;
   }
 
-  const visibleOpen = openRows.slice(0, VISIBLE_OPEN);
+  const visibleOpen = showAllOpen ? openRows : openRows.slice(0, VISIBLE_OPEN);
   const visibleDone = showAllDone ? doneRows : doneRows.slice(0, VISIBLE_DONE);
 
   return (
@@ -222,13 +223,24 @@ function Compact({ data }: { data: TodayCounts }) {
       ) : null}
 
       {visibleOpen.length > 0 ? (
-        <ul className="flex flex-col">
+        <ul
+          className={cn(
+            "flex flex-col",
+            // Expanded, the list is however long the day is. Bounded so a
+            // heavy day cannot push the widgets below it off the dock.
+            showAllOpen && "sd-scroll-hover max-h-[40vh] overflow-y-auto"
+          )}
+        >
           {visibleOpen.map((task) => (
             <li
               key={task.id}
               className="flex h-7 min-w-0 items-center gap-2 rounded-lg px-1.5 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
             >
-              <TaskCheckbox title={task.title} done={false} onClick={() => void setDone(task, true)} />
+              <TaskCheckbox
+                title={task.title}
+                done={false}
+                onClick={() => void setDone(task, true)}
+              />
               <Link
                 // Straight to the task's detail panel (TasksClient nuqs ?task=).
                 href={entityHref({ kind: "task", id: task.id })}
@@ -243,14 +255,20 @@ function Compact({ data }: { data: TodayCounts }) {
               </Link>
             </li>
           ))}
-          {todayCount > visibleOpen.length ? (
+          {/* Expand in place rather than navigating to /tasks. The whole point
+              of the dock is checking things off without leaving the page, and
+              the done cluster directly below already worked this way — the two
+              halves of one widget disagreed about what "+N more" means. */}
+          {openRows.length > VISIBLE_OPEN ? (
             <li>
-              <Link
-                href="/tasks"
-                className="block rounded-lg px-1.5 py-0.5 text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+              <button
+                type="button"
+                onClick={() => setShowAllOpen((v) => !v)}
+                aria-expanded={showAllOpen}
+                className="block w-full cursor-pointer-always rounded-lg px-1.5 py-0.5 text-left text-micro text-[var(--ink-faint)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)] hover:text-[var(--ink)]"
               >
-                +{todayCount - visibleOpen.length} more
-              </Link>
+                {showAllOpen ? "Show fewer" : `+${openRows.length - VISIBLE_OPEN} more`}
+              </button>
             </li>
           ) : null}
         </ul>
@@ -282,11 +300,7 @@ function Compact({ data }: { data: TodayCounts }) {
                   key={task.id}
                   className="flex h-6 min-w-0 items-center gap-2 rounded-lg px-1.5 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
                 >
-                  <TaskCheckbox
-                    title={task.title}
-                    done
-                    onClick={() => void setDone(task, false)}
-                  />
+                  <TaskCheckbox title={task.title} done onClick={() => void setDone(task, false)} />
                   <Link
                     href={entityHref({ kind: "task", id: task.id })}
                     className="flex h-full min-w-0 flex-1 items-center"
