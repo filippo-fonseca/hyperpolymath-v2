@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { format } from "date-fns";
 import {
   AreaIcon,
@@ -101,10 +101,10 @@ const DIAMOND_ICON_SIZE = 26;
  * functional dot. Every stat links into the surface it summarises. All
  * numbers derive from props the server already fetched.
  *
- * Motion is the campaign signature (D4): opacity 0→1, y 4→0 at 160ms easeOut,
- * 10ms stagger per stat, `useReducedMotion` guard. Transform/opacity only and
- * the numerals are server-rendered, so there is zero layout shift on entrance
- * (D1d).
+ * No entrance motion. It used to fade the greeting and stagger the stats up
+ * from opacity 0; that read fine on a hard load and failed on client-side
+ * navigation, where the header could arrive already at 0 and stay there until
+ * a refresh. A masthead is furniture, so it is simply present.
  */
 export function LifeOsHero({
   displayName,
@@ -119,7 +119,6 @@ export function LifeOsHero({
   projectsActive,
   jarvisTurns,
 }: Props) {
-  const reduced = useReducedMotion();
   const now = new Date();
   const firstName = displayName?.trim().split(/\s+/)[0] ?? "";
 
@@ -207,13 +206,13 @@ export function LifeOsHero({
     },
   ];
 
-  const headerAnim = reduced
-    ? { initial: false as const }
-    : {
-        initial: { opacity: 0, y: 4 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.22, ease: [0.25, 1, 0.5, 1] as const },
-      };
+  // No entrance choreography, deliberately. The greeting and the stat strip
+  // are the page's masthead: furniture, not an event. Fading them up from
+  // opacity 0 also meant that any time the animation did not run on a client
+  // navigation, the whole header simply was not there until a hard refresh.
+  // Furniture that can fail to appear is worse than furniture that does not
+  // animate.
+  const headerAnim = { initial: false as const };
 
   return (
     <section>
@@ -234,19 +233,9 @@ export function LifeOsHero({
       {/* Stat strip — icon-left anatomy, no chrome (§5). */}
       <div className="lifeos-stats mb-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
         <style>{STAT_ICON_CSS}</style>
-        {stats.map((s, i) => {
+        {stats.map((s) => {
           const color = dotColor(s.dot);
-          const cellAnim = reduced
-            ? { initial: false as const }
-            : {
-                initial: { opacity: 0, y: 4 },
-                animate: { opacity: 1, y: 0 },
-                transition: {
-                  duration: 0.22,
-                  ease: [0.25, 1, 0.5, 1] as const,
-                  delay: Math.min(i, 12) * 0.02,
-                },
-              };
+          const cellAnim = { initial: false as const };
           return (
             <motion.div key={s.key} {...cellAnim}>
               <Link

@@ -73,9 +73,17 @@ export default async function LifeOsPage() {
     getInsightsData(user.id),
   ]);
 
-  // Derive summary stats for the hero chips.
-  const habitsDone = initialCompletions.filter((c) => c.completedDate === todayISO).length;
-  const habitsTotal = initialHabits.length;
+  // Derive summary stats for the hero chips. Habits are counted against
+  // TODAY'S schedule, not the whole roster: a Mon/Wed/Fri habit is not a
+  // Sunday failure, and only `done` earns credit (a partial rung has a
+  // completion row too, but it is momentum, not completion).
+  const todayDow = today.getDay();
+  const habitsDueToday = initialHabits.filter((h) => h.daysOfWeek[todayDow]);
+  const dueTodayIds = new Set(habitsDueToday.map((h) => h.id));
+  const habitsDone = initialCompletions.filter(
+    (c) => c.completedDate === todayISO && c.status === "done" && dueTodayIds.has(c.habitId)
+  ).length;
+  const habitsTotal = habitsDueToday.length;
   const openTasks = initialTasks.filter((t) => t.status !== "lesno" && t.dueDate != null);
   const tasksDueToday = openTasks.filter((t) => t.dueDate === todayISO).length;
   const tasksOverdue = openTasks.filter((t) => (t.dueDate as string) < todayISO).length;
