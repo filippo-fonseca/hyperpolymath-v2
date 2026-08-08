@@ -25,11 +25,11 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
         // The register's field chrome: .craft-pill carries the raised fill,
         // the hairline, the card shadow and the :focus-within recipe, so this
         // component only owns geometry.
-        "craft-pill flex items-center gap-3 px-4",
+        "craft-pill flex items-center gap-2.5 px-3.5",
         className
       )}
     >
-      <Search size={18} strokeWidth={1.5} className="shrink-0 text-[var(--ink-muted)]" />
+      <Search size={15} strokeWidth={1.75} className="shrink-0 text-[var(--ink-muted)]" />
       <input
         ref={ref}
         type="text"
@@ -41,9 +41,12 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
         spellCheck={false}
         autoComplete="off"
         className={cn(
-          "h-12 w-full bg-transparent outline-none",
-          "font-serif text-subtitle text-[var(--ink)]",
-          "placeholder:text-[var(--ink-muted)] placeholder:italic"
+          // 36px, body type, upright placeholder. It was a 48px serif
+          // subtitle in italics, which read as a hero banner rather than a
+          // field and sat two sizes above every other control in the app.
+          "h-9 w-full bg-transparent outline-none",
+          "text-body text-[var(--ink)]",
+          "placeholder:text-[var(--ink-muted)]"
         )}
       />
       {value && (

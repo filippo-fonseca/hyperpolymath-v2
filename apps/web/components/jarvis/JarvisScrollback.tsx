@@ -449,8 +449,16 @@ export function JarvisScrollback({
                 // glow halo, no blur.
                 <div className="flex justify-start mb-3">
                   <div className="flex flex-col max-w-[82%]">
- <span className="mb-1 ml-1 inline-flex items-center gap-1.5 text-micro text-[var(--sd-accent)]">
-                      <KiwiIcon size={16} aria-hidden="true" />
+                    {/* A real avatar, not a bare glyph beside a word: a filled
+                        circular mark reads as "someone sent this" the way every
+                        messaging surface has trained people to expect. */}
+                    <span className="mb-1 ml-0.5 inline-flex items-center gap-2 text-micro text-[var(--sd-accent)]">
+                      <span
+                        aria-hidden="true"
+                        className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-[color-mix(in_oklch,var(--sd-accent)_35%,transparent)] bg-[color-mix(in_oklch,var(--sd-accent)_14%,var(--sd-box))] text-[var(--sd-accent)]"
+                      >
+                        <KiwiIcon size={13} />
+                      </span>
                       JARVIS
                     </span>
                     <motion.div

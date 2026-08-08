@@ -1265,6 +1265,18 @@ select:focus-visible,
   box-shadow: var(--ring-focus);
   border-color: var(--hud-cyan);
 }
+
+/* …except when the field's chrome lives on a WRAPPER. A bare input or
+   contenteditable has no radius of its own, so the ring came out as a hard
+   rectangle sitting inside a rounded search pill or Jarvis composer. Those
+   wrappers already express focus themselves (:focus-within), so the inner
+   control stays silent. */
+.craft-pill :is(input, textarea, [contenteditable]):focus-visible,
+.craft-glass-tile :is(input, textarea, [contenteditable]):focus-visible,
+[data-field-shell] :is(input, textarea, [contenteditable]):focus-visible {
+  box-shadow: none;
+  outline: none;
+}
 /* `.focus-ring` (above) is the reusable opt-in: drop it on any element — even
    a non-native one — to inherit the canonical cyan ring without re-declaring
    focus styling anywhere. */
