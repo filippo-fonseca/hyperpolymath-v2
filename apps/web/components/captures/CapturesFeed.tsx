@@ -121,23 +121,79 @@ export function CapturesFeed({
     // per-row exit via the motion exit prop on CaptureCard.
     <div className="flex flex-col gap-3">
       <AnimatePresence mode="popLayout" initial={false}>
-        {captures.map((c) => (
-          <CaptureCard
-            key={c.id}
-            capture={c}
-            searchQuery={searchQuery}
-            onOpen={() => onSelectCapture(c)}
-            onOptimisticDelete={onOptimisticDelete}
-            onDeleteCapture={onDeleteCapture}
-            onToggleFavorite={onToggleFavorite}
-            userAvatarUrl={userAvatarUrl}
-            userInitials={userInitials}
-            availableProjects={availableProjects}
-          />
+        {groupByDay(captures).map((group) => (
+          <div key={group.key} className="flex flex-col gap-3">
+            {/* Day rule. The feed is chronological but read as one
+                undifferentiated column, so "when was this" cost a hover over
+                every relative timestamp. A quiet hairline header answers it
+                once per day instead of once per capture. */}
+            <div className="flex items-center gap-3 pt-1">
+              <span className="shrink-0 text-micro font-medium text-[var(--ink-muted)]">
+                {group.label}
+              </span>
+              <span className="shrink-0 text-micro tabular-nums text-[var(--ink-faint)]">
+                {group.captures.length}
+              </span>
+              <span aria-hidden className="h-px flex-1 bg-[var(--edge)]" />
+            </div>
+            {group.captures.map((c) => (
+              <CaptureCard
+                key={c.id}
+                capture={c}
+                searchQuery={searchQuery}
+                onOpen={() => onSelectCapture(c)}
+                onOptimisticDelete={onOptimisticDelete}
+                onDeleteCapture={onDeleteCapture}
+                onToggleFavorite={onToggleFavorite}
+                userAvatarUrl={userAvatarUrl}
+                userInitials={userInitials}
+                availableProjects={availableProjects}
+              />
+            ))}
+          </div>
         ))}
       </AnimatePresence>
     </div>
   );
+}
+
+type DayGroup = { key: string; label: string; captures: CaptureWithLinks[] };
+
+/**
+ * Split the feed into calendar days, preserving the incoming order (the query
+ * already sorts newest first). Local time, because "which day was that" is a
+ * question about the user's day, not UTC's.
+ */
+function groupByDay(captures: CaptureWithLinks[]): DayGroup[] {
+  const groups: DayGroup[] = [];
+  let current: DayGroup | null = null;
+  for (const c of captures) {
+    const d = new Date(c.createdAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+    if (!current || current.key !== key) {
+      current = { key, label: dayLabel(d), captures: [] };
+      groups.push(current);
+    }
+    current.captures.push(c);
+  }
+  return groups;
+}
+
+function dayLabel(d: Date): string {
+  const today = new Date();
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOfDay(today) - startOfDay(d)) / 86_400_000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  const sameYear = d.getFullYear() === today.getFullYear();
+  return d.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
 }
 
 function EmptyState({
