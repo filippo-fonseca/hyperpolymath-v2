@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { KanbanColumn } from "./KanbanColumn";
 import { type CardFields, DEFAULT_CARD_FIELDS, TaskCard } from "./TaskCard";
@@ -82,7 +82,6 @@ export function KanbanBoard({
         else onExternalDragEnd?.();
       }
     : setInternalDraggedTaskId;
-  const [, startTransition] = useTransition();
   const [trayExpanded, setTrayExpanded] = useState(true);
   // Id of the card that just landed in a column, for the drop success-moment
   // spring. Cleared shortly after so the pop plays once. A single state set
@@ -171,12 +170,18 @@ export function KanbanBoard({
     setDraggedTaskId(null);
     markSettled(taskId);
 
-    startTransition(async () => {
-      addOptimistic({
-        type: "update",
-        id: taskId,
-        patch: { status: targetStatus },
-      });
+    // The optimistic move is URGENT: it is the entire visual response to the
+    // drop. Inside a transition React is free to render it late, and on a full
+    // board it did — the card sat in its old column for a beat before landing.
+    // The overlay is plain state that reconciles against canonical on its own,
+    // so it never needed the transition in the first place.
+    addOptimistic({
+      type: "update",
+      id: taskId,
+      patch: { status: targetStatus },
+    });
+
+    void (async () => {
       const r = await updateTaskStatus({
         id: taskId,
         newStatus: targetStatus,
@@ -189,7 +194,7 @@ export function KanbanBoard({
       // The Realtime echo invalidates the tasks cache; the optimistic overlay
       // holds the move until canonical catches up. One drag, one refetch.
       if (r.data.becameLesno) toast("Lesno.");
-    });
+    })();
   }
 
   return (

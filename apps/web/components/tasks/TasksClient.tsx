@@ -32,7 +32,7 @@ import { endOfMonth, endOfWeek, isAfter, isBefore, isSameDay, startOfDay } from 
 import { Check, ChevronDown, Maximize2, Minimize2, Plus, SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
 import { parseAsArrayOf, parseAsString, useQueryState, useQueryStates } from "nuqs";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { GroupedBoard } from "./GroupedBoard";
 import { InboxColumn } from "./InboxColumn";
@@ -133,7 +133,6 @@ export function TasksClient({
   people = [],
 }: Props) {
   const queryClient = useQueryClient();
-  const [, startTransition] = useTransition();
   const { show: showUndoToast } = useUndoToast();
 
   // Local projects list, seeded from SSR props. Inline project creation
@@ -480,11 +479,9 @@ export function TasksClient({
   const handleRescheduleOverdue = useCallback(
     async (ids: string[], dueYmd: string) => {
       if (ids.length === 0) return;
-      startTransition(() => {
-        for (const id of ids) {
-          addOptimistic({ type: "update", id, patch: { dueDate: dueYmd } });
-        }
-      });
+      for (const id of ids) {
+        addOptimistic({ type: "update", id, patch: { dueDate: dueYmd } });
+      }
       const r = await bulkUpdateTaskDueDate({ ids, dueDate: dueYmd });
       if (!r.success) {
         toast.error(r.error);
@@ -495,7 +492,7 @@ export function TasksClient({
         `${ids.length} task${ids.length === 1 ? "" : "s"} rescheduled to ${dueYmd}`
       );
     },
-    [addOptimistic, startTransition]
+    [addOptimistic]
   );
 
   // Multi-select helpers
@@ -527,15 +524,13 @@ export function TasksClient({
       if (ids.length === 0) return;
       // Optimistic: update each row's dueDate immediately so the cards
       // disappear from the current day view (or land in Inbox if cleared).
-      startTransition(() => {
-        for (const id of ids) {
-          addOptimistic({
-            type: "update",
-            id,
-            patch: { dueDate: newDueDate },
-          });
-        }
-      });
+      for (const id of ids) {
+        addOptimistic({
+          type: "update",
+          id,
+          patch: { dueDate: newDueDate },
+        });
+      }
       const r = await bulkUpdateTaskDueDate({ ids, dueDate: newDueDate });
       if (!r.success) {
         toast.error(r.error);
@@ -546,7 +541,7 @@ export function TasksClient({
       toast.success(`${ids.length} task${ids.length === 1 ? "" : "s"} ${tail}`);
       clearSelection();
     },
-    [selectedIds, addOptimistic, clearSelection, startTransition]
+    [selectedIds, addOptimistic, clearSelection]
   );
 
   const handleBulkDelete = useCallback(() => {
@@ -598,15 +593,13 @@ export function TasksClient({
       const needsStatus = t.status !== targetStatus;
       const needsDate = t.dueDate !== dateYmd;
       if (!needsStatus && !needsDate) return;
-      startTransition(() => {
-        addOptimistic({
-          type: "update",
-          id: t.id,
-          patch: {
-            ...(needsStatus ? { status: targetStatus } : {}),
-            ...(needsDate ? { dueDate: dateYmd } : {}),
-          },
-        });
+      addOptimistic({
+        type: "update",
+        id: t.id,
+        patch: {
+          ...(needsStatus ? { status: targetStatus } : {}),
+          ...(needsDate ? { dueDate: dateYmd } : {}),
+        },
       });
       const r = await updateTask({
         id: t.id,
@@ -619,7 +612,7 @@ export function TasksClient({
       }
       // One drag = one write = one refetch, driven by the Realtime echo.
     },
-    [draggedTask, dateYmd, addOptimistic, startTransition]
+    [draggedTask, dateYmd, addOptimistic]
   );
 
   // Drop a single card onto the Inbox column → null its due date. Mirrors
@@ -634,15 +627,13 @@ export function TasksClient({
     const t = optimisticTasks.find((task) => task.id === id);
     // Already undated → nothing to do (dragging an Inbox card back onto itself).
     if (t && !t.dueDate) return;
-    startTransition(() => {
-      addOptimistic({ type: "update", id, patch: { dueDate: null } });
-    });
+    addOptimistic({ type: "update", id, patch: { dueDate: null } });
     const r = await bulkUpdateTaskDueDate({ ids: [id], dueDate: null });
     if (!r.success) {
       toast.error("Couldn't move to Inbox. Try again.");
       addOptimistic({ type: "revert", id });
     }
-  }, [draggedTaskId, optimisticTasks, addOptimistic, startTransition]);
+  }, [draggedTaskId, optimisticTasks, addOptimistic]);
 
   // Drop a dragged card onto a specific day (List view drop area → the active
   // day; Overview → the row's day). Forces status to "not started" and sets
@@ -655,15 +646,13 @@ export function TasksClient({
       const needsStatus = t.status !== "not started";
       const needsDate = t.dueDate !== ymd;
       if (!needsStatus && !needsDate) return;
-      startTransition(() => {
-        addOptimistic({
-          type: "update",
-          id: t.id,
-          patch: {
-            ...(needsStatus ? { status: "not started" } : {}),
-            ...(needsDate ? { dueDate: ymd } : {}),
-          },
-        });
+      addOptimistic({
+        type: "update",
+        id: t.id,
+        patch: {
+          ...(needsStatus ? { status: "not started" } : {}),
+          ...(needsDate ? { dueDate: ymd } : {}),
+        },
       });
       const r = await updateTask({
         id: t.id,
@@ -675,7 +664,7 @@ export function TasksClient({
         addOptimistic({ type: "revert", id: t.id });
       }
     },
-    [draggedTask, addOptimistic, startTransition]
+    [draggedTask, addOptimistic]
   );
 
   async function handleCreateTask(input: {
@@ -688,12 +677,12 @@ export function TasksClient({
     // Default the new task's due date to the day shown in the kanban header
     // AND the status to whichever column the inline composer was in.
     const defaultedDueDate = dateYmd;
-    startTransition(async () => {
-      // Optimistic insert FIRST; the UI flips instantly and the overlay holds
-      // the row until the canonical cache catches up via the echo.
-      addOptimistic({
-        type: "insert",
-        row: {
+    // Optimistic insert FIRST, and OUTSIDE any transition: the overlay is
+    // plain state that holds until canonical catches up, so wrapping it in a
+    // transition only tells React the card may appear late. It did.
+    addOptimistic({
+      type: "insert",
+      row: {
           id: newId,
           title: input.title,
           notes: null,
@@ -711,20 +700,19 @@ export function TasksClient({
           peopleDerivedAt: null,
         },
       });
-      const r = await createTask({
-        id: newId,
-        title: input.title,
-        status: input.status,
-        dueDate: defaultedDueDate,
-        projectIds: [],
-      });
-      if (!r.success) {
-        toast.error(r.error);
-        addOptimistic({ type: "revert", id: newId });
-        return;
-      }
-      toast("Task added.");
+    const r = await createTask({
+      id: newId,
+      title: input.title,
+      status: input.status,
+      dueDate: defaultedDueDate,
+      projectIds: [],
     });
+    if (!r.success) {
+      toast.error(r.error);
+      addOptimistic({ type: "revert", id: newId });
+      return;
+    }
+    toast("Task added.");
   }
 
   const openTask = openTaskId ? (optimisticTasks.find((t) => t.id === openTaskId) ?? null) : null;
