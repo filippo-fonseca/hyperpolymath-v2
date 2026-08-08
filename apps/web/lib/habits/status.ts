@@ -57,6 +57,45 @@ export const HABIT_STATUS_LABEL: Record<HabitStatus, string> = {
   done: "Done",
 };
 
+/**
+ * The two middle rungs, in ladder order. Every surface that offers a shortcut
+ * to partial progress iterates this, so "started" and "almost done" can never
+ * appear in different orders on two screens.
+ */
+export const HABIT_PARTIAL_STATUSES = ["in_progress", "almost_done"] as const;
+
+/** Short chip labels. The row is dense; "Almost done" wraps, "Almost" does not. */
+export const HABIT_STATUS_SHORT_LABEL: Record<HabitStatus, string> = {
+  not_started: "Clear",
+  in_progress: "Started",
+  almost_done: "Almost",
+  done: "Done",
+};
+
+/**
+ * Per-status functional ink, matching the task board's grammar (`tasks/status.ts`):
+ * a 6px dot and nothing else. Hues track the ladder — neutral, blue, violet,
+ * sage — so a habit at "almost done" reads the same as a task at "almost done".
+ */
+export const HABIT_STATUS_DOT: Record<HabitStatus, string> = {
+  not_started: "var(--ink-faint)",
+  in_progress: "var(--ink-blue)",
+  almost_done: "var(--ink-violet)",
+  done: "var(--ink-sage)",
+};
+
+/**
+ * Craft tint class per rung, for the board's pastel wells. `not_started` stays
+ * neutral and falls back to the plain surface, exactly as the task board's
+ * "not started" column does.
+ */
+export const HABIT_STATUS_TINT: Record<HabitStatus, string | null> = {
+  not_started: null,
+  in_progress: "tint-sky",
+  almost_done: "tint-lavender",
+  done: "tint-sage",
+};
+
 /** Accessible name for the ring button: says where a tap lands next. */
 export function habitStatusActionLabel(
   habitName: string,

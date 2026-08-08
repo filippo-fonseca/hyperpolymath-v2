@@ -2,6 +2,7 @@
 
 import { getHabitCompletionsInRange } from "@/app/actions/habits";
 import { DockStateNote } from "@/components/dock-widgets/dock-state";
+import { HabitQuickStatus } from "@/components/habits/HabitQuickStatus";
 import { HabitStatusRingVisual } from "@/components/habits/HabitStatusRing";
 import { useHabitDay, useHabitMeta } from "@/components/habits/use-habit-data";
 import { useLocalToday } from "@/components/habits/use-local-today";
@@ -60,6 +61,8 @@ type HabitsDockData = {
   allDone: boolean;
   /** Advance one rung on the ladder (the ring's tap handler). */
   advance: (habitId: string) => void;
+  /** Jump straight to a rung — the quick chips' handler. */
+  setStatus: (habitId: string, next: HabitStatus) => void;
   /** Binary un-check, used by the Completed cluster. */
   toggle: (habitId: string) => void;
 };
@@ -75,9 +78,13 @@ function useHabitsDock(): HabitsDockData {
   const { data: meta, isPending } = useHabitMeta(userId, today, undefined, {
     enabled,
   });
-  const { doneSet, statusOf, advance, toggle } = useHabitDay(userId, today, today, undefined, {
-    enabled,
-  });
+  const { doneSet, statusOf, advance, setStatus, toggle } = useHabitDay(
+    userId,
+    today,
+    today,
+    undefined,
+    { enabled }
+  );
 
   const scheduled = (meta?.habits ?? []).filter((h) => h.scheduledToday);
   const rows: HabitsDockRow[] = scheduled.map((h) => {
@@ -122,6 +129,7 @@ function useHabitsDock(): HabitsDockData {
     ratePct,
     allDone: rows.length > 0 && doneCount === rows.length,
     advance,
+    setStatus,
     toggle,
   };
 }
@@ -151,31 +159,38 @@ function StatsLine({ data }: { data: HabitsDockData }) {
 function HabitRow({
   row,
   onAdvance,
+  onSetStatus,
   trail,
 }: {
   row: HabitsDockRow;
   onAdvance: () => void;
+  /** Jump straight to a rung from the quick chips. */
+  onSetStatus: (next: HabitStatus) => void;
   /** Optional last-7-days dots (Expanded only). */
   trail?: { done: boolean; scheduled: boolean }[];
 }) {
   const partial = row.status === "in_progress" || row.status === "almost_done";
   return (
-    // One tap target for the whole row (dock ergonomics), so the ring rides
-    // along as presentation — a button inside a button is invalid HTML.
+    // The row is a flex shell rather than one big button: the tap target still
+    // spans everything that is not a chip, but the quick rungs need to be real
+    // buttons and a button inside a button is invalid HTML.
+    <div
+      className={cn(
+        // aug-05 quiet pass: h-7 exact for the single-line row (no leftover
+        // py); the expanded trail adds a second line, so only that variant
+        // keeps min-h plus breathing room.
+        "group/habit flex w-full items-center gap-1 rounded-lg pr-1 pl-1.5 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
+        trail ? "min-h-7 py-0.5" : "h-7",
+        // The habit's own pastel — same hue this habit wears on /habits.
+        tintFor(row.id)
+      )}
+    >
     <button
       type="button"
       onClick={onAdvance}
       aria-label={habitStatusActionLabel(row.name, row.status)}
       title={habitStatusActionLabel(row.name, row.status)}
-      className={cn(
-        // aug-05 quiet pass: h-7 exact for the single-line row (no leftover
-        // py); the expanded trail adds a second line, so only that variant
-        // keeps min-h plus breathing room.
-        "group/habit flex w-full cursor-pointer-always items-center gap-2 rounded-lg px-1.5 text-left transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]",
-        trail ? "min-h-7 py-0.5" : "h-7",
-        // The habit's own pastel — same hue this habit wears on /habits.
-        tintFor(row.id)
-      )}
+      className="flex min-w-0 flex-1 cursor-pointer-always items-center gap-2 text-left"
     >
       <HabitStatusRingVisual
         status={row.status}
@@ -235,6 +250,24 @@ function HabitRow({
         </span>
       ) : null}
     </button>
+
+      {/* Icon-only here: the dock has no room for labels, and tapping the row
+          already walks the ladder — these are the shortcut past it. Revealed
+          on hover so the compact widget stays calm, but a rung already in
+          effect stays visible so the row never lies about its own state. */}
+      <HabitQuickStatus
+        habitName={row.name}
+        status={row.status}
+        onSetStatus={onSetStatus}
+        showLabels={false}
+        className={cn(
+          "transition-opacity duration-[160ms]",
+          partial
+            ? "opacity-100"
+            : "opacity-0 group-hover/habit:opacity-100 focus-within:opacity-100"
+        )}
+      />
+    </div>
   );
 }
 
@@ -330,7 +363,12 @@ function Compact({ data }: { data: HabitsDockData }) {
       {active.length > 0 ? (
         <div className="flex flex-col">
           {active.map((row) => (
-            <HabitRow key={row.id} row={row} onAdvance={() => data.advance(row.id)} />
+            <HabitRow
+              key={row.id}
+              row={row}
+              onAdvance={() => data.advance(row.id)}
+              onSetStatus={(next) => data.setStatus(row.id, next)}
+            />
           ))}
         </div>
       ) : null}
@@ -408,6 +446,7 @@ function Expanded({ data }: { data: HabitsDockData }) {
                 row={row}
                 trail={trail}
                 onAdvance={() => data.advance(row.id)}
+                onSetStatus={(next) => data.setStatus(row.id, next)}
               />
             );
           })}

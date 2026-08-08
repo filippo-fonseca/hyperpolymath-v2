@@ -1,23 +1,12 @@
 "use client";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { HabitQuickStatus } from "@/components/habits/HabitQuickStatus";
 import { HabitIcon } from "@/components/ui/icons";
 import { addDaysISO, dayOfWeekISO } from "@/lib/habits/dates";
-import {
-  HABIT_STATUSES,
-  HABIT_STATUS_LABEL,
-  type HabitStatus,
-  habitStatusRatio,
-} from "@/lib/habits/status";
+import { HABIT_STATUS_LABEL, type HabitStatus, habitStatusRatio } from "@/lib/habits/status";
 import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
-import { Flame, MoreHorizontal } from "lucide-react";
+import { Flame } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 /**
@@ -35,10 +24,14 @@ import { motion, useReducedMotion } from "motion/react";
  * not-started → started → almost → done, so the overwhelmingly common act —
  * "I did it" — was the slowest one on screen. `status.ts` even claimed
  * "check-off has to stay one tap for the common case" while doing the
- * opposite. Now a tap is binary done/undone, and the partial rungs moved to a
- * hover menu: an occasional action, reachable but never in the way. A menu
- * rather than right-click because nothing else in the app teaches right-click
- * on a list row.
+ * opposite. Now a tap on the disc is binary done/undone.
+ *
+ * **The partial rungs then cost three interactions of their own.** Parking
+ * "started" and "almost done" behind a hover-revealed overflow menu fixed the
+ * common case by making the second-commonest one worse: hover, open, aim, pick.
+ * They are two `HabitQuickStatus` chips in the row now, always visible, quiet
+ * at rest, one click each. Clicking the rung you are on clears the day, which
+ * is what carries over the menu's "Not started" item.
  *
  * **History needed navigation.** A seven-day strip rides in the row, so
  * "have I been keeping this up" is answered by looking rather than by paging
@@ -76,9 +69,9 @@ export function HabitCheckRow({
   /** Oldest → newest, ending on the selected day. */
   trail: TrailDay[];
   disabled?: boolean;
-  /** Tap: the binary 90% case. */
+  /** Tap the disc: the binary 90% case. */
   onToggle: () => void;
-  /** Right-click: the partial rungs. */
+  /** The quick chips: jump straight to a partial rung, or clear off one. */
   onSetStatus: (next: HabitStatus) => void;
 }) {
   const reduced = useReducedMotion();
@@ -140,6 +133,15 @@ export function HabitCheckRow({
         </span>
       ) : null}
 
+      {/* The partial rungs, one click each, in the row. Quiet at rest so the
+          check disc stays the loudest target; see HabitQuickStatus. */}
+      <HabitQuickStatus
+        habitName={name}
+        status={status}
+        disabled={disabled}
+        onSetStatus={onSetStatus}
+      />
+
       {/* The control, right-hand side, one tap. */}
       <button
         type="button"
@@ -164,39 +166,6 @@ export function HabitCheckRow({
           <StatusDisc status={status} />
         </motion.span>
       </button>
-      {/* Partial rungs. Hidden until hover so the common path stays a single
-          uncluttered target, but always reachable by keyboard. */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={`Set progress for “${name}”`}
-            className={cn(
-              "inline-flex size-6 shrink-0 cursor-pointer-always items-center justify-center rounded-lg",
-              "text-[var(--ink-faint)] opacity-0 transition-opacity duration-[160ms]",
-              "hover:bg-[var(--hover)] hover:text-[var(--ink)]",
-              "group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-            )}
-          >
-            <MoreHorizontal size={13} strokeWidth={1.75} />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuLabel className="text-micro text-[var(--ink-faint)]">
-            Progress
-          </DropdownMenuLabel>
-          {HABIT_STATUSES.map((s) => (
-            <DropdownMenuItem
-              key={s}
-              onSelect={() => onSetStatus(s)}
-              className={cn(s === status && "text-[var(--accent)]")}
-            >
-              {HABIT_STATUS_LABEL[s]}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }
