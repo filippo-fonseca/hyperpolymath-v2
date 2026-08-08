@@ -13,6 +13,7 @@ import {
   fromYmd,
   nextWeekYmd,
   thisSundayYmd,
+  toYmd,
   tomorrowYmd,
 } from "@/lib/tasks/date-shortcuts";
 
@@ -21,6 +22,13 @@ interface Props {
   onPick: (dateYmd: string | null) => void;
   /** Optional anchor — falls back to today. */
   from?: Date;
+  /**
+   * The day the tasks being moved currently sit on: the viewed date on the
+   * kanban, the overdue date in the overdue panel, `null` for the undated
+   * Inbox. "Today" only appears when it would actually move something, so the
+   * day view never offers to move today's tasks to today.
+   */
+  currentYmd?: string | null;
   /** Visual variant — "bar" for the bottom selection toolbar,
    * "inline" for the detail panel row. */
   variant?: "bar" | "inline";
@@ -42,12 +50,17 @@ interface Props {
 export function MoveToMenu({
   onPick,
   from = new Date(),
+  currentYmd,
   variant = "bar",
   allowClear = false,
   disabled = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const customRef = useRef<HTMLInputElement>(null);
+  const todayYmd = toYmd(new Date());
+  // Overdue tasks and the undated Inbox both want this constantly; the day
+  // view wants it on every day except the one it is already showing.
+  const showToday = currentYmd !== todayYmd;
   const tomorrow = tomorrowYmd(from);
   const sunday = thisSundayYmd(from);
   const next = nextWeekYmd(from);
@@ -81,6 +94,13 @@ export function MoveToMenu({
         className="w-[260px] p-1.5 border-[var(--edge)] bg-[var(--surface-raised)]"
       >
         <ul className="space-y-0.5">
+          {showToday ? (
+            <ShortcutRow
+              label="Today"
+              sub={format(fromYmd(todayYmd), "EEE, MMM d")}
+              onClick={() => pick(todayYmd)}
+            />
+          ) : null}
           <ShortcutRow
             label="Tomorrow"
             sub={format(fromYmd(tomorrow), "EEE, MMM d")}

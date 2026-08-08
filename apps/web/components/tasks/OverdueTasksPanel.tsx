@@ -4,7 +4,7 @@ import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
 import { fromYmd } from "@/lib/tasks/date-shortcuts";
 import { differenceInCalendarDays, format } from "date-fns";
-import { AlarmClock, ChevronDown, ChevronRight, X } from "lucide-react";
+import { AlarmClock, ChevronDown, ChevronRight, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MoveToMenu } from "./MoveToMenu";
@@ -86,6 +86,9 @@ interface Props {
   /** Reschedule a set of tasks to a new YYYY-MM-DD date (mass action + the
    * per-group quick action). Reuses bulkUpdateTaskDueDate in the parent. */
   onReschedule: (ids: string[], dueYmd: string) => void;
+  /** Delete a set of tasks. Routes to the parent's undoable bulk delete, so
+   * clearing dead overdue work costs the same one gesture it does elsewhere. */
+  onDeleteIds: (ids: string[]) => void;
   /** Lifted drag state, shared with the rest of the tasks surface so a card
    * dragged OUT of the panel onto a day target reschedules + removes it. */
   draggedTaskId: string | null;
@@ -113,6 +116,7 @@ export function OverdueTasksPanel({
   overdueTasks,
   onTaskClick,
   onReschedule,
+  onDeleteIds,
   draggedTaskId,
   onDragStart,
   onDragEnd,
@@ -187,6 +191,13 @@ export function OverdueTasksPanel({
   }, [allIds]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const handleMassDelete = useCallback(() => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    onDeleteIds(ids);
+    clearSelection();
+  }, [selectedIds, onDeleteIds, clearSelection]);
 
   const handleMassReschedule = useCallback(
     (dueYmd: string | null) => {
@@ -317,6 +328,14 @@ export function OverdueTasksPanel({
             </span>
             <div className="flex items-center gap-2">
               <MoveToMenu onPick={handleMassReschedule} variant="inline" />
+              <button
+                type="button"
+                onClick={handleMassDelete}
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-micro text-[var(--ink-coral)] transition-colors duration-[160ms] ease-out hover:bg-[color-mix(in_oklch,var(--ink-coral)_12%,transparent)] cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+              >
+                <Trash2 size={12} strokeWidth={1.75} />
+                Delete
+              </button>
               <button
                 type="button"
                 onClick={clearSelection}

@@ -544,8 +544,11 @@ export function TasksClient({
     [selectedIds, addOptimistic, clearSelection]
   );
 
-  const handleBulkDelete = useCallback(() => {
-    const ids = Array.from(selectedIds);
+  /** Delete an explicit set of ids, undoable as one unit. The kanban
+   *  selection bar and the overdue panel's own toolbar both route here, so
+   *  "delete these" behaves identically wherever the selection was made. */
+  const deleteTaskIds = useCallback(
+    (ids: string[]) => {
     if (ids.length === 0) return;
     // Hide all selected rows via the SAME pendingDeleteIds set so the batch
     // is consistent and undoable as one unit.
@@ -577,7 +580,27 @@ export function TasksClient({
       },
       addBack: () => dropPending(...ids),
     });
-  }, [selectedIds, clearSelection, showUndoToast, queryClient, userId, dropPending]);
+    },
+    [clearSelection, showUndoToast, queryClient, userId, dropPending]
+  );
+
+  const handleBulkDelete = useCallback(
+    () => deleteTaskIds(Array.from(selectedIds)),
+    [deleteTaskIds, selectedIds]
+  );
+
+  /**
+   * The day the current selection sits on, for the "Move to" menu's Today
+   * shortcut. Read off the selected tasks rather than the viewed date, because
+   * a selection can span the day board AND the dateless Inbox: a mixed or
+   * undated selection reports null, which is never today, so Today shows.
+   */
+  const selectionCurrentYmd = useMemo(() => {
+    const selected = optimisticTasks.filter((t) => selectedIds.has(t.id));
+    if (selected.length === 0) return null;
+    const first = selected[0]?.dueDate ?? null;
+    return selected.every((t) => (t.dueDate ?? null) === first) ? first : null;
+  }, [optimisticTasks, selectedIds]);
 
   const draggedTask = useMemo(
     () => (draggedTaskId ? (optimisticTasks.find((t) => t.id === draggedTaskId) ?? null) : null),
@@ -885,6 +908,7 @@ export function TasksClient({
                     overdueTasks={overdueTasks}
                     onTaskClick={setOpenTaskId}
                     onReschedule={(ids, dueYmd) => void handleRescheduleOverdue(ids, dueYmd)}
+                    onDeleteIds={deleteTaskIds}
                     draggedTaskId={draggedTaskId}
                     onDragStart={(id) => setDraggedTaskId(id)}
                     onDragEnd={() => setDraggedTaskId(null)}
@@ -900,6 +924,7 @@ export function TasksClient({
                     onDrop={() => void handleInboxDrop()}
                     selectedIds={selectedIds}
                     onToggleSelected={(id) => toggleSelected(id)}
+                    onToggleSelectAll={(ids) => toggleColumnSelection("not started", ids)}
                   />
                 )}
               </div>
@@ -1001,6 +1026,7 @@ export function TasksClient({
       <TaskSelectionBar
         count={selectedIds.size}
         onMoveTo={(d) => void handleBulkMove(d)}
+        currentYmd={selectionCurrentYmd}
         onDeleteSelected={handleBulkDelete}
         onClear={clearSelection}
         pending={false}

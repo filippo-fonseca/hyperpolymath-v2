@@ -1,6 +1,7 @@
 "use client";
 
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronRight, Inbox } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
@@ -56,6 +57,9 @@ interface Props {
   onDrop: () => void | Promise<void>;
   selectedIds: Set<string>;
   onToggleSelected: (id: string) => void;
+  /** Select or clear every undated task at once. The selection is the page's,
+   * so the shared bottom bar (move to, delete) picks it straight up. */
+  onToggleSelectAll: (ids: string[]) => void;
 }
 
 /**
@@ -86,9 +90,13 @@ export function InboxColumn({
   onDrop,
   selectedIds,
   onToggleSelected,
+  onToggleSelectAll,
 }: Props) {
   const reduced = useReducedMotion();
   const [panelOpen, setPanelOpen] = usePersistentBoolean(PANEL_OPEN_KEY, true);
+  const inboxIds = inboxTasks.map((t) => t.id);
+  const selectedInInbox = inboxIds.filter((id) => selectedIds.has(id)).length;
+  const allSelected = inboxIds.length > 0 && selectedInInbox === inboxIds.length;
 
   return (
     <section
@@ -111,7 +119,7 @@ export function InboxColumn({
     >
       {/* Panel header: toggle open/closed + summary count. Neutral grammar
           (no functional hue), matching the Overdue panel's chevron affordance. */}
-      <header className="flex items-center justify-between gap-3 px-4 py-2.5">
+      <header className="group/inboxhdr flex items-center justify-between gap-3 px-4 py-2.5">
         <button
           type="button"
           onClick={() => setPanelOpen(!panelOpen)}
@@ -133,6 +141,23 @@ export function InboxColumn({
             {inboxTasks.length}
           </span>
         </button>
+        {inboxTasks.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => onToggleSelectAll(inboxIds)}
+            className={cn(
+              "shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-medium cursor-pointer-always transition-opacity duration-[160ms]",
+              allSelected
+                ? "bg-[var(--selected)] text-[var(--ink)] opacity-100"
+                : selectedInInbox > 0
+                  ? "text-[var(--ink-muted)] opacity-100 hover:text-[var(--ink)]"
+                  : "text-[var(--ink-muted)] opacity-0 group-hover/inboxhdr:opacity-100 hover:text-[var(--ink)]"
+            )}
+            title={allSelected ? "Deselect all in Inbox" : "Select all in Inbox"}
+          >
+            {allSelected ? "Deselect all" : "Select all"}
+          </button>
+        ) : null}
       </header>
 
       <AnimatePresence initial={false}>

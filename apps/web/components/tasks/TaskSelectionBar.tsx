@@ -8,6 +8,9 @@ import { MoveToMenu } from "./MoveToMenu";
 interface Props {
   count: number;
   onMoveTo: (dateYmd: string | null) => void;
+  /** The day the selected tasks sit on, so "Move to" can offer Today only
+   * when it would actually move them. */
+  currentYmd?: string | null;
   onDeleteSelected: () => void;
   onClear: () => void;
   pending: boolean;
@@ -19,7 +22,14 @@ interface Props {
  * a clear-selection button. Lives outside the column layout so the bar
  * stays visible while the user scrolls through tasks.
  */
-export function TaskSelectionBar({ count, onMoveTo, onDeleteSelected, onClear, pending }: Props) {
+export function TaskSelectionBar({
+  count,
+  onMoveTo,
+  currentYmd,
+  onDeleteSelected,
+  onClear,
+  pending,
+}: Props) {
   const reduced = useReducedMotion();
   return (
     <AnimatePresence>
@@ -39,7 +49,13 @@ export function TaskSelectionBar({ count, onMoveTo, onDeleteSelected, onClear, p
             <span className="text-micro tabular-nums opacity-80">
               {count} selected
             </span>
-            <MoveToMenu onPick={onMoveTo} variant="bar" allowClear disabled={pending} />
+            <MoveToMenu
+              onPick={onMoveTo}
+              currentYmd={currentYmd}
+              variant="bar"
+              allowClear
+              disabled={pending}
+            />
             <button
               type="button"
               onClick={onDeleteSelected}
