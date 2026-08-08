@@ -51,8 +51,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { HabitBoard } from "./HabitBoard";
 import { HabitCheckRow, buildTrail } from "./HabitCheckRow";
 import { type AreaOption, HabitDialog } from "./HabitDialog";
 import { HabitWeekPicker } from "./HabitWeekPicker";
@@ -115,6 +117,10 @@ function prettyDate(d: Date | string): string {
 
 type StreakDisplay = { value: number; saturated: boolean };
 
+/** List answers "what is left today"; board answers "where does it all stand". */
+const HABIT_VIEWS = ["list", "board"] as const;
+type HabitView = (typeof HABIT_VIEWS)[number];
+
 /**
  * The row chrome for both lists: one border per nesting level (the row sits on
  * the canvas, so it carries the only border), surface-raised fill, 8px radius
@@ -165,6 +171,13 @@ export function HabitsClient({
   const [showArchived, setShowArchived] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(today);
+  // View in the URL, not localStorage: a localStorage→URL sync can rewrite the
+  // view after first paint, which reads as a flip on load (the same reasoning
+  // Tasks landed on).
+  const [view, setView] = useQueryState(
+    "view",
+    parseAsStringLiteral(HABIT_VIEWS).withDefault("list")
+  );
 
   // If the day rolls over while we sit on the old "today", snap forward. An
   // explicitly chosen backfill date stays put.
@@ -396,6 +409,8 @@ export function HabitsClient({
             <DaySection
               habits={dayHabits}
               doneCount={dayDoneCount}
+              view={view}
+              onSelectView={(v) => void setView(v)}
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
               today={today}
@@ -523,6 +538,8 @@ export function HabitsClient({
 function DaySection({
   habits,
   doneCount,
+  view,
+  onSelectView,
   selectedDate,
   onSelectDate,
   today,
@@ -537,6 +554,8 @@ function DaySection({
 }: {
   habits: HabitWithAreas[];
   doneCount: number;
+  view: HabitView;
+  onSelectView: (view: HabitView) => void;
   selectedDate: string;
   onSelectDate: (iso: string) => void;
   today: string;
@@ -556,11 +575,14 @@ function DaySection({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <HabitWeekPicker selectedDate={selectedDate} today={today} onSelectDate={onSelectDate} />
-        {habits.length > 0 ? (
-          <span className="shrink-0 text-micro tabular-nums text-[var(--ink-faint)]">
-            {doneCount}/{habits.length} done
-          </span>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-3">
+          {habits.length > 0 ? (
+            <span className="text-micro tabular-nums text-[var(--ink-faint)]">
+              {doneCount}/{habits.length} done
+            </span>
+          ) : null}
+          <ViewSegments value={view} onChange={onSelectView} />
+        </div>
       </div>
 
       {isFuture ? (
@@ -573,6 +595,15 @@ function DaySection({
         <EmptyState
           size="inline"
           title={isPast ? "Nothing was scheduled this day." : "Nothing scheduled for this day."}
+        />
+      ) : view === "board" ? (
+        <HabitBoard
+          habits={habits}
+          statusOf={statusOf}
+          onSetStatus={onSetStatus}
+          streakOf={streakOf}
+          showStreaks={isToday}
+          disabled={isFuture}
         />
       ) : (
         // Hairline separators belong to the LIST, not to each row — that is
@@ -608,6 +639,40 @@ function DaySection({
           </AnimatePresence>
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * Craft segmented chip row, same grammar as the Tasks view switcher: two
+ * `.craft-chip` pills, the active one filled with the neutral `--selected`
+ * fallback. Views carry no semantic tint — colour is data, not decoration.
+ */
+function ViewSegments({
+  value,
+  onChange,
+}: {
+  value: HabitView;
+  onChange: (next: HabitView) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label="Habits view" className="flex shrink-0 items-center gap-1.5">
+      {HABIT_VIEWS.map((v) => {
+        const active = v === value;
+        return (
+          <button
+            key={v}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            data-active={active ? "true" : undefined}
+            onClick={() => onChange(v)}
+            className="craft-chip cursor-pointer-always"
+          >
+            {v === "list" ? "List" : "Board"}
+          </button>
+        );
+      })}
     </div>
   );
 }
