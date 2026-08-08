@@ -486,7 +486,7 @@ function AreaBranch({
             </span>
           </div>
           <span className="text-micro text-[var(--ink-faint)]">
-            {activeCount} project{activeCount === 1 ? "" : "s"}
+            {activeCount} active project{activeCount === 1 ? "" : "s"}
             {showArchived && archivedCount > 0 ? (
               <span className="ml-1">· {archivedCount} archived</span>
             ) : null}
@@ -537,10 +537,11 @@ function AreaBranch({
                   <motion.li key={p.id} variants={leaf}>
                     <Link
                       href={`/projects/${p.id}`}
-                      className="craft-chip max-w-full cursor-pointer-always"
+                      className="craft-chip max-w-[15rem] min-w-0 cursor-pointer-always"
+                      title={p.name}
                     >
                       <DynamicIcon name={p.icon} size={13} strokeWidth={1.5} className="shrink-0" />
-                      <span className="truncate">{p.name}</span>
+                      <span className="min-w-0 truncate">{p.name}</span>
                       {p.archivedAt !== null ? (
                         <Archive
                           size={11}
