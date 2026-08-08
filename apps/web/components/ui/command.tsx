@@ -162,7 +162,7 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "relative flex cursor-default items-center gap-2 rounded-[6px] px-2 py-1.5 text-sm text-[var(--sd-ink)] outline-hidden select-none",
+        "relative flex cursor-pointer items-center gap-2 rounded-[6px] px-2 py-1.5 text-sm text-[var(--sd-ink)] outline-hidden select-none",
         "transition-colors duration-100 ease-out",
         "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-40",
         "data-[selected=true]:bg-[var(--sd-hover)] data-[selected=true]:text-[var(--sd-ink)]",

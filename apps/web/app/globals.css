@@ -1995,8 +1995,15 @@ select:focus-visible,
    intact for surfaces the feature waves have not landed yet. */
 
 /* Primary button — flat accent fill, dark on-accent ink. No glow, no pill. */
+/* On-accent ink is theme-dependent, because the accent itself flips lightness
+   across themes: light mode's accent is a mid-dark teal (oklch 55%) that wants
+   white on it, dark mode's is a pale cyan (oklch 74%) that wants near-black.
+   A single hardcoded dark ink was legible in exactly one of the two. */
 .sd-btn-solid {
   background: var(--sd-accent);
+  color: white;
+}
+.dark .sd-btn-solid {
   color: hsl(235 45% 9%);
 }
 .sd-btn-solid:hover:not(:disabled) {

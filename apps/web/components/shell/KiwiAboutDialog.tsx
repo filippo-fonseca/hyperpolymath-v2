@@ -64,7 +64,7 @@ export function KiwiAboutDialog({ children, open, onOpenChange }: KiwiAboutDialo
           style={{ backgroundColor: "var(--surface)" }}
         >
           <p>
-            Hi, I&rsquo;m <span className="font-semibold">Kiwi</span> —
+            Hi, I&rsquo;m <span className="font-semibold">Kiwi</span>,
             internally also called <span className="font-semibold">JARVIS</span>
             . Same bird, fancier name. I&rsquo;m the natural-language agent
             at the core of Hyperpolymath, and my one job is to be your{" "}
@@ -75,9 +75,9 @@ export function KiwiAboutDialog({ children, open, onOpenChange }: KiwiAboutDialo
           <p>
             Areas, projects, captures, your calendar, your tasks, your
             habits, your training. I know where they all live. I never make
-            up tools that don&rsquo;t exist — the schema is my contract,
-            and Strict Tool Use with the backend LLM of choice enforces it
-            at generation time, so I can&rsquo;t drift even if I tried.
+            up tools that don&rsquo;t exist: the schema is my contract, and
+            Strict Tool Use with the backend LLM of choice enforces it at
+            generation time, so I can&rsquo;t drift even if I tried.
           </p>
           <p className="text-[var(--ink-muted)] italic pt-1">
             Find me on the JARVIS tab. Try typing &ldquo;coffee with brian

@@ -78,7 +78,7 @@ function DropdownMenuItem({
       data-inset={inset}
       data-variant={variant}
       className={cn(
-        "relative flex cursor-default items-center gap-2 rounded-[6px] px-2 py-1.5 text-sm text-[var(--sd-ink)] outline-hidden select-none",
+        "relative flex cursor-pointer items-center gap-2 rounded-[6px] px-2 py-1.5 text-sm text-[var(--sd-ink)] outline-hidden select-none",
         "transition-colors duration-100 ease-out",
         "focus:bg-[color-mix(in_oklch,var(--sd-ink)_6%,transparent)] focus:text-[var(--sd-ink)]",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
@@ -103,7 +103,7 @@ function DropdownMenuCheckboxItem({
     <DropdownMenuPrimitive.CheckboxItem
       data-slot="dropdown-menu-checkbox-item"
       className={cn(
-        "relative flex cursor-default items-center gap-2 rounded-[6px] py-1.5 pr-2 pl-8 text-sm text-[var(--sd-ink)] outline-hidden select-none",
+        "relative flex cursor-pointer items-center gap-2 rounded-[6px] py-1.5 pr-2 pl-8 text-sm text-[var(--sd-ink)] outline-hidden select-none",
         "transition-colors duration-100 ease-out",
         "focus:bg-[color-mix(in_oklch,var(--sd-ink)_6%,transparent)] focus:text-[var(--sd-ink)]",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
@@ -143,7 +143,7 @@ function DropdownMenuRadioItem({
     <DropdownMenuPrimitive.RadioItem
       data-slot="dropdown-menu-radio-item"
       className={cn(
-        "relative flex cursor-default items-center gap-2 rounded-[6px] py-1.5 pr-2 pl-8 text-sm text-[var(--sd-ink)] outline-hidden select-none",
+        "relative flex cursor-pointer items-center gap-2 rounded-[6px] py-1.5 pr-2 pl-8 text-sm text-[var(--sd-ink)] outline-hidden select-none",
         "transition-colors duration-100 ease-out",
         "focus:bg-[color-mix(in_oklch,var(--sd-ink)_6%,transparent)] focus:text-[var(--sd-ink)]",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
@@ -230,7 +230,7 @@ function DropdownMenuSubTrigger({
       data-slot="dropdown-menu-sub-trigger"
       data-inset={inset}
       className={cn(
-        "flex cursor-default items-center gap-2 rounded-[6px] px-2 py-1.5 text-sm text-[var(--sd-ink)] outline-hidden select-none",
+        "flex cursor-pointer items-center gap-2 rounded-[6px] px-2 py-1.5 text-sm text-[var(--sd-ink)] outline-hidden select-none",
         "transition-colors duration-100 ease-out",
         "focus:bg-[color-mix(in_oklch,var(--sd-ink)_6%,transparent)] focus:text-[var(--sd-ink)]",
         "data-[inset]:pl-8",
