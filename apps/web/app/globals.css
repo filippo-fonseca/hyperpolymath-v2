@@ -2375,9 +2375,15 @@ select:focus-visible,
 }
 
 /* The raised white card — the workhorse content surface. */
+/* The card register carries its own radius. It did not, which meant every
+   consumer had to remember `rounded-xl` alongside `.craft-card` and any that
+   forgot rendered a square plate: the Captures feed was the loudest case, but
+   it was never only that page. The register now owns all four properties, and
+   a consumer that wants a different radius still overrides it with a utility. */
 .craft-card {
   background: var(--surface-raised);
   border: 1px solid var(--edge);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 .craft-card-hover {

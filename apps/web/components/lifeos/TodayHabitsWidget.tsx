@@ -7,6 +7,7 @@ import {
 } from "@/app/actions/habits";
 import { HabitStatusRingVisual } from "@/components/habits/HabitStatusRing";
 import { useHabitDay } from "@/components/habits/use-habit-data";
+import { dayOfWeekISO } from "@/lib/habits/dates";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HabitIcon } from "@/components/ui/icons";
 import { HABIT_STATUS_LABEL, habitStatusActionLabel } from "@/lib/habits/status";
@@ -43,8 +44,14 @@ export function TodayHabitsWidget({ userId, initialHabits, initialCompletions, t
   // copy of check-off logic that only understood done/not-done).
   const { statusOf, advance } = useHabitDay(userId, todayISO, todayISO, initialCompletions);
 
-  const doneCount = habits.filter((h) => statusOf(h.id) === "done").length;
-  const total = habits.length;
+  // The tile is titled "Today", so its denominator is today's schedule, not
+  // the whole roster. A Mon/Wed/Fri habit dragged the count down on a Sunday
+  // and made a finished day read as 3/11 — the same defect the dock widget
+  // was already fixed for by server-filtering to the day.
+  const todayDow = dayOfWeekISO(todayISO);
+  const dueToday = habits.filter((h) => h.daysOfWeek[todayDow]);
+  const doneCount = dueToday.filter((h) => statusOf(h.id) === "done").length;
+  const total = dueToday.length;
 
   return (
     <>
@@ -63,7 +70,10 @@ export function TodayHabitsWidget({ userId, initialHabits, initialCompletions, t
         />
         {total === 0 ? (
           <div className="flex min-h-0 flex-1 flex-col justify-center">
-            <EmptyState size="inline" title="No habits yet." />
+            <EmptyState
+              size="inline"
+              title={habits.length === 0 ? "No habits yet." : "Nothing scheduled today."}
+            />
           </div>
         ) : (
           <>
@@ -75,7 +85,7 @@ export function TodayHabitsWidget({ userId, initialHabits, initialCompletions, t
               />
             </div>
             <ul className="sd-scroll-hover -mr-2 mt-3 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pr-2">
-              {habits.slice(0, 6).map((h) => {
+              {dueToday.slice(0, 6).map((h) => {
                 const status = statusOf(h.id);
                 const done = status === "done";
                 const partial = status === "in_progress" || status === "almost_done";

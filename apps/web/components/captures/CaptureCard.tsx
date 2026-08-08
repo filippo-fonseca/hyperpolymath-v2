@@ -231,6 +231,13 @@ export function CaptureCard({
     }
   }
 
+  // Hover-reveal, held open while the ⋯ menu is: an open menu means the
+  // pointer has left the card, and controls must not vanish mid-gesture.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const revealClass = menuOpen
+    ? "opacity-100"
+    : "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100";
+
   return (
     <AnimatePresence initial={false}>
       {!removed && (
@@ -260,7 +267,13 @@ export function CaptureCard({
             : {})}
         >
           {/* Top-right action region (copy + ⋯ menu) — stops propagation so
-              clicks here don't open the panel. */}
+              clicks here don't open the panel.
+
+              While the menu is open the whole region stays visible. It used to
+              carry `data-[state=open]:opacity-100`, but Radix stamps data-state
+              on the TRIGGER, not on this wrapper, so the selector never matched:
+              opening the menu moved the pointer off the card and every control
+              faded out underneath it. */}
           <div
             className="absolute top-2 right-2 flex items-center gap-0.5"
             onClick={(e) => e.stopPropagation()}
@@ -283,7 +296,7 @@ export function CaptureCard({
                 "opacity-100 transition-opacity",
                 capture.favorite
                   ? "text-[var(--ink-amber)]"
-                  : "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
+                  : revealClass
               )}
               aria-label={capture.favorite ? "Unstar capture" : "Star capture"}
               aria-pressed={capture.favorite}
@@ -298,7 +311,7 @@ export function CaptureCard({
               className={cn(
                 "h-8 w-8 p-0 sm:h-7 sm:w-7",
                 "opacity-100 transition-opacity",
-                "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
+                revealClass
               )}
               aria-label={copied ? "Copied" : "Copy capture"}
             >
@@ -306,13 +319,8 @@ export function CaptureCard({
             </Button>
 
             {/* ⋯ hover-reveal action menu */}
-            <div
-              className={cn(
-                "opacity-100 transition-opacity",
-                "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 data-[state=open]:opacity-100"
-              )}
-            >
-              <DropdownMenu>
+            <div className={cn("opacity-100 transition-opacity", revealClass)}>
+              <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
