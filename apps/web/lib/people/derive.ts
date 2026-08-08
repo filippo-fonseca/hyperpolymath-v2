@@ -34,6 +34,7 @@ import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { db } from "@/lib/db";
 import { captures, people, peopleReferences, tasks } from "@/lib/db/schema";
 import { HAIKU_MODEL, getAnthropicClient } from "@/lib/jarvis/anthropic-client";
+import { matchPeopleByName } from "@/lib/people/name-match";
 import { z } from "zod";
 
 /**
@@ -128,10 +129,17 @@ export async function matchExistingPeopleInContent(
   const trimmed = content.trim();
   if (!trimmed || known.length === 0) return [];
 
-  // Smart matching is an optional enhancement — degrade silently to no matches
-  // when the user has no Anthropic key (mirrors suggest-tags / auto-tag).
+  // Rung 1: deterministic, free, and always on. A note naming someone as
+  // written ("asik", "Mehmet Asik", "Dr. Mehmet D. Asik") resolves by token
+  // without a model call, and keeps resolving when the user has no key. It
+  // drops ambiguous single tokens for the same reason the prompt does.
+  const literal = matchPeopleByName(trimmed, known);
+
+  // Rung 2: the model, for what tokens cannot see — nicknames, possessives,
+  // "my sister". Optional: degrade to the literal matches alone when the user
+  // has no Anthropic key (mirrors suggest-tags / auto-tag).
   const apiKey = await getUserKeyOrNull(userId, "anthropic");
-  if (!apiKey) return [];
+  if (!apiKey) return filterResolvedPersonIds(literal, known);
 
   try {
     const client = getAnthropicClient(apiKey);
@@ -164,12 +172,14 @@ export async function matchExistingPeopleInContent(
     const toolUse = response.content.find((block) => block.type === "tool_use");
     if (!toolUse || toolUse.type !== "tool_use") return [];
     const parsed = matchSchema.safeParse(toolUse.input);
-    if (!parsed.success) return [];
+    if (!parsed.success) return filterResolvedPersonIds(literal, known);
 
-    return filterResolvedPersonIds(parsed.data.person_ids, known);
+    // Union, literal first: the deterministic pass is the more certain of the
+    // two, and neither rung may erase what the other found.
+    return filterResolvedPersonIds([...literal, ...parsed.data.person_ids], known);
   } catch (err) {
-    console.error("[people-derive] matchExistingPeopleInContent failed; returning none", err);
-    return [];
+    console.error("[people-derive] model match failed; falling back to literal matches", err);
+    return filterResolvedPersonIds(literal, known);
   }
 }
 
