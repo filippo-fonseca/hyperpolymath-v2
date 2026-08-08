@@ -3,19 +3,19 @@
 import { useMemo } from "react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 
-const QUOTES: { text: string; author: string }[] = [
+const QUOTES: { text: string; author: string | null }[] = [
   { text: "Energy is the currency of productivity.", author: "Ali Abdaal" },
   { text: "How you do one thing is how you do everything.", author: "Zen proverb" },
   { text: "We are what we repeatedly do.", author: "Will Durant" },
   { text: "Discipline equals freedom.", author: "Jocko Willink" },
   { text: "The obstacle is the way.", author: "Marcus Aurelius" },
   { text: "Slow is smooth, smooth is fast.", author: "Navy SEALs" },
-  { text: "Make the easy thing the right thing.", author: "—" },
+  { text: "Make the easy thing the right thing.", author: null },
   { text: "Done is the engine of more.", author: "Bre Pettis" },
   { text: "Memento mori.", author: "Stoics" },
-  { text: "Per aspera ad astra.", author: "—" },
-  { text: "Compounding works in silence.", author: "—" },
-  { text: "Direction over speed.", author: "—" },
+  { text: "Per aspera ad astra.", author: null },
+  { text: "Compounding works in silence.", author: null },
+  { text: "Direction over speed.", author: null },
   { text: "If not now, when?", author: "Hillel the Elder" },
 ];
 
@@ -147,9 +147,11 @@ export function GlobalLoader({ message, fullscreen = true }: Props) {
  <blockquote className="text-body leading-[1.55] text-[var(--ink)]">
           &ldquo;{quote.text}&rdquo;
         </blockquote>
-        <figcaption className="mt-2 text-micro text-[var(--ink-muted)]">
-          — {quote.author}
-        </figcaption>
+        {quote.author ? (
+          <figcaption className="mt-2 text-micro text-[var(--ink-muted)]">
+            {quote.author}
+          </figcaption>
+        ) : null}
       </figure>
     </div>
   );

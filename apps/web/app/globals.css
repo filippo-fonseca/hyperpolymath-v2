@@ -2539,6 +2539,78 @@ select:focus-visible,
 /* White pill chrome: the top-bar cmd-K search field, the collapsed Jarvis
    bar, small floating chrome. Raised fill + hairline + card shadow; hover
    lifts the shadow one step and changes nothing else. */
+/* --- GlobalLoader motion -----------------------------------------------
+   The loader markup asked for five animations by class name and none of them
+   existed, so the "orbiting" halo sat perfectly still: three static rings and
+   a glyph. These are those classes. Transform and opacity only, and the whole
+   set stands down under prefers-reduced-motion. */
+@keyframes hp-loader-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes hp-loader-pulse-kf {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+}
+@keyframes hp-loader-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.03);
+  }
+}
+@keyframes hp-loader-flicker-kf {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.55;
+  }
+  55% {
+    opacity: 0.9;
+  }
+}
+.hp-loader-spin-slow {
+  animation: hp-loader-spin 9s linear infinite reverse;
+  transform-origin: 50% 50%;
+}
+.hp-loader-spin-fast {
+  animation: hp-loader-spin 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  transform-origin: 50% 50%;
+}
+.hp-loader-pulse {
+  animation: hp-loader-pulse-kf 2.6s ease-in-out infinite;
+}
+.hp-loader-kiwi {
+  animation: hp-loader-float 3.2s ease-in-out infinite;
+}
+.hp-loader-flicker {
+  animation: hp-loader-flicker-kf 2.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hp-loader-spin-slow,
+  .hp-loader-spin-fast,
+  .hp-loader-pulse,
+  .hp-loader-kiwi,
+  .hp-loader-flicker {
+    animation: none;
+  }
+}
+
 .craft-pill {
   background: var(--surface-raised);
   border: 1px solid var(--edge);
