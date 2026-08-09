@@ -77,10 +77,19 @@ export function useExplorerActions({
       },
       ...old,
     ]);
-    const r = await createPage({ id, title: "", content: "", folderId });
+    // Fire the insert and navigate against it, rather than after it. The id is
+    // client-generated, so the destination is known before the row exists, and
+    // `?new=1` tells the detail route to wait a beat for the commit instead of
+    // 404ing on the race. Waiting for the round trip first meant every new page
+    // opened a visible moment late.
+    const created = createPage({ id, title: "", content: "", folderId });
+    router.push(`/wiki/${id}?new=1`);
+
+    const r = await created;
     if (!r.success) {
       toast.error(r.error);
       mutations.invalidatePages();
+      router.back();
       return;
     }
     // The optimistic row above is a stub: empty title, null positionKey, a
@@ -88,7 +97,6 @@ export function useExplorerActions({
     // to /wiki inside the 30s staleTime window renders that stub instead of the
     // page the server actually created.
     mutations.invalidatePages();
-    router.push(`/wiki/${r.data.id}`);
   }, [folderId, folders, mutations, router]);
 
   const handleCreateFolder = useCallback(

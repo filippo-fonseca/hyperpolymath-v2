@@ -103,6 +103,9 @@ interface Props {
 
 const AUTOSAVE_DELAY = 1500;
 
+/** What an untouched title saves as once the field loses focus. */
+const UNTITLED_PAGE_TITLE = "Untitled";
+
 /**
  * /wiki/[pageId] client island. Notion-style BlockNote editor with 1.5s
  * autosave, emoji picker, project link management, and delete.
@@ -586,6 +589,15 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     scheduleAutosave({ title: v });
   }
 
+  // Leaving the title empty commits "Untitled" rather than an empty string, so
+  // the page carries a real name into search, exports, and every list that
+  // would otherwise render a placeholder. Typed titles are never touched.
+  function handleTitleBlur() {
+    if (title.trim() !== "") return;
+    setTitle(UNTITLED_PAGE_TITLE);
+    scheduleAutosave({ title: UNTITLED_PAGE_TITLE });
+  }
+
   function handleEmojiPicked(next: string | null) {
     setEmoji(next);
     scheduleAutosave({ emoji: next });
@@ -941,6 +953,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         type="text"
         value={title}
         onChange={(e) => handleTitleChange(e.target.value)}
+        onBlur={handleTitleBlur}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault();
