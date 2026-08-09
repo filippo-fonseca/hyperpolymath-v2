@@ -6,6 +6,7 @@ import { FolderIcon } from "@/components/ui/icons/FolderIcon";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { PagePreviewThumb } from "@/components/wiki/preview/PagePreviewThumb";
 import { extractPreviewModel } from "@/lib/pages/preview";
+import { type PaletteToken, coercePaletteToken, paletteVars } from "@/lib/ui/palette";
 import { format, formatDistanceToNow } from "date-fns";
 import type { ReactNode } from "react";
 
@@ -63,7 +64,15 @@ export function ExplorerInspectorPanel({
     return (
       <InspectorCard>
         <div className="grid aspect-square place-items-center bg-[var(--sd-dark-box)]">
-          <FolderIcon size={132} variant="open" />
+          <FolderIcon
+            size={132}
+            variant="open"
+            tint={
+              coercePaletteToken(only.folder.color)
+                ? paletteVars(coercePaletteToken(only.folder.color) as PaletteToken).edge
+                : undefined
+            }
+          />
         </div>
         <InspectorName name={only.folder.name} kind="Folder" />
         <QuickActions

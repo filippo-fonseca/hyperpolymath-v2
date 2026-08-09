@@ -4,16 +4,64 @@ import { cn } from "./cn";
 
 export type FolderIconVariant = "closed" | "open";
 
+/**
+ * The default manila-blue ramp. Every stop is hand-picked, so an untinted
+ * folder keeps exactly the colours it has always had.
+ */
+interface FolderRamp {
+  bodyLight: string;
+  bodyMid: string;
+  bodyDark: string;
+  tabLight: string;
+  tabMid: string;
+  tabDark: string;
+  front: string;
+}
+
+const DEFAULT_RAMP: FolderRamp = {
+  bodyLight: "#6079C0",
+  bodyMid: "#40568E",
+  bodyDark: "#263454",
+  tabLight: "#7489C8",
+  tabMid: "#526AA8",
+  tabDark: "#33436C",
+  front: "hsl(225 36% 25%)",
+};
+
+/**
+ * Re-derive the whole ramp from one colour, keeping the original's relative
+ * lightness steps: the tab reads lighter than the body, the body darkens
+ * toward its far corner, and the front face stays a dark wash of the same hue.
+ * Mixing in oklab keeps a pastel from going muddy on the dark end.
+ */
+function rampFrom(tint: string): FolderRamp {
+  return {
+    bodyLight: `color-mix(in oklab, ${tint} 80%, white)`,
+    bodyMid: tint,
+    bodyDark: `color-mix(in oklab, ${tint} 62%, black)`,
+    tabLight: `color-mix(in oklab, ${tint} 66%, white)`,
+    tabMid: `color-mix(in oklab, ${tint} 90%, white)`,
+    tabDark: `color-mix(in oklab, ${tint} 70%, black)`,
+    front: `color-mix(in oklab, ${tint} 45%, black)`,
+  };
+}
+
 export function FolderIcon({
   size = 40,
   variant = "closed",
   dropTarget = false,
+  tint,
   className,
   title,
 }: {
   size?: number;
   variant?: FolderIconVariant;
   dropTarget?: boolean;
+  /**
+   * Any CSS colour (typically a `var(--tint-…-edge)`) to repaint the folder
+   * with. Omitted, the folder keeps its default blue.
+   */
+  tint?: string;
   className?: string;
   title?: string;
 }) {
@@ -24,6 +72,7 @@ export function FolderIcon({
   const shadowId = `folder-shadow-${svgId}`;
   const titleId = title ? `folder-icon-${svgId}` : undefined;
   const isOpen = variant === "open";
+  const ramp = tint ? rampFrom(tint) : DEFAULT_RAMP;
 
   return (
     <svg
@@ -45,9 +94,9 @@ export function FolderIcon({
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(30 24) rotate(53) scale(54 68)"
         >
-          <stop stopColor="#6079C0" />
-          <stop offset="0.48" stopColor="#40568E" />
-          <stop offset="1" stopColor="#263454" />
+          <stop stopColor={ramp.bodyLight} />
+          <stop offset="0.48" stopColor={ramp.bodyMid} />
+          <stop offset="1" stopColor={ramp.bodyDark} />
         </radialGradient>
         <linearGradient
           id={tabGradientId}
@@ -57,9 +106,9 @@ export function FolderIcon({
           y2="42"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor="#7489C8" />
-          <stop offset="0.55" stopColor="#526AA8" />
-          <stop offset="1" stopColor="#33436C" />
+          <stop stopColor={ramp.tabLight} />
+          <stop offset="0.55" stopColor={ramp.tabMid} />
+          <stop offset="1" stopColor={ramp.tabDark} />
         </linearGradient>
         <linearGradient
           id={lipGradientId}
@@ -124,7 +173,8 @@ export function FolderIcon({
               ? "M10.5 42C25.8 37.2 54.2 37.2 69.5 42L64.6 62C64 65.3 61.2 67.5 57.9 67.5H18.1C14.8 67.5 12 65.3 11.4 62L8.8 47.4C8.4 45.2 9 43.2 10.5 42Z"
               : "M10.5 39C25.6 35.3 54.4 35.3 69.5 39V61.5C69.5 65.1 66.6 68 63 68H17C13.4 68 10.5 65.1 10.5 61.5V39Z"
           }
-          fill="hsl(225 36% 25% / 0.42)"
+          fill={ramp.front}
+          opacity="0.42"
         />
         <path d="M13 34H67" stroke={`url(#${lipGradientId})`} strokeWidth="1" />
         <path

@@ -7,7 +7,7 @@ import { partitionExplorerItems } from "@/components/wiki/explorer-hooks/explore
 import type { SelectionClickModifiers } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
-import { type PaletteToken, coercePaletteToken, paletteClass } from "@/lib/ui/palette";
+import { coercePaletteToken, paletteVars } from "@/lib/ui/palette";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { formatDistanceToNow } from "date-fns";
@@ -28,6 +28,12 @@ export interface ExplorerListViewProps {
 }
 
 const LIST_GRID_TEMPLATE = "minmax(0,1fr) 110px 160px minmax(0,220px)";
+
+/** The colour a painted folder's icon repaints itself with, or none for the default blue. */
+function folderTint(color: string | null | undefined): string | undefined {
+  const token = coercePaletteToken(color);
+  return token ? paletteVars(token).edge : undefined;
+}
 
 export function ExplorerListView({
   items,
@@ -229,23 +235,18 @@ function ExplorerListRow({
         {item.kind === "folder" ? (
           // A painted folder wears its colour in the list too, or the row and
           // the grid tile would disagree about what the same folder looks like.
-          <span
+          // The icon draws itself from fixed gradients, so the colour has to be
+          // handed to it: a tint class on a wrapper never reached the SVG, which
+          // is why painted folders stayed blue here.
+          <FolderIcon
+            size={20}
+            variant="closed"
+            dropTarget={isOver}
+            tint={folderTint(item.folder.color)}
             className={cn(
-              "inline-flex shrink-0",
-              coercePaletteToken(item.folder.color)
-                ? `${paletteClass(coercePaletteToken(item.folder.color) as PaletteToken)} text-[var(--tint-edge)]`
-                : undefined
+              dropSucceeded && !reduceMotion && "animate-[explorer-folder-swallow_160ms_ease-out]"
             )}
-          >
-            <FolderIcon
-              size={20}
-              variant="closed"
-              dropTarget={isOver}
-              className={cn(
-                dropSucceeded && !reduceMotion && "animate-[explorer-folder-swallow_160ms_ease-out]"
-              )}
-            />
-          </span>
+          />
         ) : (
           <PageIcon size={20} kind={item.page.dailyDate ? "daily" : "note"} />
         )}
