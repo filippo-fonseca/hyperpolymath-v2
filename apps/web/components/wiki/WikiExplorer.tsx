@@ -33,7 +33,12 @@ import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import { buildChildrenMap } from "@/lib/pages/folder-dnd";
-import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
+import {
+  type FolderProjectLink,
+  type FolderRow,
+  type FolderWithProjects,
+  getInheritedProjectIds,
+} from "@/lib/pages/folder-projects";
 import {
   DndContext,
   DragOverlay,
@@ -271,6 +276,26 @@ export function WikiExplorer({
   }, [ancestry, folderId, selection, setFolderId]);
 
   // ─── Chrome renderers for context menus + optional reorder drop. ────
+  // Own vs inherited links, kept apart: the menu can only edit a folder's own
+  // row, and has to say so for the ones that arrive from an ancestor.
+  const ownProjectIdsByFolder = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const link of folderProjects) {
+      const list = map.get(link.folderId);
+      if (list) list.push(link.projectId);
+      else map.set(link.folderId, [link.projectId]);
+    }
+    return map;
+  }, [folderProjects]);
+  const folderWithProjectsMap = useMemo(() => {
+    return new Map<string, FolderWithProjects>(
+      folders.map((folder) => [
+        folder.id,
+        { ...folder, ownProjectIds: ownProjectIdsByFolder.get(folder.id) ?? [] },
+      ])
+    );
+  }, [folders, ownProjectIdsByFolder]);
+
   const wrapItemForContextMenu = useCallback(
     (item: ExplorerItem, node: ReactNode) => (
       <ExplorerItemContextMenu
@@ -282,11 +307,30 @@ export function WikiExplorer({
           if (it.kind === "page") void mutations.toggleStar(it.id, !it.page.pinned);
         }}
         onSetFolderColor={(folderId, color) => void handleSetFolderColor(folderId, color)}
+        projects={projects}
+        ownProjectIds={item.kind === "folder" ? ownProjectIdsByFolder.get(item.id) : undefined}
+        inheritedProjectIds={
+          item.kind === "folder"
+            ? getInheritedProjectIds(item.id, folderWithProjectsMap)
+            : undefined
+        }
+        onSetFolderProjects={(folderId, projectIds) =>
+          void mutations.setFolderProjectLinks(folderId, projectIds)
+        }
       >
         {node}
       </ExplorerItemContextMenu>
     ),
-    [handleDelete, handleSetFolderColor, mutations, openItem, setRenameTarget]
+    [
+      folderWithProjectsMap,
+      handleDelete,
+      handleSetFolderColor,
+      mutations,
+      openItem,
+      ownProjectIdsByFolder,
+      projects,
+      setRenameTarget,
+    ]
   );
 
   const wrapItemForListView = useCallback(

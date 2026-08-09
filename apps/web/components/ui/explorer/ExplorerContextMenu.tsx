@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 import { ContextMenu as ContextMenuPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
 
@@ -60,6 +61,80 @@ export function ExplorerContextMenuItem({
       )}
       {...props}
     />
+  );
+}
+
+export function ExplorerContextMenuSub(props: ComponentProps<typeof ContextMenuPrimitive.Sub>) {
+  return <ContextMenuPrimitive.Sub data-slot="explorer-context-menu-sub" {...props} />;
+}
+
+export function ExplorerContextMenuSubTrigger({
+  className,
+  ...props
+}: ComponentProps<typeof ContextMenuPrimitive.SubTrigger>) {
+  return (
+    <ContextMenuPrimitive.SubTrigger
+      data-slot="explorer-context-menu-sub-trigger"
+      className={cn(
+        "relative flex h-7 select-none items-center gap-2 rounded px-2 text-[var(--ink)] outline-none",
+        "transition-colors duration-[160ms] ease-out focus:bg-[var(--sd-menu-hover)]",
+        "data-[state=open]:bg-[var(--sd-menu-hover)]",
+        "[&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-[var(--ink-muted)]",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+export function ExplorerContextMenuSubContent({
+  className,
+  ...props
+}: ComponentProps<typeof ContextMenuPrimitive.SubContent>) {
+  return (
+    <ContextMenuPrimitive.Portal>
+      <ContextMenuPrimitive.SubContent
+        data-slot="explorer-context-menu-sub-content"
+        className={cn(
+          "craft-glass-pop z-50 max-h-[320px] min-w-[184px] overflow-y-auto p-1 font-sans text-meta text-[var(--ink)]",
+          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          className
+        )}
+        {...props}
+      />
+    </ContextMenuPrimitive.Portal>
+  );
+}
+
+export function ExplorerContextMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof ContextMenuPrimitive.CheckboxItem>) {
+  return (
+    <ContextMenuPrimitive.CheckboxItem
+      data-slot="explorer-context-menu-checkbox-item"
+      className={cn(
+        "relative flex min-h-7 select-none items-center gap-2 rounded py-1 pl-7 pr-2 text-[var(--ink)] outline-none",
+        "transition-colors duration-[160ms] ease-out focus:bg-[var(--sd-menu-hover)]",
+        "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
+        className
+      )}
+      {...props}
+    >
+      <span className="absolute left-2 grid size-3.5 place-items-center">
+        <ContextMenuPrimitive.ItemIndicator>
+          <Check size={13} strokeWidth={2.4} className="text-[var(--sd-accent)]" />
+        </ContextMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </ContextMenuPrimitive.CheckboxItem>
+  );
+}
+
+export function ExplorerContextMenuLabel({ className, ...props }: ComponentProps<"p">) {
+  return (
+    <p className={cn("px-2 py-1 text-micro text-[var(--ink-faint)]", className)} {...props} />
   );
 }
 

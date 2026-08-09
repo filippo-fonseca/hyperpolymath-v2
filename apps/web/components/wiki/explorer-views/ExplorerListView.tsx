@@ -198,9 +198,18 @@ function ExplorerListRow({
       : item.folder.updatedAt
         ? formatDistanceToNow(new Date(item.folder.updatedAt), { addSuffix: true })
         : "—";
+  // A page filed in a folder that belongs to a project belongs to it too, so
+  // the column shows the folder's projects alongside the page's own links
+  // rather than the bare "—" that made the inheritance look like it had not
+  // happened.
   const projectNames =
     item.kind === "page"
-      ? item.page.projects.map((project) => project.name)
+      ? [
+          ...new Set([
+            ...item.page.projects.map((project) => project.name),
+            ...(item.page.folderId ? (folderProjectNames.get(item.page.folderId) ?? []) : []),
+          ]),
+        ]
       : (folderProjectNames.get(item.id) ?? []);
 
   return (

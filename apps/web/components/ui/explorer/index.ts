@@ -6,10 +6,15 @@ export {
 } from "./ExplorerBreadcrumbs";
 export {
   ExplorerContextMenu,
+  ExplorerContextMenuCheckboxItem,
   ExplorerContextMenuContent,
   ExplorerContextMenuItem,
+  ExplorerContextMenuLabel,
   ExplorerContextMenuSeparator,
   ExplorerContextMenuShortcut,
+  ExplorerContextMenuSub,
+  ExplorerContextMenuSubContent,
+  ExplorerContextMenuSubTrigger,
   ExplorerContextMenuTrigger,
 } from "./ExplorerContextMenu";
 export { InspectorShell, MetaRow, MetaSection } from "./InspectorShell";

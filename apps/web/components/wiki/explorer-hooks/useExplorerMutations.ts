@@ -1,10 +1,10 @@
 "use client";
 
-import { setPageFolder, setParentFolder } from "@/app/actions/folders";
+import { setFolderProjects, setPageFolder, setParentFolder } from "@/app/actions/folders";
 import { movePagesBulk, reorderItem } from "@/app/actions/ordering";
 import { updatePage } from "@/app/actions/pages";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
-import type { FolderRow } from "@/lib/pages/folder-projects";
+import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import { compareExplorerItems, initialKeysFor } from "@/lib/pages/position";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,6 +28,7 @@ export function useExplorerMutations(userId: string) {
   const qc = useQueryClient();
   const pagesKey = tableKey("pages", userId);
   const foldersKey = tableKey("page_folders", userId);
+  const folderProjectsKey = tableKey("folder_projects", userId);
 
   const patchPages = useCallback(
     (updater: (old: PageWithProjects[]) => PageWithProjects[]) => {
@@ -50,6 +51,27 @@ export function useExplorerMutations(userId: string) {
   const invalidateFolders = useCallback(() => {
     qc.invalidateQueries({ queryKey: foldersKey });
   }, [foldersKey, qc]);
+
+  /**
+   * Replace a folder's OWN project links. Subfolders and the pages inside them
+   * are not written to: they read through to their ancestors' links
+   * (getEffectiveProjectIds), so one row change repaints the whole subtree.
+   */
+  const setFolderProjectLinks = useCallback(
+    async (folderId: string, projectIds: string[]) => {
+      qc.setQueryData<FolderProjectLink[]>(folderProjectsKey, (old) => [
+        ...(old ?? []).filter((link) => link.folderId !== folderId),
+        ...projectIds.map((projectId) => ({ folderId, projectId })),
+      ]);
+      const r = await setFolderProjects({ folderId, projectIds });
+      if (!r.success) toast.error(r.error);
+      qc.invalidateQueries({ queryKey: folderProjectsKey });
+      // A page's project chips are computed server-side from the folder links,
+      // so the pages list is stale the moment those links move.
+      invalidatePages();
+    },
+    [folderProjectsKey, invalidatePages, qc]
+  );
 
   const movePageTo = useCallback(
     async (pageId: string, folderId: string | null) => {
@@ -179,5 +201,6 @@ export function useExplorerMutations(userId: string) {
     patchFolders,
     invalidatePages,
     invalidateFolders,
+    setFolderProjectLinks,
   };
 }
