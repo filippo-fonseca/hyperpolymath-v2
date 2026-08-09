@@ -972,15 +972,37 @@ body {
 /* Phase 6 Plan 06-01 — D-09: universal cursor pointer on clickable elements.
    Tailwind 4 defaults often miss this. Selector covers native interactive
    elements + custom role=button + label-for + select + opt-in escape via
-   [data-clickable] or .cursor-pointer-always. */
+   [data-clickable] or .cursor-pointer-always.
+
+   aug-09: Radix menu/select/tab items render as divs with an ARIA role, so the
+   button/a selectors missed every dropdown row (the wiki "New folder" / "New
+   page" items among them). Roles below cover the full Radix surface. */
 button,
 [role="button"],
 a,
 [data-clickable],
 label[for],
 select,
+summary,
+[role="menuitem"],
+[role="menuitemcheckbox"],
+[role="menuitemradio"],
+[role="option"],
+[role="tab"],
+[role="switch"],
+[role="checkbox"],
+[role="radio"],
+[role="link"],
 .cursor-pointer-always {
   cursor: pointer;
+}
+
+/* Nothing disabled should read as clickable. */
+button:disabled,
+select:disabled,
+[aria-disabled="true"],
+[data-disabled] {
+  cursor: default;
 }
 
 /* =====================================================================
