@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getFoldersByEffectiveProject } from "@/lib/db/queries/folders";
 import {
   pageFieldDefinitions,
   pageFieldValues,
@@ -291,25 +292,47 @@ export async function getPageById(
 }
 
 /**
- * Pages linked to a specific project.
+ * Pages belonging to a project: the ones linked to it directly, plus every page
+ * sitting in a folder the project effectively owns (the folder's own link or
+ * any ancestor's — see getFoldersByEffectiveProject).
+ *
+ * The folder side is resolved on every read rather than written down when the
+ * link is made, so the order of events never matters: filing a page into a
+ * folder that is already linked, and linking a folder that already holds pages,
+ * both land the page here. The same is true for a subfolder created before or
+ * after its parent was linked.
  */
 export async function getPagesForProject(
   userId: string,
   projectId: string,
 ): Promise<PageWithProjects[]> {
-  const rows = await db
-    .select({ id: pages.id })
-    .from(pagesProjects)
-    .innerJoin(pages, eq(pages.id, pagesProjects.pageId))
-    .where(
-      and(
-        eq(pagesProjects.userId, userId),
-        eq(pagesProjects.projectId, projectId),
-      ),
-    )
-    .orderBy(desc(pages.updatedAt))
-    .limit(100);
-  const ids = rows.map((r) => r.id);
+  const [directRows, effectiveFolders] = await Promise.all([
+    db
+      .select({ id: pages.id })
+      .from(pagesProjects)
+      .innerJoin(pages, eq(pages.id, pagesProjects.pageId))
+      .where(
+        and(
+          eq(pagesProjects.userId, userId),
+          eq(pagesProjects.projectId, projectId),
+        ),
+      )
+      .orderBy(desc(pages.updatedAt))
+      .limit(100),
+    getFoldersByEffectiveProject(userId, projectId),
+  ]);
+
+  const folderIds = effectiveFolders.map((f) => f.id);
+  const folderRows = folderIds.length
+    ? await db
+        .select({ id: pages.id })
+        .from(pages)
+        .where(and(eq(pages.userId, userId), inArray(pages.folderId, folderIds)))
+        .orderBy(desc(pages.updatedAt))
+        .limit(100)
+    : [];
+
+  const ids = [...new Set([...directRows, ...folderRows].map((r) => r.id))].slice(0, 100);
   if (ids.length === 0) return [];
   return getPagesForUser(userId, { ids });
 }
