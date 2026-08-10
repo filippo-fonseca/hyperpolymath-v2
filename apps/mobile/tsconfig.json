@@ -3,7 +3,6 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/theme": ["./src/theme/index.ts"],
       "@/*": ["./src/*"]
     }
   }

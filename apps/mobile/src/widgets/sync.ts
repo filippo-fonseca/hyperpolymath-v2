@@ -147,6 +147,3 @@ export function startWidgetSync(): () => void {
     clearInterval(interval);
   };
 }
-
-/** @deprecated v1 name — legacy App.tsx still imports it; cleanup lane removes. */
-export const syncTodayWidget = syncWidgets;
