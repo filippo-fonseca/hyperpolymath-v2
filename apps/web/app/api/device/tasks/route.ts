@@ -152,6 +152,15 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     } else if (body.status !== "lesno" && existing[0].status === "lesno") {
       set.completedAt = null;
     }
+    // Parity with updateTaskStatus: a card entering a new column appends to
+    // its end instead of keeping a position minted for the old column.
+    if (body.status !== existing[0].status) {
+      const [{ maxPos }] = await db
+        .select({ maxPos: max(tasks.kanbanPosition) })
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), eq(tasks.status, body.status as Status)));
+      set.kanbanPosition = (maxPos ?? -1) + 1;
+    }
   }
   if (body.dueDate !== undefined) {
     set.dueDate =
