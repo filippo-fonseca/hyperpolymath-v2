@@ -1,7 +1,7 @@
 import { FlashList } from "@shopify/flash-list";
 import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
-import { Inbox } from "lucide-react-native";
+import { Inbox, Plus } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, RefreshControl, TextInput, View } from "react-native";
 
@@ -11,6 +11,7 @@ import {
   AppText,
   Button,
   EmptyState,
+  PressableRow,
   Screen,
   ScreenHeader,
   Skeleton,
@@ -37,16 +38,18 @@ export default function CapturesScreen() {
   const query = useCaptures();
   const { create, remove } = useCaptureMutations();
   const [selected, setSelected] = useState<Capture | null>(null);
+  const [composing, setComposing] = useState(false);
   const composerRef = useRef<TextInput | null>(null);
 
-  // Widget deep link: /captures?compose=1 lands with the composer focused.
-  // The param is cleared after handling so back-navigation won't re-trigger.
+  // Widget deep link: /captures?compose=1 opens a fresh capture sheet with
+  // the keyboard up — zero extra taps. The param is cleared after handling
+  // so back-navigation won't re-trigger it; works from cold start because
+  // the param rides the initial route.
   const { compose } = useLocalSearchParams<{ compose?: string }>();
   useEffect(() => {
     if (compose !== "1") return;
     router.setParams({ compose: undefined });
-    const id = setTimeout(() => composerRef.current?.focus(), 350);
-    return () => clearTimeout(id);
+    setComposing(true);
   }, [compose]);
 
   // Stagger the rise-in only for the first painted batch; later arrivals
@@ -124,6 +127,22 @@ export default function CapturesScreen() {
               ? `${captures.length} recent · ${jarvisCount} via Jarvis`
               : "Quick thoughts, kept"
           }
+          right={
+            <PressableRow
+              onPress={() => setComposing(true)}
+              accessibilityRole="button"
+              accessibilityLabel="New capture"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: t.radius.btn,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Plus size={18} color={t.c.inkMuted} strokeWidth={2.2} />
+            </PressableRow>
+          }
         />
         <View style={{ paddingTop: 4, paddingBottom: 12 }}>
           <CaptureComposer onSubmit={submit} inputRef={composerRef} />
@@ -192,7 +211,12 @@ export default function CapturesScreen() {
 
       <CaptureSheet
         capture={selected}
-        onClose={() => setSelected(null)}
+        composing={composing}
+        onClose={() => {
+          setSelected(null);
+          setComposing(false);
+        }}
+        onCreate={submit}
         onDelete={confirmDelete}
       />
     </Screen>
