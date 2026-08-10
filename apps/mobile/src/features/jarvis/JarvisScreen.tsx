@@ -4,7 +4,15 @@
 // engine + stream store; this component re-renders at turn boundaries only.
 
 import React, { useCallback, useEffect, useRef } from "react";
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
+import {
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import Animated, { FadeIn, FadeOut, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -88,6 +96,13 @@ export default function JarvisScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={tabBarHeight}
       >
+        {/* Tapping any non-interactive area drops the keyboard; drags and
+            child presses are untouched (a moved touch never counts as a press). */}
+        <Pressable
+          style={styles.fill}
+          onPress={() => Keyboard.dismiss()}
+          accessible={false}
+        >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: empty ? "transparent" : t.c.edge }]}>
           <View style={styles.headerLeft}>
@@ -175,6 +190,7 @@ export default function JarvisScreen() {
             keyboardShouldPersistTaps="handled"
           />
         )}
+        </Pressable>
 
         {/* Composer */}
         <View style={{ paddingHorizontal: 12, paddingBottom: 8, paddingTop: 4 }}>
