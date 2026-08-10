@@ -15,6 +15,8 @@ import { PressableRow } from "@/ui";
 
 export interface CaptureComposerProps {
   onSubmit: (content: string) => void;
+  /** Focus the input imperatively (widget deep-link ?compose=1). */
+  inputRef?: React.RefObject<TextInput | null>;
 }
 
 /**
@@ -23,7 +25,7 @@ export interface CaptureComposerProps {
  * something to send. Submit clears instantly — the optimistic insert
  * carries the feedback.
  */
-export function CaptureComposer({ onSubmit }: CaptureComposerProps) {
+export function CaptureComposer({ onSubmit, inputRef }: CaptureComposerProps) {
   const t = useTheme();
   const [value, setValue] = useState("");
   const focused = useSharedValue(0);
@@ -63,6 +65,7 @@ export function CaptureComposer({ onSubmit }: CaptureComposerProps) {
       ]}
     >
       <TextInput
+        ref={inputRef}
         value={value}
         onChangeText={setValue}
         placeholder="Capture a thought…"

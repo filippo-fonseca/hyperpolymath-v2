@@ -1,10 +1,12 @@
-import { PenLine, Sparkles, Trash2 } from "lucide-react-native";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
+import { Copy, PenLine, Sparkles, Star, Trash2 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 
 import { useCaptureMutations, type Capture } from "@/data/useCaptures";
 import { useTheme } from "@/theme";
-import { AppText, Button, PressableRow, Sheet } from "@/ui";
+import { AppText, Button, PressableRow, Sheet, toast } from "@/ui";
 
 import { fullStamp, parseHashtags } from "./relative-time";
 
@@ -26,6 +28,26 @@ export function CaptureSheet({ capture, onClose, onDelete }: CaptureSheetProps) 
 
   const dirty = capture !== null && draft.trim() !== capture.content.trim();
   const viaJarvis = capture?.createdVia === "jarvis";
+  const iconButton = {
+    width: 36,
+    height: 36,
+    borderRadius: t.radius.btn,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  };
+
+  const toggleFavorite = () => {
+    if (!capture) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    update.mutate({ id: capture.id, favorite: !capture.favorite });
+  };
+
+  const copy = () => {
+    if (!capture) return;
+    void Clipboard.setStringAsync(draft.trim() || capture.content).then(() =>
+      toast("Copied."),
+    );
+  };
 
   const save = () => {
     if (!capture || !dirty) return;
@@ -77,7 +99,7 @@ export function CaptureSheet({ capture, onClose, onDelete }: CaptureSheetProps) 
             accessibilityLabel="Capture content"
           />
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <PressableRow
               onPress={() => {
                 onClose();
@@ -85,15 +107,31 @@ export function CaptureSheet({ capture, onClose, onDelete }: CaptureSheetProps) 
               }}
               accessibilityRole="button"
               accessibilityLabel="Delete capture"
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: t.radius.btn,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              style={iconButton}
             >
               <Trash2 size={16} color={t.c.coral} strokeWidth={2} />
+            </PressableRow>
+            <PressableRow
+              onPress={toggleFavorite}
+              accessibilityRole="button"
+              accessibilityLabel={capture.favorite ? "Unstar capture" : "Star capture"}
+              accessibilityState={{ selected: capture.favorite }}
+              style={iconButton}
+            >
+              <Star
+                size={16}
+                color={capture.favorite ? t.c.amber : t.c.inkFaint}
+                fill={capture.favorite ? t.c.amber : "transparent"}
+                strokeWidth={2}
+              />
+            </PressableRow>
+            <PressableRow
+              onPress={copy}
+              accessibilityRole="button"
+              accessibilityLabel="Copy capture text"
+              style={iconButton}
+            >
+              <Copy size={16} color={t.c.inkFaint} strokeWidth={2} />
             </PressableRow>
             <View style={{ flex: 1 }} />
             <Button label="Cancel" variant="ghost" size="sm" onPress={onClose} />

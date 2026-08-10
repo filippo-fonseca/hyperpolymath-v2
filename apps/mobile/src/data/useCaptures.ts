@@ -86,6 +86,7 @@ export function useCaptureMutations() {
       id: string;
       content?: string;
       hashtagNames?: string[];
+      favorite?: boolean;
     }) => {
       const ok = await updateCapture(input);
       if (!ok) throw new Error("update capture failed");
@@ -99,6 +100,7 @@ export function useCaptureMutations() {
             ? {
                 ...c,
                 content: input.content ?? c.content,
+                favorite: input.favorite ?? c.favorite,
                 updatedAt: new Date().toISOString(),
               }
             : c,

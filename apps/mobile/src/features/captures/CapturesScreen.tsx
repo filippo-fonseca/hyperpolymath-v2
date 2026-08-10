@@ -1,11 +1,21 @@
 import { FlashList } from "@shopify/flash-list";
+import * as Clipboard from "expo-clipboard";
+import { router, useLocalSearchParams } from "expo-router";
 import { Inbox } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, RefreshControl, View } from "react-native";
+import { Alert, RefreshControl, TextInput, View } from "react-native";
 
 import { useCaptures, useCaptureMutations, type Capture } from "@/data/useCaptures";
 import { useTheme } from "@/theme";
-import { AppText, Button, EmptyState, Screen, ScreenHeader, Skeleton } from "@/ui";
+import {
+  AppText,
+  Button,
+  EmptyState,
+  Screen,
+  ScreenHeader,
+  Skeleton,
+  toast,
+} from "@/ui";
 
 import { CaptureCard } from "./CaptureCard";
 import { CaptureComposer } from "./CaptureComposer";
@@ -27,6 +37,17 @@ export default function CapturesScreen() {
   const query = useCaptures();
   const { create, remove } = useCaptureMutations();
   const [selected, setSelected] = useState<Capture | null>(null);
+  const composerRef = useRef<TextInput | null>(null);
+
+  // Widget deep link: /captures?compose=1 lands with the composer focused.
+  // The param is cleared after handling so back-navigation won't re-trigger.
+  const { compose } = useLocalSearchParams<{ compose?: string }>();
+  useEffect(() => {
+    if (compose !== "1") return;
+    router.setParams({ compose: undefined });
+    const id = setTimeout(() => composerRef.current?.focus(), 350);
+    return () => clearTimeout(id);
+  }, [compose]);
 
   // Stagger the rise-in only for the first painted batch; later arrivals
   // (optimistic inserts, refetch echoes) enter individually at index 0.
@@ -71,6 +92,14 @@ export default function CapturesScreen() {
         [
           { text: "Edit", onPress: () => setSelected(capture) },
           {
+            text: "Copy",
+            onPress: () => {
+              void Clipboard.setStringAsync(capture.content).then(() =>
+                toast("Copied."),
+              );
+            },
+          },
+          {
             text: "Delete",
             style: "destructive",
             onPress: () => confirmDelete(capture),
@@ -97,7 +126,7 @@ export default function CapturesScreen() {
           }
         />
         <View style={{ paddingTop: 4, paddingBottom: 12 }}>
-          <CaptureComposer onSubmit={submit} />
+          <CaptureComposer onSubmit={submit} inputRef={composerRef} />
         </View>
       </View>
 
