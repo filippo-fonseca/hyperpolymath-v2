@@ -42,6 +42,13 @@ export function weekendISO(todayISO: string): string {
   return shiftISO(todayISO, (6 - dow + 7) % 7);
 }
 
+/** Monday of next ISO week (web parity: startOfWeek(Mon) + 7 days). */
+export function nextWeekISO(todayISO: string): string {
+  const [y, m, d] = todayISO.split("-").map(Number);
+  const dow = new Date(y!, (m ?? 1) - 1, d ?? 1).getDay();
+  return shiftISO(todayISO, (8 - dow) % 7 || 7);
+}
+
 /** "Aug 12" — bare text, never a chip. */
 export function dayLabel(dateISO: string): string {
   const [, m, d] = dateISO.split("-").map(Number);
