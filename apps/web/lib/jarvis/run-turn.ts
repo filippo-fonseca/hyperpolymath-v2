@@ -25,6 +25,10 @@ import { logJarvisEvent } from "@/lib/jarvis/log-event";
 import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
 import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
 import { validateTurnReferences } from "@/lib/jarvis/validate-references";
+import {
+  buildCalendarListBlock,
+  getCalendarOptionsForJarvis,
+} from "@/lib/jarvis/calendar-options";
 import { stripMarkdownForSpeech } from "@/lib/voice/strip-markdown-for-speech";
 import {
   buildSystemPrompt,
@@ -420,6 +424,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     recentCapturesRows,
     activeTasksRows,
     personalityRows,
+    calendarOptions,
   ] = await Promise.all([
     db
       .select({
@@ -488,6 +493,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             customInstructions: string | null;
           }>
       ),
+    // Jarvis calendar routing — the user's writable gcal calendars (TTL-cached
+    // in-process, fail-open to [] when gcal is unavailable). Injected as the
+    // USER CALENDARS block below and threaded into ctx.allowedCalendarIds so
+    // the executor accepts exactly what the model was shown.
+    getCalendarOptionsForJarvis(opts.userId),
   ]);
 
   const userRow = userRows[0];
@@ -581,6 +591,15 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     cache_control: { type: "ephemeral" },
   });
 
+  // USER CALENDARS block (calendar routing) — appended AFTER the snapshot
+  // breakpoint, UNCACHED, so a changed calendar list never invalidates the
+  // cached prefix. Null when the user has ≤1 writable calendar (no choice to
+  // make) or gcal is unavailable (fail-open [] upstream).
+  const calendarListBlock = buildCalendarListBlock(calendarOptions);
+  if (calendarListBlock) {
+    system.push({ type: "text", text: calendarListBlock });
+  }
+
   const tools = [...buildToolDefinitions({ voiceActive }), ...STUDIO_WIDGET_TOOL_DEFINITIONS];
   const toolValidators = buildToolValidators(voiceActive);
 
@@ -614,6 +633,12 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     userTimezone: userRow?.timezone ?? "America/New_York",
     defaultCalendarId: userRow?.defaultCalendarId ?? null,
     preValidatedProjectIds,
+    // Calendar routing allowlist — exactly the writable ids the model was
+    // shown in the USER CALENDARS block. Omitted (undefined) when the fetch
+    // failed open, preserving the strict legacy validation path.
+    ...(calendarOptions.length > 0
+      ? { allowedCalendarIds: calendarOptions.map((c) => c.id) }
+      : {}),
   };
 
   const promptBuiltAt_d = new Date();
