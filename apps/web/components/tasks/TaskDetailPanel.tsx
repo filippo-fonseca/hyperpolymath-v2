@@ -73,6 +73,7 @@ import {
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { MoveToMenu } from "./MoveToMenu";
+import { DueDatePicker } from "./DueDatePicker";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
 import type { TasksOptimisticDispatch } from "./TasksClient";
@@ -217,6 +218,8 @@ interface FormState {
   dueDate: string;
   /** "HH:MM" 24h; "" = date-only. Cleared alongside dueDate. */
   dueTime: string;
+  /** Issue #396 — reminder offsets (minutes before due), server-sorted. */
+  reminderOffsetsMin: number[];
   url: string | null;
   notes: string;
   projectIds: string[];
@@ -232,6 +235,7 @@ function toFormState(task: TaskWithProjects): FormState {
     priority: task.priority as Priority,
     dueDate: task.dueDate ?? "",
     dueTime: task.dueTime ?? "",
+    reminderOffsetsMin: task.reminderOffsetsMin ?? [],
     url: task.url ?? null,
     notes: task.notes ?? "",
     projectIds: task.projects.map((p) => p.id),
@@ -325,6 +329,9 @@ function isDirty(a: FormState, b: FormState): boolean {
     a.priority !== b.priority ||
     a.dueDate !== b.dueDate ||
     a.dueTime !== b.dueTime ||
+    // Both sides are server-sorted (or built by normalizeReminderOffsets), so
+    // a plain ordered compare is enough.
+    JSON.stringify(a.reminderOffsetsMin) !== JSON.stringify(b.reminderOffsetsMin) ||
     a.url !== b.url ||
     a.notes !== b.notes ||
     // Copy before sorting: `a` and `b` are live form state, and sorting them
@@ -402,6 +409,7 @@ export function TaskDetailPanel({
     priority: "P3",
     dueDate: "",
     dueTime: "",
+    reminderOffsetsMin: [],
     url: null,
     notes: "",
     projectIds: [],
@@ -570,6 +578,7 @@ export function TaskDetailPanel({
         status: form.status,
         dueDate: form.dueDate || null,
         dueTime: form.dueDate && form.dueTime ? form.dueTime : null,
+        reminderOffsetsMin: form.dueDate ? form.reminderOffsetsMin : [],
         url: form.url,
         kanbanPosition: 0,
         completedAt: null,
@@ -582,7 +591,6 @@ export function TaskDetailPanel({
           displayName: name,
         })),
         people: personNames.map((name) => ({ id: `pending-${name}`, name })),
-        reminderOffsetsMin: [],
         peopleDerivedAt: null,
       },
     });
@@ -594,6 +602,7 @@ export function TaskDetailPanel({
       status: form.status,
       dueDate: form.dueDate || null,
       dueTime: form.dueDate && form.dueTime ? form.dueTime : null,
+      reminderOffsetsMin: form.dueDate ? form.reminderOffsetsMin : [],
       url: form.url,
       projectIds: form.projectIds,
       recurrence: form.recurrence,
@@ -626,6 +635,7 @@ export function TaskDetailPanel({
       status: form.status,
       dueDate: form.dueDate || null,
       dueTime: form.dueDate && form.dueTime ? form.dueTime : null,
+      reminderOffsetsMin: form.dueDate ? form.reminderOffsetsMin : [],
       url: form.url,
       recurrence: form.recurrence,
     };
@@ -891,49 +901,33 @@ export function TaskDetailPanel({
 
             <FieldSection label="Due date" icon={Clock}>
               <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={form.dueDate}
-                  onChange={(e) => set("dueDate", e.target.value)}
-                  className={cn(
-                    "h-8 flex-1 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-2",
-                    "font-mono text-meta text-[var(--ink)] outline-none tabular-nums",
-                    "focus-visible:border-[var(--edge-strong)]",
-                    "transition-colors duration-[160ms] ease-out"
-                  )}
+                {/* Issue #396 — the Notion-style popover owns date, time, and
+                    reminders in one surface. Clearing inside it empties all
+                    three → Inbox on save. */}
+                <DueDatePicker
+                  dueDate={form.dueDate || null}
+                  dueTime={form.dueDate && form.dueTime ? form.dueTime : null}
+                  reminderOffsetsMin={form.dueDate ? form.reminderOffsetsMin : []}
+                  onChange={(patch) =>
+                    setForm((f) => ({
+                      ...f,
+                      ...(patch.dueDate !== undefined
+                        ? { dueDate: patch.dueDate ?? "" }
+                        : {}),
+                      ...(patch.dueTime !== undefined
+                        ? { dueTime: patch.dueTime ?? "" }
+                        : {}),
+                      ...(patch.reminderOffsetsMin !== undefined
+                        ? { reminderOffsetsMin: patch.reminderOffsetsMin }
+                        : {}),
+                      // Clearing the date clears its dependents in the form,
+                      // mirroring the server invariant.
+                      ...(patch.dueDate === null
+                        ? { dueTime: "", reminderOffsetsMin: [] }
+                        : {}),
+                    }))
+                  }
                 />
-                {/* Optional time-of-day; only meaningful with a date. */}
-                {form.dueDate && (
-                  <input
-                    type="time"
-                    value={form.dueTime}
-                    onChange={(e) => set("dueTime", e.target.value)}
-                    title="Due time (optional)"
-                    aria-label="Due time (optional)"
-                    className={cn(
-                      "h-8 w-[92px] rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-2",
-                      "font-mono text-meta text-[var(--ink)] outline-none tabular-nums",
-                      "focus-visible:border-[var(--edge-strong)]",
-                      "transition-colors duration-[160ms] ease-out"
-                    )}
-                  />
-                )}
-                {/* Inline clear — empties the date (and its time) → Inbox on
-                    save. Reversible, so no confirm dialog. */}
-                {form.dueDate && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      set("dueDate", "");
-                      set("dueTime", "");
-                    }}
-                    title="Clear due date (move to Inbox)"
-                    aria-label="Clear due date (move to Inbox)"
-                    className="cursor-pointer-always rounded-sm p-1 text-[var(--ink-faint)] transition-colors duration-[160ms] hover:text-[var(--ink)]"
-                  >
-                    <X size={12} strokeWidth={1.5} />
-                  </button>
-                )}
                 {/* MoveToMenu kept as the shortcut path. */}
                 <MoveToMenu
                   variant="inline"
