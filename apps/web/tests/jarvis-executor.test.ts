@@ -473,6 +473,74 @@ describe("executor.createEvent (JARVIS-14)", () => {
     expect(createEventForJarvisMock).not.toHaveBeenCalled();
   });
 
+  // Calendar routing (feat/jarvis-calendar-routing): when the turn boundary
+  // supplies ctx.allowedCalendarIds (the writable list the model was shown),
+  // those ids pass through directly, and an unknown id falls back to the
+  // user's default calendar instead of failing the turn.
+
+  it("calendar_id in ctx.allowedCalendarIds → routed there, no DB validation", async () => {
+    const ROUTED_CAL = "yale@group.calendar.google.com";
+    createEventForJarvisMock.mockResolvedValue({
+      id: "gcal-event-2",
+      calendarId: ROUTED_CAL,
+      title: "CS 458 lecture",
+      description: null,
+      start: "2026-05-14T20:00:00.000Z",
+      end: "2026-05-14T22:00:00.000Z",
+      htmlLink: null,
+    });
+    const executor = createServerExecutor();
+    const result = await executor.createEvent(
+      {
+        title: "CS 458 lecture",
+        calendar_id: ROUTED_CAL,
+        start: "2026-05-14T20:00:00.000Z",
+        end: "2026-05-14T22:00:00.000Z",
+      },
+      { ...ctx, allowedCalendarIds: [ROUTED_CAL, "primary"] },
+    );
+    expect(result.ok).toBe(true);
+    expect(createEventForJarvisMock).toHaveBeenCalledTimes(1);
+    const [, input] = createEventForJarvisMock.mock.calls[0];
+    expect(input.calendarId).toBe(ROUTED_CAL);
+    // Allowlist hit → no validateCalendarId SELECT consumed.
+    expect(dbState.selectReturns.length).toBe(0);
+  });
+
+  it("unknown calendar_id with routing active → falls back to default, not an error", async () => {
+    // SELECT 1: validateCalendarId(bogus) → not default, not visible → reject.
+    dbState.selectReturns.push([
+      { defaultCalendarId: CAL_DEFAULT, visibleCalendarIds: [CAL_VISIBLE] },
+    ]);
+    // SELECT 2: validateCalendarId(null) fallback → default.
+    dbState.selectReturns.push([
+      { defaultCalendarId: CAL_DEFAULT, visibleCalendarIds: [CAL_VISIBLE] },
+    ]);
+    createEventForJarvisMock.mockResolvedValue({
+      id: "gcal-event-3",
+      calendarId: CAL_DEFAULT,
+      title: "Dinner",
+      description: null,
+      start: "2026-05-14T20:00:00.000Z",
+      end: "2026-05-14T22:00:00.000Z",
+      htmlLink: null,
+    });
+    const executor = createServerExecutor();
+    const result = await executor.createEvent(
+      {
+        title: "Dinner",
+        calendar_id: "hallucinated@group.calendar.google.com",
+        start: "2026-05-14T20:00:00.000Z",
+        end: "2026-05-14T22:00:00.000Z",
+      },
+      { ...ctx, allowedCalendarIds: ["yale@group.calendar.google.com"] },
+    );
+    expect(result.ok).toBe(true);
+    expect(createEventForJarvisMock).toHaveBeenCalledTimes(1);
+    const [, input] = createEventForJarvisMock.mock.calls[0];
+    expect(input.calendarId).toBe(CAL_DEFAULT);
+  });
+
   it("GcalTokenRevokedError → result kind 'revoked'", async () => {
     dbState.selectReturns.push([
       { defaultCalendarId: CAL_DEFAULT, visibleCalendarIds: [CAL_VISIBLE] },
