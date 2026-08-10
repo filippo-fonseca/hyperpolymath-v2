@@ -24,6 +24,7 @@ import {
 import { buildRows, localTodayISO, type Row } from "./sections";
 import { ClusterDivider, TaskRow } from "./TaskRow";
 import { TaskComposer } from "./TaskComposer";
+import { TaskDetailSheet } from "./TaskDetailSheet";
 
 /** Disclosure row for the sunken completed cluster. */
 function CompletedHeader({
@@ -79,8 +80,14 @@ export default function TasksScreen() {
   const query = useTasks();
   const { create, updateStatus } = useTaskMutations();
   const [completedOpen, setCompletedOpen] = useState(false);
-  const [editing, setEditing] = useState<Task | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const todayISO = localTodayISO();
+
+  // Live row from the cache so optimistic edits reflect in the open sheet.
+  const editingTask = useMemo(
+    () => (editingId ? (query.data?.find((x) => x.id === editingId) ?? null) : null),
+    [editingId, query.data],
+  );
 
   const { rows, counts } = useMemo(
     () => buildRows(query.data ?? [], todayISO, completedOpen),
@@ -100,7 +107,7 @@ export default function TasksScreen() {
       create.mutate({ title, dueDate: todayISO, priority: "P3", status: "not started" }),
     [create, todayISO],
   );
-  const handleOpen = useCallback((task: Task) => setEditing(task), []);
+  const handleOpen = useCallback((task: Task) => setEditingId(task.id), []);
 
   const renderItem = useCallback(
     ({ item }: { item: Row }) => {
@@ -223,6 +230,7 @@ export default function TasksScreen() {
       />
       <TaskComposer onSubmit={handleCreate} />
       <View style={{ flex: 1, marginTop: 4 }}>{content}</View>
+      <TaskDetailSheet task={editingTask} onClose={() => setEditingId(null)} />
     </Screen>
   );
 }
