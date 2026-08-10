@@ -133,7 +133,17 @@ export default function SettingsScreen() {
 
   return (
     <Screen topInset={false} style={{ paddingTop: 8 }}>
-      <ScreenHeader title="Settings" />
+      <ScreenHeader
+        title="Settings"
+        right={
+          <Button
+            label="Done"
+            variant="ghost"
+            size="sm"
+            onPress={() => router.back()}
+          />
+        }
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
