@@ -46,7 +46,7 @@ import { z } from "zod";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Loader2, X } from "lucide-react";
+import { Loader2, Video, X } from "lucide-react";
 import { usePendingAction } from "@/components/shared/use-pending-action";
 import { sameEmailSet } from "@/lib/gcal/guest-updates";
 import type {
@@ -101,6 +101,8 @@ const EventFormSchema = z
     // Guest emails — validated at add time by the chip input, so the schema
     // only needs the shape.
     attendees: z.array(z.string()),
+    // Desired conferencing state: true = event should have a Meet link.
+    meet: z.boolean(),
   })
   .refine((v) => v.end > v.start, {
     message: "End must be after start",
@@ -124,6 +126,11 @@ export interface EventFormResult {
    * the server never re-sends the merged list.
    */
   attendees: string[] | undefined;
+  /**
+   * Conferencing delta: "add" requests an auto-generated Meet link,
+   * "remove" clears the existing one, null leaves conferencing untouched.
+   */
+  meetChange: "add" | "remove" | null;
 }
 
 /** Basic shape check for the chip input — not RFC 5322, just sane. */
@@ -253,6 +260,7 @@ export function EventDetailPanel({
       allDay: false,
       description: "",
       attendees: [],
+      meet: false,
     };
     if (state.mode === "edit") {
       return {
@@ -263,6 +271,7 @@ export function EventDetailPanel({
         allDay: state.event.allDay,
         description: state.event.description ?? "",
         attendees: state.event.attendees.map((a) => a.email),
+        meet: Boolean(state.event.hangoutLink),
       };
     }
     if (state.mode === "create") {
@@ -387,6 +396,13 @@ export function EventDetailPanel({
         state.mode === "edit"
           ? !sameEmailSet(initialValues.attendees, data.attendees)
           : data.attendees.length > 0;
+      // Conferencing delta relative to the saved event (create starts bare).
+      const meetChange: EventFormResult["meetChange"] =
+        data.meet && !initialValues.meet
+          ? "add"
+          : !data.meet && initialValues.meet
+            ? "remove"
+            : null;
       const result: EventFormResult = {
         title: data.title.trim(),
         calendarId: data.calendarId,
@@ -398,6 +414,7 @@ export function EventDetailPanel({
             ? data.description.trim()
             : null,
         attendees: attendeesChanged ? data.attendees : undefined,
+        meetChange,
       };
       const editTarget =
         state.mode === "edit"
@@ -494,6 +511,12 @@ export function EventDetailPanel({
   // Watch allDay to drive input type swap (date vs datetime-local). When
   // toggled on, strip the time portion of the start/end to a date string.
   const watchedAllDay = watch("allDay");
+
+  // ---- Conferencing (Google Meet) -----------------------------------------
+  const watchedMeet = watch("meet");
+  /** The saved event's joinable link — null in create mode / when absent. */
+  const existingMeetLink =
+    state.mode === "edit" ? state.event.hangoutLink : null;
 
   /**
    * Live form-state draft wiring (Plan 04-04 polish):
@@ -800,6 +823,72 @@ export function EventDetailPanel({
                   />
                   {guestError && (
                     <p className="text-xs text-destructive">{guestError}</p>
+                  )}
+                </section>
+
+                {/* Conferencing — Notion-Calendar-style "Add Google Meet".
+                    The Meet link itself is minted by gcal on save (the form
+                    only tracks desired state); an existing link renders as a
+                    joinable row with a quiet remove affordance. */}
+                <section className="flex flex-col gap-2">
+                  <span className="font-sans text-meta text-[var(--ink-muted)]">
+                    Conferencing
+                  </span>
+                  {watchedMeet ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-3 py-2">
+                      <Video
+                        size={15}
+                        className="shrink-0 text-[var(--ink-muted)]"
+                        aria-hidden
+                      />
+                      <span className="flex-1 truncate text-meta text-[var(--ink)]">
+                        Google Meet
+                        {!existingMeetLink && (
+                          <span className="text-[var(--ink-faint)]">
+                            {" "}
+                            — link added on save
+                          </span>
+                        )}
+                      </span>
+                      {existingMeetLink && (
+                        <a
+                          href={existingMeetLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-meta font-medium text-[var(--ink)] underline underline-offset-2"
+                        >
+                          Join
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setValue("meet", false, { shouldDirty: true })
+                        }
+                        aria-label="Remove Google Meet"
+                        className="rounded p-1 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+                      >
+                        <X size={13} className="text-[var(--ink-muted)]" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setValue("meet", true, { shouldDirty: true })
+                        }
+                        className="inline-flex h-8 w-fit items-center gap-1.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-3 text-meta text-[var(--ink)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+                      >
+                        <Video size={14} aria-hidden />
+                        Add Google Meet
+                      </button>
+                      {initialValues.meet && (
+                        <p className="text-micro text-[var(--ink-faint)]">
+                          The current Meet link will be removed on save.
+                        </p>
+                      )}
+                    </div>
                   )}
                 </section>
 
