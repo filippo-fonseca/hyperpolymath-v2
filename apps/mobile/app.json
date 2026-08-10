@@ -101,7 +101,9 @@
           ]
         }
       ],
-      "./plugins/with-widget-version.js"
+      "./plugins/with-widget-version.js",
+      "expo-router",
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {
