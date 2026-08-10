@@ -13,4 +13,5 @@ export * from "./ProgressBar";
 export * from "./Divider";
 export * from "./FAB";
 export * from "./Sheet";
+export * from "./Toast";
 export * from "./auth";

@@ -24,6 +24,7 @@ import { queryClient } from "@/data/queryClient";
 import { startRealtime, stopRealtime, useAppStateRefetch } from "@/data/realtime";
 import { useTaskNotificationSync } from "@/lib/notifications";
 import { ThemeProvider, useTheme } from "@/theme";
+import { ToastHost } from "@/ui";
 import { AuthProvider, useAuth } from "@/ui/auth";
 import { startWidgetSync } from "@/widgets/sync";
 
@@ -87,6 +88,7 @@ function Gate() {
       <Stack.Screen name="settings" options={{ presentation: "modal" }} />
       <Stack.Screen name="wiki/[pageId]" options={{ animation: "default" }} />
       </Stack>
+      <ToastHost />
     </>
   );
 }

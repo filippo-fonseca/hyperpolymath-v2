@@ -9,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { useTaskMutations, useTasks, type Task } from "@/data/useTasks";
+import { getSettings, updateSettings } from "@/lib/settings";
 import { useTheme } from "@/theme";
 import {
   AppText,
@@ -19,6 +20,7 @@ import {
   ScreenHeader,
   SectionHeader,
   SkeletonRows,
+  toast,
 } from "@/ui";
 
 import { buildRows, localTodayISO, type Row } from "./sections";
@@ -79,7 +81,15 @@ export default function TasksScreen() {
   const t = useTheme();
   const query = useTasks();
   const { create, updateStatus } = useTaskMutations();
-  const [completedOpen, setCompletedOpen] = useState(false);
+  const [completedOpen, setCompletedOpen] = useState(
+    () => getSettings().tasksCompletedOpen,
+  );
+  const toggleCompleted = useCallback(() => {
+    setCompletedOpen((v) => {
+      void updateSettings({ tasksCompletedOpen: !v });
+      return !v;
+    });
+  }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const todayISO = localTodayISO();
 
@@ -95,7 +105,10 @@ export default function TasksScreen() {
   );
 
   const handleComplete = useCallback(
-    (id: string) => updateStatus(id, "lesno"),
+    (id: string) => {
+      updateStatus(id, "lesno");
+      toast("Lesno.");
+    },
     [updateStatus],
   );
   const handleUncheck = useCallback(
@@ -142,7 +155,7 @@ export default function TasksScreen() {
             <CompletedHeader
               count={item.count}
               open={item.open}
-              onToggle={() => setCompletedOpen((v) => !v)}
+              onToggle={toggleCompleted}
             />
           );
         case "task":
