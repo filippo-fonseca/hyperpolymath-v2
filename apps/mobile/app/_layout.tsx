@@ -21,14 +21,36 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { queryClient } from "@/data/queryClient";
+import { startRealtime, stopRealtime, useAppStateRefetch } from "@/data/realtime";
+import { useTaskNotificationSync } from "@/lib/notifications";
 import { ThemeProvider, useTheme } from "@/theme";
 import { AuthProvider, useAuth } from "@/ui/auth";
+import { startWidgetSync } from "@/widgets/sync";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
+/**
+ * Session-scoped side channels — realtime invalidation, widget snapshots,
+ * due-date notifications, foreground refetch — mounted once per signed-in
+ * user so sign-out tears everything down together.
+ */
+function IntegrationsBridge({ userId }: { userId: string }) {
+  useAppStateRefetch();
+  useTaskNotificationSync();
+  useEffect(() => {
+    void startRealtime(userId);
+    const stopWidgets = startWidgetSync();
+    return () => {
+      stopRealtime();
+      stopWidgets();
+    };
+  }, [userId]);
+  return null;
+}
+
 function Gate() {
   const t = useTheme();
-  const { status } = useAuth();
+  const { status, session } = useAuth();
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
@@ -48,7 +70,11 @@ function Gate() {
   if (!ready) return null;
 
   return (
-    <Stack
+    <>
+      {status === "signedIn" && session ? (
+        <IntegrationsBridge userId={session.user.id} />
+      ) : null}
+      <Stack
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: t.c.canvas },
@@ -60,7 +86,8 @@ function Gate() {
       <Stack.Screen name="sign-in" options={{ animation: "fade" }} />
       <Stack.Screen name="settings" options={{ presentation: "modal" }} />
       <Stack.Screen name="wiki/[pageId]" options={{ animation: "default" }} />
-    </Stack>
+      </Stack>
+    </>
   );
 }
 
