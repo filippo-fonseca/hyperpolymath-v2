@@ -1,6 +1,10 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "paths": {
+      "@/theme": ["./src/theme/index.ts"],
+      "@/*": ["./src/*"]
+    }
   }
 }
