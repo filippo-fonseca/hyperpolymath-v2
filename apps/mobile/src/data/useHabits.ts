@@ -20,6 +20,7 @@ import {
   type HabitData,
   type HabitLadderStatus,
 } from "../api/device";
+import { toast } from "../ui/Toast";
 import { queryClient } from "./queryClient";
 import { queryKeys } from "./queryKeys";
 
@@ -171,6 +172,7 @@ export function useHabitDay(todayISO: string = localDateString(0)): HabitDay {
     },
     onError: (_err, _args, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(habitsKey, ctx.prev);
+      toast("Couldn't update the habit.");
     },
     // DELETE-path toggles don't echo over realtime (replica identity), so
     // always self-invalidate.

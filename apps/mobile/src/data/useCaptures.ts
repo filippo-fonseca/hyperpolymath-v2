@@ -11,6 +11,7 @@ import {
   updateCapture,
   type Capture,
 } from "../api/device";
+import { toast } from "../ui/Toast";
 import { queryClient } from "./queryClient";
 import { queryKeys } from "./queryKeys";
 
@@ -77,6 +78,7 @@ export function useCaptureMutations() {
     },
     onError: (_err, _input, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKeys.captures, ctx.prev);
+      toast("Couldn't save the capture.");
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.captures }),
   });
@@ -110,6 +112,7 @@ export function useCaptureMutations() {
     },
     onError: (_err, _input, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKeys.captures, ctx.prev);
+      toast("Couldn't save the capture.");
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.captures }),
   });
@@ -127,6 +130,7 @@ export function useCaptureMutations() {
     },
     onError: (_err, _id, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKeys.captures, ctx.prev);
+      toast("Couldn't delete the capture.");
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.captures }),
   });

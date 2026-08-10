@@ -15,6 +15,7 @@ import {
   type TaskStatus,
   type TaskUpdateInput,
 } from "../api/device";
+import { toast } from "../ui/Toast";
 import { queryClient } from "./queryClient";
 import { queryKeys } from "./queryKeys";
 
@@ -73,6 +74,7 @@ export function useTaskMutations() {
     },
     onError: (_err, _input, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKeys.tasks, ctx.prev);
+      toast("Couldn't add the task.");
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.tasks }),
   });
@@ -108,6 +110,7 @@ export function useTaskMutations() {
     },
     onError: (_err, _input, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKeys.tasks, ctx.prev);
+      toast("Couldn't save the task.");
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.tasks }),
   });
@@ -125,6 +128,7 @@ export function useTaskMutations() {
     },
     onError: (_err, _id, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKeys.tasks, ctx.prev);
+      toast("Couldn't delete the task.");
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.tasks }),
   });

@@ -17,6 +17,7 @@ import {
   type WikiPagePatch,
   type WikiTree,
 } from "../api/wiki";
+import { toast } from "../ui/Toast";
 import { queryClient } from "./queryClient";
 import { queryKeys } from "./queryKeys";
 
@@ -107,6 +108,7 @@ export function useWikiMutations() {
     },
     onError: (_err, args, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKeys.wikiPage(args.id), ctx.prev);
+      toast("Couldn't save the page.");
     },
     onSettled: (_page, _err, args) => {
       // Title/emoji/folder changes surface in the tree.

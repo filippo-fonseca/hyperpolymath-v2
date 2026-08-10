@@ -3,7 +3,7 @@ import { Alert, StyleSheet, TextInput, View, type TextInputProps } from "react-n
 
 import { useHabitMutations, type Habit } from "@/data/useHabits";
 import { useTheme } from "@/theme";
-import { AppText, Button, Chip, Sheet } from "@/ui";
+import { AppText, Button, Chip, Sheet, toast } from "@/ui";
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const ALL_DAYS = [true, true, true, true, true, true, true];
@@ -83,7 +83,7 @@ export function HabitSheet({ visible, habit, onClose }: HabitSheetProps) {
       else await create.mutateAsync(payload);
       onClose();
     } catch {
-      Alert.alert("Couldn't save", "Check your connection and try again.");
+      toast("Couldn't save the habit.");
     }
   };
 
@@ -93,7 +93,7 @@ export function HabitSheet({ visible, habit, onClose }: HabitSheetProps) {
       await update.mutateAsync({ id: habit.id, archived: true });
       onClose();
     } catch {
-      Alert.alert("Couldn't archive", "Check your connection and try again.");
+      toast("Couldn't archive the habit.");
     }
   };
 
@@ -108,9 +108,7 @@ export function HabitSheet({ visible, habit, onClose }: HabitSheetProps) {
           remove
             .mutateAsync(habit.id)
             .then(onClose)
-            .catch(() =>
-              Alert.alert("Couldn't delete", "Check your connection and try again."),
-            );
+            .catch(() => toast("Couldn't delete the habit."));
         },
       },
     ]);
