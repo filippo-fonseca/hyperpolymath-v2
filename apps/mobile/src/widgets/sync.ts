@@ -57,7 +57,7 @@ export function buildTasksSnapshot(tasks: Task[], todayISO: string): TasksWidget
     todayCount: today.length,
     doneCount: tasks.filter((t) => t.dueDate === todayISO && t.status === "lesno").length,
     overdueCount: open.filter((t) => (t.dueDate as string) < todayISO).length,
-    tasks: today.slice(0, 7).map((t) => ({
+    tasks: today.slice(0, 8).map((t) => ({
       id: t.id,
       title: t.title,
       time: t.dueTime ?? "",

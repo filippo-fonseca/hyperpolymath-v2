@@ -13,6 +13,12 @@ type CaptureWidgetProps = {
   ready?: boolean;
 };
 
+/**
+ * frame() max sizes must be finite: Infinity does not survive the JS→Swift
+ * bridge and the fill-the-widget frame silently drops.
+ */
+const FILL = 10000;
+
 const CaptureWidget = (_props: CaptureWidgetProps, environment: WidgetEnvironment) => {
   "widget";
 
@@ -30,7 +36,7 @@ const CaptureWidget = (_props: CaptureWidgetProps, environment: WidgetEnvironmen
       modifiers={[
         containerBackground(bg, "widget"),
         padding({ all: 12 }),
-        frame({ maxWidth: Infinity, maxHeight: Infinity, alignment: "center" }),
+        frame({ maxWidth: FILL, maxHeight: FILL, alignment: "center" }),
         widgetURL("jarvis:///captures?compose=1"),
       ]}
     >
