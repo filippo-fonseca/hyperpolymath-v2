@@ -25,10 +25,7 @@ import { logJarvisEvent } from "@/lib/jarvis/log-event";
 import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
 import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
 import { validateTurnReferences } from "@/lib/jarvis/validate-references";
-import {
-  buildCalendarListBlock,
-  getCalendarOptionsForJarvis,
-} from "@/lib/jarvis/calendar-options";
+import { buildCalendarListBlock, getCalendarOptionsForJarvis } from "@/lib/jarvis/calendar-options";
 import { stripMarkdownForSpeech } from "@/lib/voice/strip-markdown-for-speech";
 import {
   buildSystemPrompt,
@@ -636,9 +633,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     // Calendar routing allowlist — exactly the writable ids the model was
     // shown in the USER CALENDARS block. Omitted (undefined) when the fetch
     // failed open, preserving the strict legacy validation path.
-    ...(calendarOptions.length > 0
-      ? { allowedCalendarIds: calendarOptions.map((c) => c.id) }
-      : {}),
+    ...(calendarOptions.length > 0 ? { allowedCalendarIds: calendarOptions.map((c) => c.id) } : {}),
   };
 
   const promptBuiltAt_d = new Date();
