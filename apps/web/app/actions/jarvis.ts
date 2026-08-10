@@ -29,6 +29,7 @@ import { captures, tasks, tasksProjects } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { undoJarvisActionForUser, type UndoTarget } from "@/lib/jarvis/undo";
 import { RecurrenceRuleSchema, normalizeRule } from "@/lib/tasks/recurrence";
+import { normalizeReminderOffsets } from "@/lib/tasks/reminders";
 
 export type {
   UndoTarget,
@@ -58,6 +59,14 @@ const ConvertSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable()
     .optional(),
+  // Issue #396 — optional time-of-day + reminder offsets, same invariants as
+  // the task actions: both are dropped when no dueDate came with them.
+  dueTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable()
+    .optional(),
+  reminderOffsetsMin: z.array(z.number().int()).max(8).nullable().optional(),
 });
 
 export type ConvertCaptureToTaskInput = z.input<typeof ConvertSchema>;
@@ -101,6 +110,10 @@ export async function convertCaptureToTask(
         priority: parsed.data.priority,
         status: "not started", // DB enum literal with SPACE
         dueDate: parsed.data.dueDate ?? null,
+        dueTime: parsed.data.dueDate ? (parsed.data.dueTime ?? null) : null,
+        reminderOffsetsMin: parsed.data.dueDate
+          ? normalizeReminderOffsets(parsed.data.reminderOffsetsMin ?? [])
+          : [],
         recurrence: parsed.data.recurrence
           ? normalizeRule(parsed.data.recurrence)
           : null,
