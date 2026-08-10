@@ -211,7 +211,10 @@ export const TaskCard = memo(function TaskCard({
             )}
             {cardFields.dueDate && task.dueDate && (
               <CardPill tone={isOverdue ? "coral" : "muted"}>
-                <span className="font-mono">{formatDate(task.dueDate)}</span>
+                <span className="font-mono">
+                  {formatDate(task.dueDate)}
+                  {task.dueTime ? ` \u00b7 ${task.dueTime}` : ""}
+                </span>
               </CardPill>
             )}
             {/* Recurring-task marker (issue #144), quiet and neutral. */}

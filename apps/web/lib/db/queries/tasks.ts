@@ -18,6 +18,8 @@ export interface TaskWithProjects {
   priority: "P∞" | "P1" | "P2" | "P3";
   status: "not started" | "up next" | "in progress" | "almost done" | "lesno";
   dueDate: string | null;
+  /** Optional time-of-day for the due date, always "HH:MM" 24h (NULL = whole-day). */
+  dueTime: string | null;
   kanbanPosition: number;
   completedAt: Date | null;
   createdAt: Date;
@@ -39,6 +41,11 @@ export interface TaskWithProjects {
    * The detail panel gates its lazy on-open people backfill on this being null.
    */
   peopleDerivedAt: string | null;
+}
+
+/** Postgres `time` serializes as "HH:MM:SS"; clients always see "HH:MM". */
+export function normalizeDueTime(value: string | null): string | null {
+  return value ? value.slice(0, 5) : null;
 }
 
 /**
@@ -143,6 +150,7 @@ export async function getAllTasksForUser(
     priority: t.priority as TaskWithProjects["priority"],
     status: t.status as TaskWithProjects["status"],
     dueDate: t.dueDate,
+    dueTime: normalizeDueTime(t.dueTime),
     kanbanPosition: t.kanbanPosition,
     completedAt: t.completedAt,
     createdAt: t.createdAt,
@@ -181,6 +189,7 @@ export async function getTasksForProject(
     priority: r.task.priority as TaskWithProjects["priority"],
     status: r.task.status as TaskWithProjects["status"],
     dueDate: r.task.dueDate,
+    dueTime: normalizeDueTime(r.task.dueTime),
     kanbanPosition: r.task.kanbanPosition,
     completedAt: r.task.completedAt,
     createdAt: r.task.createdAt,

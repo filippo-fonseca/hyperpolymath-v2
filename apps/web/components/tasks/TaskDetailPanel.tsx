@@ -215,6 +215,8 @@ interface FormState {
   status: Status;
   priority: Priority;
   dueDate: string;
+  /** "HH:MM" 24h; "" = date-only. Cleared alongside dueDate. */
+  dueTime: string;
   url: string | null;
   notes: string;
   projectIds: string[];
@@ -229,6 +231,7 @@ function toFormState(task: TaskWithProjects): FormState {
     status: task.status as Status,
     priority: task.priority as Priority,
     dueDate: task.dueDate ?? "",
+    dueTime: task.dueTime ?? "",
     url: task.url ?? null,
     notes: task.notes ?? "",
     projectIds: task.projects.map((p) => p.id),
@@ -321,6 +324,7 @@ function isDirty(a: FormState, b: FormState): boolean {
     a.status !== b.status ||
     a.priority !== b.priority ||
     a.dueDate !== b.dueDate ||
+    a.dueTime !== b.dueTime ||
     a.url !== b.url ||
     a.notes !== b.notes ||
     // Copy before sorting: `a` and `b` are live form state, and sorting them
@@ -397,6 +401,7 @@ export function TaskDetailPanel({
     status: "not started",
     priority: "P3",
     dueDate: "",
+    dueTime: "",
     url: null,
     notes: "",
     projectIds: [],
@@ -564,6 +569,7 @@ export function TaskDetailPanel({
         priority: form.priority,
         status: form.status,
         dueDate: form.dueDate || null,
+        dueTime: form.dueDate && form.dueTime ? form.dueTime : null,
         url: form.url,
         kanbanPosition: 0,
         completedAt: null,
@@ -586,6 +592,7 @@ export function TaskDetailPanel({
       priority: form.priority,
       status: form.status,
       dueDate: form.dueDate || null,
+      dueTime: form.dueDate && form.dueTime ? form.dueTime : null,
       url: form.url,
       projectIds: form.projectIds,
       recurrence: form.recurrence,
@@ -617,6 +624,7 @@ export function TaskDetailPanel({
       priority: form.priority,
       status: form.status,
       dueDate: form.dueDate || null,
+      dueTime: form.dueDate && form.dueTime ? form.dueTime : null,
       url: form.url,
       recurrence: form.recurrence,
     };
@@ -893,12 +901,31 @@ export function TaskDetailPanel({
                     "transition-colors duration-[160ms] ease-out"
                   )}
                 />
-                {/* Inline clear — empties the date → Inbox on save. Reversible,
-                    so no confirm dialog. */}
+                {/* Optional time-of-day; only meaningful with a date. */}
+                {form.dueDate && (
+                  <input
+                    type="time"
+                    value={form.dueTime}
+                    onChange={(e) => set("dueTime", e.target.value)}
+                    title="Due time (optional)"
+                    aria-label="Due time (optional)"
+                    className={cn(
+                      "h-8 w-[92px] rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-2",
+                      "font-mono text-meta text-[var(--ink)] outline-none tabular-nums",
+                      "focus-visible:border-[var(--edge-strong)]",
+                      "transition-colors duration-[160ms] ease-out"
+                    )}
+                  />
+                )}
+                {/* Inline clear — empties the date (and its time) → Inbox on
+                    save. Reversible, so no confirm dialog. */}
                 {form.dueDate && (
                   <button
                     type="button"
-                    onClick={() => set("dueDate", "")}
+                    onClick={() => {
+                      set("dueDate", "");
+                      set("dueTime", "");
+                    }}
                     title="Clear due date (move to Inbox)"
                     aria-label="Clear due date (move to Inbox)"
                     className="cursor-pointer-always rounded-sm p-1 text-[var(--ink-faint)] transition-colors duration-[160ms] hover:text-[var(--ink)]"

@@ -118,11 +118,17 @@ export function UpcomingTasksWidget({
   ).length;
 
   const upcoming = open
-    .sort(
-      (a, b) =>
+    .sort((a, b) => {
+      const byDate =
         new Date(a.dueDate as string).getTime() -
-        new Date(b.dueDate as string).getTime(),
-    )
+        new Date(b.dueDate as string).getTime();
+      if (byDate !== 0) return byDate;
+      // Same day: timed tasks first, in time order; date-only tasks last.
+      if (a.dueTime && b.dueTime) return a.dueTime.localeCompare(b.dueTime);
+      if (a.dueTime) return -1;
+      if (b.dueTime) return 1;
+      return 0;
+    })
     .slice(0, limit);
 
   // Done tasks sink to the bottom cluster. Optimistically-checked rows (still
@@ -330,6 +336,7 @@ export function UpcomingTasksWidget({
                       style={{ color: due.color }}
                     >
                       {due.label ?? format(new Date(t.dueDate as string), "MMM d")}
+                      {t.dueTime ? ` \u00b7 ${t.dueTime}` : ""}
                     </span>
                   </div>
                 </motion.li>
