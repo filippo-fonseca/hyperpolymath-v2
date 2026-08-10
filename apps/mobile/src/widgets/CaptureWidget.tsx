@@ -13,14 +13,13 @@ type CaptureWidgetProps = {
   ready?: boolean;
 };
 
-/**
- * frame() max sizes must be finite: Infinity does not survive the JS→Swift
- * bridge and the fill-the-widget frame silently drops.
- */
-const FILL = 10000;
-
 const CaptureWidget = (_props: CaptureWidgetProps, environment: WidgetEnvironment) => {
   "widget";
+
+  // Inside the function body: the widget bundle ships only this closure, so a
+  // module-level constant is a ReferenceError at widget runtime. Finite
+  // because Infinity does not survive the JS→Swift bridge.
+  const FILL = 10000;
 
   // Craft palette (REBUILD.md) — keep in sync with src/theme/tokens.ts.
   const dark = environment.colorScheme === "dark";

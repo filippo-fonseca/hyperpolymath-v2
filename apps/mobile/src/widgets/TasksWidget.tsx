@@ -33,15 +33,15 @@ export type TasksWidgetProps = {
   pending: string[];
 };
 
-/**
- * frame() max sizes must be finite: Infinity does not survive the JS→Swift
- * bridge, the modifier silently drops, and the root renders at intrinsic
- * height — iOS then centers the oversized content and clips both edges.
- */
-const FILL = 10000;
-
 const TasksWidget = (props: TasksWidgetProps, environment: WidgetEnvironment) => {
   "widget";
+
+  // Inside the function body: the widget bundle ships only this closure, so a
+  // module-level constant is a ReferenceError at widget runtime (RedBox).
+  // Finite because Infinity does not survive the JS→Swift bridge — the frame
+  // silently drops, the root renders at intrinsic height, and iOS centers the
+  // oversized content and clips both edges.
+  const FILL = 10000;
 
   // Craft palette (REBUILD.md) — hardcoded because the Swift bundle cannot
   // import src/theme; keep in sync with src/theme/tokens.ts.
