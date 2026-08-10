@@ -542,6 +542,7 @@ export function useJarvisEngine() {
   );
 
   const clearConversation = useCallback(async () => {
+    ttsQueue.current?.stop();
     setTurns([]);
     setActiveTurnId(null);
     setAwaitingTurn(false);
