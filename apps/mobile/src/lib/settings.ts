@@ -20,12 +20,15 @@ export interface MobileSettings {
   serverUrl: string;
   ttsEnabled: boolean;
   voiceId: string;
+  /** Tasks screen: completed-cluster disclosure (mirrors web localStorage). */
+  tasksCompletedOpen: boolean;
 }
 
 const DEFAULTS: MobileSettings = {
   serverUrl: DEFAULT_SERVER_URL,
   ttsEnabled: true,
   voiceId: DEFAULT_VOICE_ID,
+  tasksCompletedOpen: false,
 };
 
 let cached: MobileSettings = { ...DEFAULTS };

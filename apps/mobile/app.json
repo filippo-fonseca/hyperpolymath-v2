@@ -6,8 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "jarvis",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#1c1d28",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#f9f5f0",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.hyperpolymath.jarvis",
@@ -48,6 +48,7 @@
           "speechRecognitionPermission": "JARVIS shows your words live on screen while you dictate."
         }
       ],
+      "./plugins/with-widget-version.js",
       [
         "expo-widgets",
         {
@@ -55,34 +56,25 @@
           "groupIdentifier": "group.com.hyperpolymath.jarvis",
           "widgets": [
             {
-              "name": "TodayWidget",
-              "displayName": "Today",
-              "description": "Tasks, habits, and calendar for today.",
+              "name": "TasksWidget",
+              "displayName": "Tasks",
+              "description": "Scheduled tasks, due dates, and overdue count.",
               "ios": {
                 "supportedFamilies": [
+                  "systemMedium",
                   "systemLarge"
                 ],
                 "contentMarginsDisabled": true
               }
             },
             {
-              "name": "TalkWidget",
-              "displayName": "Talk to JARVIS",
-              "description": "Open JARVIS and start talking.",
+              "name": "HabitsWidget",
+              "displayName": "Habits",
+              "description": "Today's habits and completion progress.",
               "ios": {
                 "supportedFamilies": [
-                  "systemSmall"
-                ],
-                "contentMarginsDisabled": true
-              }
-            },
-            {
-              "name": "NewTaskWidget",
-              "displayName": "New Task",
-              "description": "Jump straight into a new task.",
-              "ios": {
-                "supportedFamilies": [
-                  "systemSmall"
+                  "systemSmall",
+                  "systemMedium"
                 ],
                 "contentMarginsDisabled": true
               }
@@ -101,7 +93,10 @@
           ]
         }
       ],
-      "./plugins/with-widget-version.js"
+      "expo-router",
+      "expo-status-bar",
+      "expo-splash-screen",
+      "expo-notifications"
     ],
     "extra": {
       "eas": {

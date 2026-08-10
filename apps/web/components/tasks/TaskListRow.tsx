@@ -284,10 +284,12 @@ export const TaskListRow = memo(function TaskListRow({
               style={{ background: "var(--ink-coral)" }}
             />
             {formatDate(task.dueDate)}
+            {task.dueTime ? ` \u00b7 ${task.dueTime}` : ""}
           </span>
         ) : (
           <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--hover)] px-2 py-0.5 font-mono text-micro tabular-nums text-[var(--ink-muted)]">
             {formatDate(task.dueDate)}
+            {task.dueTime ? ` \u00b7 ${task.dueTime}` : ""}
           </span>
         ))}
 

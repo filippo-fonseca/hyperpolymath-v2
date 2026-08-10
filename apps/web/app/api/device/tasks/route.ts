@@ -20,6 +20,7 @@ const STATUSES = ["not started", "up next", "in progress", "almost done", "lesno
 type Priority = (typeof PRIORITIES)[number];
 type Status = (typeof STATUSES)[number];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function bad(error: string): Response {
   return Response.json({ error }, { status: 400, headers: CORS });
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     priority?: Priority;
     status?: Status;
     dueDate?: string | null;
+    dueTime?: string | null;
     projectIds?: string[];
   };
   try {
@@ -73,6 +75,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   const status = STATUSES.includes(body.status as Status) ? body.status! : "not started";
   const dueDate =
     typeof body.dueDate === "string" && DATE_RE.test(body.dueDate) ? body.dueDate : null;
+  // Time-of-day rides the date: ignored when no valid dueDate came with it.
+  const dueTime =
+    dueDate && typeof body.dueTime === "string" && TIME_RE.test(body.dueTime)
+      ? body.dueTime
+      : null;
   const projectIds = await verifyProjects(
     userId,
     Array.isArray(body.projectIds) ? body.projectIds.slice(0, 20) : [],
@@ -93,6 +100,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       priority,
       status,
       dueDate,
+      dueTime,
       kanbanPosition: (maxPos ?? -1) + 1,
       completedAt: status === "lesno" ? new Date() : null,
     });
@@ -116,6 +124,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     priority?: Priority;
     status?: Status;
     dueDate?: string | null;
+    dueTime?: string | null;
     projectIds?: string[];
   };
   try {
@@ -143,10 +152,25 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     } else if (body.status !== "lesno" && existing[0].status === "lesno") {
       set.completedAt = null;
     }
+    // Parity with updateTaskStatus: a card entering a new column appends to
+    // its end instead of keeping a position minted for the old column.
+    if (body.status !== existing[0].status) {
+      const [{ maxPos }] = await db
+        .select({ maxPos: max(tasks.kanbanPosition) })
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), eq(tasks.status, body.status as Status)));
+      set.kanbanPosition = (maxPos ?? -1) + 1;
+    }
   }
   if (body.dueDate !== undefined) {
     set.dueDate =
       typeof body.dueDate === "string" && DATE_RE.test(body.dueDate) ? body.dueDate : null;
+    // A time without a date is meaningless: clearing the date clears the time.
+    if (set.dueDate === null) set.dueTime = null;
+  }
+  if (body.dueTime !== undefined) {
+    set.dueTime =
+      typeof body.dueTime === "string" && TIME_RE.test(body.dueTime) ? body.dueTime : null;
   }
 
   let projectIds: string[] | null = null;

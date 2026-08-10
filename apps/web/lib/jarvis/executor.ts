@@ -245,6 +245,20 @@ function dateInUserTz(iso: string, tz: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date(iso));
 }
 
+// "HH:MM" of an ISO timestamp in the USER'S timezone, or null when the input
+// is date-only or lands exactly on midnight (the model emits bare dates as
+// 00:00 too often to treat midnight as a real deadline). Migration 0042.
+function timeInUserTz(iso: string, tz: string): string | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const hm = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(iso));
+  return hm === "00:00" ? null : hm;
+}
+
 // Clicky slice — WMO weather interpretation codes → human phrase.
 // Open-Meteo `weather_code` follows the WMO 4677 table.
 function describeWeatherCode(code: number): string {
@@ -464,6 +478,9 @@ export function createServerExecutor(): ActionExecutor {
             // model-emitted timestamp to the calendar date in the USER'S
             // timezone, never the UTC date. No due → NULL → Inbox (D-02).
             dueDate: input.due ? dateInUserTz(input.due, ctx.userTimezone) : null,
+            // "tonight at 11pm" carries a real clock time — keep it so the
+            // phone can ring at 23:00, not just "sometime that day".
+            dueTime: input.due ? timeInUserTz(input.due, ctx.userTimezone) : null,
           });
           if (projectCheck.ids.length > 0) {
             await tx.insert(tasksProjects).values(
@@ -748,6 +765,7 @@ export function createServerExecutor(): ActionExecutor {
       if (input.status != null) set.status = input.status;
       if (input.due != null) {
         set.dueDate = input.due === "" ? null : dateInUserTz(input.due, ctx.userTimezone);
+        set.dueTime = input.due === "" ? null : timeInUserTz(input.due, ctx.userTimezone);
       }
       set.updatedAt = new Date();
 

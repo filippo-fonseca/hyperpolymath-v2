@@ -68,6 +68,13 @@ const CreateTaskSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable()
     .optional(),
+  // Optional time-of-day on the due date ("HH:MM" 24h). Meaningless without a
+  // dueDate, so writes ignore it when the date is absent. Migration 0042.
+  dueTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable()
+    .optional(),
   // Issue #101 — Notion-style URL property. Stored verbatim (normalized
   // client-side); null/absent = unset. Capped to keep the column sane.
   url: z.string().trim().max(2048).nullable().optional(),
@@ -112,6 +119,7 @@ export async function createTask(
         priority: parsed.data.priority,
         status: parsed.data.status,
         dueDate: parsed.data.dueDate ?? null,
+        dueTime: parsed.data.dueDate ? (parsed.data.dueTime ?? null) : null,
         url: parsed.data.url ? parsed.data.url : null,
         recurrence: parsed.data.recurrence
           ? normalizeRule(parsed.data.recurrence)
@@ -222,6 +230,13 @@ const UpdateTaskSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable()
     .optional(),
+  // Optional time-of-day on the due date ("HH:MM" 24h); null clears. Clearing
+  // dueDate clears dueTime with it (a time without a date is meaningless).
+  dueTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable()
+    .optional(),
   // Issue #101 — set, change, or clear (null) the URL property. Flows through
   // the generic `rest` apply loop below (null = clear, string = set).
   url: z.string().trim().max(2048).nullable().optional(),
@@ -256,6 +271,8 @@ export async function updateTask(
   // Issue #101 — treat an empty/whitespace URL as a clear (null) so the column
   // never holds the empty string.
   if (rest.url !== undefined) updates.url = rest.url ? rest.url : null;
+  // A time without a date is meaningless: clearing the date clears the time.
+  if (rest.dueDate === null) updates.dueTime = null;
   // Issue #144 — normalize a non-null recurrence rule before persisting.
   // `null` (clear / end recurrence) passes through verbatim.
   if (rest.recurrence !== undefined && rest.recurrence !== null) {

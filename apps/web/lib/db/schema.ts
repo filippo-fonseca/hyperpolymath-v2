@@ -7,6 +7,7 @@ import {
   integer,
   boolean,
   date,
+  time,
   bigint,
   numeric,
   primaryKey,
@@ -241,6 +242,10 @@ export const tasks = pgTable(
     priority: priorityEnum("priority").notNull().default("P3"),
     status: taskStatusEnum("status").notNull().default("not started"),
     dueDate: date("due_date"),
+    // Optional time-of-day for the due date ("HH:MM" to clients; Postgres
+    // `time` under the hood). NULL = due sometime that day. Only meaningful
+    // with a dueDate — writers clear it when the date clears. Migration 0042.
+    dueTime: time("due_time"),
     kanbanPosition: integer("kanban_position").notNull().default(0),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     // Issue #144 — Recurring TASKS (DISTINCT from Habits). NULL = one-off task.

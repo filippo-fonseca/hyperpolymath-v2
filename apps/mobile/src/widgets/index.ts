@@ -1,15 +1,13 @@
 import CaptureWidget from "./CaptureWidget";
-import NewTaskWidget from "./NewTaskWidget";
-import TalkWidget from "./TalkWidget";
-import TodayWidget from "./TodayWidget";
+import HabitsWidget from "./HabitsWidget";
+import TasksWidget from "./TasksWidget";
 
 /** Side-effect import: registers all WidgetKit kinds with the native runtime. */
 export function registerWidgets(): void {
   // Touching the factories keeps Metro from tree-shaking createWidget() calls.
-  void TodayWidget;
-  void TalkWidget;
-  void NewTaskWidget;
+  void TasksWidget;
+  void HabitsWidget;
   void CaptureWidget;
 }
 
-export { CaptureWidget, NewTaskWidget, TalkWidget, TodayWidget };
+export { CaptureWidget, HabitsWidget, TasksWidget };
