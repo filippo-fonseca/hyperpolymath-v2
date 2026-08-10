@@ -55,34 +55,25 @@
           "groupIdentifier": "group.com.hyperpolymath.jarvis",
           "widgets": [
             {
-              "name": "TodayWidget",
-              "displayName": "Today",
-              "description": "Tasks, habits, and calendar for today.",
+              "name": "TasksWidget",
+              "displayName": "Tasks",
+              "description": "Scheduled tasks, due dates, and overdue count.",
               "ios": {
                 "supportedFamilies": [
+                  "systemMedium",
                   "systemLarge"
                 ],
                 "contentMarginsDisabled": true
               }
             },
             {
-              "name": "TalkWidget",
-              "displayName": "Talk to JARVIS",
-              "description": "Open JARVIS and start talking.",
+              "name": "HabitsWidget",
+              "displayName": "Habits",
+              "description": "Today's habits and completion progress.",
               "ios": {
                 "supportedFamilies": [
-                  "systemSmall"
-                ],
-                "contentMarginsDisabled": true
-              }
-            },
-            {
-              "name": "NewTaskWidget",
-              "displayName": "New Task",
-              "description": "Jump straight into a new task.",
-              "ios": {
-                "supportedFamilies": [
-                  "systemSmall"
+                  "systemSmall",
+                  "systemMedium"
                 ],
                 "contentMarginsDisabled": true
               }

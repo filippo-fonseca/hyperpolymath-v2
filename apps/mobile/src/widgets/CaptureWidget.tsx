@@ -13,30 +13,34 @@ type CaptureWidgetProps = {
   ready?: boolean;
 };
 
-const CaptureWidget = (_props: CaptureWidgetProps, _environment: WidgetEnvironment) => {
+const CaptureWidget = (_props: CaptureWidgetProps, environment: WidgetEnvironment) => {
   "widget";
 
-  const ink = "#E8EAF5";
-  const inkFaint = "#7A8199";
-  const accent = "#22D3EE";
-  const app = "#1C1D28";
+  // Craft palette (REBUILD.md) — keep in sync with src/theme/tokens.ts.
+  const dark = environment.colorScheme === "dark";
+  const bg = dark ? "#272a2e" : "#ffffff";
+  const ink = dark ? "#d6d9dd" : "#36302c";
+  const muted = dark ? "#9da0a5" : "#78726d";
+  const accent = dark ? "#62b8d8" : "#277c99";
 
   return (
     <VStack
       alignment="center"
-      spacing={8}
+      spacing={6}
       modifiers={[
-        containerBackground(app, "widget"),
+        containerBackground(bg, "widget"),
         padding({ all: 12 }),
         frame({ maxWidth: Infinity, maxHeight: Infinity, alignment: "center" }),
-        widgetURL("jarvis://captures/new"),
+        widgetURL("jarvis:///captures?compose=1"),
       ]}
     >
       <Spacer />
-      <Image systemName="tray.and.arrow.down.fill" size={34} color={accent} />
-      <Text modifiers={[font({ size: 13, weight: "semibold" }), foregroundStyle(ink)]}>Capture</Text>
-      <Text modifiers={[font({ size: 10, design: "monospaced" }), foregroundStyle(inkFaint)]}>
-        QUICK
+      <Image systemName="square.and.pencil" size={30} color={accent} />
+      <Text modifiers={[font({ size: 13, weight: "semibold" }), foregroundStyle(ink)]}>
+        Capture
+      </Text>
+      <Text modifiers={[font({ size: 10 }), foregroundStyle(muted)]}>
+        Type a thought
       </Text>
       <Spacer />
     </VStack>
