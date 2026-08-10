@@ -95,7 +95,8 @@
       "./plugins/with-widget-version.js",
       "expo-router",
       "expo-status-bar",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "expo-notifications"
     ],
     "extra": {
       "eas": {
