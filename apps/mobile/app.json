@@ -48,6 +48,7 @@
           "speechRecognitionPermission": "JARVIS shows your words live on screen while you dictate."
         }
       ],
+      "./plugins/with-widget-version.js",
       [
         "expo-widgets",
         {
@@ -92,7 +93,6 @@
           ]
         }
       ],
-      "./plugins/with-widget-version.js",
       "expo-router",
       "expo-status-bar",
       "expo-splash-screen",
