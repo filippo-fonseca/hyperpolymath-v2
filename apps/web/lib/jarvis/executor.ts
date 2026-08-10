@@ -17,7 +17,10 @@
  *      via validateProjectIds. Cross-tenant project_ids fail-closed with
  *      kind:"validation".
  *   3. calendar_id is re-validated against the user's gcal_default_calendar_id
- *      + gcal_visible_calendar_ids BEFORE any gcal call.
+ *      + gcal_visible_calendar_ids BEFORE any gcal call. With calendar
+ *      routing active (ctx.allowedCalendarIds — the live writable list the
+ *      model was shown), those ids are also accepted, and an unknown id
+ *      falls back to the default calendar instead of failing the turn.
  *   4. Every JARVIS-created capture writes `created_via: "jarvis"` (D-14)
  *      so Plan 05-04's "Convert to task" affordance can key off it.
  *   5. createTask defaults to priority P3 + status "not started" (the DB
@@ -597,8 +600,32 @@ export function createServerExecutor(): ActionExecutor {
     },
 
     async createEvent(input: CreateEventAction, ctx: ExecutionContext): Promise<ExecutorResult> {
-      const calCheck = await validateCalendarId(ctx.userId, input.calendar_id);
-      if (!calCheck.ok || !calCheck.calendarId) {
+      // Jarvis calendar routing: when the turn boundary fetched the writable
+      // calendar list (ctx.allowedCalendarIds) and showed it to the model,
+      // accept exactly those ids directly. A model-emitted id outside the
+      // list (hallucinated, stale) falls back to the user's default calendar
+      // instead of failing the turn — losing the routing beats losing the
+      // event. Without allowedCalendarIds (legacy callers, tests) the strict
+      // validateCalendarId path is unchanged: default + visible + "primary",
+      // reject otherwise.
+      let resolvedCalendarId: string | null = null;
+      if (
+        input.calendar_id &&
+        ctx.allowedCalendarIds &&
+        ctx.allowedCalendarIds.includes(input.calendar_id)
+      ) {
+        resolvedCalendarId = input.calendar_id;
+      } else {
+        const calCheck = await validateCalendarId(ctx.userId, input.calendar_id);
+        if (calCheck.ok && calCheck.calendarId) {
+          resolvedCalendarId = calCheck.calendarId;
+        } else if (ctx.allowedCalendarIds) {
+          // Routing was active and the id is unknown everywhere → default.
+          const fallback = await validateCalendarId(ctx.userId, null);
+          resolvedCalendarId = fallback.ok ? fallback.calendarId : null;
+        }
+      }
+      if (!resolvedCalendarId) {
         return {
           ok: false,
           kind: "validation",
@@ -608,7 +635,7 @@ export function createServerExecutor(): ActionExecutor {
 
       try {
         const event = await createEventForJarvis(ctx.userId, {
-          calendarId: calCheck.calendarId,
+          calendarId: resolvedCalendarId,
           title: input.title,
           description: input.description,
           start: new Date(input.start),
