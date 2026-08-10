@@ -6,8 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "jarvis",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#1c1d28",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#f9f5f0",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.hyperpolymath.jarvis",
@@ -103,7 +103,8 @@
       ],
       "./plugins/with-widget-version.js",
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-splash-screen"
     ],
     "extra": {
       "eas": {
