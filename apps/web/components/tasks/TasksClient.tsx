@@ -721,6 +721,7 @@ export function TasksClient({
           projects: [],
           hashtags: [],
           people: [],
+          reminderOffsetsMin: [],
           peopleDerivedAt: null,
         },
       });
@@ -760,6 +761,7 @@ export function TasksClient({
         projects: [],
         hashtags: [],
         people: [],
+        reminderOffsetsMin: [],
         peopleDerivedAt: null,
       }
     : null;

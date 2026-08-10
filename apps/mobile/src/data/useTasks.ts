@@ -61,6 +61,7 @@ export function useTaskMutations() {
         status: input.status ?? "not started",
         dueDate: input.dueDate ?? null,
         dueTime: input.dueTime ?? null,
+        reminderOffsetsMin: input.reminderOffsetsMin ?? [],
         completedAt: null,
         createdAt: new Date().toISOString(),
         projects: [],
@@ -97,6 +98,9 @@ export function useTaskMutations() {
             ...("priority" in input && input.priority ? { priority: input.priority } : {}),
             ...("dueDate" in input ? { dueDate: input.dueDate ?? null } : {}),
             ...("dueTime" in input ? { dueTime: input.dueTime ?? null } : {}),
+            ...("reminderOffsetsMin" in input
+              ? { reminderOffsetsMin: input.reminderOffsetsMin ?? [] }
+              : {}),
           };
           if (input.status && input.status !== t.status) {
             next.status = input.status;

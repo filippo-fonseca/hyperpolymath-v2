@@ -582,6 +582,7 @@ export function TaskDetailPanel({
           displayName: name,
         })),
         people: personNames.map((name) => ({ id: `pending-${name}`, name })),
+        reminderOffsetsMin: [],
         peopleDerivedAt: null,
       },
     });

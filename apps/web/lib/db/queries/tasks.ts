@@ -20,6 +20,11 @@ export interface TaskWithProjects {
   dueDate: string | null;
   /** Optional time-of-day for the due date, always "HH:MM" 24h (NULL = whole-day). */
   dueTime: string | null;
+  /**
+   * Issue #396 — reminder offsets in minutes before the due moment, sorted
+   * ascending, each from the fixed preset ladder. Empty = no reminders.
+   */
+  reminderOffsetsMin: number[];
   kanbanPosition: number;
   completedAt: Date | null;
   createdAt: Date;
@@ -151,6 +156,7 @@ export async function getAllTasksForUser(
     status: t.status as TaskWithProjects["status"],
     dueDate: t.dueDate,
     dueTime: normalizeDueTime(t.dueTime),
+    reminderOffsetsMin: t.reminderOffsetsMin ?? [],
     kanbanPosition: t.kanbanPosition,
     completedAt: t.completedAt,
     createdAt: t.createdAt,
@@ -190,6 +196,7 @@ export async function getTasksForProject(
     status: r.task.status as TaskWithProjects["status"],
     dueDate: r.task.dueDate,
     dueTime: normalizeDueTime(r.task.dueTime),
+    reminderOffsetsMin: r.task.reminderOffsetsMin ?? [],
     kanbanPosition: r.task.kanbanPosition,
     completedAt: r.task.completedAt,
     createdAt: r.task.createdAt,
