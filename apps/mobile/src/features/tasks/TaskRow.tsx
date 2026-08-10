@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { Check } from "lucide-react-native";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
@@ -47,6 +47,30 @@ export const TaskRow = React.memo(function TaskRow({
   const [committing, setCommitting] = useState(false);
   const leaving = useSharedValue(0);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // FlashList recycles row instances: reset animation state when this
+  // instance is handed a different task, and settle the row once the
+  // optimistic update re-seats it (done) so it isn't stuck slid-out.
+  const idRef = useRef(task.id);
+  useEffect(() => {
+    if (idRef.current !== task.id) {
+      idRef.current = task.id;
+      setCommitting(false);
+      leaving.value = 0;
+    }
+  }, [task.id, leaving]);
+  useEffect(() => {
+    if (done) {
+      setCommitting(false);
+      leaving.value = 0;
+    }
+  }, [done, leaving]);
+  useEffect(
+    () => () => {
+      if (commitTimer.current) clearTimeout(commitTimer.current);
+    },
+    [],
+  );
 
   const leaveStyle = useAnimatedStyle(() => ({
     opacity: 1 - leaving.value * 0.9,
