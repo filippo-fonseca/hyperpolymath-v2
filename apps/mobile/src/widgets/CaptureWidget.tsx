@@ -40,7 +40,7 @@ const CaptureWidget = (_props: CaptureWidgetProps, environment: WidgetEnvironmen
         Capture
       </Text>
       <Text modifiers={[font({ size: 10 }), foregroundStyle(muted)]}>
-        Type a thought
+        really anything…
       </Text>
       <Spacer />
     </VStack>
