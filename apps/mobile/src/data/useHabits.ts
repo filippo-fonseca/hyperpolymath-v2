@@ -1,14 +1,8 @@
 // Habits data layer. Mirrors web semantics (REBUILD.md):
 //   - denominator = today's *scheduled* habits (daysOfWeek[getDay()])
-//   - absence of a completion row = not done
+//   - four-rung ladder not_started → in_progress → almost_done → done,
+//     cycling on tap; absence of a completion row IS not_started
 //   - streaks are schedule-aware, today is forgiven, only done days count
-//
-// Device-API limitation, noted for parity: the web habit ladder has four
-// rungs (not_started → in_progress → almost_done → done) but the device
-// endpoint only exposes a binary PUT toggle, and its completions payload
-// carries no status column. Mobile therefore models done/not-done;
-// advance() is a done↔not_started toggle until the device API grows the
-// ladder.
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -17,17 +11,30 @@ import {
   createHabit,
   deleteHabit,
   getHabits,
+  HABIT_LADDER,
   localDateString,
-  toggleHabit,
+  setHabitStatus,
   updateHabit,
   type Habit,
   type HabitCompletion,
   type HabitData,
+  type HabitLadderStatus,
 } from "../api/device";
 import { queryClient } from "./queryClient";
 import { queryKeys } from "./queryKeys";
 
-export type { Habit, HabitCompletion, HabitData };
+export type { Habit, HabitCompletion, HabitData, HabitLadderStatus };
+export { HABIT_LADDER };
+
+export function nextLadderStatus(status: HabitLadderStatus): HabitLadderStatus {
+  const i = HABIT_LADDER.indexOf(status);
+  return HABIT_LADDER[(i + 1) % HABIT_LADDER.length] ?? "not_started";
+}
+
+/** Ring fill ratio per rung (0, ⅓, ⅔, 1) — matches the web status ring. */
+export function ladderFill(status: HabitLadderStatus): number {
+  return HABIT_LADDER.indexOf(status) / (HABIT_LADDER.length - 1);
+}
 
 /** Days of window fetched for streak context (4 weeks + today). */
 const STREAK_WINDOW_DAYS = 28;
@@ -98,6 +105,7 @@ export interface HabitDayRow {
   habit: Habit;
   /** Scheduled for the requested day. */
   scheduledToday: boolean;
+  statusToday: HabitLadderStatus;
   doneToday: boolean;
   streak: StreakResult;
 }
@@ -111,8 +119,11 @@ export interface HabitDay {
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
-  /** Binary toggle (see module note on the ladder limitation). */
+  /** Cycle the four-rung ladder (done wraps back to not_started). */
+  advance: (habitId: string) => void;
+  /** Jump straight between done and not_started. */
   toggle: (habitId: string) => void;
+  setStatus: (habitId: string, status: HabitLadderStatus) => void;
   togglePending: boolean;
 }
 
@@ -122,14 +133,14 @@ export function useHabitDay(todayISO: string = localDateString(0)): HabitDay {
   const query = useHabits(windowStart, todayISO);
   const habitsKey = queryKeys.habits(windowStart, todayISO);
 
-  const toggleMutation = useMutation({
-    mutationFn: async (args: { habitId: string; completed: boolean }) => {
-      const ok = await toggleHabit({
+  const statusMutation = useMutation({
+    mutationFn: async (args: { habitId: string; status: HabitLadderStatus }) => {
+      const ok = await setHabitStatus({
         habitId: args.habitId,
         completedDate: todayISO,
-        completed: args.completed,
+        status: args.status,
       });
-      if (!ok) throw new Error("toggle habit failed");
+      if (!ok) throw new Error("set habit status failed");
     },
     onMutate: async (args) => {
       await queryClient.cancelQueries({ queryKey: habitsKey });
@@ -141,9 +152,17 @@ export function useHabitDay(todayISO: string = localDateString(0)): HabitDay {
         );
         return {
           ...data,
-          completions: args.completed
-            ? [...without, { habitId: args.habitId, completedDate: todayISO }]
-            : without,
+          completions:
+            args.status === "not_started"
+              ? without
+              : [
+                  ...without,
+                  {
+                    habitId: args.habitId,
+                    completedDate: todayISO,
+                    status: args.status,
+                  },
+                ],
         };
       });
       return { prev };
@@ -159,14 +178,21 @@ export function useHabitDay(todayISO: string = localDateString(0)): HabitDay {
   return useMemo(() => {
     const data = query.data;
     const habits = data?.habits ?? [];
+    // Only `done` days count toward streaks; today's ladder rung renders the ring.
     const doneByHabit = new Map<string, Set<string>>();
+    const todayStatusByHabit = new Map<string, HabitLadderStatus>();
     for (const c of data?.completions ?? []) {
-      let set = doneByHabit.get(c.habitId);
-      if (!set) {
-        set = new Set();
-        doneByHabit.set(c.habitId, set);
+      if ((c.status ?? "done") === "done") {
+        let set = doneByHabit.get(c.habitId);
+        if (!set) {
+          set = new Set();
+          doneByHabit.set(c.habitId, set);
+        }
+        set.add(c.completedDate);
       }
-      set.add(c.completedDate);
+      if (c.completedDate === todayISO) {
+        todayStatusByHabit.set(c.habitId, c.status ?? "done");
+      }
     }
 
     const empty: ReadonlySet<string> = new Set();
@@ -175,13 +201,20 @@ export function useHabitDay(todayISO: string = localDateString(0)): HabitDay {
       .sort((a, b) => a.orderIndex - b.orderIndex)
       .map((habit) => {
         const done = doneByHabit.get(habit.id) ?? empty;
+        const statusToday = todayStatusByHabit.get(habit.id) ?? "not_started";
         return {
           habit,
           scheduledToday: habit.daysOfWeek[dayOfWeekISO(todayISO)] === true,
-          doneToday: done.has(todayISO),
+          statusToday,
+          doneToday: statusToday === "done",
           streak: computeStreak(habit, done, todayISO, windowStart),
         };
       });
+
+    const setStatus = (habitId: string, status: HabitLadderStatus) =>
+      statusMutation.mutate({ habitId, status });
+    const statusOf = (habitId: string) =>
+      rows.find((r) => r.habit.id === habitId)?.statusToday ?? "not_started";
 
     const today = rows.filter((r) => r.scheduledToday);
     return {
@@ -192,11 +225,12 @@ export function useHabitDay(todayISO: string = localDateString(0)): HabitDay {
       isLoading: query.isLoading,
       isError: query.isError,
       refetch: () => void query.refetch(),
-      toggle: (habitId: string) => {
-        const row = rows.find((r) => r.habit.id === habitId);
-        toggleMutation.mutate({ habitId, completed: !(row?.doneToday ?? false) });
-      },
-      togglePending: toggleMutation.isPending,
+      advance: (habitId: string) =>
+        setStatus(habitId, nextLadderStatus(statusOf(habitId))),
+      toggle: (habitId: string) =>
+        setStatus(habitId, statusOf(habitId) === "done" ? "not_started" : "done"),
+      setStatus,
+      togglePending: statusMutation.isPending,
     };
   }, [query.data, query.isLoading, query.isError, todayISO, windowStart]);
 }

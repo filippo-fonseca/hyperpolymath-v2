@@ -100,9 +100,24 @@ export interface Habit {
   orderIndex: number;
 }
 
+export type HabitLadderStatus =
+  | "not_started"
+  | "in_progress"
+  | "almost_done"
+  | "done";
+
+export const HABIT_LADDER: readonly HabitLadderStatus[] = [
+  "not_started",
+  "in_progress",
+  "almost_done",
+  "done",
+];
+
 export interface HabitCompletion {
   habitId: string;
   completedDate: string;
+  /** Ladder rung; rows only exist past not_started (absence = not_started). */
+  status: HabitLadderStatus;
 }
 
 export interface HabitData {
@@ -148,13 +163,26 @@ export async function updateHabit(input: {
   return data?.ok === true;
 }
 
-/** PUT toggle — the device API's only completion write (binary done/undone). */
+/** Binary PUT toggle (kept for widgets and quick paths). */
 export async function toggleHabit(input: {
   habitId: string;
   completedDate: string;
   completed: boolean;
 }): Promise<boolean> {
   const data = await call<{ completed: boolean }>("/api/device/habits", {
+    method: "PUT",
+    body: input,
+  });
+  return data !== null;
+}
+
+/** Four-rung ladder PUT; the server deletes the row on not_started. */
+export async function setHabitStatus(input: {
+  habitId: string;
+  completedDate: string;
+  status: HabitLadderStatus;
+}): Promise<boolean> {
+  const data = await call<{ status: HabitLadderStatus }>("/api/device/habits", {
     method: "PUT",
     body: input,
   });
