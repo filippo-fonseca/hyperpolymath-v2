@@ -173,9 +173,16 @@ export const TaskRow = React.memo(function TaskRow({
           </AppText>
         ) : null}
         {due && !done ? (
-          <AppText variant="micro" weight="medium" color={dueColor}>
-            {due.text}
-          </AppText>
+          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4 }}>
+            <AppText variant="micro" weight="medium" color={dueColor}>
+              {due.text}
+            </AppText>
+            {task.dueTime ? (
+              <AppText variant="micro" mono color={dueColor}>
+                {`· ${task.dueTime}`}
+              </AppText>
+            ) : null}
+          </View>
         ) : null}
       </PressableRow>
     </Animated.View>

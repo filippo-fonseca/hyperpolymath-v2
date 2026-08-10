@@ -35,6 +35,8 @@ export interface Task {
   priority: Priority;
   status: TaskStatus;
   dueDate: string | null;
+  /** "HH:MM" 24h local time-of-day on the due date; null = date-only. */
+  dueTime: string | null;
   completedAt: string | null;
   createdAt: string;
   projects: { id: string; name: string }[];
@@ -45,6 +47,7 @@ export interface TaskCreateInput {
   priority?: Priority;
   status?: TaskStatus;
   dueDate?: string | null;
+  dueTime?: string | null;
   notes?: string | null;
   projectIds?: string[];
 }
@@ -55,6 +58,7 @@ export interface TaskUpdateInput {
   priority?: Priority;
   status?: TaskStatus;
   dueDate?: string | null;
+  dueTime?: string | null;
   notes?: string | null;
   projectIds?: string[];
 }

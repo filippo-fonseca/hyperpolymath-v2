@@ -59,6 +59,7 @@ export function useTaskMutations() {
         priority: input.priority ?? "P3",
         status: input.status ?? "not started",
         dueDate: input.dueDate ?? null,
+        dueTime: input.dueTime ?? null,
         completedAt: null,
         createdAt: new Date().toISOString(),
         projects: [],
@@ -93,6 +94,7 @@ export function useTaskMutations() {
             ...("notes" in input ? { notes: input.notes ?? null } : {}),
             ...("priority" in input && input.priority ? { priority: input.priority } : {}),
             ...("dueDate" in input ? { dueDate: input.dueDate ?? null } : {}),
+            ...("dueTime" in input ? { dueTime: input.dueTime ?? null } : {}),
           };
           if (input.status && input.status !== t.status) {
             next.status = input.status;

@@ -60,6 +60,16 @@ export function dueInfo(dueDate: string | null, todayISO: string): DueInfo | nul
   return { text: dayLabel(dueDate), kind: "future" };
 }
 
+/** Date ascending, then due time with date-only (null) tasks last. */
+function byDueDateTime(a: Task, b: Task): number {
+  const byDate = (a.dueDate ?? "").localeCompare(b.dueDate ?? "");
+  if (byDate !== 0) return byDate;
+  if (a.dueTime === b.dueTime) return 0;
+  if (a.dueTime === null) return 1;
+  if (b.dueTime === null) return -1;
+  return a.dueTime.localeCompare(b.dueTime);
+}
+
 export type Row =
   | { type: "section"; key: string; title: string; count: number; overdue?: boolean }
   | { type: "day"; key: string; label: string }
@@ -86,11 +96,11 @@ export function buildRows(
 
   const overdue = open
     .filter((t) => t.dueDate !== null && t.dueDate < todayISO)
-    .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!));
-  const today = open.filter((t) => t.dueDate === todayISO);
+    .sort(byDueDateTime);
+  const today = open.filter((t) => t.dueDate === todayISO).sort(byDueDateTime);
   const upcoming = open
     .filter((t) => t.dueDate !== null && t.dueDate > todayISO)
-    .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!));
+    .sort(byDueDateTime);
   const inbox = open.filter((t) => t.dueDate === null);
 
   const rows: Row[] = [];
