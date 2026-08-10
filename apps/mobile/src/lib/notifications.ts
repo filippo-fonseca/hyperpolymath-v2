@@ -10,6 +10,7 @@
 // pending notifications on the next sync.
 
 import * as Notifications from "expo-notifications";
+import { router, type Href } from "expo-router";
 import { useEffect } from "react";
 
 import type { Task } from "../api/device";
@@ -174,6 +175,32 @@ export async function syncTaskNotifications(tasks: Task[]): Promise<void> {
       if (tasksNow) void syncTaskNotifications(tasksNow);
     }
   }
+}
+
+let routedColdStart = false;
+
+/**
+ * Routes notification taps to their data.url payload ("/tasks"). Covers
+ * both the warm tap (listener) and the cold-start tap that launched the
+ * app (last response, replayed once per process). Mount once in the
+ * authed shell.
+ */
+export function useNotificationTapRouting(): void {
+  useEffect(() => {
+    const route = (resp: Notifications.NotificationResponse | null) => {
+      const url = (resp?.notification.request.content.data as { url?: unknown } | null)
+        ?.url;
+      if (typeof url === "string" && url.startsWith("/")) router.push(url as Href);
+    };
+    if (!routedColdStart) {
+      routedColdStart = true;
+      Notifications.getLastNotificationResponseAsync()
+        .then(route)
+        .catch(() => {});
+    }
+    const sub = Notifications.addNotificationResponseReceivedListener(route);
+    return () => sub.remove();
+  }, []);
 }
 
 /**
