@@ -25,7 +25,9 @@ function bad(error: string): Response {
  *   GET ?start=YYYY-MM-DD&end=YYYY-MM-DD → active habits + completions in range
  *   POST   → create { name, description?, icon?, daysOfWeek }
  *   PATCH  → update { id, name?, description?, icon?, daysOfWeek?, archived? }
- *   PUT    → toggle completion { habitId, completedDate, completed }
+ *   PUT    → set completion { habitId, completedDate, completed } (binary toggle)
+ *            or { habitId, completedDate, status } with the four-rung ladder
+ *            not_started | in_progress | almost_done | done (not_started deletes)
  *   DELETE ?id= → hard delete
  * completedDate is a plain YYYY-MM-DD in the USER's local day — stored
  * verbatim, no timezone math (matches the web habits contract).
@@ -50,12 +52,13 @@ export async function GET(req: NextRequest): Promise<Response> {
     .where(and(eq(habits.userId, userId), isNull(habits.archivedAt)))
     .orderBy(asc(habits.orderIndex), asc(habits.createdAt));
 
-  let completions: Array<{ habitId: string; completedDate: string }> = [];
+  let completions: Array<{ habitId: string; completedDate: string; status: string }> = [];
   if (start && end && DATE_RE.test(start) && DATE_RE.test(end)) {
     const rows = await db
       .select({
         habitId: habitCompletions.habitId,
         completedDate: habitCompletions.completedDate,
+        status: habitCompletions.status,
       })
       .from(habitCompletions)
       .where(
@@ -68,6 +71,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     completions = rows.map((r) => ({
       habitId: r.habitId,
       completedDate: String(r.completedDate),
+      status: r.status ?? "done",
     }));
   }
 
@@ -156,19 +160,33 @@ export async function PUT(req: NextRequest): Promise<Response> {
   const userId = await validateDesktopBearer(req);
   if (!userId) return new Response("Unauthorized", { status: 401, headers: CORS });
 
-  let body: { habitId?: string; completedDate?: string; completed?: boolean };
+  let body: {
+    habitId?: string;
+    completedDate?: string;
+    completed?: boolean;
+    status?: string;
+  };
   try {
     body = await req.json();
   } catch {
     return bad("Invalid JSON");
   }
+  const LADDER = ["not_started", "in_progress", "almost_done", "done"] as const;
+  const status =
+    typeof body.status === "string" && (LADDER as readonly string[]).includes(body.status)
+      ? (body.status as (typeof LADDER)[number])
+      : typeof body.completed === "boolean"
+        ? body.completed
+          ? "done"
+          : "not_started"
+        : null;
   if (
     typeof body.habitId !== "string" ||
     typeof body.completedDate !== "string" ||
     !DATE_RE.test(body.completedDate) ||
-    typeof body.completed !== "boolean"
+    status === null
   ) {
-    return bad("habitId, completedDate (YYYY-MM-DD), completed required");
+    return bad("habitId, completedDate (YYYY-MM-DD), and completed or status required");
   }
 
   // Ownership check before touching completions.
@@ -179,16 +197,9 @@ export async function PUT(req: NextRequest): Promise<Response> {
     .limit(1);
   if (!owned[0]) return bad("Not found");
 
-  if (body.completed) {
-    await db
-      .insert(habitCompletions)
-      .values({
-        habitId: body.habitId,
-        userId,
-        completedDate: body.completedDate,
-      })
-      .onConflictDoNothing();
-  } else {
+  // Mirrors setHabitCompletionStatus: absence of a row IS not_started, every
+  // other rung upserts onto the (habit_id, completed_date) unique index.
+  if (status === "not_started") {
     await db
       .delete(habitCompletions)
       .where(
@@ -198,8 +209,21 @@ export async function PUT(req: NextRequest): Promise<Response> {
           eq(habitCompletions.completedDate, body.completedDate),
         ),
       );
+  } else {
+    await db
+      .insert(habitCompletions)
+      .values({
+        habitId: body.habitId,
+        userId,
+        completedDate: body.completedDate,
+        status,
+      })
+      .onConflictDoUpdate({
+        target: [habitCompletions.habitId, habitCompletions.completedDate],
+        set: { status, completedAt: new Date() },
+      });
   }
-  return Response.json({ completed: body.completed }, { headers: CORS });
+  return Response.json({ status, completed: status === "done" }, { headers: CORS });
 }
 
 export async function DELETE(req: NextRequest): Promise<Response> {
