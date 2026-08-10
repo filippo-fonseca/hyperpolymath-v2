@@ -13,6 +13,8 @@ export interface WikiFolder {
   id: string;
   name: string;
   parentId: string | null;
+  /** Palette token ("sage", "sky", …) when the folder is painted on web. */
+  color: string | null;
   positionKey: string | null;
 }
 

@@ -27,6 +27,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         id: pageFolders.id,
         name: pageFolders.name,
         parentId: pageFolders.parentId,
+        color: pageFolders.color,
         positionKey: pageFolders.positionKey,
       })
       .from(pageFolders)

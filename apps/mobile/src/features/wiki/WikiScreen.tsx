@@ -27,7 +27,7 @@ import {
   type WikiFolder,
   type WikiPageMeta,
 } from "@/data/useWiki";
-import { tintFor, useTheme, withAlpha } from "@/theme";
+import { entityTint, tintFor, useTheme, withAlpha } from "@/theme";
 import {
   AppText,
   Button,
@@ -410,9 +410,9 @@ function FolderGrid({
       }}
     >
       {folders.map((folder, i) => {
-        // Device tree carries no chosen color yet; the stable hash keeps
-        // every folder's hue consistent with the web's unpainted fallback.
-        const tint = tintFor(folder.id, t.scheme);
+        // Painted folders keep their web palette token; unpainted ones get
+        // the same stable hashed hue the web falls back to.
+        const tint = entityTint(folder.id, folder.color, t.scheme);
         const count = pagesPerFolder.get(folder.id) ?? 0;
         return (
           <Animated.View
