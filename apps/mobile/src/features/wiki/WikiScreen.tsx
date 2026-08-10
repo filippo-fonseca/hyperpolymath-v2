@@ -100,7 +100,8 @@ export default function WikiScreen() {
       const page = await getDailyPage();
       if (page) {
         queryClient.setQueryData(queryKeys.wikiPage(page.id), page);
-        router.push(`/wiki/${page.id}`);
+        // Daily quick entry drops straight into the editor with the caret set.
+        router.push(`/wiki/${page.id}?edit=1`);
       }
     } finally {
       setDailyOpening(false);
@@ -110,7 +111,7 @@ export default function WikiScreen() {
   const newPage = useCallback(() => {
     create.mutate(
       { folderId: currentId },
-      { onSuccess: (page) => router.push(`/wiki/${page.id}`) },
+      { onSuccess: (page) => router.push(`/wiki/${page.id}?edit=1`) },
     );
   }, [create, currentId, router]);
 
