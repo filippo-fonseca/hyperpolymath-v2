@@ -16,6 +16,11 @@ type CaptureWidgetProps = {
 const CaptureWidget = (_props: CaptureWidgetProps, environment: WidgetEnvironment) => {
   "widget";
 
+  // Inside the function body: the widget bundle ships only this closure, so a
+  // module-level constant is a ReferenceError at widget runtime. Finite
+  // because Infinity does not survive the JS→Swift bridge.
+  const FILL = 10000;
+
   // Craft palette (REBUILD.md) — keep in sync with src/theme/tokens.ts.
   const dark = environment.colorScheme === "dark";
   const bg = dark ? "#272a2e" : "#ffffff";
@@ -30,7 +35,7 @@ const CaptureWidget = (_props: CaptureWidgetProps, environment: WidgetEnvironmen
       modifiers={[
         containerBackground(bg, "widget"),
         padding({ all: 12 }),
-        frame({ maxWidth: Infinity, maxHeight: Infinity, alignment: "center" }),
+        frame({ maxWidth: FILL, maxHeight: FILL, alignment: "center" }),
         widgetURL("jarvis:///captures?compose=1"),
       ]}
     >

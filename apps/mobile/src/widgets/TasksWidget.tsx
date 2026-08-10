@@ -36,6 +36,13 @@ export type TasksWidgetProps = {
 const TasksWidget = (props: TasksWidgetProps, environment: WidgetEnvironment) => {
   "widget";
 
+  // Inside the function body: the widget bundle ships only this closure, so a
+  // module-level constant is a ReferenceError at widget runtime (RedBox).
+  // Finite because Infinity does not survive the JS→Swift bridge — the frame
+  // silently drops, the root renders at intrinsic height, and iOS centers the
+  // oversized content and clips both edges.
+  const FILL = 10000;
+
   // Craft palette (REBUILD.md) — hardcoded because the Swift bundle cannot
   // import src/theme; keep in sync with src/theme/tokens.ts.
   const dark = environment.colorScheme === "dark";
@@ -48,17 +55,21 @@ const TasksWidget = (props: TasksWidgetProps, environment: WidgetEnvironment) =>
   const todayCount = props.todayCount ?? 0;
   const doneCount = props.doneCount ?? 0;
   const overdueCount = props.overdueCount ?? 0;
-  const maxRows = environment.widgetFamily === "systemLarge" ? 7 : 4;
+  // Height budget against the smallest medium frame (148pt, SE-class):
+  // 24 v-padding + 16 header + 8 + rows(20pt + 5 spacing) [+ 29pt footer].
+  // 4 rows = 95pt ≤ the 100pt left; the done-footer costs one row on medium.
+  const maxRows =
+    environment.widgetFamily === "systemLarge" ? 8 : doneCount > 0 ? 3 : 4;
   const tasks = (props.tasks ?? []).slice(0, maxRows);
 
   return (
     <VStack
       alignment="leading"
-      spacing={10}
+      spacing={8}
       modifiers={[
         containerBackground(bg, "widget"),
-        padding({ all: 16 }),
-        frame({ maxWidth: Infinity, maxHeight: Infinity, alignment: "topLeading" }),
+        padding({ horizontal: 16, vertical: 12 }),
+        frame({ maxWidth: FILL, maxHeight: FILL, alignment: "topLeading" }),
         widgetURL("jarvis:///tasks"),
       ]}
     >
@@ -81,8 +92,8 @@ const TasksWidget = (props: TasksWidgetProps, environment: WidgetEnvironment) =>
           child parser drops a .map() that sits beside a sibling element. */}
       <VStack
         alignment="leading"
-        spacing={6}
-        modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}
+        spacing={5}
+        modifiers={[frame({ maxWidth: FILL, alignment: "leading" })]}
       >
         {tasks.length === 0 ? (
           <Text modifiers={[font({ size: 13 }), foregroundStyle(faint)]}>
@@ -107,7 +118,7 @@ const TasksWidget = (props: TasksWidgetProps, environment: WidgetEnvironment) =>
               <HStack
                 spacing={8}
                 alignment="center"
-                modifiers={[frame({ maxWidth: Infinity, height: 26, alignment: "leading" })]}
+                modifiers={[frame({ height: 20, alignment: "leading" })]}
               >
                 <Image systemName="circle" size={13} color={faint} />
                 {task.p1 ? (
@@ -140,7 +151,7 @@ const TasksWidget = (props: TasksWidgetProps, environment: WidgetEnvironment) =>
         )}
       </VStack>
 
-      <Spacer />
+      <Spacer minLength={0} />
 
       {doneCount > 0 ? <Divider modifiers={[opacity(0.35)]} /> : null}
       {doneCount > 0 ? (
