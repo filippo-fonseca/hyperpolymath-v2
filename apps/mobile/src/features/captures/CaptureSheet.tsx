@@ -43,7 +43,6 @@ export function CaptureSheet({
   const { height: windowHeight } = useWindowDimensions();
   const { update } = useCaptureMutations();
   const [draft, setDraft] = useState("");
-  const [editorHeight, setEditorHeight] = useState(EDITOR_MIN_HEIGHT);
   const inputRef = useRef<TextInput | null>(null);
 
   const visible = capture !== null || composing;
@@ -53,7 +52,6 @@ export function CaptureSheet({
   useEffect(() => {
     if (!visible) return;
     setDraft(capture?.content ?? "");
-    setEditorHeight(EDITOR_MIN_HEIGHT);
     if (capture === null) {
       // Compose mode: keyboard up immediately. The small delay lets the
       // panel's entrance settle so iOS doesn't drop the focus request.
@@ -146,18 +144,9 @@ export function CaptureSheet({
           maxLength={2000}
           placeholder={isNew ? "What's on your mind?" : undefined}
           placeholderTextColor={t.c.inkFaint}
-          scrollEnabled={editorHeight >= editorMax}
-          onContentSizeChange={(e) =>
-            setEditorHeight(
-              Math.min(
-                Math.max(
-                  Math.ceil(e.nativeEvent.contentSize.height) + 22,
-                  EDITOR_MIN_HEIGHT,
-                ),
-                editorMax,
-              ),
-            )
-          }
+          // Native auto-grow between min/max. Driving `height` from
+          // onContentSizeChange state re-reports a slightly different
+          // content size each layout pass and oscillates forever.
           style={{
             fontFamily: t.fonts.sans,
             fontSize: t.type.body.fontSize,
@@ -170,7 +159,8 @@ export function CaptureSheet({
             paddingHorizontal: 12,
             paddingTop: 10,
             paddingBottom: 10,
-            height: editorHeight,
+            minHeight: EDITOR_MIN_HEIGHT,
+            maxHeight: editorMax,
             textAlignVertical: "top",
           }}
           accessibilityLabel="Capture content"

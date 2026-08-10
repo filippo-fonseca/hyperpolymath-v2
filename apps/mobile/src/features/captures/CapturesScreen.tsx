@@ -46,9 +46,15 @@ export default function CapturesScreen() {
   // so back-navigation won't re-trigger it; works from cold start because
   // the param rides the initial route.
   const { compose } = useLocalSearchParams<{ compose?: string }>();
+  const composeHandled = useRef(false);
   useEffect(() => {
-    if (compose !== "1") return;
-    router.setParams({ compose: undefined });
+    if (compose !== "1") {
+      composeHandled.current = false;
+      return;
+    }
+    if (composeHandled.current) return;
+    composeHandled.current = true;
+    router.setParams({ compose: "" });
     setComposing(true);
   }, [compose]);
 
@@ -180,7 +186,11 @@ export default function CapturesScreen() {
             <CaptureCard
               capture={item}
               index={initialAnimation ? index : 0}
-              animateIn
+              // Entrances only during the first paint window: FlashList
+              // recycling replays `entering` on every data wave (optimistic
+              // insert → id swap → refetch → realtime echo), which read as
+              // endless staggered pop-ins.
+              animateIn={initialAnimation}
               onPress={setSelected}
               onLongPress={quickActions}
             />
