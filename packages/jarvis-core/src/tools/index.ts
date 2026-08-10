@@ -186,7 +186,7 @@ export function buildToolDefinitions(
     {
       name: "create_event",
       description:
-        "Create a Google Calendar event. Use for time-bound items with a start and end. calendar_id defaults to the user's primary calendar if omitted.",
+        "Create a Google Calendar event. Use for time-bound items with a start and end. CALENDAR: when a USER CALENDARS block is present, set calendar_id to the id of the calendar whose name/purpose best matches the event; if no calendar clearly fits, or no USER CALENDARS block is present, omit calendar_id and the server files the event on the user's default calendar. Never invent a calendar_id.",
       input_schema: eventSchema,
       strict: true,
     },
