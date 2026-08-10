@@ -26,6 +26,7 @@ import { useOptimisticList, type OptimisticListAction } from "@/lib/realtime/use
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
 import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
+import { useDueNotifications } from "@/lib/tasks/useDueNotifications";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { endOfMonth, endOfWeek, isAfter, isBefore, isSameDay, startOfDay } from "date-fns";
@@ -197,6 +198,10 @@ export function TasksClient({
 
   // ── Optimistic overlay ───────────────────────────────────────────────────
   const [optimisticTasks, addOptimistic] = useOptimisticList<TaskWithProjects>(tasks);
+
+  // Issue #396 — tab-open browser notifications at each task's due moment and
+  // reminder offsets (mobile owns closed-app delivery).
+  useDueNotifications(optimisticTasks);
 
   // Expand/fullscreen — localStorage-backed flag shared with the cockpit rail
   // (which hides itself). Ephemeral, never in the URL.
@@ -721,6 +726,7 @@ export function TasksClient({
           projects: [],
           hashtags: [],
           people: [],
+          reminderOffsetsMin: [],
           peopleDerivedAt: null,
         },
       });
@@ -760,6 +766,7 @@ export function TasksClient({
         projects: [],
         hashtags: [],
         people: [],
+        reminderOffsetsMin: [],
         peopleDerivedAt: null,
       }
     : null;

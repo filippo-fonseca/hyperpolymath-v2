@@ -246,6 +246,14 @@ export const tasks = pgTable(
     // `time` under the hood). NULL = due sometime that day. Only meaningful
     // with a dueDate — writers clear it when the date clears. Migration 0042.
     dueTime: time("due_time"),
+    // Issue #396 — reminder offsets in minutes before the due moment, from the
+    // fixed preset ladder (10…10080). Empty = no reminders. Only meaningful
+    // with a dueDate — writers clear it when the date clears. Delivery is
+    // device-local (mobile OS notifications / web tab timers). Migration 0043.
+    reminderOffsetsMin: integer("reminder_offsets_min")
+      .array()
+      .notNull()
+      .default(sql`'{}'::integer[]`),
     kanbanPosition: integer("kanban_position").notNull().default(0),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     // Issue #144 — Recurring TASKS (DISTINCT from Habits). NULL = one-off task.

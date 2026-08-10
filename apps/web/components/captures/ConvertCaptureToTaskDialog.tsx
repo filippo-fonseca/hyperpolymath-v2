@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DueDatePicker } from "@/components/tasks/DueDatePicker";
 import {
   Select,
   SelectContent,
@@ -96,6 +97,9 @@ export function ConvertCaptureToTaskDialog({
   // Issue #144 — optional recurrence + anchor due date for the converted task.
   const [recurrence, setRecurrence] = useState<RecurrenceRule | null>(null);
   const [dueDate, setDueDate] = useState("");
+  // Issue #396 — optional time + reminders ride the due date.
+  const [dueTime, setDueTime] = useState<string | null>(null);
+  const [reminderOffsetsMin, setReminderOffsetsMin] = useState<number[]>([]);
   const [pending, setPending] = useState(false);
 
   // If the parent passes a different capture (rare but possible if the
@@ -106,6 +110,8 @@ export function ConvertCaptureToTaskDialog({
     setPriority("P3");
     setRecurrence(null);
     setDueDate("");
+    setDueTime(null);
+    setReminderOffsetsMin([]);
   }, [capture.id]);
   // existingProjectIds is captured by `capture.id`-keyed remount; intentional.
 
@@ -118,6 +124,8 @@ export function ConvertCaptureToTaskDialog({
       projectIds,
       recurrence,
       dueDate: dueDate || null,
+      dueTime: dueDate ? dueTime : null,
+      reminderOffsetsMin: dueDate ? reminderOffsetsMin : [],
     });
     setPending(false);
 
@@ -185,14 +193,22 @@ export function ConvertCaptureToTaskDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="convert-due">
-              {recurrence ? "Starts on" : "Due date"}
-            </Label>
-            <Input
-              id="convert-due"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+            <Label>{recurrence ? "Starts on" : "Due date"}</Label>
+            {/* Issue #396 — same Notion-style popover as the detail panel. */}
+            <DueDatePicker
+              dueDate={dueDate || null}
+              dueTime={dueDate ? dueTime : null}
+              reminderOffsetsMin={dueDate ? reminderOffsetsMin : []}
+              onChange={(patch) => {
+                if (patch.dueDate !== undefined) setDueDate(patch.dueDate ?? "");
+                if (patch.dueTime !== undefined) setDueTime(patch.dueTime);
+                if (patch.reminderOffsetsMin !== undefined)
+                  setReminderOffsetsMin(patch.reminderOffsetsMin);
+                if (patch.dueDate === null) {
+                  setDueTime(null);
+                  setReminderOffsetsMin([]);
+                }
+              }}
             />
           </div>
           {/* Issue #144 — turn the converted task into a recurring task right

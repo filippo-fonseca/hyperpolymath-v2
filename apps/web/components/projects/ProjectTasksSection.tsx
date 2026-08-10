@@ -233,6 +233,7 @@ export function ProjectTasksSection({
           projects: [{ id: projectId, name: "" }],
           hashtags: [],
           people: [],
+          reminderOffsetsMin: [],
           peopleDerivedAt: null,
         },
       });
@@ -280,6 +281,7 @@ export function ProjectTasksSection({
         projects: [{ id: projectId, name: currentProject?.name ?? "" }],
         hashtags: [],
         people: [],
+        reminderOffsetsMin: [],
         peopleDerivedAt: null,
       }
     : null;

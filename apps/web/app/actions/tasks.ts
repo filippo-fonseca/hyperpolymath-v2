@@ -11,6 +11,7 @@ import {
   nextOccurrence,
 } from "@/lib/tasks/recurrence";
 import { format } from "date-fns";
+import { normalizeReminderOffsets } from "@/lib/tasks/reminders";
 import { upsertHashtag } from "./hashtags";
 import {
   reconcilePersonReferencesForUser,
@@ -75,6 +76,9 @@ const CreateTaskSchema = z.object({
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
     .nullable()
     .optional(),
+  // Issue #396 — reminder offsets (minutes before due) from the fixed preset
+  // ladder; normalized server-side. Meaningless without a dueDate.
+  reminderOffsetsMin: z.array(z.number().int()).max(8).nullable().optional(),
   // Issue #101 — Notion-style URL property. Stored verbatim (normalized
   // client-side); null/absent = unset. Capped to keep the column sane.
   url: z.string().trim().max(2048).nullable().optional(),
@@ -120,6 +124,9 @@ export async function createTask(
         status: parsed.data.status,
         dueDate: parsed.data.dueDate ?? null,
         dueTime: parsed.data.dueDate ? (parsed.data.dueTime ?? null) : null,
+        reminderOffsetsMin: parsed.data.dueDate
+          ? normalizeReminderOffsets(parsed.data.reminderOffsetsMin ?? [])
+          : [],
         url: parsed.data.url ? parsed.data.url : null,
         recurrence: parsed.data.recurrence
           ? normalizeRule(parsed.data.recurrence)
@@ -237,6 +244,10 @@ const UpdateTaskSchema = z.object({
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
     .nullable()
     .optional(),
+  // Issue #396 — replace the reminder-offset set (null or [] clears). Values
+  // outside the preset ladder are normalized away. Clearing dueDate clears
+  // reminders with it, same as dueTime.
+  reminderOffsetsMin: z.array(z.number().int()).max(8).nullable().optional(),
   // Issue #101 — set, change, or clear (null) the URL property. Flows through
   // the generic `rest` apply loop below (null = clear, string = set).
   url: z.string().trim().max(2048).nullable().optional(),
@@ -271,8 +282,18 @@ export async function updateTask(
   // Issue #101 — treat an empty/whitespace URL as a clear (null) so the column
   // never holds the empty string.
   if (rest.url !== undefined) updates.url = rest.url ? rest.url : null;
-  // A time without a date is meaningless: clearing the date clears the time.
-  if (rest.dueDate === null) updates.dueTime = null;
+  // Issue #396 — canonicalize the reminder set (null = clear → empty array).
+  if (rest.reminderOffsetsMin !== undefined) {
+    updates.reminderOffsetsMin = normalizeReminderOffsets(
+      rest.reminderOffsetsMin ?? [],
+    );
+  }
+  // A time without a date is meaningless: clearing the date clears the time
+  // (and the reminders that hang off it).
+  if (rest.dueDate === null) {
+    updates.dueTime = null;
+    updates.reminderOffsetsMin = [];
+  }
   // Issue #144 — normalize a non-null recurrence rule before persisting.
   // `null` (clear / end recurrence) passes through verbatim.
   if (rest.recurrence !== undefined && rest.recurrence !== null) {

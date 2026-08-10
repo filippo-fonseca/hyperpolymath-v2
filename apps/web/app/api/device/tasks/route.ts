@@ -5,6 +5,7 @@ import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
 import { db } from "@/lib/db";
 import { projects, tasks, tasksProjects } from "@/lib/db/schema";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
+import { normalizeReminderOffsets } from "@/lib/tasks/reminders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     status?: Status;
     dueDate?: string | null;
     dueTime?: string | null;
+    reminderOffsetsMin?: number[] | null;
     projectIds?: string[];
   };
   try {
@@ -80,6 +82,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     dueDate && typeof body.dueTime === "string" && TIME_RE.test(body.dueTime)
       ? body.dueTime
       : null;
+  // Reminders ride the date too: dropped when no valid dueDate came with them.
+  const reminderOffsetsMin =
+    dueDate && Array.isArray(body.reminderOffsetsMin)
+      ? normalizeReminderOffsets(body.reminderOffsetsMin.filter((v) => typeof v === "number"))
+      : [];
   const projectIds = await verifyProjects(
     userId,
     Array.isArray(body.projectIds) ? body.projectIds.slice(0, 20) : [],
@@ -101,6 +108,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       status,
       dueDate,
       dueTime,
+      reminderOffsetsMin,
       kanbanPosition: (maxPos ?? -1) + 1,
       completedAt: status === "lesno" ? new Date() : null,
     });
@@ -125,6 +133,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     status?: Status;
     dueDate?: string | null;
     dueTime?: string | null;
+    reminderOffsetsMin?: number[] | null;
     projectIds?: string[];
   };
   try {
@@ -165,12 +174,21 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (body.dueDate !== undefined) {
     set.dueDate =
       typeof body.dueDate === "string" && DATE_RE.test(body.dueDate) ? body.dueDate : null;
-    // A time without a date is meaningless: clearing the date clears the time.
-    if (set.dueDate === null) set.dueTime = null;
+    // A time without a date is meaningless: clearing the date clears the time
+    // (and the reminders that hang off it).
+    if (set.dueDate === null) {
+      set.dueTime = null;
+      set.reminderOffsetsMin = [];
+    }
   }
   if (body.dueTime !== undefined) {
     set.dueTime =
       typeof body.dueTime === "string" && TIME_RE.test(body.dueTime) ? body.dueTime : null;
+  }
+  if (body.reminderOffsetsMin !== undefined && set.reminderOffsetsMin === undefined) {
+    set.reminderOffsetsMin = Array.isArray(body.reminderOffsetsMin)
+      ? normalizeReminderOffsets(body.reminderOffsetsMin.filter((v) => typeof v === "number"))
+      : [];
   }
 
   let projectIds: string[] | null = null;

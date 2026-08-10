@@ -37,6 +37,8 @@ export interface Task {
   dueDate: string | null;
   /** "HH:MM" 24h local time-of-day on the due date; null = date-only. */
   dueTime: string | null;
+  /** Reminder offsets in minutes before the due moment, sorted ascending. */
+  reminderOffsetsMin: number[];
   completedAt: string | null;
   createdAt: string;
   projects: { id: string; name: string }[];
@@ -48,6 +50,7 @@ export interface TaskCreateInput {
   status?: TaskStatus;
   dueDate?: string | null;
   dueTime?: string | null;
+  reminderOffsetsMin?: number[] | null;
   notes?: string | null;
   projectIds?: string[];
 }
@@ -59,6 +62,7 @@ export interface TaskUpdateInput {
   status?: TaskStatus;
   dueDate?: string | null;
   dueTime?: string | null;
+  reminderOffsetsMin?: number[] | null;
   notes?: string | null;
   projectIds?: string[];
 }

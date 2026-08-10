@@ -22,7 +22,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { queryClient } from "@/data/queryClient";
 import { startRealtime, stopRealtime, useAppStateRefetch } from "@/data/realtime";
-import { useTaskNotificationSync } from "@/lib/notifications";
+import { useNotificationTapRouting, useTaskNotificationSync } from "@/lib/notifications";
 import { ThemeProvider, useTheme } from "@/theme";
 import { ToastHost } from "@/ui";
 import { AuthProvider, useAuth } from "@/ui/auth";
@@ -38,6 +38,7 @@ void SplashScreen.preventAutoHideAsync().catch(() => {});
 function IntegrationsBridge({ userId }: { userId: string }) {
   useAppStateRefetch();
   useTaskNotificationSync();
+  useNotificationTapRouting();
   useEffect(() => {
     void startRealtime(userId);
     const stopWidgets = startWidgetSync();
