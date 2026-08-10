@@ -41,6 +41,7 @@ import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { tintFor } from "@/lib/tint";
+import type { GcalAttendeeDTO } from "@/lib/gcal/event-dto";
 
 /**
  * jul-29 craft restyle — the grid's colour law.
@@ -90,6 +91,10 @@ export interface GcalEvent {
   description: string | null;
   recurringEventId: string | null;
   htmlLink: string;
+  /** Guests on the event (people only) — surfaced in the edit panel. */
+  attendees: GcalAttendeeDTO[];
+  /** Joinable Google Meet link, when the event has conferencing. */
+  hangoutLink: string | null;
   isPlaceholder?: boolean;
   isDraftEditing?: boolean;
   /** A backend write (update reschedule/edit) is in flight for this event. */

@@ -48,6 +48,11 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Loader2, X } from "lucide-react";
 import { usePendingAction } from "@/components/shared/use-pending-action";
+import { sameEmailSet } from "@/lib/gcal/guest-updates";
+import type {
+  GcalAttendeeDTO,
+  GcalAttendeeResponseStatus,
+} from "@/lib/gcal/event-dto";
 
 import {
   Sheet,
@@ -93,6 +98,9 @@ const EventFormSchema = z
     end: z.string().min(1, "End required"),
     allDay: z.boolean(),
     description: z.string().max(8192).optional(),
+    // Guest emails — validated at add time by the chip input, so the schema
+    // only needs the shape.
+    attendees: z.array(z.string()),
   })
   .refine((v) => v.end > v.start, {
     message: "End must be after start",
@@ -110,7 +118,24 @@ export interface EventFormResult {
   end: Date;
   allDay: boolean;
   description: string | null;
+  /**
+   * Full desired guest list. `undefined` when the guest list is untouched
+   * (edit) or empty (create) — the parent then skips the attendee patch and
+   * the server never re-sends the merged list.
+   */
+  attendees: string[] | undefined;
 }
+
+/** Basic shape check for the chip input — not RFC 5322, just sane. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Quiet copy for each RSVP state, chip-suffix sized. */
+const RESPONSE_LABEL: Record<GcalAttendeeResponseStatus, string> = {
+  needsAction: "awaiting reply",
+  accepted: "going",
+  declined: "declined",
+  tentative: "maybe",
+};
 
 interface Props {
   state: PanelState;
@@ -227,6 +252,7 @@ export function EventDetailPanel({
       end: "",
       allDay: false,
       description: "",
+      attendees: [],
     };
     if (state.mode === "edit") {
       return {
@@ -236,6 +262,7 @@ export function EventDetailPanel({
         end: toDateTimeLocalValue(state.event.end),
         allDay: state.event.allDay,
         description: state.event.description ?? "",
+        attendees: state.event.attendees.map((a) => a.email),
       };
     }
     if (state.mode === "create") {
@@ -275,9 +302,61 @@ export function EventDetailPanel({
           : `edit:${state.event.id}`;
     if (seededKeyRef.current !== key) {
       reset(initialValues);
+      setGuestInput("");
+      setGuestError(null);
       seededKeyRef.current = key;
     }
   }, [state, initialValues, reset]);
+
+  // ---- Invitees (chip input) ----------------------------------------------
+  const [guestInput, setGuestInput] = useState("");
+  const [guestError, setGuestError] = useState<string | null>(null);
+
+  // Existing attendee metadata (display name, RSVP, self/organizer) keyed by
+  // lowercase email — chips for retained guests show their response status.
+  const attendeeMetaByEmail = useMemo(() => {
+    const map = new Map<string, GcalAttendeeDTO>();
+    if (state.mode === "edit") {
+      for (const a of state.event.attendees) {
+        map.set(a.email.toLowerCase(), a);
+      }
+    }
+    return map;
+  }, [state]);
+
+  const watchedAttendees = watch("attendees");
+
+  const addGuest = useCallback(() => {
+    const email = guestInput.trim().replace(/,+$/, "");
+    if (!email) return;
+    if (!EMAIL_RE.test(email)) {
+      setGuestError("That doesn't look like an email");
+      return;
+    }
+    const current = watch("attendees");
+    if (current.some((e) => e.toLowerCase() === email.toLowerCase())) {
+      // Already invited — quietly clear the input.
+      setGuestInput("");
+      setGuestError(null);
+      return;
+    }
+    setValue("attendees", [...current, email], { shouldDirty: true });
+    setGuestInput("");
+    setGuestError(null);
+  }, [guestInput, watch, setValue]);
+
+  const removeGuest = useCallback(
+    (email: string) => {
+      setValue(
+        "attendees",
+        watch("attendees").filter(
+          (e) => e.toLowerCase() !== email.toLowerCase(),
+        ),
+        { shouldDirty: true },
+      );
+    },
+    [watch, setValue],
+  );
 
   const recurringEventId =
     state.mode === "edit" ? state.event.recurringEventId : null;
@@ -301,6 +380,13 @@ export function EventDetailPanel({
       // double-rendering alongside the real optimistic placeholder during the
       // network round-trip.
       if (onDraftChange) onDraftChange(null);
+      // Guest list: only send it when it actually changed (edit) or is
+      // non-empty (create) — an unchanged list would still trigger the
+      // server's merge round-trip for nothing.
+      const attendeesChanged =
+        state.mode === "edit"
+          ? !sameEmailSet(initialValues.attendees, data.attendees)
+          : data.attendees.length > 0;
       const result: EventFormResult = {
         title: data.title.trim(),
         calendarId: data.calendarId,
@@ -311,6 +397,7 @@ export function EventDetailPanel({
           data.description && data.description.trim()
             ? data.description.trim()
             : null,
+        attendees: attendeesChanged ? data.attendees : undefined,
       };
       const editTarget =
         state.mode === "edit"
@@ -332,7 +419,7 @@ export function EventDetailPanel({
         { retry: false },
       );
     },
-    [state, userTimezone, onSave, onClose, onDraftChange, run],
+    [state, userTimezone, onSave, onClose, onDraftChange, run, initialValues],
   );
 
   // Cmd+Enter to save (mirrors CaptureDetailPanel convention).
@@ -633,6 +720,87 @@ export function EventDetailPanel({
                       </p>
                     )}
                   </div>
+                </section>
+
+                <section className="flex flex-col gap-2">
+                  <Label
+                    htmlFor="event-guests"
+                    className="font-sans text-meta"
+                  >
+                    Invitees
+                  </Label>
+                  {watchedAttendees.length > 0 && (
+                    <ul className="flex flex-wrap gap-1.5" aria-label="Guests">
+                      {watchedAttendees.map((email) => {
+                        const meta = attendeeMetaByEmail.get(
+                          email.toLowerCase(),
+                        );
+                        const status = meta?.responseStatus
+                          ? RESPONSE_LABEL[meta.responseStatus]
+                          : null;
+                        return (
+                          <li
+                            key={email}
+                            className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-2 py-1 text-micro text-[var(--ink)]"
+                          >
+                            <span className="truncate">
+                              {meta?.self
+                                ? "you"
+                                : (meta?.displayName ?? email)}
+                            </span>
+                            {meta?.organizer && (
+                              <span className="text-[var(--ink-faint)]">
+                                · organizer
+                              </span>
+                            )}
+                            {status && !meta?.self && (
+                              <span className="text-[var(--ink-faint)]">
+                                · {status}
+                              </span>
+                            )}
+                            {!meta?.self && (
+                              <button
+                                type="button"
+                                onClick={() => removeGuest(email)}
+                                aria-label={`Remove ${email}`}
+                                className="rounded p-0.5 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+                              >
+                                <X
+                                  size={11}
+                                  className="text-[var(--ink-muted)]"
+                                />
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <Input
+                    id="event-guests"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="off"
+                    placeholder="Add guests by email"
+                    className="font-sans text-[var(--ink)]"
+                    value={guestInput}
+                    onChange={(e) => {
+                      setGuestInput(e.target.value);
+                      if (guestError) setGuestError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === ",") {
+                        e.preventDefault();
+                        addGuest();
+                      }
+                    }}
+                    onBlur={() => {
+                      if (guestInput.trim()) addGuest();
+                    }}
+                  />
+                  {guestError && (
+                    <p className="text-xs text-destructive">{guestError}</p>
+                  )}
                 </section>
 
                 <section className="flex flex-col gap-2">
