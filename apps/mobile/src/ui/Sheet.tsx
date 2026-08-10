@@ -5,6 +5,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -36,6 +37,14 @@ const SLIDE_FROM = 480;
 export function Sheet({ visible, onClose, children, maxHeightRatio = 0.85 }: SheetProps) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  // Resolved to a number: a percentage here would be measured against the
+  // auto-sized KeyboardAvoidingView, not the screen, and can blow the panel
+  // past the tab bar. Never taller than the screen minus the status area.
+  const maxHeight = Math.min(
+    Math.round(maxHeightRatio * windowHeight),
+    windowHeight - insets.top - 24,
+  );
   const translate = useSharedValue(SLIDE_FROM);
   const backdrop = useSharedValue(0);
 
@@ -120,7 +129,10 @@ export function Sheet({ visible, onClose, children, maxHeightRatio = 0.85 }: She
                 borderColor: t.c.edge,
                 borderWidth: StyleSheet.hairlineWidth,
                 paddingBottom: Math.max(insets.bottom, 12),
-                maxHeight: `${Math.round(maxHeightRatio * 100)}%`,
+                maxHeight,
+                // Clip: content past the cap must compress or scroll inside
+                // the panel, never paint over whatever is behind the sheet.
+                overflow: "hidden",
                 ...t.shadow.pop,
               },
               panelStyle,
@@ -138,7 +150,7 @@ export function Sheet({ visible, onClose, children, maxHeightRatio = 0.85 }: She
                 />
               </View>
             </GestureDetector>
-            {children}
+            <View style={{ flexShrink: 1 }}>{children}</View>
           </Animated.View>
         </KeyboardAvoidingView>
       </View>
