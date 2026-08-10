@@ -10,6 +10,7 @@ import {
   deleteTask,
   getTasks,
   updateTask,
+  type DeviceArea,
   type Task,
   type TaskCreateInput,
   type TaskStatus,
@@ -23,6 +24,18 @@ export type { Task, TaskCreateInput, TaskStatus, TaskUpdateInput };
 
 function tempId(): string {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Resolve project ids to {id,name} refs from the projects cache (best effort). */
+function projectRefs(ids: string[] | undefined): { id: string; name: string }[] {
+  if (!ids?.length) return [];
+  const areas = queryClient.getQueryData<DeviceArea[]>(queryKeys.projects);
+  if (!areas) return [];
+  const wanted = new Set(ids);
+  return areas
+    .flatMap((a) => a.projects)
+    .filter((p) => wanted.has(p.id))
+    .map((p) => ({ id: p.id, name: p.name }));
 }
 
 async function fetchTasks(): Promise<Task[]> {
@@ -63,7 +76,7 @@ export function useTaskMutations() {
         dueTime: input.dueTime ?? null,
         completedAt: null,
         createdAt: new Date().toISOString(),
-        projects: [],
+        projects: projectRefs(input.projectIds),
       };
       setTasks((tasks) => [optimistic, ...tasks]);
       return { prev, tempId: optimistic.id };
