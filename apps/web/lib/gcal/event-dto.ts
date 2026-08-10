@@ -39,6 +39,40 @@
 
 import type { calendar_v3 } from "googleapis";
 
+/** gcal's closed vocabulary for an attendee's RSVP state. */
+export type GcalAttendeeResponseStatus =
+  | "needsAction"
+  | "declined"
+  | "tentative"
+  | "accepted";
+
+const RESPONSE_STATUSES: readonly GcalAttendeeResponseStatus[] = [
+  "needsAction",
+  "declined",
+  "tentative",
+  "accepted",
+];
+
+function toResponseStatus(
+  v: string | null | undefined,
+): GcalAttendeeResponseStatus | null {
+  return RESPONSE_STATUSES.includes(v as GcalAttendeeResponseStatus)
+    ? (v as GcalAttendeeResponseStatus)
+    : null;
+}
+
+/**
+ * App-shaped attendee row. `resource` attendees (rooms, equipment) are
+ * dropped at the boundary — the invitees UI is about people.
+ */
+export interface GcalAttendeeDTO {
+  email: string;
+  displayName: string | null;
+  responseStatus: GcalAttendeeResponseStatus | null;
+  organizer: boolean;
+  self: boolean;
+}
+
 export interface GcalEventDTO {
   id: string;
   calendarId: string;
@@ -50,6 +84,22 @@ export interface GcalEventDTO {
   colorId: string | null;
   recurringEventId: string | null;
   htmlLink: string;
+  /** Guests on the event (people only; resources filtered out). */
+  attendees: GcalAttendeeDTO[];
+  /**
+   * Joinable conferencing link (Google Meet). Falls back to the video
+   * entry point inside `conferenceData` when `hangoutLink` is absent.
+   */
+  hangoutLink: string | null;
+}
+
+/** Best joinable link for the event's conference, if any. */
+function conferenceLink(e: calendar_v3.Schema$Event): string | null {
+  if (e.hangoutLink) return e.hangoutLink;
+  const video = e.conferenceData?.entryPoints?.find(
+    (p) => p.entryPointType === "video" && p.uri,
+  );
+  return video?.uri ?? null;
 }
 
 export function eventToDTO(
@@ -73,5 +123,15 @@ export function eventToDTO(
     colorId: e.colorId ?? null,
     recurringEventId: e.recurringEventId ?? null,
     htmlLink: e.htmlLink ?? "",
+    attendees: (e.attendees ?? [])
+      .filter((a) => Boolean(a.email) && !a.resource)
+      .map((a) => ({
+        email: a.email as string,
+        displayName: a.displayName ?? null,
+        responseStatus: toResponseStatus(a.responseStatus),
+        organizer: Boolean(a.organizer),
+        self: Boolean(a.self),
+      })),
+    hangoutLink: conferenceLink(e),
   };
 }
