@@ -207,6 +207,7 @@ export interface Capture {
   createdVia: string | null;
   sourceDevice: string | null;
   sourceInput: string | null;
+  favorite: boolean;
   hashtags: { id: string; displayName: string; name: string }[];
   projects: { id: string; name: string }[];
 }
@@ -231,6 +232,7 @@ export async function updateCapture(input: {
   id: string;
   content?: string;
   hashtagNames?: string[];
+  favorite?: boolean;
 }): Promise<boolean> {
   const data = await call<{ ok: boolean }>("/api/device/captures", {
     method: "PATCH",

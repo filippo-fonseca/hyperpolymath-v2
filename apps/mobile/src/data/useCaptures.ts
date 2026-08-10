@@ -59,6 +59,7 @@ export function useCaptureMutations() {
         createdVia: null,
         sourceDevice: "Mobile",
         sourceInput: "text",
+        favorite: false,
         hashtags: (input.hashtagNames ?? []).map((name) => ({
           id: `temp-tag-${name}`,
           name,

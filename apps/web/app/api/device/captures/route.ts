@@ -116,7 +116,12 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (!identity) return new Response("Unauthorized", { status: 401, headers: CORS });
   const userId = identity.userId;
 
-  let body: { id?: string; content?: string; hashtagNames?: string[] };
+  let body: {
+    id?: string;
+    content?: string;
+    hashtagNames?: string[];
+    favorite?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
@@ -156,6 +161,12 @@ export async function PATCH(req: NextRequest): Promise<Response> {
         sourceId: body.id as string,
         text: nextContent,
       });
+    }
+    if (typeof body.favorite === "boolean") {
+      await tx
+        .update(captures)
+        .set({ favorite: body.favorite, updatedAt: new Date() })
+        .where(and(eq(captures.id, body.id as string), eq(captures.userId, userId)));
     }
     if (Array.isArray(body.hashtagNames)) {
       await tx
