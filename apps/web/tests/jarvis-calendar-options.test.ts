@@ -30,10 +30,10 @@ vi.mock("@/lib/gcal/calendars", () => ({
 }));
 
 import {
+  type JarvisCalendarOption,
   _clearCalendarOptionsCache,
   buildCalendarListBlock,
   getCalendarOptionsForJarvis,
-  type JarvisCalendarOption,
 } from "@/lib/jarvis/calendar-options";
 
 const USER = "11111111-1111-1111-1111-111111111111";
@@ -81,9 +81,7 @@ describe("getCalendarOptionsForJarvis", () => {
       "yale@group.calendar.google.com",
     ]);
     expect(options[0].primary).toBe(true);
-    expect(options[1].description).toBe(
-      "Classes, seminars, and coursework deadlines",
-    );
+    expect(options[1].description).toBe("Classes, seminars, and coursework deadlines");
   });
 
   it("fail-open: gcal error → empty list, no throw", async () => {
@@ -127,9 +125,9 @@ describe("buildCalendarListBlock", () => {
   });
 
   it("deterministic: same input → byte-identical output, sorted by name", () => {
-    const a = buildCalendarListBlock(TWO);
+    const a = buildCalendarListBlock(TWO) ?? "";
     const b = buildCalendarListBlock([...TWO].reverse());
     expect(a).toBe(b);
-    expect(a!.indexOf("Personal")).toBeLessThan(a!.indexOf("Yale"));
+    expect(a.indexOf("Personal")).toBeLessThan(a.indexOf("Yale"));
   });
 });

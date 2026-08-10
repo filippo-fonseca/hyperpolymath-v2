@@ -26,8 +26,8 @@
  *     calendar list can never invalidate the cached prompt prefix.
  */
 
-import { getValidGcalToken } from "@/lib/gcal/token";
 import { listCalendars } from "@/lib/gcal/calendars";
+import { getValidGcalToken } from "@/lib/gcal/token";
 
 export interface JarvisCalendarOption {
   id: string;
@@ -56,9 +56,7 @@ const WRITABLE_ROLES = new Set(["owner", "writer"]);
  * The user's writable Google calendars (id, name, description, primary flag),
  * TTL-cached per user. Fail-open: [] on any error.
  */
-export async function getCalendarOptionsForJarvis(
-  userId: string,
-): Promise<JarvisCalendarOption[]> {
+export async function getCalendarOptionsForJarvis(userId: string): Promise<JarvisCalendarOption[]> {
   const cached = optionsCache.get(userId);
   if (cached && Date.now() - cached.fetchedAt < TTL_MS) {
     return cached.options;
@@ -90,9 +88,7 @@ export async function getCalendarOptionsForJarvis(
  * Deterministic for a given input (sorted by name; no Date/random) so
  * back-to-back turns with an unchanged list produce byte-identical blocks.
  */
-export function buildCalendarListBlock(
-  options: JarvisCalendarOption[],
-): string | null {
+export function buildCalendarListBlock(options: JarvisCalendarOption[]): string | null {
   if (options.length <= 1) return null;
   const sorted = [...options].sort((a, b) => a.summary.localeCompare(b.summary));
   const lines = sorted.map((c) => {
