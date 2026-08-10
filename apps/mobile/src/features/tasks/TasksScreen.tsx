@@ -27,6 +27,7 @@ import {
 import { buildRows, localTodayISO, type Row } from "./sections";
 import { ClusterDivider, TaskRow } from "./TaskRow";
 import { TaskComposer } from "./TaskComposer";
+import { TaskCreateSheet } from "./TaskCreateSheet";
 import { TaskDetailSheet } from "./TaskDetailSheet";
 
 /** Disclosure row for the sunken completed cluster. */
@@ -106,6 +107,8 @@ export default function TasksScreen() {
     });
   }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createDraft, setCreateDraft] = useState("");
   const todayISO = localTodayISO();
 
   // Live row from the cache so optimistic edits reflect in the open sheet.
@@ -135,6 +138,10 @@ export default function TasksScreen() {
       create.mutate({ title, dueDate: todayISO, priority: "P3", status: "not started" }),
     [create, todayISO],
   );
+  const handleExpand = useCallback((draft: string) => {
+    setCreateDraft(draft);
+    setCreateOpen(true);
+  }, []);
   const handleOpen = useCallback((task: Task) => setEditingId(task.id), []);
 
   const renderItem = useCallback(
@@ -262,7 +269,7 @@ export default function TasksScreen() {
           ) : undefined
         }
       />
-      <TaskComposer onSubmit={handleCreate} />
+      <TaskComposer onSubmit={handleCreate} onExpand={handleExpand} />
       {counts.overdue > 0 || counts.inbox > 0 ? (
         <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
           {counts.overdue > 0 ? (
@@ -288,6 +295,12 @@ export default function TasksScreen() {
         </View>
       ) : null}
       <View style={{ flex: 1, marginTop: 4 }}>{content}</View>
+      <TaskCreateSheet
+        visible={createOpen}
+        initialTitle={createDraft}
+        onClose={() => setCreateOpen(false)}
+        onCreate={(input) => create.mutate(input)}
+      />
       <TaskDetailSheet task={editingTask} onClose={() => setEditingId(null)} />
     </Screen>
   );
