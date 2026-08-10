@@ -117,6 +117,8 @@ export interface HabitDay {
   doneCount: number;
   scheduledCount: number;
   isLoading: boolean;
+  /** True during any background refetch — bind pull-to-refresh to this. */
+  isFetching: boolean;
   isError: boolean;
   refetch: () => void;
   /** Cycle the four-rung ladder (done wraps back to not_started). */
@@ -223,6 +225,7 @@ export function useHabitDay(todayISO: string = localDateString(0)): HabitDay {
       doneCount: today.filter((r) => r.doneToday).length,
       scheduledCount: today.length,
       isLoading: query.isLoading,
+      isFetching: query.isFetching,
       isError: query.isError,
       refetch: () => void query.refetch(),
       advance: (habitId: string) =>
@@ -232,7 +235,7 @@ export function useHabitDay(todayISO: string = localDateString(0)): HabitDay {
       setStatus,
       togglePending: statusMutation.isPending,
     };
-  }, [query.data, query.isLoading, query.isError, todayISO, windowStart]);
+  }, [query.data, query.isLoading, query.isFetching, query.isError, todayISO, windowStart]);
 }
 
 export function useHabitMutations() {

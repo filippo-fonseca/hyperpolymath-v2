@@ -46,12 +46,14 @@ function dayOfWeek(dateISO: string): number {
 }
 
 export function buildTasksSnapshot(tasks: Task[], todayISO: string): TasksWidgetProps {
-  // Same filter as the LifeOS tasks widget: dated, not lesno, due ascending.
+  // Same filter as the LifeOS tasks widget: dated, not lesno, due ascending;
+  // same-day ties order timed-first by clock, matching the app list.
   const dated = tasks
     .filter((t) => t.dueDate !== null && t.status !== "lesno")
     .sort(
       (a, z) =>
         (a.dueDate as string).localeCompare(z.dueDate as string) ||
+        (a.dueTime ?? "99:99").localeCompare(z.dueTime ?? "99:99") ||
         a.title.localeCompare(z.title),
     );
   return {
@@ -61,7 +63,9 @@ export function buildTasksSnapshot(tasks: Task[], todayISO: string): TasksWidget
     tasks: dated.slice(0, 7).map((t) => ({
       id: t.id,
       title: t.title,
-      due: dueLabel(t.dueDate as string, todayISO),
+      due:
+        dueLabel(t.dueDate as string, todayISO) +
+        (t.dueTime ? ` · ${t.dueTime}` : ""),
       dueKind: dueKind(t.dueDate as string, todayISO),
       p1: t.priority === "P1",
     })),

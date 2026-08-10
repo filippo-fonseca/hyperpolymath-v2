@@ -97,8 +97,12 @@ export default function HabitsScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     day.refetch();
-    setTimeout(() => setRefreshing(false), 700);
   }, [day]);
+
+  // The spinner tracks the actual refetch rather than a timer.
+  useEffect(() => {
+    if (refreshing && !day.isFetching) setRefreshing(false);
+  }, [refreshing, day.isFetching]);
 
   const ratio = day.scheduledCount > 0 ? day.doneCount / day.scheduledCount : 0;
 
