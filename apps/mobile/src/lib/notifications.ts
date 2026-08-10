@@ -1,12 +1,13 @@
-// Local notifications for task due dates. Purely device-side: the tasks
-// query is the source of truth and this module diffs the OS notification
-// queue against it — no server push involved.
+// Local notifications for task due dates and reminders. Purely device-side:
+// the tasks query is the source of truth and this module diffs the OS
+// notification queue against it — no server push involved.
 //
 // Semantics: every open (non-lesno) task with a due date today or later
 // gets one notification at its due time (local), or 09:00 when the task
-// is date-only. Moments already in the past schedule nothing. Completing,
-// deleting, or re-dating a task reconciles its pending notification on
-// the next sync.
+// is date-only, plus one per reminder offset (task-rem-<id>-<minutes>) at
+// due-minus-offset. Moments already in the past schedule nothing.
+// Completing, deleting, re-dating, or re-remindering a task reconciles its
+// pending notifications on the next sync.
 
 import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
@@ -14,8 +15,10 @@ import { useEffect } from "react";
 import type { Task } from "../api/device";
 import { queryClient } from "../data/queryClient";
 import { queryKeys } from "../data/queryKeys";
+import { shortReminderLabel } from "./reminders";
 
 const ID_PREFIX = "task-due-";
+const REM_PREFIX = "task-rem-";
 const DEFAULT_TIME = "09:00";
 const SYNC_DEBOUNCE_MS = 2000;
 
@@ -86,14 +89,27 @@ function desiredFor(tasks: Task[]): Map<string, Desired> {
     if (task.status === "lesno") continue;
     if (!task.dueDate || task.dueDate < todayISO) continue;
     if (task.id.startsWith("temp-")) continue;
-    const fireAt = fireMoment(task.dueDate, task.dueTime).getTime();
-    if (fireAt <= now) continue;
-    out.set(`${ID_PREFIX}${task.id}`, {
-      id: `${ID_PREFIX}${task.id}`,
-      title: task.title,
-      body: bodyFor(task, todayISO),
-      fireAt,
-    });
+    const dueAt = fireMoment(task.dueDate, task.dueTime).getTime();
+    if (dueAt > now) {
+      out.set(`${ID_PREFIX}${task.id}`, {
+        id: `${ID_PREFIX}${task.id}`,
+        title: task.title,
+        body: bodyFor(task, todayISO),
+        fireAt: dueAt,
+      });
+    }
+    // One extra notification per reminder offset, at due-minus-offset.
+    for (const offset of task.reminderOffsetsMin ?? []) {
+      const fireAt = dueAt - offset * 60_000;
+      if (fireAt <= now) continue;
+      const id = `${REM_PREFIX}${task.id}-${offset}`;
+      out.set(id, {
+        id,
+        title: task.title,
+        body: `Due in ${shortReminderLabel(offset)} · ${bodyFor(task, todayISO)}`,
+        fireAt,
+      });
+    }
   }
   return out;
 }
@@ -119,7 +135,7 @@ export async function syncTaskNotifications(tasks: Task[]): Promise<void> {
 
     for (const existing of scheduled) {
       const id = existing.identifier;
-      if (!id.startsWith(ID_PREFIX)) continue;
+      if (!id.startsWith(ID_PREFIX) && !id.startsWith(REM_PREFIX)) continue;
       const want = desired.get(id);
       const data = existing.content.data as { fireAt?: number } | null;
       const unchanged =
