@@ -66,52 +66,90 @@ function parseJson<T>(data: string | null): T | undefined {
   }
 }
 
+const RECONNECT_DELAY_MS = 3000;
+
 /**
- * Open the SSE connection. Returns a close function. react-native-sse
- * auto-reconnects on errors (pollingInterval).
+ * Open the SSE connection. Returns a close function.
+ *
+ * Reconnection is owned here, not by react-native-sse: the library replays
+ * the headers captured at construction on every reconnect, so a Supabase
+ * bearer that expires mid-session (~1h) would 401 forever. Each attempt
+ * re-resolves the bearer and server URL instead.
  */
 export function subscribeJarvisEvents(handlers: JarvisSseHandlers): () => void {
-  const base = getSettings().serverUrl.replace(/\/$/, "");
-  const token = getAuthBearer();
+  let es: EventSource<JarvisEvent> | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let closed = false;
 
-  const es = new EventSource<JarvisEvent>(`${base}/api/jarvis/physical/events`, {
-    headers: token ? { authorization: `Bearer ${token}` } : {},
-    pollingInterval: 3000,
-  });
+  const teardown = () => {
+    es?.removeAllEventListeners();
+    es?.close();
+    es = null;
+  };
 
-  handlers.onStatus?.("connecting");
+  const retry = () => {
+    if (closed || timer) return;
+    teardown();
+    timer = setTimeout(() => {
+      timer = null;
+      connect();
+    }, RECONNECT_DELAY_MS);
+  };
 
-  es.addEventListener("open", () => handlers.onStatus?.("connected"));
-  es.addEventListener("hello", () => handlers.onStatus?.("connected"));
-  es.addEventListener("error", () => handlers.onStatus?.("error"));
+  const connect = () => {
+    if (closed) return;
+    const base = getSettings().serverUrl.replace(/\/$/, "");
+    const token = getAuthBearer(); // fresh bearer on every attempt
 
-  es.addEventListener("transcript", (e) => {
-    const payload = parseJson<PhysicalTranscript>(e.data);
-    if (payload) handlers.onTranscript?.(payload);
-  });
+    es = new EventSource<JarvisEvent>(`${base}/api/jarvis/physical/events`, {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+      pollingInterval: 0, // library reconnect off; retry() owns it
+    });
 
-  es.addEventListener("jarvis-response-start", (e) => {
-    const payload = parseJson<JarvisResponseStart>(e.data);
-    if (payload) handlers.onResponseStart?.(payload);
-  });
+    handlers.onStatus?.("connecting");
 
-  es.addEventListener("jarvis-response-chunk", (e) => {
-    const payload = parseJson<JarvisResponseChunk>(e.data);
-    if (payload) handlers.onResponseChunk?.(payload);
-  });
+    es.addEventListener("open", () => handlers.onStatus?.("connected"));
+    es.addEventListener("hello", () => handlers.onStatus?.("connected"));
+    es.addEventListener("error", () => {
+      handlers.onStatus?.("error");
+      retry();
+    });
+    es.addEventListener("close", () => retry());
 
-  es.addEventListener("jarvis-tool-call", (e) => {
-    const payload = parseJson<JarvisToolCall>(e.data);
-    if (payload) handlers.onToolCall?.(payload);
-  });
+    es.addEventListener("transcript", (e) => {
+      const payload = parseJson<PhysicalTranscript>(e.data);
+      if (payload) handlers.onTranscript?.(payload);
+    });
 
-  es.addEventListener("jarvis-response-end", (e) => {
-    const payload = parseJson<JarvisResponseEnd>(e.data);
-    if (payload) handlers.onResponseEnd?.(payload);
-  });
+    es.addEventListener("jarvis-response-start", (e) => {
+      const payload = parseJson<JarvisResponseStart>(e.data);
+      if (payload) handlers.onResponseStart?.(payload);
+    });
+
+    es.addEventListener("jarvis-response-chunk", (e) => {
+      const payload = parseJson<JarvisResponseChunk>(e.data);
+      if (payload) handlers.onResponseChunk?.(payload);
+    });
+
+    es.addEventListener("jarvis-tool-call", (e) => {
+      const payload = parseJson<JarvisToolCall>(e.data);
+      if (payload) handlers.onToolCall?.(payload);
+    });
+
+    es.addEventListener("jarvis-response-end", (e) => {
+      const payload = parseJson<JarvisResponseEnd>(e.data);
+      if (payload) handlers.onResponseEnd?.(payload);
+    });
+  };
+
+  connect();
 
   return () => {
-    es.removeAllEventListeners();
-    es.close();
+    closed = true;
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    teardown();
   };
 }
