@@ -14,6 +14,7 @@ import { useTheme } from "@/theme";
 import {
   AppText,
   Button,
+  Chip,
   EmptyState,
   PressableRow,
   Screen,
@@ -90,6 +91,20 @@ export default function TasksScreen() {
       return !v;
     });
   }, []);
+  const [showOverdue, setShowOverdue] = useState(() => getSettings().tasksShowOverdue);
+  const [showInbox, setShowInbox] = useState(() => getSettings().tasksShowInbox);
+  const toggleOverdue = useCallback(() => {
+    setShowOverdue((v) => {
+      void updateSettings({ tasksShowOverdue: !v });
+      return !v;
+    });
+  }, []);
+  const toggleInbox = useCallback(() => {
+    setShowInbox((v) => {
+      void updateSettings({ tasksShowInbox: !v });
+      return !v;
+    });
+  }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const todayISO = localTodayISO();
 
@@ -100,8 +115,8 @@ export default function TasksScreen() {
   );
 
   const { rows, counts } = useMemo(
-    () => buildRows(query.data ?? [], todayISO, completedOpen),
-    [query.data, todayISO, completedOpen],
+    () => buildRows(query.data ?? [], todayISO, completedOpen, { showOverdue, showInbox }),
+    [query.data, todayISO, completedOpen, showOverdue, showInbox],
   );
 
   const handleComplete = useCallback(
@@ -201,11 +216,17 @@ export default function TasksScreen() {
       />
     );
   } else if (rows.length === 0) {
+    const hiddenCount =
+      (showOverdue ? 0 : counts.overdue) + (showInbox ? 0 : counts.inbox);
     content = (
       <EmptyState
         icon={<ListChecks size={22} color={t.c.inkFaint} strokeWidth={1.75} />}
-        title="Nothing on the list"
-        caption="Add one below, or tell Jarvis what needs doing."
+        title={hiddenCount > 0 ? "Nothing shown" : "Nothing on the list"}
+        caption={
+          hiddenCount > 0
+            ? `${hiddenCount} task${hiddenCount === 1 ? "" : "s"} in hidden sections.`
+            : "Add one below, or tell Jarvis what needs doing."
+        }
       />
     );
   } else {
@@ -242,6 +263,30 @@ export default function TasksScreen() {
         }
       />
       <TaskComposer onSubmit={handleCreate} />
+      {counts.overdue > 0 || counts.inbox > 0 ? (
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+          {counts.overdue > 0 ? (
+            <Chip
+              label={`Overdue · ${counts.overdue}`}
+              active={showOverdue}
+              haptic
+              onPress={toggleOverdue}
+              accessibilityLabel={
+                showOverdue ? "Hide overdue section" : "Show overdue section"
+              }
+            />
+          ) : null}
+          {counts.inbox > 0 ? (
+            <Chip
+              label={`Inbox · ${counts.inbox}`}
+              active={showInbox}
+              haptic
+              onPress={toggleInbox}
+              accessibilityLabel={showInbox ? "Hide inbox section" : "Show inbox section"}
+            />
+          ) : null}
+        </View>
+      ) : null}
       <View style={{ flex: 1, marginTop: 4 }}>{content}</View>
       <TaskDetailSheet task={editingTask} onClose={() => setEditingId(null)} />
     </Screen>

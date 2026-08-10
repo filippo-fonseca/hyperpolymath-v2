@@ -84,10 +84,18 @@ export interface Counts {
   completed: number;
 }
 
+export interface SectionToggles {
+  /** Render the Overdue section (counts still include it when hidden). */
+  showOverdue: boolean;
+  /** Render the Inbox section (counts still include it when hidden). */
+  showInbox: boolean;
+}
+
 export function buildRows(
   tasks: Task[],
   todayISO: string,
   completedOpen: boolean,
+  toggles: SectionToggles = { showOverdue: true, showInbox: true },
 ): { rows: Row[]; counts: Counts } {
   const open = tasks.filter((t) => t.status !== "lesno");
   const completed = tasks
@@ -104,7 +112,7 @@ export function buildRows(
   const inbox = open.filter((t) => t.dueDate === null);
 
   const rows: Row[] = [];
-  if (overdue.length) {
+  if (toggles.showOverdue && overdue.length) {
     rows.push({
       type: "section",
       key: "s-overdue",
@@ -134,7 +142,7 @@ export function buildRows(
       rows.push({ type: "task", key: t.id, task: t });
     }
   }
-  if (inbox.length) {
+  if (toggles.showInbox && inbox.length) {
     rows.push({ type: "section", key: "s-inbox", title: "Inbox", count: inbox.length });
     for (const t of inbox) rows.push({ type: "task", key: t.id, task: t });
   }
