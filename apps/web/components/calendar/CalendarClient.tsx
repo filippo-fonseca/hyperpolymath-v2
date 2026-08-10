@@ -534,6 +534,7 @@ export function CalendarClient({
         userTimezone: effectiveTz,
         attendees: form.attendees,
         addMeet: form.meetChange === "add",
+        sendUpdates: form.sendUpdates ?? undefined,
       });
 
       if (!res.success) {
@@ -573,6 +574,8 @@ export function CalendarClient({
         attendees?: string[];
         /** Conferencing delta — undefined leaves it untouched. */
         meet?: "add" | "remove";
+        /** Email guests about this save ("all") or save silently ("none"). */
+        sendUpdates?: "all" | "none";
       },
     ) => {
       // Re-entrancy guard for the auto-save drag/resize paths: if a write for
@@ -618,6 +621,7 @@ export function CalendarClient({
         userTimezone: effectiveTz,
         attendees: patch.attendees,
         meet: patch.meet,
+        sendUpdates: patch.sendUpdates,
       });
 
       if (!res.success) {
@@ -756,6 +760,7 @@ export function CalendarClient({
         allDay: form.allDay,
         attendees: form.attendees,
         meet: form.meetChange ?? undefined,
+        sendUpdates: form.sendUpdates ?? undefined,
       });
     },
     [handleCreate, handleUpdate],

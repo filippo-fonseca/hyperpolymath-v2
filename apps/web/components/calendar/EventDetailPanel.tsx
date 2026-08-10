@@ -48,7 +48,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Loader2, Video, X } from "lucide-react";
 import { usePendingAction } from "@/components/shared/use-pending-action";
-import { sameEmailSet } from "@/lib/gcal/guest-updates";
+import { editAffectsGuests, sameEmailSet } from "@/lib/gcal/guest-updates";
 import type {
   GcalAttendeeDTO,
   GcalAttendeeResponseStatus,
@@ -131,6 +131,12 @@ export interface EventFormResult {
    * "remove" clears the existing one, null leaves conferencing untouched.
    */
   meetChange: "add" | "remove" | null;
+  /**
+   * Google's sendUpdates query param: "all" emails guests about the save,
+   * "none" saves silently, null when the save doesn't affect guests (the
+   * param is then omitted entirely).
+   */
+  sendUpdates: "all" | "none" | null;
 }
 
 /** Basic shape check for the chip input — not RFC 5322, just sane. */
@@ -313,6 +319,7 @@ export function EventDetailPanel({
       reset(initialValues);
       setGuestInput("");
       setGuestError(null);
+      setSendInvites(true);
       seededKeyRef.current = key;
     }
   }, [state, initialValues, reset]);
@@ -367,6 +374,55 @@ export function EventDetailPanel({
     [watch, setValue],
   );
 
+  // ---- Send invitations on save -------------------------------------------
+  // The "email guests" choice surfaces only when the save would give Google
+  // someone to notify (guest-list change, or a time/Meet change on an event
+  // that has guests). Defaults to sending, like Notion Calendar.
+  const [sendInvites, setSendInvites] = useState(true);
+
+  // Your own attendee row isn't a guest — a solo event with only you
+  // attached has nobody to email about a reschedule.
+  const selfEmails = useMemo(() => {
+    if (state.mode !== "edit") return new Set<string>();
+    return new Set(
+      state.event.attendees
+        .filter((a) => a.self)
+        .map((a) => a.email.toLowerCase()),
+    );
+  }, [state]);
+  const toGuests = useCallback(
+    (emails: readonly string[]) =>
+      emails.filter((e) => !selfEmails.has(e.toLowerCase())),
+    [selfEmails],
+  );
+
+  const watchedStart = watch("start");
+  const watchedEnd = watch("end");
+  const watchedAllDayForGuests = watch("allDay");
+  const watchedMeetForGuests = watch("meet");
+  const affectsGuests = useMemo(() => {
+    if (state.mode === "closed") return false;
+    return editAffectsGuests({
+      mode: state.mode,
+      prevGuests: toGuests(initialValues.attendees),
+      nextGuests: toGuests(watchedAttendees),
+      timeChanged:
+        watchedStart !== initialValues.start ||
+        watchedEnd !== initialValues.end ||
+        watchedAllDayForGuests !== initialValues.allDay,
+      meetChanged: watchedMeetForGuests !== initialValues.meet,
+    });
+  }, [
+    state.mode,
+    toGuests,
+    initialValues,
+    watchedAttendees,
+    watchedStart,
+    watchedEnd,
+    watchedAllDayForGuests,
+    watchedMeetForGuests,
+  ]);
+
   const recurringEventId =
     state.mode === "edit" ? state.event.recurringEventId : null;
   const htmlLink =
@@ -403,6 +459,20 @@ export function EventDetailPanel({
           : !data.meet && initialValues.meet
             ? "remove"
             : null;
+      // Recompute guests-affected from the SUBMITTED values (not the live
+      // memo) so the sendUpdates decision matches exactly what's saved.
+      const submitAffectsGuests =
+        state.mode !== "closed" &&
+        editAffectsGuests({
+          mode: state.mode,
+          prevGuests: toGuests(initialValues.attendees),
+          nextGuests: toGuests(data.attendees),
+          timeChanged:
+            data.start !== initialValues.start ||
+            data.end !== initialValues.end ||
+            data.allDay !== initialValues.allDay,
+          meetChanged: data.meet !== initialValues.meet,
+        });
       const result: EventFormResult = {
         title: data.title.trim(),
         calendarId: data.calendarId,
@@ -415,6 +485,11 @@ export function EventDetailPanel({
             : null,
         attendees: attendeesChanged ? data.attendees : undefined,
         meetChange,
+        sendUpdates: submitAffectsGuests
+          ? sendInvites
+            ? "all"
+            : "none"
+          : null,
       };
       const editTarget =
         state.mode === "edit"
@@ -436,7 +511,17 @@ export function EventDetailPanel({
         { retry: false },
       );
     },
-    [state, userTimezone, onSave, onClose, onDraftChange, run, initialValues],
+    [
+      state,
+      userTimezone,
+      onSave,
+      onClose,
+      onDraftChange,
+      run,
+      initialValues,
+      toGuests,
+      sendInvites,
+    ],
   );
 
   // Cmd+Enter to save (mirrors CaptureDetailPanel convention).
@@ -925,16 +1010,31 @@ export function EventDetailPanel({
                   <span />
                 )}
                 <div className="flex items-center gap-2">
-                  <span
-                    className={
-                      isDirty
-                        ? "text-meta text-[var(--ink-faint)]"
-                        : "text-meta text-[var(--ink-faint)] opacity-0"
-                    }
-                    aria-hidden={!isDirty}
-                  >
-                    Cmd+Enter to save
-                  </span>
+                  {/* When the save affects guests, the keyboard hint yields
+                      its slot to the send-invitations choice — one quiet
+                      checkbox, default on (like Notion Calendar). */}
+                  {affectsGuests ? (
+                    <label className="flex cursor-pointer items-center gap-1.5 text-meta text-[var(--ink-muted)]">
+                      <input
+                        type="checkbox"
+                        checked={sendInvites}
+                        onChange={(e) => setSendInvites(e.target.checked)}
+                        className="h-3.5 w-3.5 cursor-pointer"
+                      />
+                      Email guests
+                    </label>
+                  ) : (
+                    <span
+                      className={
+                        isDirty
+                          ? "text-meta text-[var(--ink-faint)]"
+                          : "text-meta text-[var(--ink-faint)] opacity-0"
+                      }
+                      aria-hidden={!isDirty}
+                    >
+                      Cmd+Enter to save
+                    </span>
+                  )}
                   {/* UI-SPEC §12f button label register:
                       - "Cancel" → "Discard changes" (confirms intent)
                       - "Save" → "Save event" (context-specific verb)
