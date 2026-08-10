@@ -1,6 +1,10 @@
 // The center home screen. Welcome hero (orb, greeting, suggestion chips)
-// until the first turn, then a FlashList transcript that follows the bottom
-// only while the user is already there. All streaming work happens in the
+// until the first turn, then a bottom-anchored transcript panel above the
+// composer. The panel is capped at a fixed fraction of the usable height and
+// scrolls internally past the cap (never layout-animated per content change),
+// following the bottom only while the user is already there. Once a turn
+// completes, a quiet chevron collapses the panel back to the compact input
+// (which also clears the transcript). All streaming work happens in the
 // engine + stream store; this component re-renders at turn boundaries only.
 
 import React, { useCallback, useEffect, useRef } from "react";
@@ -10,14 +14,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import Animated, { FadeIn, FadeOut, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Eraser, Settings2 } from "lucide-react-native";
+import { ChevronDown, Eraser, Settings2 } from "lucide-react-native";
 
 import { useTheme } from "@/theme";
 import { AppText, Chip, Logotype, PressableRow, Screen, Spinner } from "@/ui";
@@ -26,7 +31,6 @@ import { Composer, type ComposerHandle } from "./Composer";
 import { Orb } from "./Orb";
 import { TurnRow } from "./TurnRow";
 import { streamStore } from "./stream-store";
-import type { JarvisTurn } from "./types";
 import { useJarvisEngine } from "./useJarvisEngine";
 import { VoiceOverlay } from "./VoiceOverlay";
 
@@ -43,9 +47,10 @@ export default function JarvisScreen() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const engine = useJarvisEngine();
   const composerRef = useRef<ComposerHandle>(null);
-  const listRef = useRef<FlashListRef<JarvisTurn>>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const atBottom = useRef(true);
   const scrollQueued = useRef(false);
 
@@ -54,7 +59,7 @@ export default function JarvisScreen() {
     scrollQueued.current = true;
     requestAnimationFrame(() => {
       scrollQueued.current = false;
-      listRef.current?.scrollToEnd({ animated: false });
+      scrollRef.current?.scrollToEnd({ animated: false });
     });
   }, []);
 
@@ -64,13 +69,6 @@ export default function JarvisScreen() {
   useEffect(() => {
     maybeFollowBottom();
   }, [engine.turns.length, maybeFollowBottom]);
-
-  const renderItem = useCallback(
-    ({ item }: { item: JarvisTurn }) => (
-      <TurnRow turn={item} canUndo={engine.canUndo} onUndo={engine.undoAction} />
-    ),
-    [engine.canUndo, engine.undoAction],
-  );
 
   const confirmClear = useCallback(() => {
     Alert.alert("Clear conversation?", "The transcript on this phone is erased.", [
@@ -88,6 +86,11 @@ export default function JarvisScreen() {
 
   const empty = engine.turns.length === 0;
   const tabBarHeight = 56 + Math.max(insets.bottom, 8);
+  // Hard cap for the transcript panel: about half the usable height above the
+  // composer. A per-device constant — the panel grows into it with content and
+  // scrolls internally past it, so streaming never pushes layout beyond the cap.
+  const panelMax = Math.round((windowHeight - insets.top - tabBarHeight) * 0.45);
+  const collapsible = !empty && !engine.busy;
 
   return (
     <Screen padded={false} topInset bottomInset={false}>
@@ -173,22 +176,58 @@ export default function JarvisScreen() {
             </View>
           </Animated.View>
         ) : (
-          <FlashList
-            ref={listRef}
-            data={engine.turns}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
-            onScroll={(e) => {
-              const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-              atBottom.current =
-                contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
-            }}
-            scrollEventThrottle={32}
-            onContentSizeChange={maybeFollowBottom}
-            keyboardDismissMode="interactive"
-            keyboardShouldPersistTaps="handled"
-          />
+          <View style={styles.bodyEnd}>
+            <Animated.View
+              entering={FadeIn.duration(t.motion.duration.panel).reduceMotion(
+                ReduceMotion.System,
+              )}
+              style={[styles.panel, { maxHeight: panelMax, borderTopColor: t.c.edge }]}
+            >
+              {/* Fixed-height handle strip: the chevron appears once the turn
+                  is done, so the panel height never jumps at stream end. */}
+              <View style={styles.handleRow}>
+                {collapsible ? (
+                  <Animated.View
+                    entering={FadeIn.duration(t.motion.duration.micro).reduceMotion(
+                      ReduceMotion.System,
+                    )}
+                  >
+                    <PressableRow
+                      accessibilityRole="button"
+                      accessibilityLabel="Collapse and clear conversation"
+                      onPress={() => void engine.clearConversation()}
+                      style={[styles.handleBtn, { borderRadius: t.radius.pill }]}
+                    >
+                      <ChevronDown size={17} color={t.c.inkMuted} strokeWidth={1.8} />
+                    </PressableRow>
+                  </Animated.View>
+                ) : null}
+              </View>
+              <ScrollView
+                ref={scrollRef}
+                style={styles.panelScroll}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12 }}
+                onScroll={(e) => {
+                  const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+                  atBottom.current =
+                    contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
+                }}
+                scrollEventThrottle={32}
+                onContentSizeChange={maybeFollowBottom}
+                keyboardDismissMode="interactive"
+                keyboardShouldPersistTaps="handled"
+              >
+                {engine.turns.map((turn) => (
+                  <TurnRow
+                    key={turn.id}
+                    turn={turn}
+                    canUndo={engine.canUndo}
+                    onUndo={engine.undoAction}
+                  />
+                ))}
+              </ScrollView>
+            </Animated.View>
+          </View>
         )}
         </Pressable>
 
@@ -258,6 +297,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 24,
+  },
+  bodyEnd: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  panel: {
+    flexShrink: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
+  },
+  panelScroll: {
+    flexShrink: 1,
+  },
+  handleRow: {
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  handleBtn: {
+    width: 44,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
   },
   heroText: {
     alignItems: "center",
