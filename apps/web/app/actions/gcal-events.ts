@@ -194,6 +194,28 @@ async function acquireCalendar(userId: string): Promise<AcquireResult> {
   }
 }
 
+// Guest emails ride on the event resource as `attendees: [{ email }]`.
+// gcal caps invites well above this; 100 keeps the payload sane.
+const AttendeesSchema = z.array(z.email()).max(100);
+
+// `sendUpdates` maps 1:1 to the events.insert / events.patch query param —
+// "all" emails invitations/updates to guests, "none" saves silently.
+const SendUpdatesSchema = z.enum(["all", "none"]);
+
+/**
+ * Auto-generated Meet conference request. `requestId` must be fresh per
+ * attempt (gcal dedupes on it); `conferenceDataVersion: 1` must accompany
+ * the API call or the createRequest is silently ignored.
+ */
+function meetCreateRequest(): calendar_v3.Schema$ConferenceData {
+  return {
+    createRequest: {
+      requestId: crypto.randomUUID(),
+      conferenceSolutionKey: { type: "hangoutsMeet" },
+    },
+  };
+}
+
 const CreateEventSchema = z.object({
   calendarId: z.string().min(1),
   title: z.string().min(1).max(1024),
@@ -204,6 +226,9 @@ const CreateEventSchema = z.object({
   end: z.string().min(1),
   allDay: z.boolean(),
   userTimezone: z.string().min(1), // e.g., "America/New_York"
+  attendees: AttendeesSchema.optional(),
+  addMeet: z.boolean().optional(),
+  sendUpdates: SendUpdatesSchema.optional(),
 });
 
 export async function createEvent(
@@ -222,8 +247,18 @@ export async function createEvent(
   const acquired = await acquireCalendar(user.id);
   if (!acquired.ok) return acquired.result;
 
-  const { calendarId, title, description, start, end, allDay, userTimezone } =
-    parsed.data;
+  const {
+    calendarId,
+    title,
+    description,
+    start,
+    end,
+    allDay,
+    userTimezone,
+    attendees,
+    addMeet,
+    sendUpdates,
+  } = parsed.data;
 
   const requestBody: calendar_v3.Schema$Event = {
     summary: title,
@@ -235,8 +270,21 @@ export async function createEvent(
       ? { date: end.slice(0, 10) }
       : { dateTime: end, timeZone: userTimezone },
   };
+  if (attendees && attendees.length > 0) {
+    requestBody.attendees = attendees.map((email) => ({ email }));
+  }
+  if (addMeet) {
+    requestBody.conferenceData = meetCreateRequest();
+  }
 
-  const { data } = await acquired.cal.events.insert({ calendarId, requestBody });
+  const { data } = await acquired.cal.events.insert({
+    calendarId,
+    requestBody,
+    // Required for the Meet createRequest to take effect; harmless otherwise
+    // (and makes the response include conferenceData for the DTO).
+    conferenceDataVersion: 1,
+    sendUpdates,
+  });
   const dto = eventToDTO(data, calendarId);
   if (!dto) {
     return {
@@ -261,6 +309,15 @@ const UpdateEventSchema = z.object({
   end: z.string().min(1).optional(),
   allDay: z.boolean().optional(),
   userTimezone: z.string().min(1),
+  /**
+   * Full desired guest list (emails). `undefined` leaves attendees untouched.
+   * An empty array removes all guests. Existing attendees keep their RSVP
+   * state — the action merges against the current event before patching.
+   */
+  attendees: AttendeesSchema.optional(),
+  /** "add" requests a fresh Meet link; "remove" clears conferencing. */
+  meet: z.enum(["add", "remove"]).optional(),
+  sendUpdates: SendUpdatesSchema.optional(),
 });
 
 export async function updateEvent(
@@ -289,6 +346,9 @@ export async function updateEvent(
     end,
     allDay,
     userTimezone,
+    attendees,
+    meet,
+    sendUpdates,
   } = parsed.data;
 
   // Cross-calendar move FIRST (Pitfall 9). events.move preserves the event
@@ -319,10 +379,42 @@ export async function updateEvent(
       : { dateTime: end, timeZone: userTimezone };
   }
 
+  // Attendee edits: the client sends the full desired email list. To avoid
+  // wiping RSVP state we merge against the CURRENT attendee rows — a kept
+  // guest keeps their whole attendee object (responseStatus, displayName,
+  // optional, …); only genuinely-new emails go up as bare `{ email }`.
+  if (attendees !== undefined) {
+    const { data: current } = await acquired.cal.events.get({
+      calendarId: effectiveCalendarId,
+      eventId,
+    });
+    const existingByEmail = new Map(
+      (current.attendees ?? [])
+        .filter((a) => a.email)
+        .map((a) => [(a.email as string).toLowerCase(), a]),
+    );
+    requestBody.attendees = attendees.map(
+      (email) => existingByEmail.get(email.toLowerCase()) ?? { email },
+    );
+  }
+
+  if (meet === "add") {
+    requestBody.conferenceData = meetCreateRequest();
+  } else if (meet === "remove") {
+    // Explicit null clears conferencing on patch (with conferenceDataVersion
+    // 1). The generated googleapis type doesn't admit null here even though
+    // the API contract does — hence the narrow cast.
+    (
+      requestBody as { conferenceData?: calendar_v3.Schema$ConferenceData | null }
+    ).conferenceData = null;
+  }
+
   const { data } = await acquired.cal.events.patch({
     calendarId: effectiveCalendarId,
     eventId,
     requestBody,
+    conferenceDataVersion: 1,
+    sendUpdates,
   });
   const dto = eventToDTO(data, effectiveCalendarId);
   if (!dto) {

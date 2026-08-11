@@ -113,6 +113,8 @@ function dtoToGridEvent(
     description: dto.description,
     recurringEventId: dto.recurringEventId,
     htmlLink: dto.htmlLink,
+    attendees: dto.attendees,
+    hangoutLink: dto.hangoutLink,
   };
 }
 
@@ -430,6 +432,8 @@ export function CalendarClient({
         description: null,
         recurringEventId: null,
         htmlLink: "",
+        attendees: [],
+        hangoutLink: null,
         isPlaceholder: true,
       });
       return out;
@@ -452,6 +456,8 @@ export function CalendarClient({
           description: null,
           recurringEventId: null,
           htmlLink: "",
+          attendees: [],
+          hangoutLink: null,
           isPlaceholder: true,
         },
       ];
@@ -498,6 +504,16 @@ export function CalendarClient({
         description: form.description,
         recurringEventId: null,
         htmlLink: "",
+        // Optimistic guests — bare rows until the canonical DTO (with gcal's
+        // resolved displayName/RSVP state) swaps in.
+        attendees: (form.attendees ?? []).map((email) => ({
+          email,
+          displayName: null,
+          responseStatus: null,
+          organizer: false,
+          self: false,
+        })),
+        hangoutLink: null,
         // Conflict-detection polish — outlined-placeholder render until the
         // canonical row arrives from gcal. swapPlaceholderForCanonical drops
         // this flag because the canonical dto-mapped row doesn't set it.
@@ -516,6 +532,9 @@ export function CalendarClient({
         end: form.end.toISOString(),
         allDay: form.allDay,
         userTimezone: effectiveTz,
+        attendees: form.attendees,
+        addMeet: form.meetChange === "add",
+        sendUpdates: form.sendUpdates ?? undefined,
       });
 
       if (!res.success) {
@@ -551,6 +570,12 @@ export function CalendarClient({
         start?: Date;
         end?: Date;
         allDay?: boolean;
+        /** Full desired guest list — undefined leaves attendees untouched. */
+        attendees?: string[];
+        /** Conferencing delta — undefined leaves it untouched. */
+        meet?: "add" | "remove";
+        /** Email guests about this save ("all") or save silently ("none"). */
+        sendUpdates?: "all" | "none";
       },
     ) => {
       // Re-entrancy guard for the auto-save drag/resize paths: if a write for
@@ -594,6 +619,9 @@ export function CalendarClient({
         end: patch.end?.toISOString(),
         allDay: patch.allDay,
         userTimezone: effectiveTz,
+        attendees: patch.attendees,
+        meet: patch.meet,
+        sendUpdates: patch.sendUpdates,
       });
 
       if (!res.success) {
@@ -730,6 +758,9 @@ export function CalendarClient({
         start: form.start,
         end: form.end,
         allDay: form.allDay,
+        attendees: form.attendees,
+        meet: form.meetChange ?? undefined,
+        sendUpdates: form.sendUpdates ?? undefined,
       });
     },
     [handleCreate, handleUpdate],

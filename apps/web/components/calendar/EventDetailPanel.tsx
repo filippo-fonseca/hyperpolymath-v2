@@ -46,8 +46,13 @@ import { z } from "zod";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Loader2, X } from "lucide-react";
+import { Loader2, Video, X } from "lucide-react";
 import { usePendingAction } from "@/components/shared/use-pending-action";
+import { editAffectsGuests, sameEmailSet } from "@/lib/gcal/guest-updates";
+import type {
+  GcalAttendeeDTO,
+  GcalAttendeeResponseStatus,
+} from "@/lib/gcal/event-dto";
 
 import {
   Sheet,
@@ -93,6 +98,11 @@ const EventFormSchema = z
     end: z.string().min(1, "End required"),
     allDay: z.boolean(),
     description: z.string().max(8192).optional(),
+    // Guest emails — validated at add time by the chip input, so the schema
+    // only needs the shape.
+    attendees: z.array(z.string()),
+    // Desired conferencing state: true = event should have a Meet link.
+    meet: z.boolean(),
   })
   .refine((v) => v.end > v.start, {
     message: "End must be after start",
@@ -110,7 +120,35 @@ export interface EventFormResult {
   end: Date;
   allDay: boolean;
   description: string | null;
+  /**
+   * Full desired guest list. `undefined` when the guest list is untouched
+   * (edit) or empty (create) — the parent then skips the attendee patch and
+   * the server never re-sends the merged list.
+   */
+  attendees: string[] | undefined;
+  /**
+   * Conferencing delta: "add" requests an auto-generated Meet link,
+   * "remove" clears the existing one, null leaves conferencing untouched.
+   */
+  meetChange: "add" | "remove" | null;
+  /**
+   * Google's sendUpdates query param: "all" emails guests about the save,
+   * "none" saves silently, null when the save doesn't affect guests (the
+   * param is then omitted entirely).
+   */
+  sendUpdates: "all" | "none" | null;
 }
+
+/** Basic shape check for the chip input — not RFC 5322, just sane. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Quiet copy for each RSVP state, chip-suffix sized. */
+const RESPONSE_LABEL: Record<GcalAttendeeResponseStatus, string> = {
+  needsAction: "awaiting reply",
+  accepted: "going",
+  declined: "declined",
+  tentative: "maybe",
+};
 
 interface Props {
   state: PanelState;
@@ -227,6 +265,8 @@ export function EventDetailPanel({
       end: "",
       allDay: false,
       description: "",
+      attendees: [],
+      meet: false,
     };
     if (state.mode === "edit") {
       return {
@@ -236,6 +276,8 @@ export function EventDetailPanel({
         end: toDateTimeLocalValue(state.event.end),
         allDay: state.event.allDay,
         description: state.event.description ?? "",
+        attendees: state.event.attendees.map((a) => a.email),
+        meet: Boolean(state.event.hangoutLink),
       };
     }
     if (state.mode === "create") {
@@ -275,9 +317,111 @@ export function EventDetailPanel({
           : `edit:${state.event.id}`;
     if (seededKeyRef.current !== key) {
       reset(initialValues);
+      setGuestInput("");
+      setGuestError(null);
+      setSendInvites(true);
       seededKeyRef.current = key;
     }
   }, [state, initialValues, reset]);
+
+  // ---- Invitees (chip input) ----------------------------------------------
+  const [guestInput, setGuestInput] = useState("");
+  const [guestError, setGuestError] = useState<string | null>(null);
+
+  // Existing attendee metadata (display name, RSVP, self/organizer) keyed by
+  // lowercase email — chips for retained guests show their response status.
+  const attendeeMetaByEmail = useMemo(() => {
+    const map = new Map<string, GcalAttendeeDTO>();
+    if (state.mode === "edit") {
+      for (const a of state.event.attendees) {
+        map.set(a.email.toLowerCase(), a);
+      }
+    }
+    return map;
+  }, [state]);
+
+  const watchedAttendees = watch("attendees");
+
+  const addGuest = useCallback(() => {
+    const email = guestInput.trim().replace(/,+$/, "");
+    if (!email) return;
+    if (!EMAIL_RE.test(email)) {
+      setGuestError("That doesn't look like an email");
+      return;
+    }
+    const current = watch("attendees");
+    if (current.some((e) => e.toLowerCase() === email.toLowerCase())) {
+      // Already invited — quietly clear the input.
+      setGuestInput("");
+      setGuestError(null);
+      return;
+    }
+    setValue("attendees", [...current, email], { shouldDirty: true });
+    setGuestInput("");
+    setGuestError(null);
+  }, [guestInput, watch, setValue]);
+
+  const removeGuest = useCallback(
+    (email: string) => {
+      setValue(
+        "attendees",
+        watch("attendees").filter(
+          (e) => e.toLowerCase() !== email.toLowerCase(),
+        ),
+        { shouldDirty: true },
+      );
+    },
+    [watch, setValue],
+  );
+
+  // ---- Send invitations on save -------------------------------------------
+  // The "email guests" choice surfaces only when the save would give Google
+  // someone to notify (guest-list change, or a time/Meet change on an event
+  // that has guests). Defaults to sending, like Notion Calendar.
+  const [sendInvites, setSendInvites] = useState(true);
+
+  // Your own attendee row isn't a guest — a solo event with only you
+  // attached has nobody to email about a reschedule.
+  const selfEmails = useMemo(() => {
+    if (state.mode !== "edit") return new Set<string>();
+    return new Set(
+      state.event.attendees
+        .filter((a) => a.self)
+        .map((a) => a.email.toLowerCase()),
+    );
+  }, [state]);
+  const toGuests = useCallback(
+    (emails: readonly string[]) =>
+      emails.filter((e) => !selfEmails.has(e.toLowerCase())),
+    [selfEmails],
+  );
+
+  const watchedStart = watch("start");
+  const watchedEnd = watch("end");
+  const watchedAllDayForGuests = watch("allDay");
+  const watchedMeetForGuests = watch("meet");
+  const affectsGuests = useMemo(() => {
+    if (state.mode === "closed") return false;
+    return editAffectsGuests({
+      mode: state.mode,
+      prevGuests: toGuests(initialValues.attendees),
+      nextGuests: toGuests(watchedAttendees),
+      timeChanged:
+        watchedStart !== initialValues.start ||
+        watchedEnd !== initialValues.end ||
+        watchedAllDayForGuests !== initialValues.allDay,
+      meetChanged: watchedMeetForGuests !== initialValues.meet,
+    });
+  }, [
+    state.mode,
+    toGuests,
+    initialValues,
+    watchedAttendees,
+    watchedStart,
+    watchedEnd,
+    watchedAllDayForGuests,
+    watchedMeetForGuests,
+  ]);
 
   const recurringEventId =
     state.mode === "edit" ? state.event.recurringEventId : null;
@@ -301,6 +445,34 @@ export function EventDetailPanel({
       // double-rendering alongside the real optimistic placeholder during the
       // network round-trip.
       if (onDraftChange) onDraftChange(null);
+      // Guest list: only send it when it actually changed (edit) or is
+      // non-empty (create) — an unchanged list would still trigger the
+      // server's merge round-trip for nothing.
+      const attendeesChanged =
+        state.mode === "edit"
+          ? !sameEmailSet(initialValues.attendees, data.attendees)
+          : data.attendees.length > 0;
+      // Conferencing delta relative to the saved event (create starts bare).
+      const meetChange: EventFormResult["meetChange"] =
+        data.meet && !initialValues.meet
+          ? "add"
+          : !data.meet && initialValues.meet
+            ? "remove"
+            : null;
+      // Recompute guests-affected from the SUBMITTED values (not the live
+      // memo) so the sendUpdates decision matches exactly what's saved.
+      const submitAffectsGuests =
+        state.mode !== "closed" &&
+        editAffectsGuests({
+          mode: state.mode,
+          prevGuests: toGuests(initialValues.attendees),
+          nextGuests: toGuests(data.attendees),
+          timeChanged:
+            data.start !== initialValues.start ||
+            data.end !== initialValues.end ||
+            data.allDay !== initialValues.allDay,
+          meetChanged: data.meet !== initialValues.meet,
+        });
       const result: EventFormResult = {
         title: data.title.trim(),
         calendarId: data.calendarId,
@@ -311,6 +483,13 @@ export function EventDetailPanel({
           data.description && data.description.trim()
             ? data.description.trim()
             : null,
+        attendees: attendeesChanged ? data.attendees : undefined,
+        meetChange,
+        sendUpdates: submitAffectsGuests
+          ? sendInvites
+            ? "all"
+            : "none"
+          : null,
       };
       const editTarget =
         state.mode === "edit"
@@ -332,7 +511,17 @@ export function EventDetailPanel({
         { retry: false },
       );
     },
-    [state, userTimezone, onSave, onClose, onDraftChange, run],
+    [
+      state,
+      userTimezone,
+      onSave,
+      onClose,
+      onDraftChange,
+      run,
+      initialValues,
+      toGuests,
+      sendInvites,
+    ],
   );
 
   // Cmd+Enter to save (mirrors CaptureDetailPanel convention).
@@ -407,6 +596,12 @@ export function EventDetailPanel({
   // Watch allDay to drive input type swap (date vs datetime-local). When
   // toggled on, strip the time portion of the start/end to a date string.
   const watchedAllDay = watch("allDay");
+
+  // ---- Conferencing (Google Meet) -----------------------------------------
+  const watchedMeet = watch("meet");
+  /** The saved event's joinable link — null in create mode / when absent. */
+  const existingMeetLink =
+    state.mode === "edit" ? state.event.hangoutLink : null;
 
   /**
    * Live form-state draft wiring (Plan 04-04 polish):
@@ -637,6 +832,153 @@ export function EventDetailPanel({
 
                 <section className="flex flex-col gap-2">
                   <Label
+                    htmlFor="event-guests"
+                    className="font-sans text-meta"
+                  >
+                    Invitees
+                  </Label>
+                  {watchedAttendees.length > 0 && (
+                    <ul className="flex flex-wrap gap-1.5" aria-label="Guests">
+                      {watchedAttendees.map((email) => {
+                        const meta = attendeeMetaByEmail.get(
+                          email.toLowerCase(),
+                        );
+                        const status = meta?.responseStatus
+                          ? RESPONSE_LABEL[meta.responseStatus]
+                          : null;
+                        return (
+                          <li
+                            key={email}
+                            className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-2 py-1 text-micro text-[var(--ink)]"
+                          >
+                            <span className="truncate">
+                              {meta?.self
+                                ? "you"
+                                : (meta?.displayName ?? email)}
+                            </span>
+                            {meta?.organizer && (
+                              <span className="text-[var(--ink-faint)]">
+                                · organizer
+                              </span>
+                            )}
+                            {status && !meta?.self && (
+                              <span className="text-[var(--ink-faint)]">
+                                · {status}
+                              </span>
+                            )}
+                            {!meta?.self && (
+                              <button
+                                type="button"
+                                onClick={() => removeGuest(email)}
+                                aria-label={`Remove ${email}`}
+                                className="rounded p-0.5 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+                              >
+                                <X
+                                  size={11}
+                                  className="text-[var(--ink-muted)]"
+                                />
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <Input
+                    id="event-guests"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="off"
+                    placeholder="Add guests by email"
+                    className="font-sans text-[var(--ink)]"
+                    value={guestInput}
+                    onChange={(e) => {
+                      setGuestInput(e.target.value);
+                      if (guestError) setGuestError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === ",") {
+                        e.preventDefault();
+                        addGuest();
+                      }
+                    }}
+                    onBlur={() => {
+                      if (guestInput.trim()) addGuest();
+                    }}
+                  />
+                  {guestError && (
+                    <p className="text-xs text-destructive">{guestError}</p>
+                  )}
+                </section>
+
+                {/* Conferencing — Notion-Calendar-style "Add Google Meet".
+                    The Meet link itself is minted by gcal on save (the form
+                    only tracks desired state); an existing link renders as a
+                    joinable row with a quiet remove affordance. */}
+                <section className="flex flex-col gap-2">
+                  <span className="font-sans text-meta text-[var(--ink-muted)]">
+                    Conferencing
+                  </span>
+                  {watchedMeet ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-3 py-2">
+                      <Video
+                        size={15}
+                        className="shrink-0 text-[var(--ink-muted)]"
+                        aria-hidden
+                      />
+                      <span className="flex-1 truncate text-meta text-[var(--ink)]">
+                        Google Meet
+                        {!existingMeetLink && (
+                          <span className="text-[var(--ink-faint)]">
+                            {" "}
+                            — link added on save
+                          </span>
+                        )}
+                      </span>
+                      {existingMeetLink && (
+                        <a
+                          href={existingMeetLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-meta font-medium text-[var(--ink)] underline underline-offset-2"
+                        >
+                          Join
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setValue("meet", false, { shouldDirty: true })
+                        }
+                        aria-label="Remove Google Meet"
+                        className="rounded p-1 transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+                      >
+                        <X size={13} className="text-[var(--ink-muted)]" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setValue("meet", true, { shouldDirty: true })
+                        }
+                        className="inline-flex h-8 w-fit items-center gap-1.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-3 text-meta text-[var(--ink)] transition-colors duration-[160ms] ease-out hover:bg-[var(--hover)]"
+                      >
+                        <Video size={14} aria-hidden />
+                        Add Google Meet
+                      </button>
+                      {initialValues.meet && (
+                        <p className="text-micro text-[var(--ink-faint)]">
+                          The current Meet link will be removed on save.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </section>
+
+                <section className="flex flex-col gap-2">
+                  <Label
                     htmlFor="event-description"
                     className="font-sans text-meta"
                   >
@@ -668,16 +1010,31 @@ export function EventDetailPanel({
                   <span />
                 )}
                 <div className="flex items-center gap-2">
-                  <span
-                    className={
-                      isDirty
-                        ? "text-meta text-[var(--ink-faint)]"
-                        : "text-meta text-[var(--ink-faint)] opacity-0"
-                    }
-                    aria-hidden={!isDirty}
-                  >
-                    Cmd+Enter to save
-                  </span>
+                  {/* When the save affects guests, the keyboard hint yields
+                      its slot to the send-invitations choice — one quiet
+                      checkbox, default on (like Notion Calendar). */}
+                  {affectsGuests ? (
+                    <label className="flex cursor-pointer items-center gap-1.5 text-meta text-[var(--ink-muted)]">
+                      <input
+                        type="checkbox"
+                        checked={sendInvites}
+                        onChange={(e) => setSendInvites(e.target.checked)}
+                        className="h-3.5 w-3.5 cursor-pointer"
+                      />
+                      Email guests
+                    </label>
+                  ) : (
+                    <span
+                      className={
+                        isDirty
+                          ? "text-meta text-[var(--ink-faint)]"
+                          : "text-meta text-[var(--ink-faint)] opacity-0"
+                      }
+                      aria-hidden={!isDirty}
+                    >
+                      Cmd+Enter to save
+                    </span>
+                  )}
                   {/* UI-SPEC §12f button label register:
                       - "Cancel" → "Discard changes" (confirms intent)
                       - "Save" → "Save event" (context-specific verb)
