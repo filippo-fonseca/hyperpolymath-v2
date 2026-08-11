@@ -29,6 +29,9 @@ import type { calendar_v3 } from "googleapis";
 export interface GcalCalendarMeta {
   id: string;
   summary: string;
+  /** User-authored calendar description from gcal, when set. Optional
+   *  (additive, Jarvis calendar routing) so existing literals stay valid. */
+  description?: string;
   backgroundColor: string;
   foregroundColor: string;
   primary: boolean;
@@ -47,6 +50,7 @@ export async function listCalendars(
     .map((c) => ({
       id: c.id,
       summary: c.summary ?? "(untitled)",
+      ...(c.description ? { description: c.description } : {}),
       backgroundColor: c.backgroundColor ?? "#4285F4", // Google blue default
       foregroundColor: c.foregroundColor ?? "#FFFFFF",
       primary: Boolean(c.primary),

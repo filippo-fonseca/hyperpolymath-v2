@@ -68,6 +68,18 @@ export interface ExecutionContext {
    * if this field is absent (e.g. tests that don't wire the route).
    */
   preValidatedProjectIds?: Set<string>;
+  /**
+   * Jarvis calendar routing — the writable gcal calendar ids fetched at the
+   * turn boundary and shown to the model in the USER CALENDARS prompt block.
+   * When present, executor.createEvent accepts exactly these ids for
+   * calendar_id; an unknown id falls back to the user's default calendar
+   * instead of failing the turn.
+   *
+   * Optional — backward-compatible. When absent (tests, legacy callers), the
+   * executor keeps the strict validateCalendarId behavior (default + visible
+   * list + "primary", reject otherwise).
+   */
+  allowedCalendarIds?: string[];
 }
 
 export type ExecutorResult =
