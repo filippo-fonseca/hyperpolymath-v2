@@ -214,22 +214,60 @@ export async function getXpOverview(userId: string): Promise<XpOverview> {
   };
 }
 
+export interface XpBadge {
+  totalXp: number;
+  level: number;
+  progress: number;
+  rank: string;
+  rankHue: number;
+  currentStreak: number;
+  /** The most recent award, so the notifier can name what just paid out. */
+  latest: { id: string; kind: string; label: string; icon: string; category: XpCategory; amount: number } | null;
+}
+
 /**
- * Just the numbers the header pill needs. Kept separate from the full overview
- * so the shell does not pay for a year of ledger on every page load.
+ * Just the numbers the sidebar badge and the award notifier need. Kept apart
+ * from the full overview so the shell never pays for a year of ledger.
  */
-export async function getXpBadge(
-  userId: string,
-): Promise<{ totalXp: number; level: number; progress: number; rank: string; currentStreak: number }> {
-  const [row] = await db.select().from(userXp).where(eq(userXp.userId, userId)).limit(1);
+export async function getXpBadge(userId: string): Promise<XpBadge> {
+  const [rows, latestRows] = await Promise.all([
+    db.select().from(userXp).where(eq(userXp.userId, userId)).limit(1),
+    db
+      .select({
+        id: xpEvents.id,
+        kind: xpEvents.kind,
+        amount: xpEvents.amount,
+        category: xpEvents.category,
+      })
+      .from(xpEvents)
+      .where(eq(xpEvents.userId, userId))
+      .orderBy(desc(xpEvents.occurredAt))
+      .limit(1),
+  ]);
+
+  const row = rows[0];
   const totalXp = row ? Number(row.totalXp) : 0;
   const p = levelFromXp(totalXp);
+  const rank = rankForLevel(p.level);
+  const latest = latestRows[0];
+
   return {
     totalXp,
     level: p.level,
     progress: p.progress,
-    rank: rankForLevel(p.level).name,
+    rank: rank.name,
+    rankHue: rank.hue,
     currentStreak: row?.currentStreak ?? 0,
+    latest: latest
+      ? {
+          id: latest.id,
+          kind: latest.kind,
+          label: metaForKind(latest.kind).label,
+          icon: metaForKind(latest.kind).icon,
+          category: metaForKind(latest.kind).category,
+          amount: latest.amount,
+        }
+      : null,
   };
 }
 
