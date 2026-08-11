@@ -1,19 +1,23 @@
 import * as Haptics from "expo-haptics";
-import { Plus } from "lucide-react-native";
+import { Plus, SlidersHorizontal } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
 import { useTheme } from "@/theme";
 
 export interface TaskComposerProps {
   onSubmit: (title: string) => void;
+  /** Open the full creation sheet, seeded with the current draft. */
+  onExpand?: (draft: string) => void;
 }
 
 /**
  * Ghost composer row pinned above the list: borderless until focused,
- * Enter creates and keeps the keyboard up for rapid entry.
+ * Enter creates and keeps the keyboard up for rapid entry. The trailing
+ * sliders button expands into the full creation sheet (web parity with
+ * TaskCreateInline handing off to the detail panel).
  */
-export function TaskComposer({ onSubmit }: TaskComposerProps) {
+export function TaskComposer({ onSubmit, onExpand }: TaskComposerProps) {
   const t = useTheme();
   const [text, setText] = useState("");
   const [focused, setFocused] = useState(false);
@@ -25,6 +29,12 @@ export function TaskComposer({ onSubmit }: TaskComposerProps) {
     onSubmit(title);
     setText("");
   }, [text, onSubmit]);
+
+  const expand = useCallback(() => {
+    void Haptics.selectionAsync();
+    onExpand?.(text.trim());
+    setText("");
+  }, [text, onExpand]);
 
   return (
     <View
@@ -61,6 +71,17 @@ export function TaskComposer({ onSubmit }: TaskComposerProps) {
           paddingVertical: 0,
         }}
       />
+      {onExpand ? (
+        <Pressable
+          onPress={expand}
+          accessibilityRole="button"
+          accessibilityLabel="More options"
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 2 })}
+        >
+          <SlidersHorizontal size={15} color={t.c.inkFaint} strokeWidth={2} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }

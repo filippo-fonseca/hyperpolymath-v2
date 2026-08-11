@@ -14,6 +14,7 @@ import { useTheme } from "@/theme";
 import {
   AppText,
   Button,
+  Chip,
   EmptyState,
   PressableRow,
   Screen,
@@ -26,6 +27,7 @@ import {
 import { buildRows, localTodayISO, type Row } from "./sections";
 import { ClusterDivider, TaskRow } from "./TaskRow";
 import { TaskComposer } from "./TaskComposer";
+import { TaskCreateSheet } from "./TaskCreateSheet";
 import { TaskDetailSheet } from "./TaskDetailSheet";
 
 /** Disclosure row for the sunken completed cluster. */
@@ -90,7 +92,23 @@ export default function TasksScreen() {
       return !v;
     });
   }, []);
+  const [showOverdue, setShowOverdue] = useState(() => getSettings().tasksShowOverdue);
+  const [showInbox, setShowInbox] = useState(() => getSettings().tasksShowInbox);
+  const toggleOverdue = useCallback(() => {
+    setShowOverdue((v) => {
+      void updateSettings({ tasksShowOverdue: !v });
+      return !v;
+    });
+  }, []);
+  const toggleInbox = useCallback(() => {
+    setShowInbox((v) => {
+      void updateSettings({ tasksShowInbox: !v });
+      return !v;
+    });
+  }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createDraft, setCreateDraft] = useState("");
   const todayISO = localTodayISO();
 
   // Live row from the cache so optimistic edits reflect in the open sheet.
@@ -100,8 +118,8 @@ export default function TasksScreen() {
   );
 
   const { rows, counts } = useMemo(
-    () => buildRows(query.data ?? [], todayISO, completedOpen),
-    [query.data, todayISO, completedOpen],
+    () => buildRows(query.data ?? [], todayISO, completedOpen, { showOverdue, showInbox }),
+    [query.data, todayISO, completedOpen, showOverdue, showInbox],
   );
 
   const handleComplete = useCallback(
@@ -120,6 +138,10 @@ export default function TasksScreen() {
       create.mutate({ title, dueDate: todayISO, priority: "P3", status: "not started" }),
     [create, todayISO],
   );
+  const handleExpand = useCallback((draft: string) => {
+    setCreateDraft(draft);
+    setCreateOpen(true);
+  }, []);
   const handleOpen = useCallback((task: Task) => setEditingId(task.id), []);
 
   const renderItem = useCallback(
@@ -201,11 +223,17 @@ export default function TasksScreen() {
       />
     );
   } else if (rows.length === 0) {
+    const hiddenCount =
+      (showOverdue ? 0 : counts.overdue) + (showInbox ? 0 : counts.inbox);
     content = (
       <EmptyState
         icon={<ListChecks size={22} color={t.c.inkFaint} strokeWidth={1.75} />}
-        title="Nothing on the list"
-        caption="Add one below, or tell Jarvis what needs doing."
+        title={hiddenCount > 0 ? "Nothing shown" : "Nothing on the list"}
+        caption={
+          hiddenCount > 0
+            ? `${hiddenCount} task${hiddenCount === 1 ? "" : "s"} in hidden sections.`
+            : "Add one below, or tell Jarvis what needs doing."
+        }
       />
     );
   } else {
@@ -241,8 +269,38 @@ export default function TasksScreen() {
           ) : undefined
         }
       />
-      <TaskComposer onSubmit={handleCreate} />
+      <TaskComposer onSubmit={handleCreate} onExpand={handleExpand} />
+      {counts.overdue > 0 || counts.inbox > 0 ? (
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+          {counts.overdue > 0 ? (
+            <Chip
+              label={`Overdue · ${counts.overdue}`}
+              active={showOverdue}
+              haptic
+              onPress={toggleOverdue}
+              accessibilityLabel={
+                showOverdue ? "Hide overdue section" : "Show overdue section"
+              }
+            />
+          ) : null}
+          {counts.inbox > 0 ? (
+            <Chip
+              label={`Inbox · ${counts.inbox}`}
+              active={showInbox}
+              haptic
+              onPress={toggleInbox}
+              accessibilityLabel={showInbox ? "Hide inbox section" : "Show inbox section"}
+            />
+          ) : null}
+        </View>
+      ) : null}
       <View style={{ flex: 1, marginTop: 4 }}>{content}</View>
+      <TaskCreateSheet
+        visible={createOpen}
+        initialTitle={createDraft}
+        onClose={() => setCreateOpen(false)}
+        onCreate={(input) => create.mutate(input)}
+      />
       <TaskDetailSheet task={editingTask} onClose={() => setEditingId(null)} />
     </Screen>
   );

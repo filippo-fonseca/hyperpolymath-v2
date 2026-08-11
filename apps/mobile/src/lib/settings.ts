@@ -22,6 +22,10 @@ export interface MobileSettings {
   voiceId: string;
   /** Tasks screen: completed-cluster disclosure (mirrors web localStorage). */
   tasksCompletedOpen: boolean;
+  /** Tasks screen: show the Overdue section (open tasks due before today). */
+  tasksShowOverdue: boolean;
+  /** Tasks screen: show the Inbox section (open tasks with no due date). */
+  tasksShowInbox: boolean;
 }
 
 const DEFAULTS: MobileSettings = {
@@ -29,6 +33,8 @@ const DEFAULTS: MobileSettings = {
   ttsEnabled: true,
   voiceId: DEFAULT_VOICE_ID,
   tasksCompletedOpen: false,
+  tasksShowOverdue: true,
+  tasksShowInbox: true,
 };
 
 let cached: MobileSettings = { ...DEFAULTS };
