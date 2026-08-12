@@ -47,7 +47,13 @@ export type RealtimeTable =
   // Live because a reference is created from one surface and read from
   // another: mention a task inside a capture and the task's backlink list has
   // to notice without a reload.
-  | "entity_references";
+  | "entity_references"
+  // Issue #345 — XP. Awards are handed out by Postgres triggers, so the tab
+  // that did the work never sees a return value it could optimistically apply.
+  // Realtime is the only way the level ring and the "+15 XP" toast learn that
+  // anything happened, on this device or any other.
+  | "xp_events"
+  | "user_xp";
 
 export function tableKey(
   table: RealtimeTable,

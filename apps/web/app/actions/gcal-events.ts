@@ -68,6 +68,7 @@ import {
   GcalTokenRevokedError,
 } from "@/lib/gcal/token";
 import { eventToDTO, type GcalEventDTO } from "@/lib/gcal/event-dto";
+import { awardXp } from "@/lib/db/queries/xp";
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -293,6 +294,25 @@ export async function createEvent(
       kind: "unknown",
     };
   }
+
+  // Issue #345 — the ONE XP award that cannot be a Postgres trigger, because
+  // Google Calendar is the store of record and nothing lands in our database.
+  // Everything else is covered by the triggers in migration 0044; do not add
+  // call sites here for things that could be triggers.
+  //
+  // The gcal event id is an opaque string, not a uuid, so it rides in the
+  // dedupe key and the metadata rather than in source_id.
+  //
+  // awardXp never throws — a failed award must not fail a saved event.
+  await awardXp({
+    userId: user.id,
+    kind: "event.created",
+    dedupeKey: `event.created:${calendarId}:${dto.id}`,
+    category: "calendar",
+    sourceType: "gcal",
+    metadata: { eventId: dto.id, calendarId, title },
+  });
+
   return { success: true, data: dto };
 }
 

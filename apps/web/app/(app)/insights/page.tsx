@@ -3,6 +3,7 @@ import { InsightsTabs } from "@/components/insights/InsightsTabs";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { getAnalyticsData, getStageLatencyStats } from "@/lib/db/queries/analytics";
 import { getInsightsData } from "@/lib/db/queries/insights";
+import { getXpOverview } from "@/lib/db/queries/xp";
 import { getRecentDevRuns } from "@/lib/db/queries/dev-runs";
 // 260607-h2k — Life tab integrations. GitHub self-fetches client-side, so only
 // three Result-returning calls are added to the page-level Promise.all.
@@ -13,7 +14,7 @@ import { getAnthropicApiRequestTrends } from "@/lib/integrations/anthropic-api/t
 import { getFlowSessions } from "@/lib/integrations/flow/sessions";
 import { getStravaActivities } from "@/lib/integrations/strava/activities";
 
-type Tab = "life" | "habits" | "jarvis" | "development";
+type Tab = "life" | "xp" | "habits" | "jarvis" | "development";
 
 export default async function InsightsPage({
   searchParams,
@@ -33,7 +34,7 @@ export default async function InsightsPage({
   const initialTab: Tab =
     tab === "development" && isDevOwner
       ? "development"
-      : tab === "habits" || tab === "jarvis" || tab === "life"
+      : tab === "habits" || tab === "jarvis" || tab === "life" || tab === "xp"
         ? tab
         : "life";
 
@@ -48,6 +49,7 @@ export default async function InsightsPage({
 
   const [
     analytics,
+    xp,
     jarvisLegacy,
     habits,
     habitCompletions,
@@ -57,6 +59,12 @@ export default async function InsightsPage({
     flow,
   ] = await Promise.all([
     getAnalyticsData(user.id),
+    // Issue #345 — XP tab. Never allowed to take the page down: if the ledger
+    // read fails the tab simply does not render.
+    getXpOverview(user.id).catch((error) => {
+      console.error("[insights] xp overview failed", error);
+      return null;
+    }),
     getInsightsData(user.id),
     getHabitsForCurrentUser(),
     // Done rows only — the range read now also returns partial progress, and
@@ -137,6 +145,7 @@ export default async function InsightsPage({
 
         <InsightsTabs
           initialTab={initialTab}
+          xp={xp}
           jarvis={{
             hasData: jarvisLegacy.totalTurns > 0,
             data: jarvisLegacy,

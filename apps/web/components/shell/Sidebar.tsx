@@ -18,6 +18,7 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { sfx } from "@/lib/ui/sfx";
 import { setSfxMuted, useSfxMuted } from "@/lib/ui/sound-prefs";
 import { cn } from "@/lib/utils";
+import { XpSidebarBadge } from "@/components/xp/XpSidebarBadge";
 import { useQuery } from "@tanstack/react-query";
 import {
   Eye,
@@ -346,7 +347,7 @@ export function Sidebar({
           <SidebarStatusRow collapsed={effectiveCollapsed} />
           {/* The HOME strip moved to the dock's Home widget (jul-29), which
               also gained the power controls the strip never had. */}
-          <IdentityBlock collapsed={effectiveCollapsed} profile={profile} />
+          <IdentityBlock collapsed={effectiveCollapsed} profile={profile} userId={userId} />
           <UtilityStrip
             collapsed={effectiveCollapsed}
             showArchived={showArchived}
@@ -541,9 +542,11 @@ function AvatarOrInitial({
 function IdentityBlock({
   collapsed,
   profile,
+  userId,
 }: {
   collapsed: boolean;
   profile: Props["profile"];
+  userId: string;
 }) {
   const src = profile.avatarUrl || profile.oauthAvatarUrl;
   const initial = (profile.displayName?.trim() || profile.email || "·").charAt(0).toUpperCase();
@@ -568,16 +571,21 @@ function IdentityBlock({
           </TooltipTrigger>
           <TooltipContent side="right">{primaryLabel}</TooltipContent>
         </Tooltip>
+        {/* Issue #345 — the only entry point to /profile from the shell. */}
+        <XpSidebarBadge userId={userId} collapsed className="mt-1.5" />
       </TooltipProvider>
     );
   }
 
   return (
+    // Row wrapper: the XP chip is its own link to /profile, and nesting an
+    // anchor inside the identity anchor would be invalid markup.
+    <div className="flex items-center gap-1">
     <a
       href="/settings"
       className={cn(
         SB_FOCUS,
-        "group flex h-12 items-center gap-2.5 rounded-lg px-2",
+        "group flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2",
         "cursor-pointer-always transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)]"
       )}
     >
@@ -598,6 +606,8 @@ function IdentityBlock({
         </span>
       </span>
     </a>
+      <XpSidebarBadge userId={userId} />
+    </div>
   );
 }
 

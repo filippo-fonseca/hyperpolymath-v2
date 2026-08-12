@@ -19,11 +19,15 @@ import { InsightsCharts } from "./InsightsCharts";
 import { PipelineLatencyPanel } from "./PipelineLatencyPanel";
 import { DevelopmentTabPanel } from "./DevelopmentTabPanel";
 import { LifeTabPanel } from "./life/LifeTabPanel";
+import { XpInsightsPanel } from "@/components/xp/XpInsightsPanel";
+import type { XpOverview } from "@/lib/db/queries/xp";
 
-type Tab = "life" | "habits" | "jarvis" | "development";
+type Tab = "life" | "xp" | "habits" | "jarvis" | "development";
 
 interface Props {
   initialTab?: Tab;
+  /** Issue #345. Null only if the XP query failed; the tab hides rather than half-render. */
+  xp?: XpOverview | null;
   jarvis: {
     hasData: boolean;
     // Pass-through to InsightsCharts. Typed as `any` here only because the
@@ -64,6 +68,7 @@ interface Props {
  */
 export function InsightsTabs({
   initialTab = "life",
+  xp = null,
   jarvis,
   habits,
   life,
@@ -74,7 +79,9 @@ export function InsightsTabs({
   // Coerce the effective tab: a "development" selection is only valid when the
   // owner-only development prop is present. Otherwise fall back to life.
   const effectiveTab: Tab =
-    tab === "development" && !development ? "life" : tab;
+    (tab === "development" && !development) || (tab === "xp" && !xp)
+      ? "life"
+      : tab;
 
   return (
     <div className="flex flex-col gap-6">
@@ -84,6 +91,9 @@ export function InsightsTabs({
         className="flex w-fit items-center gap-0.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-0.5"
       >
         <TabButton active={effectiveTab === "life"} onClick={() => setTab("life")} label="Life" />
+        {xp ? (
+          <TabButton active={effectiveTab === "xp"} onClick={() => setTab("xp")} label="XP" />
+        ) : null}
         <TabButton active={effectiveTab === "habits"} onClick={() => setTab("habits")} label="Habits" />
         <TabButton active={effectiveTab === "jarvis"} onClick={() => setTab("jarvis")} label="JARVIS" />
         {development ? (
@@ -103,6 +113,8 @@ export function InsightsTabs({
           subscription={development.subscription}
           claudeCode={development.claudeCode}
         />
+      ) : effectiveTab === "xp" && xp ? (
+        <XpInsightsPanel data={xp} />
       ) : effectiveTab === "life" ? (
         <LifeTabPanel
           strava={life.strava}

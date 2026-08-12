@@ -1945,3 +1945,77 @@ export const briefingItems = pgTable(
     index("briefing_items_user_idx").on(t.userId),
   ],
 );
+
+// ─── XP / LEVELING ─────────────────────────────────────────────────────────
+// Issue #345. Migration 0044.
+//
+// Awards are handed out by Postgres triggers, not by application code, because
+// writes reach the underlying tables from server actions, app/api/device/*,
+// the JARVIS executor and the email ingest. See the migration header for the
+// full reasoning. These three tables are therefore READ-ONLY from the app: RLS
+// grants SELECT and nothing else, and the only writer is the SECURITY DEFINER
+// award_xp() function.
+
+// What each kind of event is worth. Seeded and amended by migration; the app
+// reads it so "how XP works" screens never hardcode numbers that can drift.
+export const xpRules = pgTable("xp_rules", {
+  kind: text("kind").primaryKey(),
+  baseAmount: integer("base_amount").notNull(),
+  // NULL = uncapped. Only for things that are genuinely hard to repeat.
+  dailyCap: integer("daily_cap"),
+  active: boolean("active").notNull().default(true),
+});
+
+// The immutable ledger. One row per award.
+export const xpEvents = pgTable(
+  "xp_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    amount: integer("amount").notNull(),
+    // Denormalized so the analytics breakdown needs no join.
+    category: text("category").notNull(),
+    // Deliberately NOT a foreign key: the ledger is history and must outlive
+    // the task or page it points at.
+    sourceType: text("source_type"),
+    sourceId: uuid("source_id"),
+    // The user's local calendar day (resolved through users.timezone). Daily
+    // caps and streaks count against this, never against UTC.
+    localDate: date("local_date").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    // Makes every award idempotent: completing a task earns once for that
+    // task, forever, so un-completing and re-completing farms nothing.
+    dedupeKey: text("dedupe_key").notNull(),
+    metadata: jsonb("metadata")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+  },
+  (t) => [
+    uniqueIndex("xp_events_user_dedupe_uniq").on(t.userId, t.dedupeKey),
+    index("xp_events_user_occurred_idx").on(t.userId, sql`occurred_at DESC`),
+    index("xp_events_user_date_idx").on(t.userId, t.localDate),
+    index("xp_events_user_kind_date_idx").on(t.userId, t.kind, t.localDate),
+  ],
+);
+
+// The running total, maintained by award_xp() so it cannot drift from the
+// ledger. Level is NOT stored — the curve lives in lib/xp/levels.ts, which
+// means retuning it never needs a backfill.
+export const userXp = pgTable("user_xp", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  totalXp: bigint("total_xp", { mode: "number" }).notNull().default(0),
+  currentStreak: integer("current_streak").notNull().default(0),
+  longestStreak: integer("longest_streak").notNull().default(0),
+  lastActiveDate: date("last_active_date"),
+  firstEventAt: timestamp("first_event_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});

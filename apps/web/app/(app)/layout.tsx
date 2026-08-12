@@ -13,6 +13,7 @@ import { TimezoneSync } from "@/components/shell/TimezoneSync";
 import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
 import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
 import { PhysicalExtensionListener } from "@/components/voice/PhysicalExtensionListener";
+import { XpNotifier } from "@/components/xp/XpNotifier";
 import { getAuthAvatar, getUserOrRedirect } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { getHashtagSuggestionsCached, getSidebarTreeCached } from "@/lib/db/cached";
@@ -130,6 +131,11 @@ export default async function AppLayout({
             JarvisListener listens for that event and dispatches
             WAKE_WORD_DETECTED into the mic FSM. */}
             <PhysicalExtensionListener />
+            {/* Issue #345 — XP awards come from Postgres triggers, so the tab
+            that earned them gets no return value to react to. This listens on
+            the ledger and pops the "+N XP" badge (bottom-centre, clear of the
+            sonner stack and the JARVIS pill) plus the level-up card. */}
+            <XpNotifier userId={user.id} />
           </SearchProvider>
         </CurrentUserProvider>
       </QueryProvider>
