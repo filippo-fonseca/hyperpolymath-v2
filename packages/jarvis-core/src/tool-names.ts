@@ -48,6 +48,10 @@ export const JARVIS_TOOL_NAMES = [
   "list_lights",
   "control_lights",
   "computer_use",
+  "create_study_topics",
+  "find_study_topics",
+  "log_study_review",
+  "plan_study_day",
 ] as const satisfies readonly JarvisToolName[];
 
 // Exhaustiveness in the other direction: if a NEW member is added to the

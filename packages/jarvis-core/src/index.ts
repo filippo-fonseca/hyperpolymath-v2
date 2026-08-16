@@ -132,6 +132,11 @@ export type {
   ControlLightsAction,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseAction,
+  // Study review — topic-level spaced repetition for classes (issue #400)
+  CreateStudyTopicsAction,
+  FindStudyTopicsAction,
+  LogStudyReviewAction,
+  PlanStudyDayAction,
   // JARVIS management — per-user personality + startup config contracts
   PersonalityConfig,
   PersonalityPreset,

@@ -60,6 +60,10 @@ import {
   ListLightsInputSchema,
   ControlLightsInputSchema,
   ComputerUseInputSchema,
+  CreateStudyTopicsInputSchema,
+  FindStudyTopicsInputSchema,
+  LogStudyReviewInputSchema,
+  PlanStudyDayInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
 import type { ZodType } from "zod";
 
@@ -238,6 +242,11 @@ function buildParamValidators(voiceActive: boolean): Record<JarvisToolName, ZodT
     list_lights: ListLightsInputSchema,
     control_lights: ControlLightsInputSchema,
     computer_use: ComputerUseInputSchema,
+    // Study review — topic-level spaced repetition for classes (issue #400)
+    create_study_topics: CreateStudyTopicsInputSchema,
+    find_study_topics: FindStudyTopicsInputSchema,
+    log_study_review: LogStudyReviewInputSchema,
+    plan_study_day: PlanStudyDayInputSchema,
   };
 }
 
