@@ -1,4 +1,4 @@
-import { addDays, format, startOfWeek } from "date-fns";
+import { addDays, format, startOfToday } from "date-fns";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { getStudyOverview } from "@/lib/db/queries/study";
 import { ReviewClient } from "@/components/review/ReviewClient";
@@ -17,8 +17,9 @@ import { ReviewClient } from "@/components/review/ReviewClient";
 export default async function ReviewPage() {
   const user = await requireOnboarded();
 
-  // Monday-start, matching the calendar and training boards.
-  const start = startOfWeek(new Date(), { weekStartsOn: 1 });
+  // Starts today, not at the start of the week: a planner should open on the
+  // day you are planning, not on however much of the week has already gone.
+  const start = startOfToday();
   const from = format(start, "yyyy-MM-dd");
   const to = format(addDays(start, 13), "yyyy-MM-dd");
 

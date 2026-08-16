@@ -9,7 +9,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { addDays, format, startOfWeek } from "date-fns";
+import { addDays, format, startOfToday } from "date-fns";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { getStudyOverviewAction } from "@/app/actions/study-read";
@@ -25,7 +25,7 @@ import type { StudyWeight } from "@/lib/study/scheduler";
 import { PageScaffold } from "@/components/ui/PageScaffold";
 import { cn } from "@/lib/utils";
 import { FadingRail } from "./FadingRail";
-import { PlanDayColumn } from "./PlanDayColumn";
+import { PlanDayRow } from "./PlanDayRow";
 import { LogReviewDialog, type LogTarget } from "./LogReviewDialog";
 import { ExamCountdowns } from "./ExamCountdowns";
 
@@ -57,11 +57,13 @@ export function ReviewClient({
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [logTarget, setLogTarget] = useState<LogTarget | null>(null);
 
+  // The window starts TODAY, not at the start of the current week. A
+  // week-aligned window buries today under however many past days the week has
+  // already used up — five empty rows before the one that matters, on a Friday.
+  // Missed days are not lost either way: anything you skipped is still decaying
+  // and therefore still in the rail.
   const days = useMemo(() => {
-    const start = addDays(
-      startOfWeek(new Date(), { weekStartsOn: 1 }),
-      weekOffset * 7,
-    );
+    const start = addDays(startOfToday(), weekOffset * 7);
     return Array.from({ length: DAYS_SHOWN }, (_, i) => addDays(start, i));
   }, [weekOffset]);
 
@@ -250,7 +252,9 @@ export function ReviewClient({
           onDragEnd={(e) => void handleDragEnd(e)}
         >
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-            <div className="lg:max-h-[calc(100vh-320px)]">
+            {/* Sticky so the rail stays draggable-from while the agenda below
+                scrolls past a fortnight of days. */}
+            <div className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-180px)] lg:self-start lg:overflow-y-auto">
               <FadingRail
                 topics={topics}
                 plannedTopicIds={plannedTopicIds}
@@ -276,17 +280,17 @@ export function ReviewClient({
                         : "text-[var(--ink-muted)] hover:bg-[var(--surface)]",
                     )}
                   >
-                    {weekOffset === 0 ? "This fortnight" : "Today"}
+                    {weekOffset === 0 ? "Next 14 days" : "Back to today"}
                   </button>
                   <NavButton onClick={() => setWeekOffset((v) => v + 1)}>→</NavButton>
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-2">
+              <div className="flex flex-col gap-1">
                 {days.map((d) => {
                   const iso = format(d, "yyyy-MM-dd");
                   return (
-                    <PlanDayColumn
+                    <PlanDayRow
                       key={iso}
                       dateISO={iso}
                       date={d}
