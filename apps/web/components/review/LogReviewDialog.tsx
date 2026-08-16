@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { logStudyReview } from "@/app/actions/study";
 import {
-  intervalForRetention,
+  nextDueDate,
   reviewTopic,
   type StudyGrade,
   type StudyMode,
@@ -104,10 +104,19 @@ export function LogReviewDialog({
   const gapDays = forecast
     ? (forecast.nextDueAt.getTime() - Date.now()) / 86_400_000
     : 0;
-  const clampedByExam =
-    forecast != null &&
-    target.assessmentDate != null &&
-    intervalForRetention(forecast.stability, 0.9) > gapDays + 0.5;
+
+  // Did the exam shorten this interval at all? Compare against the same
+  // scheduler run with no assessment anchor, which catches BOTH mechanisms —
+  // the date clamp and the retention ramp. Testing only for the clamp would
+  // stay silent when the ramp did the work, and claiming "so it lands before
+  // the exam" when the ramp tightened it would be a false explanation.
+  const unanchoredGap =
+    forecast && target.assessmentDate
+      ? (nextDueDate(target.weight, forecast.stability, new Date(), null).getTime() -
+          Date.now()) /
+        86_400_000
+      : gapDays;
+  const tightenedByExam = unanchoredGap > gapDays + 0.5;
 
   async function submit() {
     if (!target || !grade) return;
@@ -220,10 +229,11 @@ export function LogReviewDialog({
                 <span className="font-medium text-[var(--ink)]">
                   {bareDays(gapDays)}
                 </span>
-                {clampedByExam && target.assessmentTitle ? (
+                {tightenedByExam && target.assessmentTitle ? (
                   <span className="text-[var(--ink-faint)]">
                     {" "}
-                    — pulled in so it lands before {target.assessmentTitle}
+                    (tightened from {bareDays(unanchoredGap)} for{" "}
+                    {target.assessmentTitle})
                   </span>
                 ) : null}
                 .

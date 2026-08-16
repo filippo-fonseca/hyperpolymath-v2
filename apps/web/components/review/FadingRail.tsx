@@ -7,13 +7,7 @@ import type { TopicWithState } from "@/lib/db/queries/study";
 import { tintFor } from "@/lib/tint";
 import { cn } from "@/lib/utils";
 import { RetentionRing } from "./RetentionRing";
-import {
-  URGENCY_META,
-  WEIGHT_META,
-  bareDays,
-  relativeDays,
-  urgencyBand,
-} from "./study-ui";
+import { URGENCY_META, WEIGHT_META, urgencyBand } from "./study-ui";
 import type { StudyWeight } from "@/lib/study/scheduler";
 
 /**
@@ -162,6 +156,15 @@ function FadingCard({
     data: { kind: "topic", topicId: topic.id },
   });
 
+  // dnd-kit's attributes include role="button". Applied to a row that itself
+  // contains a button, that is invalid nesting AND it swallows the child's
+  // accessible name into the row's own — leaving two "buttons" whose names both
+  // contain "Log review for X", so neither can be addressed unambiguously.
+  // Dropping the role restores the implicit `listitem` and leaves the Log
+  // button as the only interactive element. tabIndex and aria-roledescription
+  // survive, so dnd-kit's keyboard drag still works.
+  const { role: _dragRole, ...dragAttributes } = attributes;
+
   const band = urgencyBand(topic.priority);
   const unstudied = topic.reps === 0;
   const tint = tintFor(topic.projectId);
@@ -179,7 +182,7 @@ function FadingCard({
         planned && !isDragging && "opacity-45",
       )}
       {...listeners}
-      {...attributes}
+      {...dragAttributes}
     >
       <RetentionRing
         retrievability={topic.retrievability}
@@ -210,9 +213,16 @@ function FadingCard({
 
       {/* Logging from the rail covers the honest case where you revised
           something without ever planning it. Hidden until hover so the
-          resting state stays quiet. */}
+          resting state stays quiet.
+
+          The aria-label names the topic rather than saying a bare "Log":
+          dnd-kit puts role="button" on the draggable row above, so a row and
+          its own action button would otherwise be two buttons whose accessible
+          names both contain "Log" — ambiguous to a screen reader, and
+          genuinely unclickable by name for anything driving the page. */}
       <button
         type="button"
+        aria-label={`Log review for ${topic.title}`}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
@@ -238,15 +248,19 @@ function reasonFor(
 ): string {
   if (unstudied) return "never reviewed";
 
+  // Compact by necessity: the rail is 280px and this line sits after the class
+  // code, so anything conversational truncates and stops justifying anything.
   const exam = topic.nextAssessment;
   if (exam) {
     const days = daysUntil(exam.dueDate);
-    if (days <= 14) return `${exam.title} ${relativeDays(days)}`;
+    if (days <= 14) return `${exam.title} · ${days <= 0 ? "today" : `${days}d`}`;
   }
 
   if (topic.lastReviewedAt) {
-    const ago = (Date.now() - new Date(topic.lastReviewedAt).getTime()) / 86_400_000;
-    return `${URGENCY_META[band].label.toLowerCase()} · ${bareDays(ago)} ago`;
+    const ago = Math.round(
+      (Date.now() - new Date(topic.lastReviewedAt).getTime()) / 86_400_000,
+    );
+    return `${URGENCY_META[band].label.toLowerCase()} · ${ago}d ago`;
   }
   return URGENCY_META[band].label.toLowerCase();
 }

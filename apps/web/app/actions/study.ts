@@ -444,11 +444,25 @@ export async function planStudyTopic(
   return { success: true, data: { id: row?.id ?? null } };
 }
 
+/**
+ * Today as YYYY-MM-DD in LOCAL time.
+ *
+ * `toISOString().slice(0,10)` is UTC, which west of Greenwich reads as tomorrow
+ * for the last hours of the evening — long enough to hide an assessment that is
+ * due today from the person revising for it tonight.
+ */
+function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
+
 async function nearestAssessmentFor(
   userId: string,
   topicId: string,
 ): Promise<string | null> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const [row] = await db
     .select({ id: studyAssessments.id })
     .from(studyAssessmentTopics)

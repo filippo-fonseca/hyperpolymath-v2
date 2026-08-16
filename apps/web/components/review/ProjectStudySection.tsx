@@ -272,6 +272,7 @@ function TopicRow({
       <button
         type="button"
         onClick={onLog}
+        aria-label={`Log review for ${topic.title}`}
         className="shrink-0 rounded-md px-2 py-0.5 text-micro text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)]"
       >
         Log

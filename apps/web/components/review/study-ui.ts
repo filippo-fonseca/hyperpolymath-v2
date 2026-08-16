@@ -38,6 +38,10 @@ export const WEIGHT_META: Record<
 
 export const GRADE_ORDER: StudyGrade[] = ["blanked", "shaky", "solid", "fluent"];
 
+// Literal hex, not theme vars. These four are a deliberate red → amber → green
+// → blue ramp read as one set, and they sit under white text when selected; a
+// theme token that resolves pale (as --sd-danger does) breaks the contrast and
+// the set at once.
 export const GRADE_META: Record<
   StudyGrade,
   { label: string; hint: string; hue: string }
@@ -45,7 +49,7 @@ export const GRADE_META: Record<
   blanked: {
     label: "Blanked",
     hint: "Could not reproduce it.",
-    hue: "var(--sd-danger, #ef4444)",
+    hue: "#ef4444",
   },
   shaky: {
     label: "Shaky",
