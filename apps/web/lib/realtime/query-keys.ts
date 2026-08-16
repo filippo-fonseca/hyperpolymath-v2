@@ -53,7 +53,15 @@ export type RealtimeTable =
   // Realtime is the only way the level ring and the "+15 XP" toast learn that
   // anything happened, on this device or any other.
   | "xp_events"
-  | "user_xp";
+  | "user_xp"
+  // Issue #400 — study review. The day plan is edited from the /review board
+  // and read by the LifeOS widget and the class project section, so a drag on
+  // one surface has to land on the others without a reload.
+  | "study_topics"
+  | "study_assessments"
+  | "study_assessment_topics"
+  | "study_reviews"
+  | "study_plan_items";
 
 export function tableKey(
   table: RealtimeTable,
