@@ -16,10 +16,15 @@ import {
 } from "@hyperpolymath/jarvis-core";
 
 describe("CACHE-01 — tools last carries cache_control with ttl: \"1h\"", () => {
-  it("ask_clarification (the LAST tool) carries { type: 'ephemeral', ttl: '1h' }", () => {
+  // These assert the INVARIANT (whichever tool is last carries the breakpoint)
+  // rather than a tool name. They were pinned to "ask_clarification" from Phase
+  // 11 and had been failing since the tool array grew past it — which is
+  // exactly backwards, because a test guarding "the breakpoint sits on the last
+  // tool" should survive tools being appended. That is the only event it exists
+  // to police. Un-pinned when the study-review tools landed (issue #400).
+  it("the LAST tool carries { type: 'ephemeral', ttl: '1h' }", () => {
     const tools = buildToolDefinitions({ voiceActive: false });
     const last = tools[tools.length - 1];
-    expect(last.name).toBe("ask_clarification");
     expect(last.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
@@ -27,7 +32,7 @@ describe("CACHE-01 — tools last carries cache_control with ttl: \"1h\"", () =>
     const tools = buildToolDefinitions({ voiceActive: false });
     const withCacheControl = tools.filter((t) => t.cache_control !== undefined);
     expect(withCacheControl).toHaveLength(1);
-    expect(withCacheControl[0].name).toBe("ask_clarification");
+    expect(withCacheControl[0].name).toBe(tools[tools.length - 1].name);
   });
 
   it("voiceActive=true preserves the same placement", () => {
