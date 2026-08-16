@@ -59,6 +59,14 @@ import {
 } from "@/lib/govee/resolve";
 import { GoveeApiError } from "@/lib/govee/client";
 import { upsertHashtag } from "@/app/actions/hashtags";
+// Issue #400 — study review. The executor delegates to the same server actions
+// the web UI calls so the scheduler has exactly one entry point.
+import {
+  createStudyTopics,
+  logStudyReview,
+  planStudyTopic,
+} from "@/app/actions/study";
+import { getStudyTopics } from "@/lib/db/queries/study";
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
 import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
 import {
@@ -86,6 +94,10 @@ import type {
   ActionExecutor,
   AskClarificationAction,
   ComputerUseAction,
+  CreateStudyTopicsAction,
+  FindStudyTopicsAction,
+  LogStudyReviewAction,
+  PlanStudyDayAction,
   CreateCaptureAction,
   CreateEventAction,
   CreatePersonAction,
@@ -1541,6 +1553,146 @@ export function createServerExecutor(): ActionExecutor {
         id: `play_music:${query ?? "resume"}`,
         receipt: { app, ...(query ? { query } : {}) },
         action: { kind: "play_music", app, ...(query ? { query } : {}) },
+      };
+    },
+
+    // ─── STUDY REVIEW (issue #400) ─────────────────────────────────────────
+    // Fully server-side. These delegate to the same server actions the web UI
+    // calls, so there is exactly one implementation of "create a topic" and
+    // one of "log a review" — and in particular the scheduler runs in exactly
+    // one place regardless of whether the review arrived by click or by voice.
+
+    async createStudyTopics(
+      input: CreateStudyTopicsAction,
+      _ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const res = await createStudyTopics({
+        projectId: input.project_id,
+        topics: input.topics.map((t) => ({
+          title: t.title,
+          ...(t.weight ? { weight: t.weight } : {}),
+          ...(t.parent_index != null ? { parentIndex: t.parent_index } : {}),
+        })),
+      });
+      if (!res.success) {
+        return { ok: false, kind: "validation", error: res.error };
+      }
+      return {
+        ok: true,
+        id: `create_study_topics:${res.data.ids.length}`,
+        receipt: { created: res.data.ids.length, topic_ids: res.data.ids },
+      };
+    },
+
+    async findStudyTopics(
+      input: FindStudyTopicsAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const all = await getStudyTopics(ctx.userId, {
+        ...(input.project_id ? { projectId: input.project_id } : {}),
+      });
+
+      const q = input.query?.trim().toLowerCase();
+      let matches = q
+        ? all.filter((t) => t.title.toLowerCase().includes(q))
+        : all;
+      if (input.due_only) matches = matches.filter((t) => t.priority > 0);
+
+      // Most urgent first — the same ordering the /review rail uses, so the
+      // agent and the screen never disagree about what matters.
+      matches.sort((a, b) => b.priority - a.priority);
+      const top = matches.slice(0, 20);
+
+      return {
+        ok: true,
+        id: `find_study_topics:${top.length}`,
+        receipt: {
+          count: top.length,
+          topics: top.map((t) => ({
+            id: t.id,
+            title: t.title,
+            class: t.courseCode ?? t.projectName,
+            weight: t.weight,
+            retention:
+              t.reps === 0 ? "never reviewed" : `${Math.round(t.retrievability * 100)}%`,
+            due: t.priority > 0,
+            next_assessment: t.nextAssessment
+              ? { title: t.nextAssessment.title, date: t.nextAssessment.dueDate }
+              : null,
+          })),
+          ...(all.length === 0
+            ? { hint: "No study topics yet — add them on a class project page." }
+            : {}),
+        },
+      };
+    },
+
+    async logStudyReview(
+      input: LogStudyReviewAction,
+      _ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const res = await logStudyReview({
+        topicId: input.topic_id,
+        mode: input.mode,
+        grade: input.grade,
+        reachedCriterion: input.reached_criterion ?? false,
+        durationMin: input.duration_min ?? null,
+        gaps: input.gaps ?? null,
+        source: "kiwi",
+      });
+      if (!res.success) {
+        return { ok: false, kind: "validation", error: res.error };
+      }
+      const days = Math.max(
+        0,
+        Math.round((new Date(res.data.nextDueAt).getTime() - Date.now()) / 86_400_000),
+      );
+      return {
+        ok: true,
+        id: res.data.id,
+        receipt: {
+          logged: true,
+          mode: input.mode,
+          grade: input.grade,
+          next_review_in_days: days,
+          next_review_at: res.data.nextDueAt,
+        },
+      };
+    },
+
+    async planStudyDay(
+      input: PlanStudyDayAction,
+      _ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const planned: string[] = [];
+      const failed: string[] = [];
+
+      for (const topicId of input.topic_ids) {
+        const res = await planStudyTopic({
+          topicId,
+          planDate: input.plan_date,
+          ...(input.assessment_id ? { assessmentId: input.assessment_id } : {}),
+        });
+        if (res.success) planned.push(topicId);
+        else failed.push(topicId);
+      }
+
+      if (planned.length === 0 && failed.length > 0) {
+        return {
+          ok: false,
+          kind: "validation",
+          error: "Could not plan any of those topics",
+        };
+      }
+
+      return {
+        ok: true,
+        id: `plan_study_day:${input.plan_date}`,
+        receipt: {
+          plan_date: input.plan_date,
+          planned: planned.length,
+          ...(failed.length > 0 ? { skipped: failed.length } : {}),
+        },
       };
     },
 
