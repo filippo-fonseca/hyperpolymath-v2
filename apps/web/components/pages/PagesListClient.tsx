@@ -17,13 +17,14 @@ import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import { buildTreeZip, downloadZipFiles } from "@/lib/pages/markdown-export";
 import { buildPagesTree } from "@/lib/pages/tree";
 import { useEnsureTodayDailyPage } from "@/lib/pages/useEnsureTodayDailyPage";
+import { useWikiPagePrefetch } from "@/lib/pages/useWikiPagePrefetch";
 import { useSeedQueryData } from "@/lib/query/useSeedQueryData";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { type PointerEvent, useCallback, useMemo, useState } from "react";
 import { PropertiesManagerModal } from "./PropertiesManagerModal";
 
 interface Props {
@@ -143,6 +144,20 @@ export function PagesListClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryClient, userId]);
 
+  // Hover-prefetch any page card or row in the explorer. One delegated
+  // listener reads the items' existing data-explorer-id, so the views need no
+  // new props; folder ids are skipped because opening one stays on /wiki.
+  const prefetchPage = useWikiPagePrefetch();
+  const pageIds = useMemo(() => new Set(allPages.map((p) => p.id)), [allPages]);
+  const handleExplorerPointerOver = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const el = (event.target as HTMLElement).closest<HTMLElement>("[data-explorer-id]");
+      const id = el?.dataset.explorerId;
+      if (id && pageIds.has(id)) prefetchPage(id);
+    },
+    [pageIds, prefetchPage]
+  );
+
   const handleOpenPage = useCallback(
     (pageId: string) => {
       router.push(`/wiki/${pageId}`);
@@ -215,13 +230,17 @@ export function PagesListClient({
         openingDate={openingDate}
       />
 
-      <WikiExplorer
-        userId={userId}
-        pages={allPages}
-        folders={folders}
-        folderProjects={folderProjects}
-        projects={projects}
-      />
+      {/* display:contents keeps the explorer a direct flex child of the
+          scaffold column; the wrapper exists only to host the listener. */}
+      <div className="contents" onPointerOver={handleExplorerPointerOver}>
+        <WikiExplorer
+          userId={userId}
+          pages={allPages}
+          folders={folders}
+          folderProjects={folderProjects}
+          projects={projects}
+        />
+      </div>
 
       <PropertiesManagerModal
         open={wikiManagerOpen}
