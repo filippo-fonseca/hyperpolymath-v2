@@ -5,17 +5,15 @@ import {
   type DailyPageRef,
   type PageWithProjects,
   getDailyPagesForUser,
+  getPageById,
   getPagesForUser,
 } from "@/lib/db/queries/pages";
 import { pageFolders, pages, pagesProjects, projects } from "@/lib/db/schema";
-import { createClient } from "@/lib/supabase/server";
 import { dailyPageTitle, isValidDailyDate } from "@/lib/pages/daily-page";
-import { extractReferencesFromContentJson } from "@/lib/references/page-refs";
-import {
-  deleteReferencesForEntity,
-  reconcileEntityReferences,
-} from "@/lib/references/reconcile";
 import { scheduleEntityEmbedding } from "@/lib/references/embedding-enqueue";
+import { extractReferencesFromContentJson } from "@/lib/references/page-refs";
+import { deleteReferencesForEntity, reconcileEntityReferences } from "@/lib/references/reconcile";
+import { createClient } from "@/lib/supabase/server";
 // pageFolders is imported for the createPage folder-ownership check below.
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -66,12 +64,7 @@ export async function createPage(input: unknown): Promise<ActionResult<{ id: str
       const [folder] = await tx
         .select({ id: pageFolders.id })
         .from(pageFolders)
-        .where(
-          and(
-            eq(pageFolders.id, parsed.data.folderId),
-            eq(pageFolders.userId, userId),
-          ),
-        );
+        .where(and(eq(pageFolders.id, parsed.data.folderId), eq(pageFolders.userId, userId)));
       if (folder) folderId = folder.id;
     }
 
@@ -82,9 +75,7 @@ export async function createPage(input: unknown): Promise<ActionResult<{ id: str
         userId,
         title: parsed.data.title,
         content: parsed.data.content,
-        ...(parsed.data.contentJson !== undefined
-          ? { contentJson: parsed.data.contentJson }
-          : {}),
+        ...(parsed.data.contentJson !== undefined ? { contentJson: parsed.data.contentJson } : {}),
         emoji: parsed.data.emoji ?? null,
         url: parsed.data.url ? parsed.data.url : null,
         folderId,
@@ -105,7 +96,7 @@ export async function createPage(input: unknown): Promise<ActionResult<{ id: str
             pageId: page.id,
             projectId,
             userId,
-          })),
+          }))
         );
       }
     }
@@ -286,6 +277,21 @@ export async function getPagesForCurrentUser(): Promise<PageWithProjects[]> {
 }
 
 /**
+ * Auth-gated SELECT for one of the signed-in user's pages, or null if it is
+ * gone. queryFn target for the wiki page view, which only needs its own row:
+ * refetching the whole list (every page's content) on each realtime echo of
+ * its own autosave was the single most expensive thing the editor did.
+ */
+export async function getPageForCurrentUser(id: string): Promise<PageWithProjects | null> {
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) throw new Error("Unauthorized");
+  return getPageById(data.claims.sub, parsed.data);
+}
+
+/**
  * Auth-gated SELECT for the signed-in user's Daily Pages (Phase 30).
  * queryFn target for the Wiki-home calendar's marked-day query.
  */
@@ -297,9 +303,7 @@ export async function getDailyPagesForCurrentUser(): Promise<DailyPageRef[]> {
 }
 
 const OpenDailyPageSchema = z.object({
-  date: z
-    .string()
-    .refine(isValidDailyDate, "Expected a yyyy-MM-dd calendar date"),
+  date: z.string().refine(isValidDailyDate, "Expected a yyyy-MM-dd calendar date"),
 });
 
 /**

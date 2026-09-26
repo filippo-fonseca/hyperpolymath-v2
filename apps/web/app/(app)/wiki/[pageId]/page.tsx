@@ -53,5 +53,12 @@ export default async function PageDetailPage({ params, searchParams }: Props) {
 
   if (!page) notFound();
 
-  return <PageDetailClient userId={user.id} page={page} initialActiveProjects={activeProjects} />;
+  return (
+    <PageDetailClient
+      userId={user.id}
+      page={page}
+      serverTime={Date.now()}
+      initialActiveProjects={activeProjects}
+    />
+  );
 }
