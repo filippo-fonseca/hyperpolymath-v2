@@ -76,10 +76,14 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
   useTableSubscription("folder_projects", userId);
   useTableSubscription("projects", userId);
 
+  // placeholderData, not initialData: `initialPages` is only this project's
+  // slice, and this key is the wiki-wide list. Seeding it would park the slice
+  // in the shared cache, and the wiki home would then render a handful of
+  // pages as if they were all of them.
   const { data: allPages = [] } = useQuery({
     queryKey: tableKey("pages", userId),
     queryFn: () => getPagesForCurrentUser(),
-    initialData: initialPages,
+    placeholderData: initialPages,
   });
   const { data: allFolders = [] } = useQuery({
     queryKey: tableKey("page_folders", userId),
