@@ -17,6 +17,7 @@ import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import { buildTreeZip, downloadZipFiles } from "@/lib/pages/markdown-export";
 import { buildPagesTree } from "@/lib/pages/tree";
 import { useEnsureTodayDailyPage } from "@/lib/pages/useEnsureTodayDailyPage";
+import { useSeedQueryData } from "@/lib/query/useSeedQueryData";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +28,8 @@ import { PropertiesManagerModal } from "./PropertiesManagerModal";
 
 interface Props {
   userId: string;
+  /** When the server fetched the initial* rows (ms), for cache seeding. */
+  serverTime: number;
   initialPages: PageWithProjects[];
   initialFolders: FolderRow[];
   initialFolderProjects: FolderProjectLink[];
@@ -42,6 +45,7 @@ interface Props {
  */
 export function PagesListClient({
   userId,
+  serverTime,
   initialPages,
   initialFolders,
   initialFolderProjects,
@@ -63,40 +67,50 @@ export function PagesListClient({
   const pagesKey = tableKey("pages", userId);
   const foldersKey = tableKey("page_folders", userId);
   const fieldDefsKey = ["page-field-definitions", userId] as const;
+  const folderProjectsKey = tableKey("folder_projects", userId);
+  const dailyPagesKey = ["daily-pages", userId] as const;
 
   // Realtime-driven wiki-home reads. The useTableSubscription channels above
-  // (pages / page_folders / folder_projects) — plus the app-shell SearchProvider
-  // and PageDetailClient channels — invalidate these keys on every INSERT/UPDATE/
+  // (pages / page_folders / folder_projects), plus the app-shell SearchProvider
+  // and PageDetailClient channels, invalidate these keys on every INSERT/UPDATE/
   // DELETE, and the page-view save() mirrors that invalidation locally. While
   // /wiki is mounted, an invalidation refetches the active observer live (the
   // concurrent-tab / rename-in-place case).
   //
-  // These use refetchOnMount:"always", not `true`. `true` only refetches when
-  // the query is stale or was invalidated, and the global QueryClient runs
-  // staleTime 30s, so a navigate-back within that window is a no-op: the wiki
-  // home renders whatever the cache holds. Worse, browser Back restores the RSC
-  // payload from the client Router Cache, so `initialData` is a snapshot of
-  // whenever the route was last rendered rather than of now. Both paths show
-  // stale contents, and they compound. "always" refetches on every mount of
-  // /wiki, which is one query per navigation onto a surface whose entire job is
-  // listing rows that other surfaces mutate.
+  // The server just fetched every one of these, so they are seeded rather than
+  // refetched: useSeedQueryData writes the SSR rows into the cache when they are
+  // newer than what it holds, and initialDataUpdatedAt stamps them with the
+  // render time. These used to run refetchOnMount:"always", which re-ran all
+  // four queries (every page's full content included) as server actions on
+  // every visit. Server actions run one at a time, so that was four serialized
+  // round trips stacked on top of the render that had already produced the
+  // same rows. A payload restored from the Router Cache keeps its old
+  // serverTime, so it cannot clobber newer cache rows, and the default
+  // stale-based refetchOnMount still refreshes it once it is past staleTime.
+  useSeedQueryData(pagesKey, initialPages, serverTime);
+  useSeedQueryData(foldersKey, initialFolders, serverTime);
+  useSeedQueryData(folderProjectsKey, initialFolderProjects, serverTime);
+  useSeedQueryData(dailyPagesKey, initialDailyPages, serverTime);
   const { data: allPages = [] } = useQuery({
     queryKey: pagesKey,
     queryFn: () => getPagesForCurrentUser(),
     initialData: initialPages,
-    refetchOnMount: "always",
+    initialDataUpdatedAt: serverTime,
+    refetchOnMount: true,
   });
   const { data: folders = [] } = useQuery({
     queryKey: foldersKey,
     queryFn: () => getFoldersForCurrentUser(),
     initialData: initialFolders,
-    refetchOnMount: "always",
+    initialDataUpdatedAt: serverTime,
+    refetchOnMount: true,
   });
   const { data: folderProjects = [] } = useQuery({
-    queryKey: tableKey("folder_projects", userId),
+    queryKey: folderProjectsKey,
     queryFn: () => getFolderProjectsForCurrentUser(),
     initialData: initialFolderProjects,
-    refetchOnMount: "always",
+    initialDataUpdatedAt: serverTime,
+    refetchOnMount: true,
   });
   // See wave-1 for why projects / fieldDefinitions aren't seeded with []:
   // the global QueryClient runs refetchOnMount:false, so a seed sticks.
@@ -109,10 +123,11 @@ export function PagesListClient({
     queryFn: () => getFieldDefinitionsForCurrentUser(),
   });
   const { data: dailyPages = [], isSuccess: dailyFetched } = useQuery<DailyPageRef[]>({
-    queryKey: ["daily-pages", userId],
+    queryKey: dailyPagesKey,
     queryFn: () => getDailyPagesForCurrentUser(),
     initialData: initialDailyPages,
-    refetchOnMount: "always",
+    initialDataUpdatedAt: serverTime,
+    refetchOnMount: true,
   });
 
   // Wave-3: ensure today's Daily Page exists without navigating. Coordinates
