@@ -31,6 +31,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { WikiEditorSkeleton } from "@/components/wiki/WikiSkeletons";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import type { PersonWithStats } from "@/lib/db/queries/people";
 import { DAILY_PAGE_PROCESS_PROMPT } from "@/lib/jarvis/daily-page-process";
@@ -83,8 +84,13 @@ import { PageProperties } from "./PageProperties";
 import { PageSearchBar } from "./PageSearchBar";
 import { ProjectLinker } from "./ProjectLinker";
 
-// BlockNote needs the browser DOM — load client-only.
-const PageBlockEditor = dynamic(() => import("./PageBlockEditor"), { ssr: false });
+// BlockNote needs the browser DOM, so it loads client-only. The wiki home warms
+// this chunk ahead of time (see preloadPageBlockEditor); until it lands, the
+// body shows placeholder lines instead of an empty 400px gap.
+const PageBlockEditor = dynamic(() => import("./PageBlockEditor"), {
+  ssr: false,
+  loading: () => <WikiEditorSkeleton />,
+});
 
 interface ActiveProject {
   id: string;
