@@ -10,7 +10,7 @@ import {
 import { getLatestProcessingRun, recordProcessingRun } from "@/app/actions/page-processing";
 import {
   deletePage,
-  getPagesForCurrentUser,
+  getPageForCurrentUser,
   setPageNoExport,
   updatePage,
 } from "@/app/actions/pages";
@@ -31,6 +31,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { WikiEditorSkeleton } from "@/components/wiki/WikiSkeletons";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import type { PersonWithStats } from "@/lib/db/queries/people";
 import { DAILY_PAGE_PROCESS_PROMPT } from "@/lib/jarvis/daily-page-process";
@@ -48,6 +49,7 @@ import {
 import { downloadTextFile, pageToMarkdown, safeFileName } from "@/lib/pages/markdown-export";
 import { useInPageSearch } from "@/lib/pages/useInPageSearch";
 import { extractPersonIdsFromBlockNote } from "@/lib/people/extract-mentions";
+import { useSeedQueryData } from "@/lib/query/useSeedQueryData";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -82,8 +84,13 @@ import { PageProperties } from "./PageProperties";
 import { PageSearchBar } from "./PageSearchBar";
 import { ProjectLinker } from "./ProjectLinker";
 
-// BlockNote needs the browser DOM — load client-only.
-const PageBlockEditor = dynamic(() => import("./PageBlockEditor"), { ssr: false });
+// BlockNote needs the browser DOM, so it loads client-only. The wiki home warms
+// this chunk ahead of time (see preloadPageBlockEditor); until it lands, the
+// body shows placeholder lines instead of an empty 400px gap.
+const PageBlockEditor = dynamic(() => import("./PageBlockEditor"), {
+  ssr: false,
+  loading: () => <WikiEditorSkeleton />,
+});
 
 interface ActiveProject {
   id: string;
@@ -98,6 +105,8 @@ interface ActiveProject {
 interface Props {
   userId: string;
   page: PageWithProjects;
+  /** When the server fetched `page` (ms), for cache seeding. */
+  serverTime: number;
   initialActiveProjects: ActiveProject[];
 }
 
@@ -110,7 +119,12 @@ const UNTITLED_PAGE_TITLE = "Untitled";
  * /wiki/[pageId] client island. Notion-style BlockNote editor with 1.5s
  * autosave, emoji picker, project link management, and delete.
  */
-export function PageDetailClient({ userId, page: initialPage, initialActiveProjects }: Props) {
+export function PageDetailClient({
+  userId,
+  page: initialPage,
+  serverTime,
+  initialActiveProjects,
+}: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { resolvedTheme } = useTheme();
@@ -124,10 +138,19 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   });
   useTableSubscription("folder_projects", userId);
 
-  const { data: allPages = [] } = useQuery({
-    queryKey: tableKey("pages", userId),
-    queryFn: () => getPagesForCurrentUser(),
-    initialData: [initialPage],
+  // This page's own row, under a key nested beneath the wiki-wide pages key so
+  // every existing `tableKey("pages", userId)` invalidation (realtime echoes,
+  // field edits, saves) still reaches it by prefix. It used to observe the
+  // whole list instead, which meant each autosave's realtime echo refetched
+  // every page's full content, and seeding that list with `[initialPage]`
+  // left a one-page "wiki" in the cache for the next surface to render.
+  const pageKey = [...tableKey("pages", userId), "one", initialPage.id] as const;
+  useSeedQueryData(pageKey, initialPage, serverTime);
+  const { data: livePage } = useQuery({
+    queryKey: pageKey,
+    queryFn: () => getPageForCurrentUser(initialPage.id),
+    initialData: initialPage,
+    initialDataUpdatedAt: serverTime,
   });
 
   // Custom fields (issue #165): definitions are managed wiki-wide / per-folder,
@@ -177,7 +200,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     queryClient.invalidateQueries({ queryKey: tableKey("people", userId) });
   }, [queryClient, userId]);
 
-  const serverPage = allPages.find((p) => p.id === initialPage.id) ?? initialPage;
+  const serverPage = livePage ?? initialPage;
 
   // Local edit state. `content` is the markdown mirror; `contentJson` is the
   // BlockNote document (source of truth). Both move together on every edit.
@@ -1074,7 +1097,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
               >
                 <Lock size={10} strokeWidth={1.5} />
                 {projectNameById.get(link.projectId) ?? "Project"}
- <span className="text-micro">from {link.sourceFolderName}</span>
+                <span className="text-micro">from {link.sourceFolderName}</span>
               </span>
             ))}
             <ProjectLinker

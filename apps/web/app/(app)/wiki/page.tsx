@@ -25,6 +25,7 @@ export default async function PagesPage() {
   return (
     <PagesListClient
       userId={user.id}
+      serverTime={Date.now()}
       initialPages={initialPages}
       initialFolders={initialFolders}
       initialFolderProjects={initialFolderProjects}
