@@ -33,7 +33,12 @@ export type JarvisToolName =
   | "list_lights"
   | "control_lights"
   // Computer Use fallback — catch-all agentic desktop loop
-  | "computer_use";
+  | "computer_use"
+  // Study review — topic-level spaced repetition for classes (issue #400)
+  | "create_study_topics"
+  | "find_study_topics"
+  | "log_study_review"
+  | "plan_study_day";
 
 export interface ParsedDate {
   /** Original phrase, e.g. "tomorrow 3am". */
@@ -350,6 +355,45 @@ export interface ReadImessageAction {
  *  then drives the multi-step loop against /api/jarvis/computer-use/step. */
 export interface ComputerUseAction {
   task: string;
+}
+
+/** Study review actions (issue #400). All fully server-side: they write to
+ *  Postgres and return a receipt for the model to narrate. No DesktopAction. */
+export interface CreateStudyTopicsAction {
+  project_id: string;
+  topics: Array<{
+    title: string;
+    weight?: "skim" | "familiar" | "working" | "fluent" | "core";
+    parent_index?: number;
+  }>;
+}
+
+export interface FindStudyTopicsAction {
+  query?: string;
+  project_id?: string;
+  due_only?: boolean;
+}
+
+export interface LogStudyReviewAction {
+  topic_id: string;
+  mode:
+    | "blank_recall"
+    | "derivation"
+    | "problem_set"
+    | "past_paper"
+    | "teach_back"
+    | "skim";
+  grade: "blanked" | "shaky" | "solid" | "fluent";
+  duration_min?: number;
+  reached_criterion?: boolean;
+  gaps?: string;
+}
+
+export interface PlanStudyDayAction {
+  topic_ids: string[];
+  /** Local calendar day, YYYY-MM-DD. Deliberately no time component. */
+  plan_date: string;
+  assessment_id?: string;
 }
 
 /** Structured desktop action returned by the executor for computer-control

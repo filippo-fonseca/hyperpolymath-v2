@@ -10,7 +10,15 @@
  * read `xp_rules` and pass it down.
  */
 
-export type XpCategory = 'tasks' | 'habits' | 'notes' | 'planning' | 'calendar' | 'jarvis' | 'health';
+export type XpCategory =
+  | 'tasks'
+  | 'habits'
+  | 'notes'
+  | 'planning'
+  | 'calendar'
+  | 'jarvis'
+  | 'health'
+  | 'study';
 
 export const XP_KINDS = [
   'task.completed',
@@ -28,6 +36,7 @@ export const XP_KINDS = [
   'nutrition.logged',
   'daily.review',
   'streak.day',
+  'study.review',
 ] as const;
 
 export type XpKind = (typeof XP_KINDS)[number];
@@ -133,6 +142,12 @@ export const XP_KIND_META: Record<XpKind, XpKindMeta> = {
     icon: 'CalendarCheck',
     hint: 'Awarded once on the first thing you do each day.',
   },
+  'study.review': {
+    category: 'study',
+    label: 'Reviewed a topic',
+    icon: 'BrainCircuit',
+    hint: 'Retrieval beats rereading: a past paper pays most, a skim least, and reaching the recall criterion adds a bonus.',
+  },
 };
 
 export const XP_CATEGORY_META: Record<XpCategory, { label: string; hue: number; color: string }> = {
@@ -143,6 +158,7 @@ export const XP_CATEGORY_META: Record<XpCategory, { label: string; hue: number; 
   calendar: { label: 'Calendar', hue: 330, color: '#f472b6' },
   jarvis: { label: 'Jarvis', hue: 250, color: '#818cf8' },
   health: { label: 'Health', hue: 95, color: '#a3e635' },
+  study: { label: 'Study', hue: 45, color: '#fbbf24' },
 };
 
 export const XP_CATEGORIES = Object.keys(XP_CATEGORY_META) as XpCategory[];

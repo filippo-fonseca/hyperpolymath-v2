@@ -13,6 +13,7 @@ import { useOptimistic, useState } from "react";
 import { ProjectCapturesSection } from "./ProjectCapturesSection";
 import { ProjectHeader } from "./ProjectHeader";
 import { ProjectPagesSection } from "./ProjectPagesSection";
+import { ProjectStudySection } from "@/components/review/ProjectStudySection";
 import { ProjectTasksSection } from "./ProjectTasksSection";
 
 type ProjectRow = Awaited<ReturnType<typeof getProjectsForCurrentUser>>[number];
@@ -178,6 +179,17 @@ export function ProjectDetailClient({
         <PageScaffold.Section>
           <ProjectPagesSection userId={userId} projectId={projectId} initialPages={initialPages} />
         </PageScaffold.Section>
+
+        {/* Issue #400 — classes get a study section: the curation surface for
+            topics and assessments, as distinct from /review which is where you
+            act on them. Non-class projects never see it. */}
+        {liveProject.isClass && (
+          <ProjectStudySection
+            userId={userId}
+            projectId={projectId}
+            projectName={liveProject.name}
+          />
+        )}
       </ProjectHeader>
     </div>
   );

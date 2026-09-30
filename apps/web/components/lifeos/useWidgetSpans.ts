@@ -23,7 +23,13 @@ import { useSyncExternalStore } from "react";
  * clamps instead of overflowing.
  */
 
-export type WidgetId = "tasks" | "habits" | "training" | "captures" | "insights";
+export type WidgetId =
+  | "tasks"
+  | "review"
+  | "habits"
+  | "training"
+  | "captures"
+  | "insights";
 
 export interface Span {
   w: 1 | 2;
@@ -40,6 +46,7 @@ export const GRID_MAX_ROWS = 2;
 /** Packing order — matches the visual reading order of the deck. */
 export const WIDGET_ORDER: readonly WidgetId[] = [
   "tasks",
+  "review",
   "habits",
   "training",
   "captures",
@@ -47,12 +54,22 @@ export const WIDGET_ORDER: readonly WidgetId[] = [
 ];
 
 /**
- * Default footprint: Tasks is the action-dense hero (2×2, left column), the
- * other four are compact 1×1 cells. Fills the 4×2 grid exactly (8/8), so the
- * default deck has no holes.
+ * Default footprint. Fills the 4×2 grid exactly (8/8), so the default deck has
+ * no holes.
+ *
+ * Issue #400 rebalanced this. Five widgets fitted as one 2×2 hero plus four 1×1
+ * cells; a sixth cannot, because 4 + 5 = 9 exceeds the eight cells the
+ * one-viewport law allows. The only hole-free six-widget arrangement is two 2×1
+ * tiles plus four 1×1 cells, so Tasks keeps its width but gives up its height
+ * and Review takes the other wide slot — it wants width to say "topic · what
+ * it is for" on one line, and height buys it nothing.
+ *
+ * Anyone who preferred the tall Tasks tile can drag it back; the resize clamp
+ * will shrink whatever it has to in order to keep the deck sealed.
  */
 export const DEFAULT_SPANS: SpanMap = {
-  tasks: { w: 2, h: 2 },
+  tasks: { w: 2, h: 1 },
+  review: { w: 2, h: 1 },
   habits: { w: 1, h: 1 },
   training: { w: 1, h: 1 },
   captures: { w: 1, h: 1 },
@@ -62,6 +79,7 @@ export const DEFAULT_SPANS: SpanMap = {
 function cloneDefaults(): SpanMap {
   return {
     tasks: { ...DEFAULT_SPANS.tasks },
+    review: { ...DEFAULT_SPANS.review },
     habits: { ...DEFAULT_SPANS.habits },
     training: { ...DEFAULT_SPANS.training },
     captures: { ...DEFAULT_SPANS.captures },

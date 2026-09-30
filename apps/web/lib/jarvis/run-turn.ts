@@ -94,6 +94,10 @@ import {
   ControlLightsInputSchema,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseInputSchema,
+  CreateStudyTopicsInputSchema,
+  FindStudyTopicsInputSchema,
+  LogStudyReviewInputSchema,
+  PlanStudyDayInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
 
 export interface RunTurnUsage {
@@ -248,6 +252,11 @@ function buildToolValidators(voiceActive: boolean) {
     control_lights: ControlLightsInputSchema,
     // Computer Use fallback — catch-all agentic desktop loop
     computer_use: ComputerUseInputSchema,
+    // Study review — topic-level spaced repetition for classes (issue #400)
+    create_study_topics: CreateStudyTopicsInputSchema,
+    find_study_topics: FindStudyTopicsInputSchema,
+    log_study_review: LogStudyReviewInputSchema,
+    plan_study_day: PlanStudyDayInputSchema,
   } as const;
 }
 
@@ -1017,6 +1026,26 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "computer_use") {
               result = await executor.computerUse(
                 parsed.data as Parameters<typeof executor.computerUse>[0],
+                ctx
+              );
+            } else if (toolName === "create_study_topics") {
+              result = await executor.createStudyTopics(
+                parsed.data as Parameters<typeof executor.createStudyTopics>[0],
+                ctx
+              );
+            } else if (toolName === "find_study_topics") {
+              result = await executor.findStudyTopics(
+                parsed.data as Parameters<typeof executor.findStudyTopics>[0],
+                ctx
+              );
+            } else if (toolName === "log_study_review") {
+              result = await executor.logStudyReview(
+                parsed.data as Parameters<typeof executor.logStudyReview>[0],
+                ctx
+              );
+            } else if (toolName === "plan_study_day") {
+              result = await executor.planStudyDay(
+                parsed.data as Parameters<typeof executor.planStudyDay>[0],
                 ctx
               );
             } else {

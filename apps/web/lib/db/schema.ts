@@ -10,6 +10,7 @@ import {
   time,
   bigint,
   numeric,
+  real,
   primaryKey,
   check,
   index,
@@ -27,6 +28,12 @@ import {
   semesterTermEnum,
   pageFieldTypeEnum,
   pageFieldScopeEnum,
+  studyWeightEnum,
+  studyGradeEnum,
+  studyModeEnum,
+  studyTopicStatusEnum,
+  studyAssessmentKindEnum,
+  studyPlanStatusEnum,
 } from "./enums";
 // DevRunItem is single-sourced in the query helper; imported type-only here so
 // the kiwi_dev_runs items jsonb column is typed without duplicating the shape.
@@ -2019,3 +2026,211 @@ export const userXp = pgTable("user_xp", {
     .defaultNow()
     .notNull(),
 });
+
+// ─── STUDY REVIEW ──────────────────────────────────────────────────────────
+// Issue #400. Migration 0045.
+//
+// Topic-level active recall + spaced repetition for classes. Deliberately NOT
+// flashcards: the atom is a TOPIC and the unit of work is a SESSION (blank-page
+// recall, deriving a result cold, redoing a problem set, a timed past paper).
+// That is the granularity engineering revision actually happens at, and it is
+// what successive relearning (Rawson & Dunlosky) shows moves exam grades.
+//
+// Each topic carries DSR memory state (difficulty / stability / retrievability),
+// the same model FSRS uses, applied per topic instead of per card. The scheduler
+// is pure TypeScript in lib/study/scheduler.ts — NOT a Postgres trigger, unlike
+// XP. The math is non-trivial and worth unit-testing, and reviews arrive through
+// exactly one server action, so a trigger would buy nothing and cost legibility.
+//
+// The scheduler is exam-anchored, which is the one thing off-the-shelf SRS does
+// not do: Anki holds you at a steady retention forever, whereas revision needs
+// every topic to PEAK on one date. Intervals are therefore clamped by
+// days-to-assessment and target retention ramps over the final fortnight.
+
+// One reviewable topic, scoped to a class project. Topics nest one or more
+// levels via parentId so a syllabus can land as units → topics.
+export const studyTopics = pgTable(
+  "study_topics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // Must be a project with is_class = true. Not expressible as a cheap CHECK
+    // (it would need a subquery), so app/actions/study.ts enforces it.
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    // Self-reference for units/subtopics. NULL = top level.
+    parentId: uuid("parent_id").references((): AnyPgColumn => studyTopics.id, {
+      onDelete: "cascade",
+    }),
+    title: text("title").notNull(),
+    notes: text("notes"),
+    orderIndex: integer("order_index").notNull().default(0),
+
+    // How well this needs to be known. Drives target retention.
+    weight: studyWeightEnum("weight").notNull().default("working"),
+
+    // ── DSR memory state, owned by lib/study/scheduler.ts ──
+    // Difficulty, 1–10. Seeded from weight, nudged by each grade.
+    difficulty: real("difficulty").notNull().default(5),
+    // Stability in days: how long until retrievability decays to ~90%.
+    // NULL until the first review — an unreviewed topic has no memory trace.
+    stability: real("stability"),
+    lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
+    // When the topic next falls below its target retention, already clamped to
+    // the nearest assessment date. NULL = never reviewed, so it is due now.
+    nextDueAt: timestamp("next_due_at", { withTimezone: true }),
+    reps: integer("reps").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+
+    status: studyTopicStatusEnum("status").notNull().default("not_started"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Drives the "Fading now" queue: due topics for a user, soonest first.
+    index("study_topics_user_due_idx")
+      .on(t.userId, t.nextDueAt)
+      .where(sql`archived_at IS NULL`),
+    index("study_topics_project_idx")
+      .on(t.projectId, t.orderIndex)
+      .where(sql`archived_at IS NULL`),
+    index("study_topics_parent_idx").on(t.parentId),
+  ],
+);
+
+// What you are revising for. The date is what anchors the whole scheduler.
+export const studyAssessments = pgTable(
+  "study_assessments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    kind: studyAssessmentKindEnum("kind").notNull().default("exam"),
+    // Date only, no time: the scheduler works in whole days and the exact hour
+    // never changes which day a topic should peak on.
+    dueDate: date("due_date").notNull(),
+    // Share of the final grade, if known. Display only.
+    weightPct: integer("weight_pct"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("study_assessments_user_due_idx")
+      .on(t.userId, t.dueDate)
+      .where(sql`completed_at IS NULL`),
+    index("study_assessments_project_idx").on(t.projectId, t.dueDate),
+  ],
+);
+
+// Coverage matrix: which topics a given assessment examines. A topic can be
+// examined by several (midterm then cumulative final), which is exactly why
+// the scheduler anchors on the NEAREST upcoming one.
+export const studyAssessmentTopics = pgTable(
+  "study_assessment_topics",
+  {
+    assessmentId: uuid("assessment_id")
+      .notNull()
+      .references(() => studyAssessments.id, { onDelete: "cascade" }),
+    topicId: uuid("topic_id")
+      .notNull()
+      .references(() => studyTopics.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.assessmentId, t.topicId] }),
+    index("study_assessment_topics_topic_idx").on(t.topicId),
+    index("study_assessment_topics_user_idx").on(t.userId),
+  ],
+);
+
+// The immutable log. One row per retrieval session against one topic.
+// Inserting here is what advances the topic's DSR state.
+export const studyReviews = pgTable(
+  "study_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    topicId: uuid("topic_id")
+      .notNull()
+      .references(() => studyTopics.id, { onDelete: "cascade" }),
+    // Denormalized so per-class rollups need no join through study_topics.
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    // What this session was in service of, when it was planned against one.
+    assessmentId: uuid("assessment_id").references(() => studyAssessments.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).defaultNow().notNull(),
+    mode: studyModeEnum("mode").notNull(),
+    grade: studyGradeEnum("grade").notNull(),
+    durationMin: integer("duration_min"),
+    // Successive relearning's criterion: did you get to at least one clean
+    // retrieval this session? The single strongest predictor in the literature,
+    // and worth recording separately from the subjective grade.
+    reachedCriterion: boolean("reached_criterion").notNull().default(false),
+    // What you blanked on. Accumulates into the most useful thing you own the
+    // night before an exam.
+    gaps: text("gaps"),
+    // manual | planned | kiwi — where the log came from.
+    source: text("source").notNull().default("manual"),
+    planItemId: uuid("plan_item_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("study_reviews_topic_idx").on(t.topicId, sql`reviewed_at DESC`),
+    index("study_reviews_user_reviewed_idx").on(t.userId, sql`reviewed_at DESC`),
+    index("study_reviews_project_idx").on(t.projectId, sql`reviewed_at DESC`),
+  ],
+);
+
+// The drag-and-drop plan: one topic, on one day, for one assessment.
+//
+// There is deliberately NO time-of-day column. The user assigns topics to DAYS
+// and fits them into the real schedule themselves — which is also why this
+// feature has no Google Calendar coupling at all.
+export const studyPlanItems = pgTable(
+  "study_plan_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    planDate: date("plan_date").notNull(),
+    topicId: uuid("topic_id")
+      .notNull()
+      .references(() => studyTopics.id, { onDelete: "cascade" }),
+    assessmentId: uuid("assessment_id").references(() => studyAssessments.id, {
+      onDelete: "set null",
+    }),
+    orderIndex: integer("order_index").notNull().default(0),
+    status: studyPlanStatusEnum("status").notNull().default("planned"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    // The review that closed this item out, once logged.
+    reviewId: uuid("review_id").references(() => studyReviews.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // A topic lands on a given day once. Re-dropping it is a move, not a dupe.
+    unique("study_plan_items_user_date_topic_uniq").on(t.userId, t.planDate, t.topicId),
+    index("study_plan_items_user_date_idx").on(t.userId, t.planDate, t.orderIndex),
+    index("study_plan_items_topic_idx").on(t.topicId),
+  ],
+);

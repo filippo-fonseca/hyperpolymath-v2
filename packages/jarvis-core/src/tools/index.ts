@@ -92,6 +92,11 @@ import { readWhatsappTool } from "./read-whatsapp";
 import { readImessageTool } from "./read-imessage";
 import { listLightsTool } from "./list-lights";
 import { controlLightsTool } from "./control-lights";
+// Issue #400 — study review tools.
+import { createStudyTopicsTool } from "./create-study-topics";
+import { findStudyTopicsTool } from "./find-study-topics";
+import { logStudyReviewTool } from "./log-study-review";
+import { planStudyDayTool } from "./plan-study-day";
 import { computerUseTool } from "./computer-use";
 
 export { zCreateTask } from "./create-task";
@@ -138,7 +143,15 @@ export interface JarvisToolDefinition {
     | "read_imessage"
     | "list_lights"
     | "control_lights"
-    | "computer_use";
+    | "computer_use"
+    // Study review — topic-level spaced repetition for classes (issue #400).
+    // NOTE: this union duplicates `JarvisToolName` in ../types.ts and the two
+    // must be extended together; adding a tool to one alone is a compile error
+    // here rather than a silent gap, which is the only reason it is tolerable.
+    | "create_study_topics"
+    | "find_study_topics"
+    | "log_study_review"
+    | "plan_study_day";
   description: string;
   input_schema: Record<string, unknown>;
   /** Per-tool strict mode (replaces deprecated beta header).
@@ -270,6 +283,14 @@ export function buildToolDefinitions(
     // NON-strict (grammar budget): server-side Zod validation covers these.
     { ...listLightsTool, strict: false as const },
     { ...controlLightsTool, strict: false as const },
+    // Issue #400 — study review. Topic-level spaced repetition for classes.
+    // NON-strict (grammar budget): server-side Zod validation covers these.
+    // create_study_topics is the high-leverage one (a pasted syllabus becomes
+    // a topic tree in a single call); the rest resolve, log and plan.
+    { ...createStudyTopicsTool, strict: false as const },
+    { ...findStudyTopicsTool, strict: false as const },
+    { ...logStudyReviewTool, strict: false as const },
+    { ...planStudyDayTool, strict: false as const },
     {
       // Computer Use fallback — the catch-all when no named tool fits.
       // NON-strict (grammar budget): server-side Zod validation covers this.
@@ -335,6 +356,11 @@ export {
 } from "./control-lights";
 // Computer Use fallback: re-export input schema for run-turn.ts validation.
 export { ComputerUseInputSchema } from "./computer-use";
+// Study review: re-export input schemas for run-turn.ts validation.
+export { CreateStudyTopicsInputSchema } from "./create-study-topics";
+export { FindStudyTopicsInputSchema } from "./find-study-topics";
+export { LogStudyReviewInputSchema } from "./log-study-review";
+export { PlanStudyDayInputSchema } from "./plan-study-day";
 
 // Sanity touch: ensure the default `z*` exports remain wired through.
 void zCreateTask;

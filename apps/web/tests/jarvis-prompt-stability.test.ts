@@ -105,23 +105,64 @@ describe("TEL-03 — buildToolDefinitions byte-identity (structural-identity / p
     expect(JSON.stringify(call1), AUDIT_HINT).toBe(JSON.stringify(call2));
   });
 
-  it("returns tools in stable order (cache_control breakpoint with 1h TTL on the LAST tool — ask_clarification per Phase 11)", () => {
+  it("returns tools in stable order (cache_control breakpoint with 1h TTL on the LAST tool)", () => {
     const tools = buildToolDefinitions({ voiceActive: false });
     const names = tools.map((t) => t.name);
-    // Snapshot the canonical order. If this ever changes, the prompt
-    // cache invalidates — make sure it's intentional.
+    // Snapshot the canonical order. If this ever changes, the prompt cache
+    // invalidates — make sure it's intentional.
+    //
+    // This snapshot had been pinned at the original five tools since Phase 11
+    // and was therefore failing continuously, which meant the guard was doing
+    // nothing: a permanently red test cannot tell you that an order change was
+    // unintentional. Refreshed to the real list when the study-review tools
+    // landed (issue #400). Append new tools BEFORE computer_use, which is the
+    // catch-all and must stay last so it keeps the cache breakpoint.
     expect(names).toEqual([
       "create_task",
       "create_capture",
       "create_event",
       "remember_fact",
       "ask_clarification",
+      "update_task",
+      "update_capture",
+      "update_event",
+      "delete_task",
+      "delete_capture",
+      "delete_event",
+      "find_tasks",
+      "find_captures",
+      "find_events",
+      "create_person",
+      "find_people",
+      "link_people",
+      "open_url",
+      "open_app",
+      "open_workspace",
+      "web_search",
+      "send_message",
+      "system_control",
+      "type_text",
+      "press_key",
+      "take_screenshot",
+      "run_applescript",
+      "run_shortcut",
+      "play_music",
+      "get_weather",
+      "read_gmail",
+      "get_news",
+      "read_whatsapp",
+      "read_imessage",
+      "list_lights",
+      "control_lights",
+      "create_study_topics",
+      "find_study_topics",
+      "log_study_review",
+      "plan_study_day",
+      "computer_use",
     ]);
-    // The cache_control breakpoint MUST live on the LAST tool (Phase 5.1
-    // D-A1 — ask_clarification). If a future plan adds a 6th tool, the
-    // breakpoint must move with it (D-M5 / D-A1 in 05.1-CONTEXT.md).
-    // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): TTL upgraded to "1h" so tier-1
-    // (tools) amortizes the 2× write cost over a full hour of turns.
+    // The cache_control breakpoint MUST live on the LAST tool. Phase 11 /
+    // CACHE-01 (D-06 BREAKPOINT 1): TTL is "1h" so the tools tier amortizes
+    // the 2× write cost over a full hour of turns.
     expect(tools[tools.length - 1].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 });

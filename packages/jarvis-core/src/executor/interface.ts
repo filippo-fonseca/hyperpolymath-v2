@@ -7,6 +7,10 @@
 
 import type {
   ComputerUseAction,
+  CreateStudyTopicsAction,
+  FindStudyTopicsAction,
+  LogStudyReviewAction,
+  PlanStudyDayAction,
   CreateCaptureAction,
   CreateEventAction,
   CreatePersonAction,
@@ -183,4 +187,25 @@ export interface ActionExecutor {
   // DesktopAction; the desktop drives the step loop against
   // /api/jarvis/computer-use/step. No side effects server-side at dispatch.
   computerUse(input: ComputerUseAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+
+  // Study review (issue #400) — fully server-side Postgres writes and reads;
+  // the receipt carries what the model needs to narrate. No DesktopAction.
+  // logStudyReview is the only one that advances a topic's memory state, and
+  // it delegates the scheduling maths to lib/study/scheduler.ts.
+  createStudyTopics(
+    input: CreateStudyTopicsAction,
+    ctx: ExecutionContext,
+  ): Promise<ExecutorResult>;
+  findStudyTopics(
+    input: FindStudyTopicsAction,
+    ctx: ExecutionContext,
+  ): Promise<ExecutorResult>;
+  logStudyReview(
+    input: LogStudyReviewAction,
+    ctx: ExecutionContext,
+  ): Promise<ExecutorResult>;
+  planStudyDay(
+    input: PlanStudyDayAction,
+    ctx: ExecutionContext,
+  ): Promise<ExecutorResult>;
 }

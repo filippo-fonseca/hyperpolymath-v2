@@ -31,6 +31,7 @@ import {
   WidgetIcon,
 } from "@/components/ui/icons";
 import {
+  BrainCircuit,
   Calendar,
   type LucideIcon,
   Newspaper,
@@ -97,6 +98,11 @@ const MAIN_ITEMS: readonly NavItem[] = [
   // a pinned rail.
   { href: "/areas", label: "Areas", dimensional: AreaIcon },
   { href: "/tasks", label: "Tasks", dimensional: TaskIcon },
+  // Study review sits with the doing-nouns rather than under Insights: it is a
+  // place you go to work, not a place you go to read about your work. No
+  // dimensional icon exists for it yet, so it stays a lucide glyph (same rule
+  // as /briefing and /nutrition above).
+  { href: "/review", label: "Review", icon: BrainCircuit },
   { href: "/habits", label: "Habits", dimensional: HabitIcon },
   { href: "/training", label: "Training", dimensional: TrainingIcon },
   {

@@ -25,6 +25,7 @@ const TODAY_ROUTE_KEY = "top-tab-today-route";
 const ROUTE_META: Record<string, { label: string }> = {
   "/lifeos": { label: "LifeOS" },
   "/tasks": { label: "Tasks" },
+  "/review": { label: "Review" },
   "/habits": { label: "Habits" },
   "/training": { label: "Training" },
   "/nutrition": { label: "Nutrition" },

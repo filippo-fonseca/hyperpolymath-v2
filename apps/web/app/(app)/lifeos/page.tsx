@@ -8,6 +8,7 @@ import { LifeOsNodeField } from "@/components/lifeos/LifeOsNodeField";
 import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
 import { RecentCapturesWidget } from "@/components/lifeos/RecentCapturesWidget";
 import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
+import { TodayReviewWidget } from "@/components/lifeos/TodayReviewWidget";
 import { TodayTrainingWidget } from "@/components/lifeos/TodayTrainingWidget";
 import { UpcomingTasksWidget } from "@/components/lifeos/UpcomingTasksWidget";
 import { WidgetCard } from "@/components/lifeos/WidgetCard";
@@ -140,6 +141,11 @@ export default async function LifeOsPage() {
             hero={
               <WidgetCard href="/tasks" ariaLabel="Open Tasks">
                 <UpcomingTasksWidget userId={user.id} initialTasks={initialTasks} limit={7} />
+              </WidgetCard>
+            }
+            review={
+              <WidgetCard href="/review" ariaLabel="Open Review">
+                <TodayReviewWidget userId={user.id} todayISO={todayISO} />
               </WidgetCard>
             }
             habits={

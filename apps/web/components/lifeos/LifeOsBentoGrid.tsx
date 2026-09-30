@@ -20,8 +20,10 @@ import {
 } from "./useWidgetSpans";
 
 interface Props {
-  /** Tasks — the action-dense hero tile (default 2×2, left column). */
+  /** Tasks — the action-dense hero tile (default 2×1, left column). */
   hero: ReactNode;
+  /** Study review — today's topics, grouped by what they are for (default 2×1). */
+  review: ReactNode;
   habits: ReactNode;
   training: ReactNode;
   captures: ReactNode;
@@ -56,6 +58,7 @@ const child = {
 
 const CELLS: { id: WidgetId; label: string; key: keyof Props }[] = [
   { id: "tasks", label: "Tasks", key: "hero" },
+  { id: "review", label: "Review", key: "review" },
   { id: "habits", label: "Habits", key: "habits" },
   { id: "training", label: "Training", key: "training" },
   { id: "captures", label: "Captures", key: "captures" },
@@ -86,7 +89,14 @@ const CELLS: { id: WidgetId; label: string; key: keyof Props }[] = [
  * Below `@3xl/main` the grid relaxes to a single auto-height column and the
  * handles hide (resize is a desktop affordance; the canvas region clips).
  */
-export function LifeOsBentoGrid({ hero, habits, training, captures, insights }: Props) {
+export function LifeOsBentoGrid({
+  hero,
+  review,
+  habits,
+  training,
+  captures,
+  insights,
+}: Props) {
   const reduced = useReducedMotion();
   const spans = useWidgetSpans();
   const gridRef = useRef<HTMLDivElement>(null);
@@ -102,6 +112,7 @@ export function LifeOsBentoGrid({ hero, habits, training, captures, insights }: 
 
   const nodes: Record<keyof Props, ReactNode> = {
     hero,
+    review,
     habits,
     training,
     captures,
